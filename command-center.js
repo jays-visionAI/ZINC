@@ -31,7 +31,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 🔹 Modal Logic
     const openModal = () => {
-        if (!modal) return;
+        console.log("openModal called");
+        if (!modal) {
+            console.error("Modal element not found!");
+            return;
+        }
+        console.log("Adding 'open' class to modal");
         modal.classList.add("open");
         initProjectWizard();
     };
@@ -246,44 +251,56 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 🔹 Initialization Logic
     async function initProjectWizard() {
-        // Reset State
-        currentStep = 1;
-        uploadedFiles = [];
-        renderFileList();
-        form.reset();
+        try {
+            console.log("initProjectWizard called");
 
-        // Check for Draft
-        if (currentUser) {
-            const snapshot = await db.collection("projects")
-                .where("ownerId", "==", currentUser.uid)
-                .where("isDraft", "==", true)
-                .limit(1)
-                .get();
+            // Reset State
+            currentStep = 1;
+            uploadedFiles = [];
+            renderFileList();
+            form.reset();
 
-            if (!snapshot.empty) {
-                const doc = snapshot.docs[0];
-                draftId = doc.id;
-                const data = doc.data();
+            // Check for Draft
+            if (currentUser && db) {
+                console.log("Checking for draft projects...");
+                const snapshot = await db.collection("projects")
+                    .where("ownerId", "==", currentUser.uid)
+                    .where("isDraft", "==", true)
+                    .limit(1)
+                    .get();
 
-                // Populate Form
-                document.getElementById("project-name").value = data.projectName || "";
-                document.getElementById("website-url").value = data.websiteUrl || "";
-                document.getElementById("industry").value = data.industry || "";
-                document.getElementById("target-market").value = data.targetMarket || "";
-                document.getElementById("primary-language").value = data.primaryLanguage || "en";
-                document.getElementById("project-description").value = data.description || "";
+                if (!snapshot.empty) {
+                    const doc = snapshot.docs[0];
+                    draftId = doc.id;
+                    const data = doc.data();
+                    console.log("Found draft:", draftId);
 
-                // Restore Step
-                if (data.draftStep === 2) {
-                    goToStep(2);
+                    // Populate Form
+                    document.getElementById("project-name").value = data.projectName || "";
+                    document.getElementById("website-url").value = data.websiteUrl || "";
+                    document.getElementById("industry").value = data.industry || "";
+                    document.getElementById("target-market").value = data.targetMarket || "";
+                    document.getElementById("primary-language").value = data.primaryLanguage || "en";
+                    document.getElementById("project-description").value = data.description || "";
+
+                    // Restore Step
+                    if (data.draftStep === 2) {
+                        goToStep(2);
+                    } else {
+                        goToStep(1);
+                    }
                 } else {
+                    console.log("No draft found, starting fresh");
+                    draftId = null;
                     goToStep(1);
                 }
             } else {
-                draftId = null;
+                console.log("No user or db, starting at step 1");
                 goToStep(1);
             }
-        } else {
+        } catch (error) {
+            console.error("Error in initProjectWizard:", error);
+            // Even if there's an error, show the modal at step 1
             goToStep(1);
         }
     }
