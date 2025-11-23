@@ -150,28 +150,128 @@
         </svg>
     </button>
 
-    <!-- Create Project Modal -->
+    <!-- Initialize Your Hive Modal (Wizard) -->
     <div id="create-project-modal" class="modal-overlay">
-        <div class="modal-content">
+        <div class="modal-content wizard-modal">
             <div class="modal-header">
-                <h3>Create New Project</h3>
+                <h3>Initialize Your Hive</h3>
                 <button id="close-modal-btn" class="close-btn">&times;</button>
             </div>
+
+            <!-- Wizard Progress -->
+            <div class="wizard-progress">
+                <div class="step-indicator active" data-step="1">
+                    <div class="step-number">1</div>
+                    <span class="step-label">Basic Info</span>
+                </div>
+                <div class="step-line"></div>
+                <div class="step-indicator" data-step="2">
+                    <div class="step-number">2</div>
+                    <span class="step-label">Details</span>
+                </div>
+                <div class="step-line"></div>
+                <div class="step-indicator" data-step="3">
+                    <div class="step-number">3</div>
+                    <span class="step-label">Launch</span>
+                </div>
+            </div>
+
             <form id="create-project-form">
-                <div class="form-group">
-                    <label for="project-name">Project Name</label>
-                    <input type="text" id="project-name" placeholder="e.g. Alpha Protocol" required>
+                <!-- Step 1: Basic Info -->
+                <div class="wizard-step active" id="step-1">
+                    <div class="form-group">
+                        <label for="project-name">Project / Business Name *</label>
+                        <input type="text" id="project-name" placeholder="e.g. Alpha Protocol" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="website-url">Website URL</label>
+                        <input type="url" id="website-url" placeholder="https://example.com">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group half">
+                            <label for="industry">Industry *</label>
+                            <select id="industry" required>
+                                <option value="" disabled selected>Select Industry</option>
+                                <option value="Blockchain">Blockchain / Web3</option>
+                                <option value="DeFi">DeFi</option>
+                                <option value="NFT">NFT / Gaming</option>
+                                <option value="SaaS">SaaS</option>
+                                <option value="E-commerce">E-commerce</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group half">
+                            <label for="primary-language">Primary Language *</label>
+                            <select id="primary-language" required>
+                                <option value="en">English</option>
+                                <option value="ko">Korean</option>
+                                <option value="jp">Japanese</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="target-market">Target Market</label>
+                        <input type="text" id="target-market" placeholder="e.g. Global, North America, Gen Z">
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="project-category">Category</label>
-                    <select id="project-category" required>
-                        <option value="Blockchain">Blockchain</option>
-                        <option value="General">General</option>
-                    </select>
+
+                <!-- Step 2: Details & Assets -->
+                <div class="wizard-step" id="step-2">
+                    <div class="form-group">
+                        <label for="project-description">Project Description</label>
+                        <textarea id="project-description" rows="4"
+                            placeholder="Describe your project, key value propositions, and brand voice..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="asset-files">Brand Assets (Logo, Whitepaper, etc.)</label>
+                        <div class="file-upload-area" id="file-drop-zone">
+                            <input type="file" id="asset-files" multiple style="display: none;">
+                            <div class="upload-icon">
+                                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="17 8 12 3 7 8"></polyline>
+                                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                                </svg>
+                            </div>
+                            <p>Click to upload or drag and drop</p>
+                            <div id="file-list" class="file-list"></div>
+                        </div>
+                    </div>
                 </div>
-                <div class="modal-actions">
-                    <button type="button" id="cancel-create-btn" class="btn-cancel">Cancel</button>
-                    <button type="submit" class="btn-submit">Create Project</button>
+
+                <!-- Step 3: Summary -->
+                <div class="wizard-step" id="step-3">
+                    <div class="summary-card">
+                        <h4>Ready to Initialize Hive</h4>
+                        <div class="summary-item">
+                            <span class="label">Project:</span>
+                            <span class="value" id="summary-name">-</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="label">Industry:</span>
+                            <span class="value" id="summary-industry">-</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="label">Target:</span>
+                            <span class="value" id="summary-target">-</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="label">Assets:</span>
+                            <span class="value" id="summary-assets">0 files</span>
+                        </div>
+                    </div>
+                    <p class="launch-note">
+                        Initializing will deploy your Command Center dashboard and configure your AI agents.
+                    </p>
+                </div>
+
+                <!-- Wizard Actions -->
+                <div class="modal-actions wizard-actions">
+                    <button type="button" id="prev-step-btn" class="btn-cancel" style="display: none;">Back</button>
+                    <button type="button" id="next-step-btn" class="btn-submit">Next</button>
+                    <button type="submit" id="launch-btn" class="btn-submit btn-launch" style="display: none;">Launch
+                        Command Center</button>
                 </div>
             </form>
         </div>
@@ -181,6 +281,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-storage-compat.js"></script>
 
     <!-- Config & Auth -->
     <script src="firebase-config.js"></script>

@@ -20,11 +20,13 @@ const firebaseConfig = {
 let app;
 let auth;
 let db;
+let storage;
 
 try {
     app = firebase.initializeApp(firebaseConfig);
     auth = firebase.auth();
     db = firebase.firestore();
+    storage = firebase.storage();
     console.log("Firebase initialized successfully");
 } catch (error) {
     console.error("Firebase initialization failed:", error);
