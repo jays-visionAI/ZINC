@@ -1069,6 +1069,17 @@ body {
     }
 }
 
+/* Dashboard Variables */
+:root {
+    --color-cyan: #00FFA3;
+    --color-cyan-glow: rgba(0, 255, 163, 0.3);
+    --color-card-bg: #121216;
+    --color-card-border: #2A2A30;
+    --color-text-muted: #6B7280;
+    --color-success: #10B981;
+    --color-warning: #F59E0B;
+}
+
 /* Dashboard Layout */
 .dashboard-body {
     background-color: #050507;
