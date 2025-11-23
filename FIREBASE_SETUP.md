@@ -21,9 +21,28 @@ service cloud.firestore {
       allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
       allow read, update, delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
     }
+    
+    // Industries collection - all authenticated users can read, only admins can write
+    match /industries/{industryId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+    }
+    
+    // Users collection - users can read/write own document, admins can read all
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if request.auth != null && request.auth.uid == uid;
+      // Admins can read all user documents
+      allow read: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+    }
   }
 }
 ```
+
+> [!WARNING]
+> **Admin Access**: To grant admin privileges, manually add `role: "admin"` field to a user document in the Firestore Console. See [ADMIN_SETUP.md](file:///Users/sangjaeseo/Antigravity/ZINC/ADMIN_SETUP.md) for detailed instructions.
 
 ## 3. Storage (New!)
 *   **Go to:** Build > Storage
