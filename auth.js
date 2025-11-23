@@ -9,6 +9,12 @@ const provider = new firebase.auth.GoogleAuthProvider();
 
 // Login Function
 async function signInWithGoogle() {
+    if (loginBtn) {
+        loginBtn.disabled = true;
+        loginBtn.style.opacity = '0.5';
+        loginBtn.style.cursor = 'not-allowed';
+    }
+
     try {
         const result = await auth.signInWithPopup(provider);
         const user = result.user;
@@ -17,7 +23,15 @@ async function signInWithGoogle() {
         saveUserToFirestore(user);
     } catch (error) {
         console.error("Error signing in:", error);
-        alert(`Login failed: ${error.message}`);
+        if (error.code !== 'auth/cancelled-popup-request') {
+            alert(`Login failed: ${error.message}`);
+        }
+    } finally {
+        if (loginBtn) {
+            loginBtn.disabled = false;
+            loginBtn.style.opacity = '1';
+            loginBtn.style.cursor = 'pointer';
+        }
     }
 }
 
