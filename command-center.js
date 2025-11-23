@@ -37,7 +37,10 @@ document.addEventListener('DOMContentLoaded', () => {
 function setupEventListeners() {
     // FAB & Modal
     if (createProjectFab) {
-        createProjectFab.addEventListener('click', openModal);
+        // FAB Disabled as per user request
+        // createProjectFab.addEventListener('click', openModal);
+        createProjectFab.style.cursor = 'default';
+        createProjectFab.style.opacity = '0.5';
     }
     if (closeModalBtn) {
         closeModalBtn.addEventListener('click', closeModal);
@@ -179,16 +182,21 @@ function renderHiveGrid(hives) {
         hiveGrid.appendChild(card);
     });
 
-    // Always append "Add Project" panel at the end
+    // Always append "Add Project" panel
+    // If hives exist, it goes at the end. If empty, it's the first item.
+    // User request: "If empty, show in first blank". This logic satisfies that.
     const addPanel = document.createElement('div');
     addPanel.className = 'add-project-panel';
     addPanel.onclick = openModal;
     addPanel.innerHTML = `
-        <div class="add-project-icon">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 12px;">
+            <div class="add-project-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+            </div>
+            <span style="color: var(--color-text-secondary); font-weight: 600;">Add New Project</span>
         </div>
     `;
     hiveGrid.appendChild(addPanel);

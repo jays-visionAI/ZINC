@@ -1261,6 +1261,8 @@ body {
     align-items: center;
     gap: 12px;
     margin-bottom: var(--spacing-lg);
+    padding-left: 0;
+    /* Ensure no padding affects alignment */
 }
 
 .section-header h2 {
