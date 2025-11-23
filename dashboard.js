@@ -1,40 +1,44 @@
-// Dashboard Logic
+// dashboard.js - ZINC Command Center Logic
 
 // DOM Elements
-const projectGrid = document.querySelector('.hive-grid');
-const createProjectBtn = document.getElementById('create-project-fab'); // We'll add this ID to HTML
-const createModal = document.getElementById('create-project-modal'); // We'll add this ID to HTML
-const closeModalBtn = document.getElementById('close-modal-btn'); // We'll add this ID to HTML
-const createProjectForm = document.getElementById('create-project-form'); // We'll add this ID to HTML
-const cancelCreateBtn = document.getElementById('cancel-create-btn'); // We'll add this ID to HTML
+const hiveGrid = document.getElementById('hive-grid');
+const createProjectFab = document.getElementById('create-project-fab');
+const createProjectModal = document.getElementById('create-project-modal');
+const closeModalBtn = document.getElementById('close-modal-btn');
+const cancelCreateBtn = document.getElementById('cancel-create-btn');
+const createProjectForm = document.getElementById('create-project-form');
+
+// Stat Elements
+const statTotalProjects = document.getElementById('stat-total-projects');
+const statTotalAgents = document.getElementById('stat-total-agents');
+const statPendingApprovals = document.getElementById('stat-pending-approvals');
 
 // State
 let currentUser = null;
-let projectsUnsubscribe = null;
+let hivesUnsubscribe = null;
 
-// Initialize
+// --- Initialization ---
+
 document.addEventListener('DOMContentLoaded', () => {
-    // Auth Listener
+    // Listen for Auth State Changes
     firebase.auth().onAuthStateChanged((user) => {
         if (user) {
             currentUser = user;
-            subscribeToProjects(user.uid);
+            console.log("Dashboard: User logged in:", user.uid);
+            subscribeToClientHives(user.uid);
             setupEventListeners();
         } else {
-            // Redirect handled in command-center.html script, but good to be safe
+            console.log("Dashboard: No user, redirecting...");
             window.location.href = 'index.html';
         }
     });
 });
 
-// Event Listeners
 function setupEventListeners() {
-    // FAB Click
-    if (createProjectBtn) {
-        createProjectBtn.addEventListener('click', openModal);
+    // FAB & Modal
+    if (createProjectFab) {
+        createProjectFab.addEventListener('click', openModal);
     }
-
-    // Close Modal
     if (closeModalBtn) {
         closeModalBtn.addEventListener('click', closeModal);
     }
@@ -42,9 +46,9 @@ function setupEventListeners() {
         cancelCreateBtn.addEventListener('click', closeModal);
     }
 
-    // Click outside modal to close
+    // Close modal on outside click
     window.addEventListener('click', (e) => {
-        if (e.target === createModal) {
+        if (e.target === createProjectModal) {
             closeModal();
         }
     });
@@ -55,103 +59,35 @@ function setupEventListeners() {
     }
 }
 
-// Firestore: Subscribe to Projects
-function subscribeToProjects(userId) {
-    if (projectsUnsubscribe) {
-        projectsUnsubscribe();
+// --- Firestore Logic ---
+
+function subscribeToClientHives(userId) {
+    if (hivesUnsubscribe) {
+        hivesUnsubscribe(); // Unsubscribe from previous listener if any
     }
 
     const db = firebase.firestore();
 
-    // Order by createdAt desc to show newest first
-    projectsUnsubscribe = db.collection('projects')
+    // Listen to 'clientHives' collection for current user
+    hivesUnsubscribe = db.collection('clientHives')
         .where('ownerId', '==', userId)
         .orderBy('createdAt', 'desc')
         .onSnapshot((snapshot) => {
-            renderProjects(snapshot.docs);
+            const hives = [];
+            snapshot.forEach(doc => {
+                hives.push({ id: doc.id, ...doc.data() });
+            });
+
+            renderHiveGrid(hives);
+            updatePortfolioStats(hives);
         }, (error) => {
-            console.error("Error fetching projects:", error);
-            // If error is due to missing index, we might need to create one. 
-            // For now, let's try without ordering if it fails, or just log it.
+            console.error("Error fetching client hives:", error);
             if (error.code === 'failed-precondition') {
-                console.warn("Index might be missing. Check console link.");
+                console.warn("Firestore index might be missing. Check console for link.");
             }
         });
 }
 
-// Render Projects
-function renderProjects(docs) {
-    if (!projectGrid) return;
-
-    projectGrid.innerHTML = ''; // Clear existing content
-
-    if (docs.length === 0) {
-        // Show Empty State if no projects
-        projectGrid.innerHTML = `
-            <div class="create-project-card" onclick="openModal()">
-                <div class="create-icon">+</div>
-                <div class="create-text">Create New Project</div>
-            </div>
-        `;
-        return;
-    }
-
-    docs.forEach(doc => {
-        const project = doc.data();
-        const card = createProjectCard(project);
-        projectGrid.appendChild(card);
-    });
-}
-
-// Create Project Card HTML
-function createProjectCard(project) {
-    const card = document.createElement('div');
-    const statusClass = project.status === 'ATTENTION' ? 'status-attention' : 'status-nominal';
-    const statusBadgeClass = project.status === 'ATTENTION' ? 'attention' : 'nominal';
-    const categoryClass = project.category.toLowerCase() === 'blockchain' ? 'blockchain' : 'general';
-
-    // Random color for icon if not set
-    const iconColor = project.color || '#3B82F6';
-
-    card.className = `client-card ${statusClass}`;
-    card.innerHTML = `
-        <div class="card-header">
-            <div class="client-info">
-                <div style="width:24px;height:24px;background:${iconColor};border-radius:50%;"></div>
-                <span class="client-name">${project.projectName}</span>
-            </div>
-            <span class="status-badge ${statusBadgeClass}">${project.status}</span>
-        </div>
-        <div class="card-tags">
-            <span class="tag ${categoryClass}">${project.category}</span>
-        </div>
-        <div class="card-metrics">
-            <div class="metric-item">
-                <span class="metric-label">Follower Growth (30d)</span>
-                <span class="metric-value">${project.metrics.followerGrowth}% <span class="trend-up">▲ ${project.metrics.followerGrowth}%</span></span>
-            </div>
-            <div class="metric-item">
-                <span class="metric-label">Engagement Rate</span>
-                <span class="metric-value">${project.metrics.engagementRate}% <span class="trend-up">▲ ${project.metrics.engagementRate}%</span></span>
-            </div>
-            <div class="metric-item">
-                <span class="metric-label">Pending Approvals</span>
-                <span class="metric-value">${project.metrics.pendingApprovals}</span>
-            </div>
-            <div class="metric-item">
-                <span class="metric-label">Agent Health</span>
-                <span class="metric-value">${project.metrics.agentHealth}/${project.metrics.agentHealthMax || 5}</span>
-            </div>
-        </div>
-        <div class="card-actions">
-            <button class="btn-mission">Jump to Mission Control</button>
-            <button class="btn-settings">⚙</button>
-        </div>
-    `;
-    return card;
-}
-
-// Handle Create Project
 async function handleCreateProject(e) {
     e.preventDefault();
 
@@ -161,66 +97,164 @@ async function handleCreateProject(e) {
     if (!nameInput.value || !categoryInput.value) return;
 
     const submitBtn = createProjectForm.querySelector('button[type="submit"]');
-    const originalBtnText = submitBtn.textContent;
+    const originalText = submitBtn.textContent;
     submitBtn.disabled = true;
     submitBtn.textContent = 'Creating...';
 
     try {
         const db = firebase.firestore();
 
-        // Random metrics for demo purposes
+        // Default values for new project
         const newProject = {
             ownerId: currentUser.uid,
-            projectName: nameInput.value,
+            name: nameInput.value,
             category: categoryInput.value,
-            status: 'NOMINAL', // Default
-            metrics: {
-                followerGrowth: 0,
-                engagementRate: 0,
-                pendingApprovals: 0,
-                agentHealth: 5,
-                agentHealthMax: 5
-            },
-            color: getRandomColor(),
+            status: "NOMINAL",
+            followerGrowth30d: 0,
+            followerGrowthDelta: 0,
+            engagementRate: 0,
+            engagementDelta: 0,
+            pendingApprovals: 0,
+            agentHealthCurrent: 0,
+            agentHealthMax: 5, // Default max health
+            colorHex: getRandomColor(),
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         };
 
-        await db.collection('projects').add(newProject);
+        await db.collection('clientHives').add(newProject);
 
         closeModal();
         createProjectForm.reset();
+        // Snapshot listener will auto-update UI
 
     } catch (error) {
         console.error("Error creating project:", error);
         alert("Failed to create project. Please try again.");
     } finally {
         submitBtn.disabled = false;
-        submitBtn.textContent = originalBtnText;
+        submitBtn.textContent = originalText;
     }
 }
 
-// Modal Functions
+// --- Rendering Logic ---
+
+function renderHiveGrid(hives) {
+    if (!hiveGrid) return;
+    hiveGrid.innerHTML = '';
+
+    if (hives.length === 0) {
+        renderEmptyState();
+        return;
+    }
+
+    hives.forEach(hive => {
+        const card = createHiveCard(hive);
+        hiveGrid.appendChild(card);
+    });
+}
+
+function renderEmptyState() {
+    hiveGrid.innerHTML = `
+        <div class="create-project-card" onclick="openModal()" style="grid-column: 1 / -1; height: 300px;">
+            <div class="create-icon" style="font-size: 3rem; margin-bottom: 1rem;">+</div>
+            <div class="create-text" style="font-size: 1.2rem;">Create Your First Hive</div>
+            <p style="color: var(--color-text-tertiary); margin-top: 0.5rem;">Launch a new project to start monitoring.</p>
+        </div>
+    `;
+}
+
+function createHiveCard(hive) {
+    const card = document.createElement('div');
+
+    // Determine classes based on status/category
+    const statusClass = hive.status === 'ATTENTION' ? 'status-attention' : 'status-nominal';
+    const badgeClass = hive.status === 'ATTENTION' ? 'attention' : 'nominal';
+    const categoryLower = hive.category.toLowerCase();
+    const tagClass = (categoryLower === 'blockchain' || categoryLower === 'general') ? categoryLower : 'general';
+
+    // Format numbers
+    const followerGrowth = hive.followerGrowth30d || 0;
+    const followerDelta = hive.followerGrowthDelta || 0;
+    const engagement = hive.engagementRate || 0;
+    const engagementDelta = hive.engagementDelta || 0;
+
+    card.className = `client-card ${statusClass}`;
+    card.innerHTML = `
+        <div class="card-header">
+            <div class="client-info">
+                <div style="width:24px;height:24px;background:${hive.colorHex || '#3B82F6'};border-radius:50%;"></div>
+                <span class="client-name">${hive.name}</span>
+            </div>
+            <span class="status-badge ${badgeClass}">${hive.status}</span>
+        </div>
+        <div class="card-tags">
+            <span class="tag ${tagClass}">${hive.category}</span>
+        </div>
+        <div class="card-metrics">
+            <div class="metric-item">
+                <span class="metric-label">Follower Growth (30d)</span>
+                <span class="metric-value">${followerGrowth}% <span class="trend-up">▲ ${followerDelta}%</span></span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Engagement Rate</span>
+                <span class="metric-value">${engagement}% <span class="trend-up">▲ ${engagementDelta}%</span></span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Pending Approvals</span>
+                <span class="metric-value">${hive.pendingApprovals || 0}</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Agent Health</span>
+                <span class="metric-value">${hive.agentHealthCurrent || 0}/${hive.agentHealthMax || 0}</span>
+            </div>
+        </div>
+        <div class="card-actions">
+            <button class="btn-mission" onclick="jumpToMission('${hive.id}')">Jump to Mission Control</button>
+            <button class="btn-settings">⚙</button>
+        </div>
+    `;
+    return card;
+}
+
+function updatePortfolioStats(hives) {
+    const totalProjects = hives.length;
+
+    // Sum up agent max health (as proxy for total agents)
+    const totalAgents = hives.reduce((sum, hive) => sum + (hive.agentHealthMax || 0), 0);
+
+    // Sum up pending approvals
+    const totalPending = hives.reduce((sum, hive) => sum + (hive.pendingApprovals || 0), 0);
+
+    if (statTotalProjects) statTotalProjects.textContent = totalProjects;
+    if (statTotalAgents) statTotalAgents.textContent = totalAgents;
+    if (statPendingApprovals) statPendingApprovals.textContent = totalPending;
+}
+
+// --- UI Helpers ---
+
 function openModal() {
-    if (createModal) {
-        createModal.style.display = 'flex';
-        // Trigger reflow for animation
-        setTimeout(() => {
-            createModal.classList.add('show');
-        }, 10);
+    if (createProjectModal) {
+        createProjectModal.style.display = 'flex';
+        setTimeout(() => createProjectModal.classList.add('show'), 10);
     }
 }
 
 function closeModal() {
-    if (createModal) {
-        createModal.classList.remove('show');
+    if (createProjectModal) {
+        createProjectModal.classList.remove('show');
         setTimeout(() => {
-            createModal.style.display = 'none';
-        }, 300); // Wait for transition
+            createProjectModal.style.display = 'none';
+        }, 300);
     }
 }
 
-// Utility
 function getRandomColor() {
-    const colors = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EC4899', '#6366F1'];
+    const colors = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EC4899', '#6366F1', '#06B6D4'];
     return colors[Math.floor(Math.random() * colors.length)];
+}
+
+function jumpToMission(hiveId) {
+    console.log(`Jumping to Mission Control for Hive ID: ${hiveId}`);
+    // Placeholder for future navigation
+    // window.location.href = `mission-control.html?id=${hiveId}`;
 }
