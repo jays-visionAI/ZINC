@@ -1259,6 +1259,8 @@ body {
 .section-header {
     display: flex;
     align-items: center;
+    justify-content: flex-start;
+    /* Force left alignment */
     gap: 12px;
     margin-bottom: var(--spacing-lg);
     padding-left: 0;

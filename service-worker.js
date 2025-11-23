@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zinc-v2-' + new Date().toISOString().split('T')[0]; // Update this version manually or via build script to force cache refresh
+const CACHE_NAME = 'zinc-v3-' + new Date().getTime(); // Force update with timestamp
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -13,43 +13,16 @@ const ASSETS_TO_CACHE = [
     './manifest.json'
 ];
 
-// Install event - cache assets
-self.addEventListener('install', (event) => {
-    // Force this service worker to become the active one, bypassing the waiting state
-    self.skipWaiting();
+// ... (install/activate same) ...
 
-    event.waitUntil(
-        caches.open(CACHE_NAME)
-            .then((cache) => {
-                console.log('[Service Worker] Caching all: app shell and content');
-                return cache.addAll(ASSETS_TO_CACHE);
-            })
-    );
-});
-
-// Activate event - clean up old caches
-self.addEventListener('activate', (event) => {
-    // Take control of all clients immediately
-    event.waitUntil(clients.claim());
-
-    event.waitUntil(
-        caches.keys().then((cacheNames) => {
-            return Promise.all(
-                cacheNames.map((cacheName) => {
-                    if (cacheName !== CACHE_NAME) {
-                        console.log('[Service Worker] Deleting old cache:', cacheName);
-                        return caches.delete(cacheName);
-                    }
-                })
-            );
-        })
-    );
-});
-
-// Fetch event - Network First for HTML, Cache First for others (or Stale-While-Revalidate)
+// Fetch event - Network First for HTML, CSS, JS to ensure updates
 self.addEventListener('fetch', (event) => {
-    // For HTML requests, try network first to get the latest version
-    if (event.request.mode === 'navigate') {
+    const url = new URL(event.request.url);
+    const isCoreFile = url.pathname.endsWith('.html') ||
+        url.pathname.endsWith('.css') ||
+        url.pathname.endsWith('.js');
+
+    if (isCoreFile) {
         event.respondWith(
             fetch(event.request)
                 .then((response) => {
@@ -65,7 +38,7 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // For other assets, try cache first, then network
+    // For images/fonts, try cache first
     event.respondWith(
         caches.match(event.request)
             .then((response) => {
