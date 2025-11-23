@@ -97,8 +97,8 @@ function updateUI(user) {
         userName.textContent = user.displayName;
 
         const dashboardLink = document.createElement('a');
-        dashboardLink.href = '#dashboard';
-        dashboardLink.textContent = 'Dashboard';
+        dashboardLink.href = 'command-center.html';
+        dashboardLink.textContent = 'Command Center';
 
         const logoutBtn = document.createElement('button');
         logoutBtn.textContent = 'Sign Out';
