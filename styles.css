@@ -1959,3 +1959,86 @@ body {
     color: #000;
     transform: scale(1.1);
 }
+/* 1️⃣ 섹션 좌측 정렬 통일용 래퍼 */
+.dashboard-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* 2️⃣ 3컬럼 그리드 + “Add New Project” 카드 스타일 */
+.hive-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+
+/* 반응형 (선택사항) */
+@media (max-width: 1024px) {
+  .hive-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  .hive-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* “Add New Project” 카드 */
+.client-card.add-project-card {
+  border-radius: 16px;
+  border: 1px dashed rgba(148, 163, 184, 0.6);
+  background: rgba(15, 23, 42, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 1.75rem 1.5rem;
+  transition: all 0.2s ease;
+}
+
+.client-card.add-project-card:hover {
+  border-color: var(--color-cyan, #22f6c8);
+  box-shadow: 0 0 0 1px rgba(34, 246, 200, 0.3);
+  transform: translateY(-2px);
+}
+
+.add-project-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.add-project-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  font-weight: 500;
+  color: rgba(226, 232, 240, 0.9);
+}
+
+.add-project-label {
+  font-size: 0.9rem;
+  color: rgba(148, 163, 184, 0.95);
+}
+
+/* 3️⃣ 모달 표시용 클래스 (JS에서 .open 사용) */
+/* 기본적으로 모달 숨김 */
+.modal-overlay {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  display: flex; /* Ensure it is flex to center content, but hidden via opacity/pointer-events */
+}
+
+/* JS에서 modal.classList.add('open') 하면 표시 */
+.modal-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}

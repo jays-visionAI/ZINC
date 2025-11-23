@@ -79,57 +79,61 @@
             </header>
 
             <div class="dashboard-content">
-                <!-- Section 1: Client Hive Overview -->
-                <section class="dashboard-section">
-                    <div class="section-header">
-                        <h2>1. Client Hive Overview</h2>
-                        <svg class="info-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <line x1="12" y1="16" x2="12" y2="12"></line>
-                            <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                        </svg>
-                    </div>
+                <!-- 🔹 새로 추가된 래퍼 -->
+                <div class="dashboard-inner">
 
-                    <div class="hive-grid" id="hive-grid">
-                        <!-- Dynamic Content Loaded via command-center.js -->
-                    </div>
-                </section>
-
-                <div class="dashboard-bottom-grid">
-                    <!-- Section 2: Portfolio Overview -->
+                    <!-- Section 1: Client Hive Overview -->
                     <section class="dashboard-section">
                         <div class="section-header">
-                            <h2>2. Portfolio Overview</h2>
+                            <h2>1. Client Hive Overview</h2>
+                            <svg class="info-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="16" x2="12" y2="12"></line>
+                                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                            </svg>
                         </div>
-                        <div class="stats-grid">
-                            <div class="stat-card">
-                                <div class="stat-value" id="stat-total-projects">0</div>
-                                <div class="stat-label">Total Projects</div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-value" id="stat-total-agents">0</div>
-                                <div class="stat-label">Total Agents</div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-value" id="stat-pending-approvals">0</div>
-                                <div class="stat-label">Portfolio Pending Approvals</div>
-                            </div>
+
+                        <div class="hive-grid" id="hive-grid">
+                            <!-- Dynamic Content Loaded via command-center.js -->
                         </div>
                     </section>
 
-                    <!-- Section 3: Global Action Center -->
-                    <section class="dashboard-section">
-                        <div class="section-header">
-                            <h2>3. Global Action Center</h2>
-                        </div>
-                        <div class="action-center-box">
-                            <div class="empty-action-state">
-                                <p>No pending global actions.</p>
+                    <div class="dashboard-bottom-grid">
+                        <!-- Section 2: Portfolio Overview -->
+                        <section class="dashboard-section">
+                            <div class="section-header">
+                                <h2>2. Portfolio Overview</h2>
                             </div>
-                        </div>
-                    </section>
-                </div>
+                            <div class="stats-grid">
+                                <div class="stat-card">
+                                    <div class="stat-value" id="stat-total-projects">0</div>
+                                    <div class="stat-label">Total Projects</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-value" id="stat-total-agents">0</div>
+                                    <div class="stat-label">Total Agents</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-value" id="stat-pending-approvals">0</div>
+                                    <div class="stat-label">Portfolio Pending Approvals</div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Section 3: Global Action Center -->
+                        <section class="dashboard-section">
+                            <div class="section-header">
+                                <h2>3. Global Action Center</h2>
+                            </div>
+                            <div class="action-center-box">
+                                <div class="empty-action-state">
+                                    <p>No pending global actions.</p>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </div> <!-- 🔹 dashboard-inner 끝 -->
             </div>
         </main>
     </div>
