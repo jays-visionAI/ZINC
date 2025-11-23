@@ -68,6 +68,9 @@ function subscribeToClientHives(userId) {
 
     const db = firebase.firestore();
 
+    // Seed sample data if needed
+    seedVisionChainData(userId);
+
     // Listen to 'clientHives' collection for current user
     hivesUnsubscribe = db.collection('clientHives')
         .where('ownerId', '==', userId)
@@ -86,6 +89,34 @@ function subscribeToClientHives(userId) {
                 console.warn("Firestore index might be missing. Check console for link.");
             }
         });
+}
+
+async function seedVisionChainData(userId) {
+    const db = firebase.firestore();
+    const hivesRef = db.collection('clientHives');
+
+    // Check if VisionChain already exists to avoid duplicates
+    const snapshot = await hivesRef.where('ownerId', '==', userId).where('name', '==', 'VisionChain').get();
+    if (!snapshot.empty) return;
+
+    console.log("Seeding VisionChain data...");
+    const visionChain = {
+        ownerId: userId,
+        name: "VisionChain",
+        category: "Blockchain",
+        status: "NOMINAL",
+        followerGrowth30d: 12.5,
+        followerGrowthDelta: 12.5,
+        engagementRate: 4.8,
+        engagementDelta: 4.8,
+        pendingApprovals: 10,
+        agentHealthCurrent: 2,
+        agentHealthMax: 2,
+        colorHex: "#3B82F6",
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    await hivesRef.add(visionChain);
 }
 
 async function handleCreateProject(e) {
@@ -142,75 +173,111 @@ function renderHiveGrid(hives) {
     if (!hiveGrid) return;
     hiveGrid.innerHTML = '';
 
-    if (hives.length === 0) {
-        renderEmptyState();
-        return;
-    }
-
+    // Render existing hives
     hives.forEach(hive => {
         const card = createHiveCard(hive);
         hiveGrid.appendChild(card);
     });
-}
 
-function renderEmptyState() {
-    hiveGrid.innerHTML = `
-        <div class="create-project-card" onclick="openModal()" style="grid-column: 1 / -1; height: 300px;">
-            <div class="create-icon" style="font-size: 3rem; margin-bottom: 1rem;">+</div>
-            <div class="create-text" style="font-size: 1.2rem;">Create Your First Hive</div>
-            <p style="color: var(--color-text-tertiary); margin-top: 0.5rem;">Launch a new project to start monitoring.</p>
+    // Always append "Add Project" panel at the end
+    const addPanel = document.createElement('div');
+    addPanel.className = 'add-project-panel';
+    addPanel.onclick = openModal;
+    addPanel.innerHTML = `
+        <div class="add-project-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
         </div>
     `;
+    hiveGrid.appendChild(addPanel);
 }
 
 function createHiveCard(hive) {
     const card = document.createElement('div');
+    card.className = 'hive-card';
 
-    // Determine classes based on status/category
-    const statusClass = hive.status === 'ATTENTION' ? 'status-attention' : 'status-nominal';
-    const badgeClass = hive.status === 'ATTENTION' ? 'attention' : 'nominal';
-    const categoryLower = hive.category.toLowerCase();
-    const tagClass = (categoryLower === 'blockchain' || categoryLower === 'general') ? categoryLower : 'general';
+    // Status Badge Logic
+    const isAttention = hive.status === 'ATTENTION';
+    const statusClass = isAttention ? 'attention' : '';
 
-    // Format numbers
-    const followerGrowth = hive.followerGrowth30d || 0;
-    const followerDelta = hive.followerGrowthDelta || 0;
-    const engagement = hive.engagementRate || 0;
-    const engagementDelta = hive.engagementDelta || 0;
+    // Delta Logic (Simplified for demo)
+    const followerDeltaClass = (hive.followerGrowthDelta >= 0) ? 'positive' : 'negative';
+    const engagementDeltaClass = (hive.engagementDelta >= 0) ? 'positive' : 'negative';
+    const followerArrow = (hive.followerGrowthDelta >= 0) ? '▲' : '▼';
+    const engagementArrow = (hive.engagementDelta >= 0) ? '▲' : '▼';
 
-    card.className = `client-card ${statusClass}`;
     card.innerHTML = `
-        <div class="card-header">
-            <div class="client-info">
-                <div style="width:24px;height:24px;background:${hive.colorHex || '#3B82F6'};border-radius:50%;"></div>
-                <span class="client-name">${hive.name}</span>
+        <div class="hive-card-header">
+            <div class="hive-header-left">
+                <div class="hive-title-row">
+                    <div class="hive-icon">🌍</div>
+                    <div class="hive-name">${hive.name}</div>
+                </div>
+                <div class="hive-tag">${hive.category}</div>
             </div>
-            <span class="status-badge ${badgeClass}">${hive.status}</span>
+            <div class="hive-status-badge ${statusClass}">${hive.status}</div>
         </div>
-        <div class="card-tags">
-            <span class="tag ${tagClass}">${hive.category}</span>
+        
+        <div class="hive-stats-grid">
+            <!-- Follower Growth -->
+            <div class="hive-stat-item">
+                <div class="stat-icon-wrapper">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-label">Follower Growth (30d)</div>
+                    <div class="stat-value-row">
+                        <span class="stat-value">${hive.followerGrowth30d}%</span>
+                        <span class="stat-delta ${followerDeltaClass}">${followerArrow} ${Math.abs(hive.followerGrowthDelta)}%</span>
+                    </div>
+                </div>
+            </div>
+            <!-- Engagement Rate -->
+            <div class="hive-stat-item">
+                <div class="stat-icon-wrapper">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 10 4 15 9 20"></polyline><path d="M20 4v7a4 4 0 0 1-4 4H4"></path></svg>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-label">Engagement Rate</div>
+                    <div class="stat-value-row">
+                        <span class="stat-value">${hive.engagementRate}%</span>
+                        <span class="stat-delta ${engagementDeltaClass}">${engagementArrow} ${Math.abs(hive.engagementDelta)}%</span>
+                    </div>
+                </div>
+            </div>
+            <!-- Pending Approvals -->
+            <div class="hive-stat-item">
+                <div class="stat-icon-wrapper">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-label">Pending Approvals</div>
+                    <div class="stat-value-row">
+                        <span class="stat-value">${hive.pendingApprovals}</span>
+                    </div>
+                </div>
+            </div>
+            <!-- Agent Health -->
+            <div class="hive-stat-item">
+                <div class="stat-icon-wrapper">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-label">Agent Health</div>
+                    <div class="stat-value-row">
+                        <span class="stat-value">${hive.agentHealthCurrent}/${hive.agentHealthMax}</span>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="card-metrics">
-            <div class="metric-item">
-                <span class="metric-label">Follower Growth (30d)</span>
-                <span class="metric-value">${followerGrowth}% <span class="trend-up">▲ ${followerDelta}%</span></span>
-            </div>
-            <div class="metric-item">
-                <span class="metric-label">Engagement Rate</span>
-                <span class="metric-value">${engagement}% <span class="trend-up">▲ ${engagementDelta}%</span></span>
-            </div>
-            <div class="metric-item">
-                <span class="metric-label">Pending Approvals</span>
-                <span class="metric-value">${hive.pendingApprovals || 0}</span>
-            </div>
-            <div class="metric-item">
-                <span class="metric-label">Agent Health</span>
-                <span class="metric-value">${hive.agentHealthCurrent || 0}/${hive.agentHealthMax || 0}</span>
-            </div>
-        </div>
-        <div class="card-actions">
-            <button class="btn-mission" onclick="jumpToMission('${hive.id}')">Jump to Mission Control</button>
-            <button class="btn-settings">⚙</button>
+
+        <div class="hive-card-actions">
+            <button class="btn-mission-control" onclick="jumpToMission('${hive.id}')">Jump to Mission Control</button>
+            <button class="btn-settings">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            </button>
         </div>
     `;
     return card;

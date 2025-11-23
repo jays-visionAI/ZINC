@@ -1724,3 +1724,234 @@ body {
     background: #00E692;
     box-shadow: 0 0 15px var(--color-cyan-glow);
 }
+
+/* =========================================
+   New Card Design (VisionChain Style)
+   ========================================= */
+.hive-card {
+    background: #050505;
+    /* Very dark background */
+    border: 1px solid #1F2937;
+    border-radius: 16px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.hive-card:hover {
+    border-color: var(--color-cyan);
+    box-shadow: 0 0 20px rgba(6, 182, 212, 0.1);
+    transform: translateY(-2px);
+}
+
+/* Card Header */
+.hive-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.hive-header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.hive-title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.hive-icon {
+    font-size: 1.5rem;
+}
+
+.hive-name {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #fff;
+}
+
+.hive-tag {
+    align-self: flex-start;
+    background: #1E3A8A;
+    /* Dark Blue */
+    color: #93C5FD;
+    /* Light Blue Text */
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.hive-status-badge {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.5);
+    color: #10B981;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.hive-status-badge.attention {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.5);
+    color: #EF4444;
+}
+
+/* Stats Grid */
+.hive-stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    padding: 10px 0;
+}
+
+.hive-stat-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.stat-icon-wrapper {
+    width: 32px;
+    height: 32px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #9CA3AF;
+}
+
+.stat-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-label {
+    font-size: 0.8rem;
+    color: #9CA3AF;
+    margin-bottom: 4px;
+}
+
+.stat-value-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.stat-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #fff;
+    font-family: var(--font-display);
+}
+
+.stat-delta {
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+}
+
+.stat-delta.positive {
+    color: #10B981;
+}
+
+.stat-delta.negative {
+    color: #EF4444;
+}
+
+/* Actions Footer */
+.hive-card-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: auto;
+}
+
+.btn-mission-control {
+    flex: 1;
+    background: var(--color-cyan);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    padding: 12px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-mission-control:hover {
+    background: #22D3EE;
+    /* Lighter Cyan */
+    transform: translateY(-1px);
+}
+
+.btn-settings {
+    width: 44px;
+    height: 44px;
+    /* Match height of main button approx */
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-settings:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Add Project Panel */
+.add-project-panel {
+    border: 2px dashed rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 280px;
+    /* Match approx height of cards */
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: rgba(255, 255, 255, 0.01);
+}
+
+.add-project-panel:hover {
+    border-color: var(--color-cyan);
+    background: rgba(6, 182, 212, 0.05);
+}
+
+.add-project-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.5);
+    transition: all 0.3s ease;
+}
+
+.add-project-panel:hover .add-project-icon {
+    background: var(--color-cyan);
+    color: #000;
+    transform: scale(1.1);
+}
