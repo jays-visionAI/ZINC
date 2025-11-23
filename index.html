@@ -7,9 +7,10 @@
     <title>ZINC - AI-Powered Social Media Automation</title>
     <meta name="description" content="AI 에이전트가 소셜미디어 콘텐츠를 자동으로 제작하고 게시합니다. 미래의 마케팅을 지금 경험하세요.">
 
-    <!-- PWA Meta Tags -->
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#8B5CF6">
+    <!-- PWA (Disabled for now) -->
+    <!-- <link rel="manifest" href="manifest.json"> -->
+    <!-- PWA Disabled: Theme color kept for browser UI -->
+    <meta name="theme-color" content="#0A0A0F">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="ZINC">
@@ -487,17 +488,22 @@
     <script src="translations.js"></script>
     <script src="script.js"></script>
 
-    <!-- Service Worker Registration -->
+    <!-- Service Worker (Disabled & Unregistering) -->
     <script>
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('service-worker.js')
-                    .then(registration => {
-                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                    })
-                    .catch(err => {
-                        console.log('ServiceWorker registration failed: ', err);
-                    });
+            // navigator.serviceWorker.register('service-worker.js')
+            //     .then(function (registration) {
+            //         console.log('ServiceWorker registration successful with scope: ', registration.scope);
+            //     }, function (err) {
+            //         console.log('ServiceWorker registration failed: ', err);
+            //     });
+
+            // Force unregister existing service workers
+            navigator.serviceWorker.getRegistrations().then(function (registrations) {
+                for (let registration of registrations) {
+                    console.log('Unregistering Service Worker:', registration);
+                    registration.unregister();
+                }
             });
         }
     </script>
