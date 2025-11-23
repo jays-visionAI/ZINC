@@ -316,6 +316,42 @@
         </main>
     </div>
 
+    <!-- Floating Action Button -->
+    <button id="create-project-fab" class="fab-btn" title="Create New Project">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+            stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+    </button>
+
+    <!-- Create Project Modal -->
+    <div id="create-project-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Create New Project</h3>
+                <button id="close-modal-btn" class="close-btn">&times;</button>
+            </div>
+            <form id="create-project-form">
+                <div class="form-group">
+                    <label for="project-name">Project Name</label>
+                    <input type="text" id="project-name" placeholder="e.g. Alpha Protocol" required>
+                </div>
+                <div class="form-group">
+                    <label for="project-category">Category</label>
+                    <select id="project-category" required>
+                        <option value="Blockchain">Blockchain</option>
+                        <option value="General">General</option>
+                    </select>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" id="cancel-create-btn" class="btn-cancel">Cancel</button>
+                    <button type="submit" class="btn-submit">Create Project</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
@@ -324,12 +360,13 @@
     <!-- Config & Auth -->
     <script src="firebase-config.js"></script>
     <script src="auth.js"></script>
+    <script src="dashboard.js"></script>
 
     <!-- Auth Check Script -->
     <script>
         // Simple auth check to redirect if not logged in
         // Note: auth.js also handles state changes, but this adds an immediate check
-        firebase.auth().onAuthStateChanged(function (user) {
+        firebase.auth().onAuthStateChanged(function(user) {
             if (!user) {
                 window.location.href = 'index.html';
             } else {
