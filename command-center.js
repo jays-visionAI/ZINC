@@ -88,6 +88,52 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // 🔹 Language Switching Logic
+    const btnEn = document.getElementById('btn-lang-en');
+    const btnKo = document.getElementById('btn-lang-ko');
+
+    function updateLanguageUI(lang) {
+        if (btnEn && btnKo) {
+            if (lang === 'en') {
+                btnEn.classList.add('active');
+                btnEn.style.cssText = 'background: var(--color-cyan); color: #000; font-weight: bold;';
+                btnKo.classList.remove('active');
+                btnKo.style.cssText = '';
+            } else {
+                btnKo.classList.add('active');
+                btnKo.style.cssText = 'background: var(--color-cyan); color: #000; font-weight: bold;';
+                btnEn.classList.remove('active');
+                btnEn.style.cssText = '';
+            }
+        }
+
+        // Update Add Project Card Text if it exists
+        const addProjectLabel = document.querySelector('.add-project-label');
+        if (addProjectLabel) {
+            addProjectLabel.textContent = lang === 'ko' ? '새 프로젝트 추가' : 'Add New Project';
+        }
+    }
+
+    if (btnEn) {
+        btnEn.addEventListener('click', () => {
+            translatePage('en');
+            updateLanguageUI('en');
+        });
+    }
+
+    if (btnKo) {
+        btnKo.addEventListener('click', () => {
+            translatePage('ko');
+            updateLanguageUI('ko');
+        });
+    }
+
+    // Initialize Language UI
+    if (typeof currentLang !== 'undefined') {
+        updateLanguageUI(currentLang);
+        translatePage(currentLang);
+    }
+
     // 초기 실행
     initHiveGrid();
 });

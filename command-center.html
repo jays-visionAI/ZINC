@@ -68,13 +68,14 @@
             <!-- Header -->
             <header class="dashboard-header">
                 <div>
-                    <h1>Command Center</h1>
-                    <div class="header-subtitle">High-level oversight of all managed client hives.</div>
+                    <h1 data-i18n="dashboard.title">Command Center</h1>
+                    <div class="header-subtitle" data-i18n="dashboard.subtitle">High-level oversight of all managed
+                        client hives.</div>
                 </div>
                 <div class="header-controls">
-                    <button class="btn-lang-sm active"
+                    <button id="btn-lang-en" class="btn-lang-sm active"
                         style="background: var(--color-cyan); color: #000; font-weight: bold;">EN</button>
-                    <button class="btn-lang-sm">KR</button>
+                    <button id="btn-lang-ko" class="btn-lang-sm">KR</button>
                     <div id="user-profile-container"></div>
                 </div>
             </header>
@@ -86,7 +87,7 @@
                     <!-- Section 1: Client Hive Overview -->
                     <section class="dashboard-section">
                         <div class="section-header">
-                            <h2>1. Client Hive Overview</h2>
+                            <h2 data-i18n="dashboard.section1">1. Client Hive Overview</h2>
                             <svg class="info-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
                                 stroke="currentColor" stroke-width="2">
                                 <circle cx="12" cy="12" r="10"></circle>
@@ -104,20 +105,21 @@
                         <!-- Section 2: Portfolio Overview -->
                         <section class="dashboard-section">
                             <div class="section-header">
-                                <h2>2. Portfolio Overview</h2>
+                                <h2 data-i18n="dashboard.section2">2. Portfolio Overview</h2>
                             </div>
                             <div class="stats-grid">
                                 <div class="stat-card">
                                     <div class="stat-value" id="stat-total-projects">0</div>
-                                    <div class="stat-label">Total Projects</div>
+                                    <div class="stat-label" data-i18n="dashboard.totalProjects">Total Projects</div>
                                 </div>
                                 <div class="stat-card">
                                     <div class="stat-value" id="stat-total-agents">0</div>
-                                    <div class="stat-label">Total Agents</div>
+                                    <div class="stat-label" data-i18n="dashboard.totalAgents">Total Agents</div>
                                 </div>
                                 <div class="stat-card">
                                     <div class="stat-value" id="stat-pending-approvals">0</div>
-                                    <div class="stat-label">Portfolio Pending Approvals</div>
+                                    <div class="stat-label" data-i18n="dashboard.pendingApprovals">Portfolio Pending
+                                        Approvals</div>
                                 </div>
                             </div>
                         </section>
@@ -125,11 +127,11 @@
                         <!-- Section 3: Global Action Center -->
                         <section class="dashboard-section">
                             <div class="section-header">
-                                <h2>3. Global Action Center</h2>
+                                <h2 data-i18n="dashboard.section3">3. Global Action Center</h2>
                             </div>
                             <div class="action-center-box">
                                 <div class="empty-action-state">
-                                    <p>No pending global actions.</p>
+                                    <p data-i18n="dashboard.noActions">No pending global actions.</p>
                                 </div>
                             </div>
                         </section>
@@ -183,6 +185,8 @@
     <!-- Config & Auth -->
     <script src="firebase-config.js"></script>
     <script src="auth.js"></script>
+    <!-- Scripts -->
+    <script src="translations.js"></script>
     <script src="command-center.js"></script>
 
     <!-- Auth Check Script -->

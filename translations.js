@@ -78,7 +78,19 @@ const translations = {
         'footer.support.contact': 'Contact',
         'footer.copyright': '2024 ZINC. All rights reserved.',
         'footer.privacy': 'Privacy Policy',
-        'footer.terms': 'Terms of Service'
+        'footer.terms': 'Terms of Service',
+
+        // Command Center
+        'dashboard.title': 'Command Center',
+        'dashboard.subtitle': 'High-level oversight of all managed client hives.',
+        'dashboard.section1': '1. Client Hive Overview',
+        'dashboard.section2': '2. Portfolio Overview',
+        'dashboard.section3': '3. Global Action Center',
+        'dashboard.totalProjects': 'Total Projects',
+        'dashboard.totalAgents': 'Total Agents',
+        'dashboard.pendingApprovals': 'Portfolio Pending Approvals',
+        'dashboard.noActions': 'No pending global actions.',
+        'dashboard.addNew': 'Add New Project'
     },
     ko: {
         // Navigation
@@ -158,7 +170,19 @@ const translations = {
         'footer.support.contact': '문의하기',
         'footer.copyright': '2024 ZINC. All rights reserved.',
         'footer.privacy': '개인정보처리방침',
-        'footer.terms': '이용약관'
+        'footer.terms': '이용약관',
+
+        // Command Center
+        'dashboard.title': '커맨드 센터',
+        'dashboard.subtitle': '모든 클라이언트 하이브를 한눈에 관리하세요.',
+        'dashboard.section1': '1. 클라이언트 하이브 개요',
+        'dashboard.section2': '2. 포트폴리오 개요',
+        'dashboard.section3': '3. 글로벌 액션 센터',
+        'dashboard.totalProjects': '총 프로젝트',
+        'dashboard.totalAgents': '총 에이전트',
+        'dashboard.pendingApprovals': '승인 대기 중',
+        'dashboard.noActions': '대기 중인 글로벌 작업이 없습니다.',
+        'dashboard.addNew': '새 프로젝트 추가'
     }
 };
 
