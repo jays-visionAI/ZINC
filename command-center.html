@@ -191,13 +191,7 @@
                         <div class="form-group half">
                             <label for="industry">Industry *</label>
                             <select id="industry" required>
-                                <option value="" disabled selected>Select Industry</option>
-                                <option value="Blockchain">Blockchain / Web3</option>
-                                <option value="DeFi">DeFi</option>
-                                <option value="NFT">NFT / Gaming</option>
-                                <option value="SaaS">SaaS</option>
-                                <option value="E-commerce">E-commerce</option>
-                                <option value="Other">Other</option>
+                                <option value="" disabled selected>Loading industries...</option>
                             </select>
                         </div>
                         <div class="form-group half">
@@ -208,6 +202,11 @@
                                 <option value="jp">Japanese</option>
                             </select>
                         </div>
+                    </div>
+                    <div class="form-group" id="custom-industry-container" style="display: none;">
+                        <label for="industry-custom">Please specify your industry</label>
+                        <input type="text" id="industry-custom" class="form-control"
+                            placeholder="e.g. Legal Services, Agriculture, etc.">
                     </div>
                     <div class="form-group">
                         <label for="target-market">Target Market</label>

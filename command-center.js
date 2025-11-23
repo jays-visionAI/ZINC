@@ -18,12 +18,14 @@ document.addEventListener("DOMContentLoaded", () => {
     let draftId = null;
     let uploadedFiles = [];
     let currentUser = null;
+    let availableIndustries = [];
 
     // 🔹 Auth Listener
     firebase.auth().onAuthStateChanged((user) => {
         if (user) {
             currentUser = user;
             loadProjects(); // Load non-draft projects
+            loadIndustries(); // Load industry options
         } else {
             // Redirect handled in HTML script
         }
@@ -111,27 +113,101 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    // 🔹 Industry Loading
+    function loadIndustries() {
+        db.collection("industries")
+            .where("isActive", "==", true)
+            .orderBy("order", "asc")
+            .get()
+            .then((snapshot) => {
+                availableIndustries = [];
+                snapshot.forEach(doc => {
+                    availableIndustries.push({ id: doc.id, ...doc.data() });
+                });
+                populateIndustryDropdown();
+            })
+            .catch((error) => {
+                console.error("Error loading industries:", error);
+                document.getElementById("industry").innerHTML = '<option value="">Failed to load industries</option>';
+            });
+    }
+
+    function populateIndustryDropdown() {
+        const select = document.getElementById("industry");
+        if (!select) return;
+
+        const currentLang = localStorage.getItem('language') || 'en';
+
+        if (availableIndustries.length === 0) {
+            select.innerHTML = '<option value="" disabled selected>No industries available</option>';
+            return;
+        }
+
+        select.innerHTML = '<option value="" disabled selected>Select Industry</option>';
+
+        availableIndustries.forEach(ind => {
+            const option = document.createElement('option');
+            option.value = ind.key;
+            option.textContent = currentLang === 'ko' && ind.labelKo ? ind.labelKo : ind.labelEn;
+            option.dataset.allowCustomInput = ind.allowCustomInput || false;
+            select.appendChild(option);
+        });
+
+        // Handle industry change - show/hide custom input
+        select.addEventListener('change', handleIndustryChange);
+    }
+
+    function handleIndustryChange() {
+        const select = document.getElementById("industry");
+        const customContainer = document.getElementById("custom-industry-container");
+        const customInput = document.getElementById("industry-custom");
+
+        const selectedOption = select.options[select.selectedIndex];
+        const allowCustom = selectedOption?.dataset.allowCustomInput === 'true';
+
+        if (allowCustom) {
+            customContainer.style.display = 'block';
+            customInput.required = true;
+        } else {
+            customContainer.style.display = 'none';
+            customInput.required = false;
+            customInput.value = '';
+        }
+    }
+
     // 🔹 Step 1 Logic
     function validateStep1() {
         const name = document.getElementById("project-name").value;
         const industry = document.getElementById("industry").value;
         const lang = document.getElementById("primary-language").value;
+        const customIndustry = document.getElementById("industry-custom");
 
         if (!name || !industry || !lang) {
             alert("Please fill in all required fields (*)");
             return false;
         }
+
+        // Check if custom input is required but empty
+        const selectedOption = document.getElementById("industry").options[document.getElementById("industry").selectedIndex];
+        if (selectedOption?.dataset.allowCustomInput === 'true' && !customIndustry.value.trim()) {
+            alert("Please specify your industry");
+            return false;
+        }
+
         return true;
     }
 
     async function saveDraftStep1() {
         if (!currentUser) return;
 
+        const industryKey = document.getElementById("industry").value;
+        const customInput = document.getElementById("industry-custom").value.trim();
+
         const data = {
             ownerId: currentUser.uid,
             projectName: document.getElementById("project-name").value,
             websiteUrl: document.getElementById("website-url").value,
-            industry: document.getElementById("industry").value,
+            industry: industryKey,
             targetMarket: document.getElementById("target-market").value,
             primaryLanguage: document.getElementById("primary-language").value,
             isDraft: true,
@@ -139,6 +215,11 @@ document.addEventListener("DOMContentLoaded", () => {
             status: "Normal",
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
+
+        // Add custom industry label if applicable
+        if (customInput) {
+            data.industryCustomLabel = customInput;
+        }
 
         try {
             if (draftId) {

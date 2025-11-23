@@ -1,0 +1,96 @@
+<div class="admin-card">
+    <div class="admin-card-header">
+        <h3 class="admin-card-title">Industry Master Data</h3>
+        <button id="btn-add-industry" class="admin-btn-primary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                style="display: inline; vertical-align: middle; margin-right: 6px;">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Add Industry
+        </button>
+    </div>
+
+    <div id="industries-table-container">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Label (EN)</th>
+                    <th>Key</th>
+                    <th>Order</th>
+                    <th>Active</th>
+                    <th>Custom Input</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="industries-tbody">
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">
+                        Loading industries...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add/Edit Industry Modal -->
+<div id="industry-modal" class="admin-modal">
+    <div class="admin-modal-content">
+        <div class="admin-modal-header">
+            <h3 id="modal-title">Add Industry</h3>
+            <button class="admin-modal-close" id="close-industry-modal">&times;</button>
+        </div>
+        <form id="industry-form">
+            <div class="admin-modal-body">
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Label (English) *</label>
+                    <input type="text" id="industry-labelEn" class="admin-form-input"
+                        placeholder="e.g. Marketing Agency" required>
+                </div>
+
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Label (Korean)</label>
+                    <input type="text" id="industry-labelKo" class="admin-form-input" placeholder="e.g. 마케팅 에이전시">
+                </div>
+
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Key *</label>
+                    <input type="text" id="industry-key" class="admin-form-input" placeholder="e.g. marketing_agency"
+                        required>
+                    <small style="color: rgba(255,255,255,0.5); font-size: 0.85rem;">Auto-generated from label, but you
+                        can modify it</small>
+                </div>
+
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Order *</label>
+                    <input type="number" id="industry-order" class="admin-form-input" placeholder="e.g. 10" required
+                        min="0" step="10">
+                    <small style="color: rgba(255,255,255,0.5); font-size: 0.85rem;">Sort order in dropdown (10, 20,
+                        30...)</small>
+                </div>
+
+                <div class="admin-form-group">
+                    <label class="admin-form-checkbox">
+                        <input type="checkbox" id="industry-isActive" checked>
+                        <span>Active (show in user dropdown)</span>
+                    </label>
+                </div>
+
+                <div class="admin-form-group">
+                    <label class="admin-form-checkbox">
+                        <input type="checkbox" id="industry-allowCustomInput">
+                        <span>Allow Custom Input (for "Other" option)</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="admin-modal-footer">
+                <button type="button" class="admin-btn-secondary" id="cancel-industry-modal">Cancel</button>
+                <button type="submit" class="admin-btn-primary">Save Industry</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="admin-industries.js"></script>
