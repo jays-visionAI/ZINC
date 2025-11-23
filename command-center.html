@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZINC - Command Center</title>
+    <meta name="description" content="ZINC Command Center">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0A0A0F">
+</head>
+
+<body class="dashboard-body">
+    <div class="dashboard-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <a href="/" class="logo">
+                    <svg class="logo-icon" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M20 0L40 10V30L20 40L0 30V10L20 0Z" fill="url(#logo-gradient)" />
+                        <text x="20" y="29" font-size="22" font-weight="800" fill="white" text-anchor="middle"
+                            font-family="Inter, sans-serif">Z</text>
+                        <defs>
+                            <linearGradient id="logo-gradient" x1="0" y1="0" x2="40" y2="40">
+                                <stop offset="0%" stop-color="#8B5CF6" />
+                                <stop offset="100%" stop-color="#3B82F6" />
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    <span class="logo-text">ZINC</span>
+                </a>
+            </div>
+
+            <div class="sidebar-menu">
+                <div class="menu-label">WORKSPACE</div>
+                <a href="#" class="menu-item active">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                    </svg>
+                    Command Center
+                </a>
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="system-status">
+                    <span class="status-dot"></span>
+                    System Nominal
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="dashboard-main">
+            <!-- Header -->
+            <header class="dashboard-header">
+                <h1>Command Center</h1>
+                <div class="header-controls">
+                    <div class="system-status-pill">
+                        <span class="status-dot"></span>
+                        System Nominal
+                    </div>
+                    <button class="btn-lang-sm">EN</button>
+                    <button class="btn-lang-sm">KR</button>
+                    <div id="user-profile-container"></div>
+                </div>
+            </header>
+
+            <div class="dashboard-content">
+                <!-- Section 1: Project Hive -->
+                <section class="dashboard-section">
+                    <div class="section-header">
+                        <h2>1. Project Hive</h2>
+                        <span class="section-desc">High-level oversight of all managed client hives.</span>
+                    </div>
+
+                    <div class="hive-grid">
+                        <!-- Empty State Card -->
+                        <div class="create-project-card">
+                            <div class="create-icon">+</div>
+                            <div class="create-text">Create New Project</div>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="dashboard-bottom-grid">
+                    <!-- Section 2: Portfolio Overview -->
+                    <section class="dashboard-section">
+                        <div class="section-header">
+                            <h2>2. Portfolio Overview</h2>
+                        </div>
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-value">0</div>
+                                <div class="stat-label">Total Projects</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value">0</div>
+                                <div class="stat-label">Total Agents</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value">0</div>
+                                <div class="stat-label">Portfolio Pending Approvals</div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Section 3: Global Action Center -->
+                    <section class="dashboard-section">
+                        <div class="section-header">
+                            <h2>3. Global Action Center</h2>
+                        </div>
+                        <div class="action-center-box">
+                            <div class="empty-action-state">
+                                <p>No pending global actions.</p>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+    <!-- Config & Auth -->
+    <script src="firebase-config.js"></script>
+    <script src="auth.js"></script>
+
+    <!-- Auth Check Script -->
+    <script>
+        // Simple auth check to redirect if not logged in
+        // Note: auth.js also handles state changes, but this adds an immediate check
+        firebase.auth().onAuthStateChanged(function (user) {
+            if (!user) {
+                window.location.href = 'index.html';
+            } else {
+                // Move profile to header
+                const profileContainer = document.getElementById('user-profile-container');
+                const navProfile = document.getElementById('user-profile');
+                if (navProfile && profileContainer) {
+                    profileContainer.appendChild(navProfile);
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>

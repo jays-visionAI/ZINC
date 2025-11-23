@@ -21,6 +21,9 @@ async function signInWithGoogle() {
         console.log("User signed in:", user.displayName);
         // You can save user data to Firestore here if needed
         saveUserToFirestore(user);
+
+        // Redirect to Command Center
+        window.location.href = 'command-center.html';
     } catch (error) {
         console.error("Error signing in:", error);
         if (error.code !== 'auth/cancelled-popup-request') {
