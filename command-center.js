@@ -1,4 +1,4 @@
-// dashboard.js - ZINC Command Center Logic
+// command-center.js - ZINC Command Center Logic
 
 // DOM Elements
 const hiveGrid = document.getElementById('hive-grid');
