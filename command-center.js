@@ -292,17 +292,30 @@ document.addEventListener("DOMContentLoaded", () => {
     function loadProjects() {
         if (!currentUser) return;
 
+        // Note: Removed orderBy to avoid requiring a composite index immediately.
+        // Sorting is done in client-side for now.
         db.collection("projects")
             .where("ownerId", "==", currentUser.uid)
             .where("isDraft", "==", false)
-            .orderBy("createdAt", "desc")
             .onSnapshot((snapshot) => {
                 const projects = [];
                 snapshot.forEach(doc => {
                     projects.push({ id: doc.id, ...doc.data() });
                 });
+
+                // Client-side sort
+                projects.sort((a, b) => {
+                    const tA = a.createdAt ? a.createdAt.seconds : 0;
+                    const tB = b.createdAt ? b.createdAt.seconds : 0;
+                    return tB - tA;
+                });
+
                 renderProjectCards(projects);
                 updatePortfolioStats(projects);
+            }, (error) => {
+                console.error("Error loading projects:", error);
+                // Even if error, ensure Add button is visible
+                renderAddProjectCard();
             });
     }
 
@@ -374,6 +387,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function renderAddProjectCard() {
+        // Prevent duplicate add buttons if called multiple times
+        if (hiveGrid.querySelector('.add-project-card')) return;
+
         const card = document.createElement("div");
         card.className = "client-card add-project-card";
         card.innerHTML = `
@@ -383,7 +399,13 @@ document.addEventListener("DOMContentLoaded", () => {
             </div>
         `;
         card.addEventListener("click", openModal);
-        hiveGrid.appendChild(card);
+
+        // Always insert as first child
+        if (hiveGrid.firstChild) {
+            hiveGrid.insertBefore(card, hiveGrid.firstChild);
+        } else {
+            hiveGrid.appendChild(card);
+        }
     }
 
     function updatePortfolioStats(projects) {
@@ -439,4 +461,8 @@ document.addEventListener("DOMContentLoaded", () => {
         updateLanguageUI(currentLang);
         translatePage(currentLang);
     }
+
+    // 🔹 Initial Render (Fallback)
+    // Render the Add Project card immediately so it's visible even before auth/data loads
+    renderAddProjectCard();
 });
