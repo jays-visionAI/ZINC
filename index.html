@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZINC - AI-Powered Social Media Automation</title>
+    <meta name="description" content="AI 에이전트가 소셜미디어 콘텐츠를 자동으로 제작하고 게시합니다. 미래의 마케팅을 지금 경험하세요.">
+
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#8B5CF6">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ZINC">
+
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+        <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <!-- Navigation -->
+    <nav class="nav">
+        <div class="container">
+            <div class="nav-content">
+                <div class="logo">
+                    <svg class="logo-icon" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M20 0L40 10V30L20 40L0 30V10L20 0Z" fill="url(#logo-gradient)" />
+                        <defs>
+                            <linearGradient id="logo-gradient" x1="0" y1="0" x2="40" y2="40">
+                                <stop offset="0%" stop-color="#8B5CF6" />
+                                <stop offset="100%" stop-color="#3B82F6" />
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    <span class="logo-text">ZINC</span>
+                </div>
+                <div class="nav-links">
+                    <a href="#features" data-i18n="nav.features">Features</a>
+                    <a href="#platforms" data-i18n="nav.platforms">Platforms</a>
+                    <a href="#pricing" data-i18n="nav.pricing">Pricing</a>
+                    <button class="btn-primary">
+                        <span data-i18n="nav.getStarted">Get Started</span>
+                        <span class="lang-indicator" data-i18n="nav.langCode">KO</span>
+                    </button>
+                    <button id="lang-toggle" class="btn-lang" aria-label="Switch language">EN</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-bg">
+            <div class="gradient-orb orb-1"></div>
+            <div class="gradient-orb orb-2"></div>
+            <div class="gradient-orb orb-3"></div>
+            <div class="grid-overlay"></div>
+        </div>
+
+        <div class="container">
+            <div class="hero-content">
+                <div class="hero-badge">
+                    <span class="badge-dot"></span>
+                    <span>AI-Powered Automation</span>
+                </div>
+
+                <h1 class="hero-title">
+                    소셜미디어 마케팅의<br />
+                    <span class="gradient-text">미래를 경험하세요</span>
+                </h1>
+
+                <p class="hero-description">
+                    AI 에이전트가 24/7 자동으로 콘텐츠를 제작하고 게시합니다.<br />
+                    더 이상 수동 작업에 시간을 낭비하지 마세요.
+                </p>
+
+                <div class="hero-cta">
+                    <button class="btn-hero">무료로 시작하기</button>
+                    <button class="btn-secondary">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                            <path
+                                d="M10 0C4.477 0 0 4.477 0 10s4.477 10 10 10 10-4.477 10-10S15.523 0 10 0zm-2 14.5v-9l6 4.5-6 4.5z" />
+                        </svg>
+                        데모 보기
+                    </button>
+                </div>
+
+                <div class="hero-stats">
+                    <div class="stat-item">
+                        <div class="stat-number">10K+</div>
+                        <div class="stat-label">활성 사용자</div>
+                    </div>
+                    <div class="stat-divider"></div>
+                    <div class="stat-item">
+                        <div class="stat-number">1M+</div>
+                        <div class="stat-label">생성된 콘텐츠</div>
+                    </div>
+                    <div class="stat-divider"></div>
+                    <div class="stat-item">
+                        <div class="stat-number">99.9%</div>
+                        <div class="stat-label">가동 시간</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="hero-visual">
+                <div class="floating-card card-1">
+                    <div class="card-icon">🤖</div>
+                    <div class="card-content">
+                        <div class="card-title">AI Agent Active</div>
+                        <div class="card-subtitle">Creating content...</div>
+                    </div>
+                    <div class="card-pulse"></div>
+                </div>
+
+                <div class="floating-card card-2">
+                    <div class="card-icon">📊</div>
+                    <div class="card-content">
+                        <div class="card-title">Engagement</div>
+                        <div class="card-subtitle">+245% this week</div>
+                    </div>
+                </div>
+
+                <div class="floating-card card-3">
+                    <div class="card-icon">✨</div>
+                    <div class="card-content">
+                        <div class="card-title">Posted</div>
+                        <div class="card-subtitle">12 new posts</div>
+                    </div>
+                </div>
+
+                <div class="ai-brain">
+                    <div class="brain-core"></div>
+                    <div class="brain-ring ring-1"></div>
+                    <div class="brain-ring ring-2"></div>
+                    <div class="brain-ring ring-3"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">
+                    강력한 AI 기능으로<br />
+                    <span class="gradient-text">마케팅을 자동화하세요</span>
+                </h2>
+                <p class="section-description">
+                    최첨단 AI 기술로 콘텐츠 제작부터 게시까지 모든 과정을 자동화합니다
+                </p>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" />
+                            <path d="M2 17L12 22L22 17" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" />
+                            <path d="M2 12L12 17L22 12" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" />
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">AI 콘텐츠 생성</h3>
+                    <p class="feature-description">
+                        GPT-4 기반 AI가 브랜드 톤에 맞는 고품질 콘텐츠를 자동으로 생성합니다
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <rect x="3" y="3" width="18" height="18" rx="2" stroke-width="2" />
+                            <path d="M9 3V21" stroke-width="2" />
+                            <path d="M15 3V21" stroke-width="2" />
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">스마트 스케줄링</h3>
+                    <p class="feature-description">
+                        최적의 게시 시간을 AI가 분석하여 자동으로 콘텐츠를 예약합니다
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path
+                                d="M21 16V8C21 6.89543 20.1046 6 19 6H5C3.89543 6 3 6.89543 3 8V16C3 17.1046 3.89543 18 5 18H19C20.1046 18 21 17.1046 21 16Z"
+                                stroke-width="2" />
+                            <path
+                                d="M12 12C13.1046 12 14 11.1046 14 10C14 8.89543 13.1046 8 12 8C10.8954 8 10 8.89543 10 10C10 11.1046 10.8954 12 12 12Z"
+                                stroke-width="2" />
+                            <path d="M7 18L10 15L12 17L16 13L19 16" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" />
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">이미지 생성</h3>
+                    <p class="feature-description">
+                        DALL-E 3로 콘텐츠에 맞는 독창적인 이미지를 자동 생성합니다
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M3 3V21H21" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M7 16L12 11L16 15L21 10" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" />
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">실시간 분석</h3>
+                    <p class="feature-description">
+                        모든 플랫폼의 성과를 하나의 대시보드에서 실시간으로 확인하세요
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <circle cx="12" cy="12" r="10" stroke-width="2" />
+                            <path d="M12 6V12L16 14" stroke-width="2" stroke-linecap="round" />
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">24/7 자동화</h3>
+                    <p class="feature-description">
+                        AI 에이전트가 쉬지 않고 브랜드를 위해 일합니다
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path
+                                d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"
+                                stroke-width="2" />
+                            <path d="M12 16V12" stroke-width="2" stroke-linecap="round" />
+                            <path d="M12 8H12.01" stroke-width="2" stroke-linecap="round" />
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">멀티 플랫폼</h3>
+                    <p class="feature-description">
+                        Instagram, Twitter, Facebook, LinkedIn 등 모든 주요 플랫폼 지원
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Platforms Section -->
+    <section id="platforms" class="platforms">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">
+                    모든 주요 플랫폼을<br />
+                    <span class="gradient-text">한 곳에서 관리</span>
+                </h2>
+            </div>
+
+            <div class="platforms-grid">
+                <!-- Social Media Platforms -->
+                <div class="platform-card">
+                    <div class="platform-icon instagram">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+                            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" fill="#0a0a0f" />
+                            <circle cx="17.5" cy="6.5" r="1.5" fill="#0a0a0f" />
+                        </svg>
+                    </div>
+                    <h3>Instagram</h3>
+                </div>
+
+                <div class="platform-card">
+                    <div class="platform-icon x-twitter">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path
+                                d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                        </svg>
+                    </div>
+                    <h3>X</h3>
+                </div>
+
+                <div class="platform-card">
+                    <div class="platform-icon facebook">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z" />
+                        </svg>
+                    </div>
+                    <h3>Facebook</h3>
+                </div>
+
+                <div class="platform-card">
+                    <div class="platform-icon linkedin">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path
+                                d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z" />
+                            <circle cx="4" cy="4" r="2" />
+                        </svg>
+                    </div>
+                    <h3>LinkedIn</h3>
+                </div>
+
+                <div class="platform-card">
+                    <div class="platform-icon youtube">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path
+                                d="M22.54 6.42a2.78 2.78 0 00-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 00-1.94 2A29 29 0 001 11.75a29 29 0 00.46 5.33A2.78 2.78 0 003.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 001.94-2 29 29 0 00.46-5.25 29 29 0 00-.46-5.33z" />
+                            <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02" fill="#0a0a0f" />
+                        </svg>
+                    </div>
+                    <h3>YouTube</h3>
+                </div>
+
+                <div class="platform-card">
+                    <div class="platform-icon tiktok">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" />
+                        </svg>
+                    </div>
+                    <h3>TikTok</h3>
+                </div>
+
+                <div class="platform-card">
+                    <div class="platform-icon discord">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path
+                                d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037A19.736 19.736 0 003.677 4.37a.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 00-.041-.106 13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
+                        </svg>
+                    </div>
+                    <h3>Discord</h3>
+                </div>
+
+                <div class="platform-card">
+                    <div class="platform-icon naver">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M16.273 12.845L7.376 0H0v24h7.726V11.156L16.624 24H24V0h-7.727v12.845z" />
+                        </svg>
+                    </div>
+                    <h3>Naver</h3>
+                </div>
+
+                <div class="platform-card">
+                    <div class="platform-icon reddit">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path
+                                d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.111 3.111 0 0 1 .042.52c0 2.694-3.13 4.87-7.004 4.87-3.874 0-7.004-2.176-7.004-4.87 0-.183.015-.366.043-.534A1.748 1.748 0 0 1 4.028 12c0-.968.786-1.754 1.754-1.754.463 0 .898.196 1.207.49 1.207-.883 2.878-1.43 4.744-1.487l.885-4.182a.342.342 0 0 1 .14-.197.35.35 0 0 1 .238-.042l2.906.617a1.214 1.214 0 0 1 1.108-.701zM9.25 12C8.561 12 8 12.562 8 13.25c0 .687.561 1.248 1.25 1.248.687 0 1.248-.561 1.248-1.249 0-.688-.561-1.249-1.249-1.249zm5.5 0c-.687 0-1.248.561-1.248 1.25 0 .687.561 1.248 1.249 1.248.688 0 1.249-.561 1.249-1.249 0-.687-.562-1.249-1.25-1.249zm-5.466 3.99a.327.327 0 0 0-.231.094.33.33 0 0 0 0 .463c.842.842 2.484.913 2.961.913.477 0 2.105-.056 2.961-.913a.361.361 0 0 0 .029-.463.33.33 0 0 0-.464 0c-.547.533-1.684.73-2.512.73-.828 0-1.979-.196-2.512-.73a.326.326 0 0 0-.232-.095z" />
+                        </svg>
+                    </div>
+                    <h3>Reddit</h3>
+                </div>
+
+                <!-- Messaging Apps -->
+                <div class="platform-card">
+                    <div class="platform-icon kakaotalk">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path
+                                d="M12 3C6.477 3 2 6.477 2 10.75c0 2.764 1.828 5.192 4.56 6.56-.195.717-.657 2.428-.753 2.818-.118.479.175.473.372.344.143-.093 2.308-1.546 3.28-2.197.51.07 1.03.106 1.541.106 5.523 0 10-3.477 10-7.75S17.523 3 12 3zm5.455 9.52h-2.146v.455c0 .25-.205.455-.455.455h-.182c-.25 0-.455-.205-.455-.455v-3.09c0-.25.205-.455.455-.455h2.783c.25 0 .455.205.455.455v.182c0 .25-.205.455-.455.455h-2.146v.545h2.146c.25 0 .455.205.455.455v.182c0 .25-.205.455-.455.455zm-4.364-2.636h-.182c-.25 0-.455.205-.455.455v2.636c0 .25.205.455.455.455h.182c.25 0 .455-.205.455-.455V10.34c0-.25-.205-.455-.455-.455zm-1.818 0h-.182c-.25 0-.455.205-.455.455v1.59l-1.636-1.909c-.045-.054-.114-.09-.182-.09h-.182c-.25 0-.455.205-.455.455v2.636c0 .25.205.455.455.455h.182c.25 0 .455-.205.455-.455v-1.59l1.636 1.909c.045.054.114.09.182.09h.182c.25 0 .455-.205.455-.455V10.34c0-.25-.205-.455-.455-.455zm-3.273 0h-2.783c-.25 0-.455.205-.455.455v2.636c0 .25.205.455.455.455h.182c.25 0 .455-.205.455-.455v-.545h1.909v.545c0 .25.205.455.455.455h.182c.25 0 .455-.205.455-.455V10.34c0-.25-.205-.455-.455-.455zm-.637 1.636H5.455v-.545h1.909v.545z" />
+                        </svg>
+                    </div>
+                    <h3>KakaoTalk</h3>
+                </div>
+
+                <div class="platform-card">
+                    <div class="platform-icon line">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path
+                                d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.346 0 .627.285.627.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63.346 0 .628.285.628.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.282.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314" />
+                        </svg>
+                    </div>
+                    <h3>Line</h3>
+                </div>
+
+                <div class="platform-card">
+                    <div class="platform-icon telegram">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path
+                                d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
+                        </svg>
+                    </div>
+                    <h3>Telegram</h3>
+                </div>
+
+                <div class="platform-card">
+                    <div class="platform-icon whatsapp">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path
+                                d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
+                        </svg>
+                    </div>
+                    <h3>WhatsApp</h3>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta">
+        <div class="cta-bg">
+            <div class="gradient-orb orb-4"></div>
+            <div class="gradient-orb orb-5"></div>
+        </div>
+
+        <div class="container">
+            <div class="cta-content">
+                <h2 class="cta-title">
+                    지금 바로 시작하세요
+                </h2>
+                <p class="cta-description">
+                    무료 체험으로 AI 에이전트의 강력함을 경험해보세요.<br />
+                    신용카드 없이 즉시 시작할 수 있습니다.
+                </p>
+                <div class="cta-buttons">
+                    <button class="btn-hero">무료로 시작하기</button>
+                    <button class="btn-secondary">영업팀 문의</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <div class="logo">
+                        <svg class="logo-icon" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M20 0L40 10V30L20 40L0 30V10L20 0Z" fill="url(#footer-logo-gradient)" />
+                            <defs>
+                                <linearGradient id="footer-logo-gradient" x1="0" y1="0" x2="40" y2="40">
+                                    <stop offset="0%" stop-color="#8B5CF6" />
+                                    <stop offset="100%" stop-color="#3B82F6" />
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                        <span class="logo-text">ZINC</span>
+                    </div>
+                    <p class="footer-tagline">AI-Powered Social Media Automation</p>
+                </div>
+
+                <div class="footer-links">
+                    <div class="footer-column">
+                        <h4>제품</h4>
+                        <a href="#features">기능</a>
+                        <a href="#platforms">플랫폼</a>
+                        <a href="#pricing">가격</a>
+                    </div>
+
+                    <div class="footer-column">
+                        <h4>회사</h4>
+                        <a href="#about">회사 소개</a>
+                        <a href="#blog">블로그</a>
+                        <a href="#careers">채용</a>
+                    </div>
+
+                    <div class="footer-column">
+                        <h4>지원</h4>
+                        <a href="#help">고객 지원</a>
+                        <a href="#docs">문서</a>
+                        <a href="#contact">문의하기</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <p>&copy; 2024 ZINC. All rights reserved.</p>
+                <div class="footer-legal">
+                    <a href="#privacy">개인정보처리방침</a>
+                    <a href="#terms">이용약관</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+
+    <script src="i18n-inject.js"></script>
+    <script src="translations.js"></script>
+    <script src="script.js"></script>
+
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    })
+                    .catch(err => {
+                        console.log('ServiceWorker registration failed: ', err);
+                    });
+            });
+        }
+    </script>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+    <!-- Firebase Config & Auth -->
+    <script src="firebase-config.js"></script>
+    <script src="auth.js"></script>
+</body>
+
+</html>

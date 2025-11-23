@@ -1,0 +1,32 @@
+// Import the functions you need from the SDKs you need
+// These will be available globally via the CDN scripts in index.html
+// import { initializeApp } from "firebase/app";
+// import { getAnalytics } from "firebase/analytics";
+
+// TODO: Replace the following with your app's Firebase project configuration
+// See: https://firebase.google.com/docs/web/learn-more#config-object
+const firebaseConfig = {
+    apiKey: "AIzaSyDbX2wse6sPKvHTJvmjdZbOFYv_DQ0cIkw",
+    authDomain: "zinc-c790f.firebaseapp.com",
+    projectId: "zinc-c790f",
+    storageBucket: "zinc-c790f.firebasestorage.app",
+    messagingSenderId: "670347890116",
+    appId: "1:670347890116:web:40293006c53b83fd72a891",
+    measurementId: "G-2YFRT6T83B"
+};
+
+// Initialize Firebase
+// Note: We are using the namespaced API version compatible with CDN scripts
+let app;
+let auth;
+let db;
+
+try {
+    app = firebase.initializeApp(firebaseConfig);
+    auth = firebase.auth();
+    db = firebase.firestore();
+    console.log("Firebase initialized successfully");
+} catch (error) {
+    console.error("Firebase initialization failed:", error);
+    console.warn("Please update firebase-config.js with your actual Firebase configuration.");
+}
