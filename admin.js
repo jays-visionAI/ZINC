@@ -7,22 +7,54 @@ document.addEventListener("DOMContentLoaded", async () => {
     // 🔹 Auth Check & Role Verification
     firebase.auth().onAuthStateChanged(async (user) => {
         if (!user) {
+            console.log("No user logged in, redirecting to index.html");
             window.location.href = "index.html";
             return;
         }
 
+        console.log("User logged in:", user.email, "UID:", user.uid);
         currentUser = user;
 
         // Check admin role
         try {
+            console.log("Checking admin role in Firestore...");
             const userDoc = await db.collection("users").doc(user.uid).get();
-            const userData = userDoc.data();
 
-            if (!userData || userData.role !== "admin") {
-                alert("Access denied. Admin privileges required.");
+            if (!userDoc.exists) {
+                console.error("User document does not exist in Firestore!");
+                console.log("Creating user document. Please set role='admin' manually.");
+
+                // Create user document if it doesn't exist
+                await db.collection("users").doc(user.uid).set({
+                    email: user.email,
+                    displayName: user.displayName,
+                    photoURL: user.photoURL,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                alert(`User document created for ${user.email}.\n\nTo grant admin access:\n1. Open Firebase Console\n2. Go to Firestore Database\n3. Find users/${user.uid}\n4. Add field: role = "admin" (string)\n5. Refresh this page`);
                 window.location.href = "command-center.html";
                 return;
             }
+
+            const userData = userDoc.data();
+            console.log("User data:", userData);
+
+            if (!userData.role) {
+                console.error("User document exists but 'role' field is missing!");
+                alert(`Admin access not granted.\n\nYour account: ${user.email}\n\nTo grant admin access:\n1. Open Firebase Console\n2. Go to Firestore Database\n3. Find users/${user.uid}\n4. Add field: role = "admin" (string)\n5. Refresh this page`);
+                window.location.href = "command-center.html";
+                return;
+            }
+
+            if (userData.role !== "admin") {
+                console.error("User role is:", userData.role, "(expected: 'admin')");
+                alert(`Access denied. Admin privileges required.\n\nYour role: ${userData.role}\nRequired role: admin`);
+                window.location.href = "command-center.html";
+                return;
+            }
+
+            console.log("✅ Admin access granted!");
 
             // Render user profile
             renderUserProfile(user, userData);
@@ -31,6 +63,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             initRouting();
         } catch (error) {
             console.error("Error checking admin role:", error);
+            alert(`Error accessing admin panel:\n\n${error.message}\n\nPlease check:\n1. Firebase is initialized\n2. Firestore rules allow reading users collection\n3. Your account has role='admin' in Firestore`);
             window.location.href = "command-center.html";
         }
     });
