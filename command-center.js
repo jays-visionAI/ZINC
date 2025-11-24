@@ -350,7 +350,17 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     async function finalizeProject() {
-        if (!draftId) return;
+        console.log("Finalizing project, draftId:", draftId);
+
+        if (!draftId) {
+            console.error("No draft ID found, attempting to create new project...");
+            // Fallback: Create new project if draftId is missing (shouldn't happen normally)
+            await saveDraftStep1(); // This will set draftId
+            if (!draftId) {
+                alert("Error: Could not create project. Please try again.");
+                return;
+            }
+        }
 
         const data = {
             isDraft: false,
@@ -376,9 +386,15 @@ document.addEventListener("DOMContentLoaded", () => {
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
 
-        await db.collection("projects").doc(draftId).update(data);
-        closeModal();
-        // loadProjects listener will auto-update the grid
+        try {
+            await db.collection("projects").doc(draftId).update(data);
+            console.log("Project finalized successfully");
+            closeModal();
+            // loadProjects listener will auto-update the grid
+        } catch (error) {
+            console.error("Error finalizing project:", error);
+            throw error; // Re-throw to be caught by the button handler
+        }
     }
 
     async function checkExistingDraft() {
