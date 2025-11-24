@@ -611,10 +611,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function renderProjectCards(projects) {
         hiveGrid.innerHTML = "";
 
-        // 1. Add New Project Card
-        renderAddProjectCard();
-
-        // 2. Render Project Cards
+        // 1. Render Project Cards
         projects.forEach(p => {
             const card = document.createElement("div");
             card.className = `client-card status-${p.status ? p.status.toLowerCase() : 'nominal'}`;
@@ -673,6 +670,9 @@ document.addEventListener("DOMContentLoaded", () => {
             `;
             hiveGrid.appendChild(card);
         });
+
+        // 2. Add New Project Card (Last)
+        renderAddProjectCard();
     }
 
     function renderAddProjectCard() {
@@ -689,12 +689,8 @@ document.addEventListener("DOMContentLoaded", () => {
         `;
         card.addEventListener("click", openModal);
 
-        // Always insert as first child
-        if (hiveGrid.firstChild) {
-            hiveGrid.insertBefore(card, hiveGrid.firstChild);
-        } else {
-            hiveGrid.appendChild(card);
-        }
+        // Always append as last child
+        hiveGrid.appendChild(card);
     }
 
     function updatePortfolioStats(projects) {
