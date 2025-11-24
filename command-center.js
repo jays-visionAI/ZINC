@@ -209,7 +209,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const customInput = document.getElementById("industry-custom").value.trim();
 
         const data = {
-            ownerId: currentUser.uid,
+            userId: currentUser.uid,
             projectName: document.getElementById("project-name").value,
             websiteUrl: document.getElementById("website-url").value,
             industry: industryKey,
@@ -355,7 +355,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         try {
             const snapshot = await db.collection("projects")
-                .where("ownerId", "==", currentUser.uid) // Changed from userId to ownerId
+                .where("userId", "==", currentUser.uid)
                 .where("isDraft", "==", true)
                 .limit(1)
                 .get();
@@ -493,7 +493,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Note: Removed orderBy to avoid requiring a composite index immediately.
         // Sorting is done in client-side for now.
         db.collection("projects")
-            .where("ownerId", "==", currentUser.uid)
+            .where("userId", "==", currentUser.uid)
             .where("isDraft", "==", false)
             .onSnapshot((snapshot) => {
                 const projects = [];
