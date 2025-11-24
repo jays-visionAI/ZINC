@@ -26,6 +26,8 @@ document.addEventListener("DOMContentLoaded", () => {
             currentUser = user;
             loadProjects(); // Load non-draft projects
             loadIndustries(); // Load industry options
+            // Note: We don't auto-check drafts here anymore, 
+            // we check when user clicks "Add New Project"
         } else {
             // Redirect handled in HTML script
         }
@@ -38,9 +40,8 @@ document.addEventListener("DOMContentLoaded", () => {
             console.error("Modal element not found!");
             return;
         }
-        console.log("Adding 'open' class to modal");
-        modal.classList.add("open");
-        initProjectWizard();
+        // Check for drafts first
+        checkExistingDraft();
     };
 
     const closeModal = () => {
@@ -117,13 +118,17 @@ document.addEventListener("DOMContentLoaded", () => {
     function loadIndustries() {
         db.collection("industries")
             .where("isActive", "==", true)
-            .orderBy("order", "asc")
+            // .orderBy("order", "asc") // Removed to avoid index requirement
             .get()
             .then((snapshot) => {
                 availableIndustries = [];
                 snapshot.forEach(doc => {
                     availableIndustries.push({ id: doc.id, ...doc.data() });
                 });
+
+                // Client-side sort
+                availableIndustries.sort((a, b) => (a.order || 0) - (b.order || 0));
+
                 populateIndustryDropdown();
             })
             .catch((error) => {
@@ -212,6 +217,7 @@ document.addEventListener("DOMContentLoaded", () => {
             primaryLanguage: document.getElementById("primary-language").value,
             isDraft: true,
             draftStep: 1,
+            stepProgress: 1,
             status: "Normal",
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
@@ -293,6 +299,7 @@ document.addEventListener("DOMContentLoaded", () => {
             description: document.getElementById("project-description").value,
             assetFileUrls: assetFileUrls,
             draftStep: 2,
+            stepProgress: 2,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
 
@@ -322,7 +329,16 @@ document.addEventListener("DOMContentLoaded", () => {
             engagementRateDelta: 0,
             pendingApprovals: 0,
             agentHealthCurrent: 100,
-            agentHealthMax: 100
+            agentHealthMax: 100,
+            stepProgress: 3,
+            totalAgents: 0,
+            avgFollowerGrowth30d: 0,
+            avgEngagementRate: 0,
+            totalContentCreated: 0,
+            totalContentApproved: 0,
+            avgApprovalRate: 0,
+            kpiLastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
 
         await db.collection("projects").doc(draftId).update(data);
@@ -330,61 +346,145 @@ document.addEventListener("DOMContentLoaded", () => {
         // loadProjects listener will auto-update the grid
     }
 
-    // 🔹 Initialization Logic
-    async function initProjectWizard() {
+    async function checkExistingDraft() {
+        console.log("checkExistingDraft called");
+        if (!currentUser) {
+            initProjectWizard(); // If no user, start fresh
+            return;
+        }
+
         try {
-            console.log("initProjectWizard called");
+            const snapshot = await db.collection("projects")
+                .where("ownerId", "==", currentUser.uid) // Changed from userId to ownerId
+                .where("isDraft", "==", true)
+                .limit(1)
+                .get();
 
-            // Reset State
-            currentStep = 1;
-            uploadedFiles = [];
-            renderFileList();
-            form.reset();
-
-            // Check for Draft
-            if (currentUser && db) {
-                console.log("Checking for draft projects...");
-                const snapshot = await db.collection("projects")
-                    .where("ownerId", "==", currentUser.uid)
-                    .where("isDraft", "==", true)
-                    .limit(1)
-                    .get();
-
-                if (!snapshot.empty) {
-                    const doc = snapshot.docs[0];
-                    draftId = doc.id;
-                    const data = doc.data();
-                    console.log("Found draft:", draftId);
-
-                    // Populate Form
-                    document.getElementById("project-name").value = data.projectName || "";
-                    document.getElementById("website-url").value = data.websiteUrl || "";
-                    document.getElementById("industry").value = data.industry || "";
-                    document.getElementById("target-market").value = data.targetMarket || "";
-                    document.getElementById("primary-language").value = data.primaryLanguage || "en";
-                    document.getElementById("project-description").value = data.description || "";
-
-                    // Restore Step
-                    if (data.draftStep === 2) {
-                        goToStep(2);
-                    } else {
-                        goToStep(1);
-                    }
-                } else {
-                    console.log("No draft found, starting fresh");
-                    draftId = null;
-                    goToStep(1);
-                }
+            if (!snapshot.empty) {
+                const draft = snapshot.docs[0];
+                showResumeDraftDialog(draft.id, draft.data());
             } else {
-                console.log("No user or db, starting at step 1");
-                goToStep(1);
+                initProjectWizard(); // Start fresh
             }
         } catch (error) {
-            console.error("Error in initProjectWizard:", error);
-            // Even if there's an error, show the modal at step 1
-            goToStep(1);
+            console.error("Error checking drafts:", error);
+            initProjectWizard(); // Fallback to fresh start
         }
     }
+
+    function showResumeDraftDialog(id, data) {
+        const resumeModal = document.getElementById("resume-draft-modal");
+        const nameDisplay = document.getElementById("draft-name-display");
+        const btnResume = document.getElementById("btn-resume-draft");
+        const btnFresh = document.getElementById("btn-start-fresh");
+
+        nameDisplay.textContent = data.projectName || "Untitled Project";
+        resumeModal.classList.add("open");
+
+        // Clean up old listeners
+        const newBtnResume = btnResume.cloneNode(true);
+        const newBtnFresh = btnFresh.cloneNode(true);
+        btnResume.parentNode.replaceChild(newBtnResume, btnResume);
+        btnFresh.parentNode.replaceChild(newBtnFresh, btnFresh);
+
+        newBtnResume.addEventListener("click", () => {
+            resumeModal.classList.remove("open");
+            resumeDraft(id, data);
+        });
+
+        newBtnFresh.addEventListener("click", () => {
+            resumeModal.classList.remove("open");
+            clearDraftAndStartFresh(id);
+        });
+    }
+
+    function resumeDraft(id, data) {
+        draftId = id;
+
+        // Pre-fill Step 1
+        document.getElementById("project-name").value = data.projectName || "";
+        document.getElementById("website-url").value = data.websiteUrl || "";
+        document.getElementById("target-market").value = data.targetMarket || "";
+        document.getElementById("primary-language").value = data.primaryLanguage || "en";
+
+        if (data.industry) {
+            document.getElementById("industry").value = data.industry;
+            // Trigger change event to handle custom input visibility
+            const event = new Event('change');
+            document.getElementById("industry").dispatchEvent(event);
+
+            if (data.industryCustomLabel) {
+                document.getElementById("industry-custom").value = data.industryCustomLabel;
+            }
+        }
+
+        // Pre-fill Step 2
+        if (data.description) {
+            document.getElementById("project-description").value = data.description;
+        }
+
+        // Note: Files cannot be pre-filled due to browser security, 
+        // but we could show previously uploaded files list if we stored them.
+
+        // Open modal and go to saved step
+        modal.classList.add("open");
+
+        // Determine step to resume
+        let targetStep = data.draftStep || 1;
+        // If step 2 was saved, we go to step 2. If step 1 saved, go to step 2 (since step 1 is done).
+        // Logic: if draftStep is 1, it means step 1 was saved, so user is ready for step 2.
+        // If draftStep is 2, user was on step 2.
+
+        // Actually, let's just go to the step they were working on.
+        // If they saved step 1, they are now on step 2.
+        if (targetStep === 1) currentStep = 2;
+        else currentStep = targetStep;
+
+        // Ensure we don't go beyond step 2 for drafts
+        if (currentStep > 2) currentStep = 2;
+
+        goToStep(currentStep);
+    }
+
+    async function clearDraftAndStartFresh(id) {
+        if (confirm("Are you sure? This will delete your saved draft.")) {
+            try {
+                await db.collection("projects").doc(id).delete();
+                draftId = null;
+                initProjectWizard();
+            } catch (error) {
+                console.error("Error deleting draft:", error);
+                alert("Failed to delete draft.");
+            }
+        }
+    }
+
+    // 🔹 Initialization Logic
+    // 🔹 Initialization Logic
+    // 🔹 Initialization Logic
+    function initProjectWizard() {
+        console.log("Initializing wizard...");
+        try {
+            modal.classList.add("open");
+            currentStep = 1;
+            draftId = null;
+            uploadedFiles = [];
+            renderFileList(); // Clear file list UI
+            form.reset();
+
+            const customContainer = document.getElementById("custom-industry-container");
+            if (customContainer) {
+                customContainer.style.display = 'none';
+            }
+
+            goToStep(1);
+        } catch (error) {
+            console.error("Error initializing wizard:", error);
+            // Ensure modal opens even if error occurs
+            if (modal) modal.classList.add("open");
+        }
+    }
+
 
     // 🔹 Command Center Grid Logic
     function loadProjects() {

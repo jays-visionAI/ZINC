@@ -276,6 +276,21 @@
         </div>
     </div>
 
+    <!-- Resume Draft Modal -->
+    <div id="resume-draft-modal" class="modal-overlay" style="z-index: 2000;">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <h3 style="margin-bottom: 16px; color: var(--color-cyan);">Resume Unfinished Project?</h3>
+            <p style="margin-bottom: 24px; color: rgba(255,255,255,0.8);">
+                You have an unfinished project draft: <br>
+                <strong id="draft-name-display" style="color: white; font-size: 1.1rem;">-</strong>
+            </p>
+            <div class="modal-actions" style="justify-content: center; gap: 16px;">
+                <button id="btn-start-fresh" class="btn-secondary">Start Fresh</button>
+                <button id="btn-resume-draft" class="btn-primary">Resume Draft</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
@@ -287,7 +302,7 @@
     <script src="auth.js"></script>
     <!-- Scripts -->
     <script src="translations.js"></script>
-    <script src="command-center.js"></script>
+    <script src="command-center.js?v=2"></script>
 
     <!-- Auth Check Script -->
     <script>
