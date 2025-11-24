@@ -553,6 +553,7 @@ body {
     backdrop-filter: blur(var(--blur-md));
     box-shadow: var(--shadow-lg);
     animation: cardFloat 6s ease-in-out infinite;
+    z-index: 10;
 }
 
 .card-1 {
@@ -2224,6 +2225,7 @@ body {
     box-shadow: 0 6px 30px rgba(0, 230, 146, 0.5);
     transform: translateY(-2px);
 }
+
 /* ============================================
    ADMIN PANEL STYLES
    ============================================ */
@@ -2578,11 +2580,11 @@ body {
     border-radius: 50%;
 }
 
-.admin-toggle input:checked + .admin-toggle-slider {
+.admin-toggle input:checked+.admin-toggle-slider {
     background-color: var(--color-cyan);
 }
 
-.admin-toggle input:checked + .admin-toggle-slider:before {
+.admin-toggle input:checked+.admin-toggle-slider:before {
     transform: translateX(20px);
 }
 
@@ -2742,7 +2744,8 @@ body {
     color: var(--color-text-primary);
     font-size: 1rem;
     transition: all 0.2s ease;
-    box-sizing: border-box; /* Ensure padding doesn't affect width */
+    box-sizing: border-box;
+    /* Ensure padding doesn't affect width */
 }
 
 .form-group input:focus,
@@ -2819,5 +2822,7 @@ body {
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
