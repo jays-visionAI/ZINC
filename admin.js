@@ -119,25 +119,29 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         currentPage = actualPage;
 
-        // Update active nav item
+        // Update active nav item (highlight projects for detail pages)
         document.querySelectorAll(".admin-nav-item").forEach(item => {
-            item.classList.toggle("active", item.dataset.page === page);
+            const itemPage = item.dataset.page;
+            const isActive = itemPage === actualPage ||
+                (actualPage === 'project-detail' && itemPage === 'projects');
+            item.classList.toggle("active", isActive);
         });
 
         // Update page title
         const titles = {
             overview: "Overview",
             projects: "Projects List",
+            'project-detail': "Project Details",
             users: "User Management",
             agents: "Agent Management",
             industries: "Industry Master",
             subscriptions: "Subscription Management",
             settings: "Settings"
         };
-        document.getElementById("admin-page-title").textContent = titles[page] || "Admin";
+        document.getElementById("admin-page-title").textContent = titles[actualPage] || "Admin";
 
-        // Load page content
-        await loadPageContent(page);
+        // Load page content with actualPage
+        await loadPageContent(actualPage);
     }
 
     async function loadPageContent(page) {
@@ -146,6 +150,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         try {
             const response = await fetch(`admin-${page}.html`);
+            console.log(`Loading page: admin-${page}.html`);
             if (response.ok) {
                 const html = await response.text();
                 contentArea.innerHTML = html;
