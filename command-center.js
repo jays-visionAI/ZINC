@@ -61,8 +61,18 @@ document.addEventListener("DOMContentLoaded", () => {
     btnNext.addEventListener("click", async () => {
         if (currentStep === 1) {
             if (!validateStep1()) return;
-            await saveDraftStep1();
-            goToStep(2);
+
+            const originalText = btnNext.textContent;
+            try {
+                btnNext.classList.add("btn-loading");
+                await saveDraftStep1();
+                goToStep(2);
+            } catch (error) {
+                console.error("Error in step 1:", error);
+                alert("An error occurred. Please try again.");
+            } finally {
+                btnNext.classList.remove("btn-loading");
+            }
         } else if (currentStep === 2) {
             const originalText = btnNext.textContent;
             try {
@@ -320,14 +330,20 @@ document.addEventListener("DOMContentLoaded", () => {
         // Assuming storage IS initialized in firebase-config.js
 
         try {
+            console.log(`Starting upload for ${uploadedFiles.length} files...`);
             for (const file of uploadedFiles) {
+                console.log(`Uploading ${file.name} to projects/${draftId}/${file.name}`);
                 const storageRef = storage.ref(`projects/${draftId}/${file.name}`);
                 await storageRef.put(file);
                 const url = await storageRef.getDownloadURL();
+                console.log(`Upload successful: ${url}`);
                 assetFileUrls.push(url);
             }
         } catch (e) {
-            console.warn("Storage upload failed or not configured, skipping files:", e);
+            console.error("Storage upload failed:", e);
+            console.warn("Check if Firebase Storage is enabled in console and rules are set.");
+            // Don't block the flow, but alert the user
+            alert(`File upload failed: ${e.message}. Proceeding without files.`);
         }
 
         const data = {
