@@ -64,9 +64,18 @@ document.addEventListener("DOMContentLoaded", () => {
             await saveDraftStep1();
             goToStep(2);
         } else if (currentStep === 2) {
-            await saveDraftStep2();
-            updateSummary();
-            goToStep(3);
+            const originalText = btnNext.textContent;
+            try {
+                btnNext.classList.add("btn-loading");
+                await saveDraftStep2();
+                updateSummary();
+                goToStep(3);
+            } catch (error) {
+                console.error("Error in step 2:", error);
+                alert("An error occurred. Please try again.");
+            } finally {
+                btnNext.classList.remove("btn-loading");
+            }
         }
     });
 
@@ -79,7 +88,15 @@ document.addEventListener("DOMContentLoaded", () => {
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
         if (currentStep === 3) {
-            await finalizeProject();
+            const originalText = btnLaunch.textContent;
+            try {
+                btnLaunch.classList.add("btn-loading");
+                await finalizeProject();
+            } catch (error) {
+                console.error("Error finalizing project:", error);
+                alert("Failed to launch project. Please try again.");
+                btnLaunch.classList.remove("btn-loading");
+            }
         }
     });
 
