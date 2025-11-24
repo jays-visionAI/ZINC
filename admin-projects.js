@@ -194,8 +194,9 @@
 
     // Expose global function for button click
     window.viewProjectDetail = (id) => {
-        console.log("View project:", id);
-        alert("Project Detail Page coming in Phase 4!");
+        console.log("Navigating to project detail:", id);
+        window.location.hash = `#project-detail/${id}`;
+        // The admin.js routing will handle loading the detail page
     };
 
     // Run immediately on first load

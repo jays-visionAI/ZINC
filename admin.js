@@ -111,7 +111,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function navigateToPage(page) {
-        currentPage = page;
+        // Handle project-detail/{id} pattern
+        let actualPage = page;
+        if (page.startsWith('project-detail/')) {
+            actualPage = 'project-detail';
+        }
+
+        currentPage = actualPage;
 
         // Update active nav item
         document.querySelectorAll(".admin-nav-item").forEach(item => {
