@@ -140,6 +140,11 @@
                 <td><span class="admin-status-badge admin-status-active">${a.category || "General"}</span></td>
                 <td>${a.role || "-"}</td>
                 <td>${a.model || "gpt-3.5-turbo"}</td>
+                <td>
+                    <div class="star-rating">
+                        ${generateStars(a.rating || 5)}
+                    </div>
+                </td>
                 <td>${date}</td>
                 <td>
                     <button class="admin-btn-secondary" onclick="editAgent('${a.id}')">Edit</button>
@@ -148,6 +153,18 @@
             `;
             tbody.appendChild(tr);
         });
+    }
+
+    function generateStars(rating) {
+        let stars = "";
+        for (let i = 1; i <= 5; i++) {
+            if (i <= rating) {
+                stars += '<span class="star-filled">★</span>';
+            } else {
+                stars += '<span class="star-empty">★</span>';
+            }
+        }
+        return stars;
     }
 
     // Modal Functions

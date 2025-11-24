@@ -142,9 +142,10 @@
                 const tr = document.createElement("tr");
 
                 // Status badge
-                let statusClass = "admin-status-active";
-                if (agent.status === "Paused") statusClass = "admin-status-inactive";
-                if (agent.status === "Error") statusClass = "admin-status-inactive";
+                let statusClass = "admin-status-normal";
+                if (agent.status === "Paused") statusClass = "admin-status-paused";
+                if (agent.status === "Error") statusClass = "admin-status-stopped";
+                if (agent.status === "Attention") statusClass = "admin-status-attention";
 
                 // Last active
                 const lastActive = agent.lastActive
