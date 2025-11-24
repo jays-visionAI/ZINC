@@ -114,7 +114,9 @@ function updateUI(user) {
 
         // Add to Nav
         const navLinks = document.querySelector('.nav-links');
-        navLinks.appendChild(profileDiv);
+        if (navLinks) {
+            navLinks.appendChild(profileDiv);
+        }
     }
 }
 

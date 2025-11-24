@@ -95,8 +95,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    form.addEventListener("submit", async (e) => {
-        e.preventDefault();
+    btnLaunch.addEventListener("click", async () => {
         if (currentStep === 3) {
             const originalText = btnLaunch.textContent;
             try {
@@ -291,13 +290,23 @@ document.addEventListener("DOMContentLoaded", () => {
     dropZone.addEventListener("drop", (e) => {
         e.preventDefault();
         dropZone.classList.remove("drag-over");
-        const files = Array.from(e.dataTransfer.files);
+        const files = Array.from(e.dataTransfer.files).map(file => ({
+            file: file,
+            name: file.name,
+            url: null,
+            uploaded: false
+        }));
         uploadedFiles = [...uploadedFiles, ...files];
         renderFileList();
     });
 
     function handleFiles(e) {
-        const files = Array.from(e.target.files);
+        const files = Array.from(e.target.files).map(file => ({
+            file: file,
+            name: file.name,
+            url: null,
+            uploaded: false
+        }));
         uploadedFiles = [...uploadedFiles, ...files];
         renderFileList();
     }
@@ -308,7 +317,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const item = document.createElement("div");
             item.className = "file-item";
             item.innerHTML = `
-                <span>${file.name}</span>
+                <span>${file.name} ${file.uploaded ? '✅' : ''}</span>
                 <span style="cursor:pointer; color:var(--color-warning)" onclick="removeFile(${index})">&times;</span>
             `;
             fileList.appendChild(item);
@@ -331,14 +340,29 @@ document.addEventListener("DOMContentLoaded", () => {
 
         try {
             console.log(`Starting upload for ${uploadedFiles.length} files...`);
-            for (const file of uploadedFiles) {
-                console.log(`Uploading ${file.name} to projects/${draftId}/${file.name}`);
-                const storageRef = storage.ref(`projects/${draftId}/${file.name}`);
-                await storageRef.put(file);
+            for (let i = 0; i < uploadedFiles.length; i++) {
+                const fileObj = uploadedFiles[i];
+
+                if (fileObj.uploaded && fileObj.url) {
+                    console.log(`Skipping already uploaded file: ${fileObj.name}`);
+                    assetFileUrls.push(fileObj.url);
+                    continue;
+                }
+
+                console.log(`Uploading ${fileObj.name} to projects/${draftId}/${fileObj.name}`);
+                const storageRef = storage.ref(`projects/${draftId}/${fileObj.name}`);
+                await storageRef.put(fileObj.file);
                 const url = await storageRef.getDownloadURL();
+
                 console.log(`Upload successful: ${url}`);
+
+                // Update local state
+                uploadedFiles[i].url = url;
+                uploadedFiles[i].uploaded = true;
+
                 assetFileUrls.push(url);
             }
+            renderFileList(); // Update UI to show checkmarks
         } catch (e) {
             console.error("Storage upload failed:", e);
             console.warn("Check if Firebase Storage is enabled in console and rules are set.");
