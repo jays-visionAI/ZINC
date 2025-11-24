@@ -16,26 +16,40 @@ To ensure the new "Initialize Your Hive" wizard and "Command Center" features wo
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow users to read/write only their own project documents
+    // Projects collection
     match /projects/{projectId} {
-      allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
-      allow read, update, delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
     }
     
-    // Industries collection - all authenticated users can read, only admins can write
+    // Agent instances per project (subcollection)
+    match /projects/{projectId}/agents/{agentInstanceId} {
+      allow read: if request.auth != null && 
+        (get(/databases/$(database)/documents/projects/$(projectId)).data.userId == request.auth.uid ||
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin");
+      
+      allow write: if request.auth != null &&
+        (get(/databases/$(database)/documents/projects/$(projectId)).data.userId == request.auth.uid ||
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin");
+    }
+    
+    // Industries collection
     match /industries/{industryId} {
       allow read: if request.auth != null;
       allow write: if request.auth != null && 
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
     }
     
-    // Users collection - users can read/write own document, admins can read all
-    match /users/{uid} {
-      allow read: if request.auth != null && request.auth.uid == uid;
-      allow write: if request.auth != null && request.auth.uid == uid;
-      // Admins can read all user documents
-      allow read: if request.auth != null && 
+    // Master agents library
+    match /agents/{agentId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+    }
+    
+    // Users collection
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
     }
   }
 }
