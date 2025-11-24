@@ -121,6 +121,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         // Update page title
         const titles = {
             overview: "Overview",
+            projects: "Projects List",
             users: "User Management",
             agents: "Agent Management",
             industries: "Industry Master",
@@ -144,12 +145,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                 contentArea.innerHTML = html;
 
                 // Initialize page-specific scripts
-                if (window[`init${capitalize(page)}`]) {
-                    window[`init${capitalize(page)}`](currentUser);
+                const initFuncName = `init${capitalize(page)}`;
+                if (window[initFuncName]) {
+                    window[initFuncName](currentUser);
+                } else {
+                    // Load external script if init function doesn't exist
+                    loadPageScript(page);
                 }
-
-                // Load external script if exists
-                loadPageScript(page);
             } else {
                 // Fallback for pages without dedicated HTML
                 contentArea.innerHTML = `

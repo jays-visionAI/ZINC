@@ -1,0 +1,65 @@
+<div class="admin-actions-bar">
+    <div class="admin-search-box">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="text" id="project-search" placeholder="Search projects...">
+    </div>
+
+    <div class="admin-filters">
+        <select id="filter-status" class="admin-select">
+            <option value="all">All Status</option>
+            <option value="Normal">Normal</option>
+            <option value="Attention">Attention</option>
+            <option value="Paused">Paused</option>
+            <option value="Cool-Down">Cool-Down</option>
+            <option value="Stopped">Stopped</option>
+        </select>
+
+        <select id="filter-industry" class="admin-select">
+            <option value="all">All Industries</option>
+            <!-- Populated dynamically -->
+        </select>
+
+        <select id="sort-projects" class="admin-select">
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+            <option value="growth_desc">Highest Growth</option>
+            <option value="engagement_desc">Highest Engagement</option>
+            <option value="agents_desc">Most Agents</option>
+        </select>
+    </div>
+</div>
+
+<div class="admin-table-container">
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>Project</th>
+                <th>Owner</th>
+                <th>Industry</th>
+                <th>Status</th>
+                <th>Agents</th>
+                <th>Growth (30d)</th>
+                <th>Engagement</th>
+                <th>Created</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="projects-table-body">
+            <!-- Populated dynamically -->
+            <tr>
+                <td colspan="9" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">
+                    Loading projects...
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="admin-pagination" id="projects-pagination" style="display: none;">
+    <button class="btn-page" disabled>&lt;</button>
+    <span class="page-info">Page 1 of 1</span>
+    <button class="btn-page" disabled>&gt;</button>
+</div>
