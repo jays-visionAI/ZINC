@@ -160,11 +160,11 @@
             const tr = document.createElement("tr");
 
             // Status Badge Style
-            let statusClass = "admin-status-active";
-            if (p.status === "Attention") statusClass = "admin-status-inactive"; // Warning color
-            if (p.status === "Paused") statusClass = "admin-status-inactive";
-            if (p.status === "Cool-down") statusClass = "admin-status-inactive"; // Or specific color if needed
-            if (p.status === "Stopped") statusClass = "admin-status-inactive";
+            let statusClass = "admin-status-normal";
+            if (p.status === "Attention") statusClass = "admin-status-attention";
+            if (p.status === "Paused") statusClass = "admin-status-paused";
+            if (p.status === "Cool-down") statusClass = "admin-status-cooldown";
+            if (p.status === "Stopped") statusClass = "admin-status-stopped";
 
             // Date formatting
             const date = p.createdAt ? new Date(p.createdAt.seconds * 1000).toLocaleDateString() : "-";
