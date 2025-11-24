@@ -3,16 +3,9 @@
 (function () {
     let users = [];
     let filteredUsers = [];
-    let unsubscribeUsers = null;
 
     window.initUsers = function (currentUser) {
         console.log("Initializing Users Page...");
-
-        // Cleanup previous listener if exists
-        if (unsubscribeUsers) {
-            unsubscribeUsers();
-            unsubscribeUsers = null;
-        }
 
         // Reset state
         users = [];
@@ -29,51 +22,81 @@
         }
     }
 
-    function loadUsers() {
+    async function loadUsers() {
         const tbody = document.querySelector('.admin-table tbody');
         if (!tbody) return;
 
         tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">Loading users...</td></tr>';
 
-        // Load all users from Firestore
-        unsubscribeUsers = db.collection("users")
-            .onSnapshot(async (snapshot) => {
-                // Check if we are still on the users page
-                if (!document.querySelector('.admin-table tbody')) {
-                    if (unsubscribeUsers) unsubscribeUsers();
-                    return;
-                }
+        try {
+            // Fetch all user documents from Firestore
+            const usersSnapshot = await db.collection("users").get();
+            const firestoreUsers = {};
 
-                users = [];
-
-                // Collect all user data
-                for (const doc of snapshot.docs) {
-                    const userData = { id: doc.id, ...doc.data() };
-
-                    // Count projects for this user
-                    try {
-                        const projectsSnapshot = await db.collection("projects")
-                            .where("userId", "==", doc.id)
-                            .where("isDraft", "==", false)
-                            .get();
-                        userData.projectCount = projectsSnapshot.size;
-                    } catch (error) {
-                        console.error(`Error counting projects for user ${doc.id}:`, error);
-                        userData.projectCount = 0;
-                    }
-
-                    users.push(userData);
-                }
-
-                filteredUsers = [...users];
-                handleFilters();
-            }, (error) => {
-                console.error("Error loading users:", error);
-                if (document.querySelector('.admin-table tbody')) {
-                    document.querySelector('.admin-table tbody').innerHTML =
-                        `<tr><td colspan="6" style="text-align: center; color: #ef4444;">Error loading users: ${error.message}</td></tr>`;
-                }
+            usersSnapshot.forEach(doc => {
+                firestoreUsers[doc.id] = doc.data();
             });
+
+            // Get current authenticated user to check if admin
+            const currentUser = firebase.auth().currentUser;
+            if (!currentUser) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #ef4444;">Not authenticated</td></tr>';
+                return;
+            }
+
+            // Note: Firebase Client SDK doesn't provide listUsers()
+            // We can only show users that have Firestore documents
+            // To show ALL authenticated users, you would need Firebase Admin SDK (server-side)
+
+            users = [];
+
+            for (const [uid, userData] of Object.entries(firestoreUsers)) {
+                // Count projects for this user
+                try {
+                    const projectsSnapshot = await db.collection("projects")
+                        .where("userId", "==", uid)
+                        .where("isDraft", "==", false)
+                        .get();
+
+                    users.push({
+                        id: uid,
+                        email: userData.email || "No email",
+                        displayName: userData.displayName || "Anonymous",
+                        photoURL: userData.photoURL,
+                        tier: userData.tier || (userData.role === 'admin' ? 'admin' : 'free'),
+                        role: userData.role,
+                        createdAt: userData.createdAt,
+                        projectCount: projectsSnapshot.size
+                    });
+                } catch (error) {
+                    console.error(`Error counting projects for user ${uid}:`, error);
+                    users.push({
+                        id: uid,
+                        email: userData.email || "No email",
+                        displayName: userData.displayName || "Anonymous",
+                        photoURL: userData.photoURL,
+                        tier: userData.tier || (userData.role === 'admin' ? 'admin' : 'free'),
+                        role: userData.role,
+                        createdAt: userData.createdAt,
+                        projectCount: 0
+                    });
+                }
+            }
+
+            // Sort by creation date (newest first)
+            users.sort((a, b) => {
+                const timeA = a.createdAt?.seconds || 0;
+                const timeB = b.createdAt?.seconds || 0;
+                return timeB - timeA;
+            });
+
+            filteredUsers = [...users];
+            handleFilters();
+
+        } catch (error) {
+            console.error("Error loading users:", error);
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #ef4444;">Error loading users: ${error.message}</td></tr>`;
+        }
     }
 
     function handleFilters() {
@@ -83,7 +106,7 @@
         const tierValue = tierFilter.value;
 
         filteredUsers = users.filter(u => {
-            const matchesTier = !tierValue || (u.tier || 'free') === tierValue;
+            const matchesTier = !tierValue || u.tier === tierValue;
             return matchesTier;
         });
 
@@ -110,17 +133,15 @@
                 : "-";
 
             // Tier badge
-            const tier = u.tier || u.role === 'admin' ? 'admin' : 'free';
+            const tier = u.tier || 'free';
             let tierClass = 'admin-status-active';
-            if (tier === 'pro') tierClass = 'admin-status-active';
-            if (tier === 'enterprise') tierClass = 'admin-status-active';
             if (tier === 'admin') tierClass = 'admin-status-inactive';
 
             tr.innerHTML = `
-                <td>${u.email || "No email"}</td>
-                <td>${u.displayName || "Anonymous"}</td>
+                <td>${u.email}</td>
+                <td>${u.displayName}</td>
                 <td><span class="admin-status-badge ${tierClass}">${tier.toUpperCase()}</span></td>
-                <td>${u.projectCount || 0}</td>
+                <td>${u.projectCount}</td>
                 <td>${joinedDate}</td>
                 <td>
                     <button class="admin-btn-secondary" onclick="viewUserDetail('${u.id}')">View</button>
