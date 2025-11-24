@@ -33,22 +33,65 @@ async function signInWithGoogle() {
         if (loginBtn) {
             loginBtn.disabled = false;
             loginBtn.style.opacity = '1';
-            loginBtn.style.cursor = 'pointer';
+
+            // Auto-create or update user document in Firestore
+            if (user) {
+                const userRef = db.collection('users').doc(user.uid);
+                const userDoc = await userRef.get();
+
+                if (!userDoc.exists) {
+                    // Create new user document
+                    await userRef.set({
+                        email: user.email,
+                        displayName: user.displayName,
+                        photoURL: user.photoURL,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        lastLogin: firebase.firestore.FieldValue.serverTimestamp(),
+                        tier: 'free',
+                        role: 'user'
+                    });
+                    console.log('New user document created in Firestore');
+                } else {
+                    // Update last login time
+                    await userRef.update({
+                        lastLogin: firebase.firestore.FieldValue.serverTimestamp(),
+                        email: user.email,
+                        displayName: user.displayName,
+                        photoURL: user.photoURL
+                    });
+                    console.log('User document updated in Firestore');
+                }
+            }
+
+            console.log('User signed in:', user);
+            // Assuming closeModal() is defined elsewhere or will be added.
+            // For now, if not defined, it will throw an error.
+            // If the intent was to redirect, it should be window.location.href = 'command-center.html';
+            // Keeping closeModal() as per instruction.
+            if (typeof closeModal === 'function') {
+                closeModal();
+            } else {
+                console.warn("closeModal() function is not defined. Redirecting to command-center.html instead.");
+                window.location.href = 'command-center.html';
+            }
+        } catch (error) {
+            console.error('Error during sign-in:', error);
+            alert('Sign-in failed: ' + error.message);
         }
     }
-}
 
-// Logout Function
-async function signOut() {
-    try {
-        await auth.signOut();
-        console.log("User signed out");
-    } catch (error) {
-        console.error("Error signing out:", error);
+    // Logout Function
+    async function signOut() {
+        try {
+            await auth.signOut();
+            console.log("User signed out");
+        } catch (error) {
+            console.error("Error signing out:", error);
+        }
     }
-}
 
-// Save User to Firestore
+// Save User to Firestore - This function is removed as its logic is now integrated into signInWithGoogle
+/*
 async function saveUserToFirestore(user) {
     try {
         const userRef = db.collection('users').doc(user.uid);

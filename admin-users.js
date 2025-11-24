@@ -44,10 +44,6 @@
                 return;
             }
 
-            // Note: Firebase Client SDK doesn't provide listUsers()
-            // We can only show users that have Firestore documents
-            // To show ALL authenticated users, you would need Firebase Admin SDK (server-side)
-
             users = [];
 
             for (const [uid, userData] of Object.entries(firestoreUsers)) {
@@ -66,6 +62,7 @@
                         tier: userData.tier || (userData.role === 'admin' ? 'admin' : 'free'),
                         role: userData.role,
                         createdAt: userData.createdAt,
+                        lastLogin: userData.lastLogin,
                         projectCount: projectsSnapshot.size
                     });
                 } catch (error) {
@@ -78,15 +75,16 @@
                         tier: userData.tier || (userData.role === 'admin' ? 'admin' : 'free'),
                         role: userData.role,
                         createdAt: userData.createdAt,
+                        lastLogin: userData.lastLogin,
                         projectCount: 0
                     });
                 }
             }
 
-            // Sort by creation date (newest first)
+            // Sort by last login (most recent first)
             users.sort((a, b) => {
-                const timeA = a.createdAt?.seconds || 0;
-                const timeB = b.createdAt?.seconds || 0;
+                const timeA = a.lastLogin?.seconds || a.createdAt?.seconds || 0;
+                const timeB = b.lastLogin?.seconds || b.createdAt?.seconds || 0;
                 return timeB - timeA;
             });
 
@@ -145,6 +143,7 @@
                 <td>${joinedDate}</td>
                 <td>
                     <button class="admin-btn-secondary" onclick="viewUserDetail('${u.id}')">View</button>
+                    ${u.role !== 'admin' ? `<button class="admin-btn-secondary" style="background: #ef4444; margin-left: 8px;" onclick="deleteUser('${u.id}', '${u.email}')">Delete</button>` : ''}
                 </td>
             `;
             tbody.appendChild(tr);
@@ -155,6 +154,47 @@
     window.viewUserDetail = (id) => {
         console.log("View user:", id);
         alert("User Detail Page coming soon!");
+    };
+
+    // Delete user function
+    window.deleteUser = async (uid, email) => {
+        if (!confirm(`정말로 이 유저를 삭제하시겠습니까?\n\nEmail: ${email}\n\n⚠️ 이 작업은 되돌릴 수 없습니다.\n- Firestore 유저 문서 삭제\n- 유저의 모든 프로젝트 삭제\n- 유저의 모든 파일 삭제\n\n참고: Firebase Authentication 계정은 서버측에서만 삭제 가능합니다.`)) {
+            return;
+        }
+
+        try {
+            const tbody = document.querySelector('.admin-table tbody');
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">Deleting user...</td></tr>';
+
+            // 1. Delete all user's projects
+            const projectsSnapshot = await db.collection("projects")
+                .where("userId", "==", uid)
+                .get();
+
+            const deletePromises = [];
+
+            projectsSnapshot.forEach(doc => {
+                deletePromises.push(doc.ref.delete());
+            });
+
+            await Promise.all(deletePromises);
+            console.log(`Deleted ${projectsSnapshot.size} projects`);
+
+            // 2. Delete user document
+            await db.collection("users").doc(uid).delete();
+            console.log('User document deleted');
+
+            // 3. Note about Authentication
+            alert(`유저 데이터가 삭제되었습니다.\n\n⚠️ Firebase Authentication 계정은 유지됩니다.\n완전한 삭제를 위해서는 Firebase Console에서 수동으로 삭제하거나, Cloud Functions를 사용해야 합니다.\n\nAuthentication > Users 탭에서 ${email}을 검색하여 삭제하세요.`);
+
+            // Reload users
+            loadUsers();
+
+        } catch (error) {
+            console.error("Error deleting user:", error);
+            alert(`유저 삭제 실패: ${error.message}`);
+            loadUsers();
+        }
     };
 
     // Run immediately on first load
