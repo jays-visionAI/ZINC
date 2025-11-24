@@ -23,17 +23,17 @@ service cloud.firestore {
         (resource.data.userId == request.auth.uid || 
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin");
       allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
-    }
-    
-    // Agent instances per project (subcollection)
-    match /projects/{projectId}/agents/{agentInstanceId} {
-      allow read: if request.auth != null && 
-        (get(/databases/$(database)/documents/projects/$(projectId)).data.userId == request.auth.uid ||
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin");
       
-      allow write: if request.auth != null &&
-        (get(/databases/$(database)/documents/projects/$(projectId)).data.userId == request.auth.uid ||
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin");
+      // Agent instances per project (subcollection)
+      match /agents/{agentInstanceId} {
+        allow read: if request.auth != null && 
+          (get(/databases/$(database)/documents/projects/$(projectId)).data.userId == request.auth.uid ||
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin");
+        
+        allow write: if request.auth != null &&
+          (get(/databases/$(database)/documents/projects/$(projectId)).data.userId == request.auth.uid ||
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin");
+      }
     }
     
     // Industries collection
@@ -49,7 +49,6 @@ service cloud.firestore {
       allow write: if request.auth != null &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
     }
-    
     
     // Users collection
     match /users/{uid} {
