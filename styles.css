@@ -2787,3 +2787,10 @@ body {
     background-size: 16px;
     padding-right: 40px;
 }
+
+/* Drag & Drop Visual Feedback */
+.file-upload-area.drag-over {
+    border-color: var(--color-cyan);
+    background: rgba(6, 182, 212, 0.1);
+    transform: scale(1.02);
+}

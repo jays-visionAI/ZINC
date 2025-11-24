@@ -251,6 +251,24 @@ document.addEventListener("DOMContentLoaded", () => {
     dropZone.addEventListener("click", () => fileInput.click());
     fileInput.addEventListener("change", handleFiles);
 
+    // Drag & Drop Events
+    dropZone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropZone.classList.add("drag-over");
+    });
+
+    dropZone.addEventListener("dragleave", () => {
+        dropZone.classList.remove("drag-over");
+    });
+
+    dropZone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropZone.classList.remove("drag-over");
+        const files = Array.from(e.dataTransfer.files);
+        uploadedFiles = [...uploadedFiles, ...files];
+        renderFileList();
+    });
+
     function handleFiles(e) {
         const files = Array.from(e.target.files);
         uploadedFiles = [...uploadedFiles, ...files];
