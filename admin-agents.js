@@ -152,11 +152,17 @@
 
     // Modal Functions
     function openModal(agent = null) {
+        console.log("openModal called");
         const modal = document.getElementById("agent-modal");
         const title = document.getElementById("modal-title");
         const form = document.getElementById("agent-form");
 
-        if (!modal) return;
+        console.log("Modal element found:", !!modal);
+
+        if (!modal) {
+            console.error("Agent modal element not found!");
+            return;
+        }
 
         form.reset();
 
@@ -174,7 +180,12 @@
             document.getElementById("agent-id").value = "";
         }
 
+        // Force display styles
         modal.style.display = "flex";
+        modal.style.opacity = "1";
+        modal.style.visibility = "visible";
+        modal.style.zIndex = "9999";
+        console.log("Modal display set to flex");
     }
 
     function closeModal() {
