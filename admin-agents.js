@@ -30,31 +30,34 @@
         if (searchInput) searchInput.addEventListener("input", handleFilters);
         if (categoryFilter) categoryFilter.addEventListener("change", handleFilters);
 
-        // Modal Controls
-        const addBtn = document.getElementById("add-agent-btn");
-        const closeBtn = document.getElementById("modal-close");
-        const cancelBtn = document.getElementById("modal-cancel");
-        const saveBtn = document.getElementById("modal-save");
-
-        console.log("Setting up event listeners. Add Button found:", !!addBtn);
-
-        if (addBtn) {
-            addBtn.addEventListener("click", () => {
-                console.log("Add Agent button clicked");
+        // Use Event Delegation for better reliability
+        document.body.addEventListener('click', function (e) {
+            // Add Agent Button
+            if (e.target.id === 'add-agent-btn' || e.target.closest('#add-agent-btn')) {
+                console.log("Add Agent button clicked (via delegation)");
                 openModal();
-            });
-        }
-        if (closeBtn) closeBtn.addEventListener("click", closeModal);
-        if (cancelBtn) cancelBtn.addEventListener("click", closeModal);
-        if (saveBtn) saveBtn.addEventListener("click", saveAgent);
+            }
 
-        // Close modal on outside click
-        const modal = document.getElementById("agent-modal");
-        if (modal) {
-            modal.addEventListener("click", (e) => {
-                if (e.target === modal) closeModal();
-            });
-        }
+            // Close Button
+            if (e.target.id === 'modal-close' || e.target.closest('#modal-close')) {
+                closeModal();
+            }
+
+            // Cancel Button
+            if (e.target.id === 'modal-cancel') {
+                closeModal();
+            }
+
+            // Save Button
+            if (e.target.id === 'modal-save') {
+                saveAgent();
+            }
+
+            // Modal Background
+            if (e.target.id === 'agent-modal') {
+                closeModal();
+            }
+        });
     }
 
     function loadAgents() {
