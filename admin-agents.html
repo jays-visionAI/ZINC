@@ -1,44 +1,227 @@
-<div class="admin-card">
-    <div class="admin-card-header">
-        <h3 class="admin-card-title">Agent Library</h3>
-        <button class="admin-btn-primary" onclick="alert('AI Agent Design flow will open here')">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                style="display: inline; vertical-align: middle; margin-right: 6px;">
+<div class="admin-actions-bar">
+    <div class="admin-search-box">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="text" id="agent-search" placeholder="Search agents...">
+    </div>
+
+    <div class="admin-filters">
+        <select id="filter-category" class="admin-select">
+            <option value="all">All Categories</option>
+            <option value="Marketing">Marketing</option>
+            <option value="Development">Development</option>
+            <option value="Design">Design</option>
+            <option value="Sales">Sales</option>
+            <option value="Support">Support</option>
+        </select>
+
+        <button class="admin-btn-primary" id="add-agent-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
                 <line x1="5" y1="12" x2="19" y2="12"></line>
             </svg>
             Add New Agent
         </button>
     </div>
+</div>
 
+<div class="admin-table-container">
     <table class="admin-table">
         <thead>
             <tr>
                 <th>Agent Name</th>
-                <th>Status</th>
-                <th>Clone Count</th>
-                <th>Likes</th>
+                <th>Category</th>
+                <th>Role</th>
+                <th>Model</th>
                 <th>Created</th>
                 <th>Actions</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="agents-table-body">
             <tr>
-                <td colspan="6" style="text-align: center; padding: 60px; color: rgba(255,255,255,0.5);">
-                    Agent management will be implemented here
+                <td colspan="6" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">
+                    Loading agents...
                 </td>
             </tr>
         </tbody>
     </table>
 </div>
 
-<div class="admin-placeholder" style="margin-top: 24px;">
-    <h3>Agent Management</h3>
-    <p>Features to be implemented:</p>
-    <ul style="list-style: none; padding: 0; color: rgba(255,255,255,0.6);">
-        <li>• View active and in-development agents</li>
-        <li>• AI Agent Design flow integration</li>
-        <li>• Agent configuration and prompt management</li>
-        <li>• Performance analytics per agent</li>
-    </ul>
+<!-- Agent Modal -->
+<div id="agent-modal" class="admin-modal" style="display: none;">
+    <div class="admin-modal-content">
+        <div class="admin-modal-header">
+            <h3 class="admin-modal-title" id="modal-title">Add New Agent</h3>
+            <button class="admin-modal-close" id="modal-close">&times;</button>
+        </div>
+        <div class="admin-modal-body">
+            <form id="agent-form">
+                <input type="hidden" id="agent-id">
+
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Agent Name</label>
+                    <input type="text" id="agent-name" class="admin-form-input" required
+                        placeholder="e.g. Content Writer Pro">
+                </div>
+
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Category</label>
+                    <select id="agent-category" class="admin-select" style="width: 100%;" required>
+                        <option value="Marketing">Marketing</option>
+                        <option value="Development">Development</option>
+                        <option value="Design">Design</option>
+                        <option value="Sales">Sales</option>
+                        <option value="Support">Support</option>
+                    </select>
+                </div>
+
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Role Description</label>
+                    <input type="text" id="agent-role" class="admin-form-input" required
+                        placeholder="e.g. Writes engaging blog posts">
+                </div>
+
+                <div class="admin-form-group">
+                    <label class="admin-form-label">AI Model</label>
+                    <select id="agent-model" class="admin-select" style="width: 100%;" required>
+                        <option value="gpt-4">GPT-4</option>
+                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                        <option value="claude-3-opus">Claude 3 Opus</option>
+                        <option value="claude-3-sonnet">Claude 3 Sonnet</option>
+                        <option value="gemini-pro">Gemini Pro</option>
+                    </select>
+                </div>
+
+                <div class="admin-form-group">
+                    <label class="admin-form-label">System Prompt</label>
+                    <textarea id="agent-prompt" class="admin-form-input" rows="6" required
+                        placeholder="You are an expert content writer..."></textarea>
+                </div>
+
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Icon URL (Optional)</label>
+                    <input type="text" id="agent-icon" class="admin-form-input"
+                        placeholder="https://example.com/icon.png">
+                </div>
+            </form>
+        </div>
+        <div class="admin-modal-footer">
+            <button class="admin-btn-secondary" id="modal-cancel">Cancel</button>
+            <button class="admin-btn-primary" id="modal-save">Save Agent</button>
+        </div>
+    </div>
 </div>
+
+<style>
+    /* Modal Styles */
+    .admin-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        backdrop-filter: blur(4px);
+    }
+
+    .admin-modal-content {
+        background: #1a1a2e;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        width: 100%;
+        max-width: 600px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+        animation: modalSlideIn 0.3s ease;
+    }
+
+    @keyframes modalSlideIn {
+        from {
+            transform: translateY(20px);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    .admin-modal-header {
+        padding: 20px 24px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .admin-modal-title {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+        color: #fff;
+    }
+
+    .admin-modal-close {
+        background: none;
+        border: none;
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 24px;
+        cursor: pointer;
+        transition: color 0.2s;
+    }
+
+    .admin-modal-close:hover {
+        color: #fff;
+    }
+
+    .admin-modal-body {
+        padding: 24px;
+    }
+
+    .admin-modal-footer {
+        padding: 20px 24px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+    }
+
+    .admin-form-group {
+        margin-bottom: 16px;
+    }
+
+    .admin-form-label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.7);
+    }
+
+    .admin-form-input {
+        width: 100%;
+        padding: 10px 12px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        color: #fff;
+        font-size: 14px;
+        transition: all 0.3s ease;
+    }
+
+    .admin-form-input:focus {
+        outline: none;
+        border-color: var(--color-cyan);
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    textarea.admin-form-input {
+        resize: vertical;
+        min-height: 100px;
+    }
+</style>
