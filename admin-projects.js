@@ -161,9 +161,10 @@
 
             // Status Badge Style
             let statusClass = "admin-status-active";
-            if (p.status === "Attention") statusClass = "admin-status-inactive"; // Reusing inactive for warning for now
+            if (p.status === "Attention") statusClass = "admin-status-inactive"; // Warning color
+            if (p.status === "Paused") statusClass = "admin-status-inactive";
+            if (p.status === "Cool-down") statusClass = "admin-status-inactive"; // Or specific color if needed
             if (p.status === "Stopped") statusClass = "admin-status-inactive";
-            if (p.status === "Paused") statusClass = "admin-status-inactive"; // Or create a new class
 
             // Date formatting
             const date = p.createdAt ? new Date(p.createdAt.seconds * 1000).toLocaleDateString() : "-";
