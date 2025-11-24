@@ -36,7 +36,14 @@
         const cancelBtn = document.getElementById("modal-cancel");
         const saveBtn = document.getElementById("modal-save");
 
-        if (addBtn) addBtn.addEventListener("click", () => openModal());
+        console.log("Setting up event listeners. Add Button found:", !!addBtn);
+
+        if (addBtn) {
+            addBtn.addEventListener("click", () => {
+                console.log("Add Agent button clicked");
+                openModal();
+            });
+        }
         if (closeBtn) closeBtn.addEventListener("click", closeModal);
         if (cancelBtn) cancelBtn.addEventListener("click", closeModal);
         if (saveBtn) saveBtn.addEventListener("click", saveAgent);
