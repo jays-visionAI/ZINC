@@ -50,11 +50,14 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
     }
     
-    // Users collection
+    // Users collection - CRITICAL: Allow users to read their own document first
     match /users/{uid} {
+      // Users can ALWAYS read their own document (needed for admin role check)
+      allow read: if request.auth != null && request.auth.uid == uid;
+      // Admins can read all user documents
       allow read: if request.auth != null && 
-        (request.auth.uid == uid || 
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin");
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+      // Users can only write to their own document
       allow write: if request.auth != null && request.auth.uid == uid;
     }
   }
