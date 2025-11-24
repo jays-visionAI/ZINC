@@ -47,9 +47,13 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
     }
     
+    
     // Users collection
     match /users/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+      allow read: if request.auth != null && 
+        (request.auth.uid == uid || 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin");
+      allow write: if request.auth != null && request.auth.uid == uid;
     }
   }
 }
