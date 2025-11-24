@@ -19,7 +19,10 @@ service cloud.firestore {
     // Projects collection
     match /projects/{projectId} {
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow read: if request.auth != null && 
+        (resource.data.userId == request.auth.uid || 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin");
+      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
     }
     
     // Agent instances per project (subcollection)
