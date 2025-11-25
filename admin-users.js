@@ -132,8 +132,9 @@
 
             // Tier badge
             const tier = u.tier || 'free';
-            let tierClass = 'admin-status-active';
-            if (tier === 'admin') tierClass = 'admin-status-inactive';
+            let tierClass = 'admin-status-normal';
+            if (tier === 'admin') tierClass = 'admin-status-cooldown';
+            if (tier === 'pro') tierClass = 'admin-status-attention';
 
             tr.innerHTML = `
                 <td>${u.email}</td>
