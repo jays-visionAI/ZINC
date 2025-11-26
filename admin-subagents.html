@@ -1,0 +1,179 @@
+<div class="admin-actions-bar">
+    <div class="admin-search-box">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="text" id="subagent-search" placeholder="Search sub-agents...">
+    </div>
+
+    <div class="admin-filters">
+        <select id="filter-type" class="admin-select">
+            <option value="all">All Types</option>
+            <option value="planner">🎯 Planner</option>
+            <option value="research">🔍 Research</option>
+            <option value="creator">✍️ Creator</option>
+            <option value="compliance">⚖️ Compliance</option>
+            <option value="evaluator">📊 Evaluator</option>
+            <option value="manager">👔 Manager</option>
+            <option value="kpi_engine">📈 KPI Engine</option>
+        </select>
+
+        <select id="filter-status" class="admin-select">
+            <option value="all">All Status</option>
+            <option value="active">✅ Active</option>
+            <option value="testing">🧪 Testing</option>
+            <option value="deprecated">❌ Deprecated</option>
+            <option value="experimental">🔬 Experimental</option>
+        </select>
+
+        <button class="admin-btn-primary" id="add-subagent-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Add New Sub-Agent
+        </button>
+    </div>
+</div>
+
+<div class="admin-table-container">
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>Type</th>
+                <th>Sub-Agent ID</th>
+                <th>Version</th>
+                <th>Status</th>
+                <th>Model Provider</th>
+                <th>Created</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="subagents-table-body">
+            <tr>
+                <td colspan="7" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">
+                    Loading sub-agents...
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- SubAgent Modal -->
+<div id="subagent-modal" class="admin-modal" style="display: none;">
+    <div class="admin-modal-content" style="max-width: 800px;">
+        <div class="admin-modal-header">
+            <h3 class="admin-modal-title" id="modal-title">Add New Sub-Agent</h3>
+            <button class="admin-modal-close" id="modal-close">&times;</button>
+        </div>
+        <div class="admin-modal-body">
+            <form id="subagent-form">
+                <input type="hidden" id="subagent-id">
+                <input type="hidden" id="parent-version">
+
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Agent Type</label>
+                    <select id="subagent-type" class="admin-select" style="width: 100%;" required>
+                        <option value="">Select Type...</option>
+                        <option value="planner">🎯 Planner - Strategic content planning</option>
+                        <option value="research">🔍 Research - Market analysis</option>
+                        <option value="creator">✍️ Creator - Content generation</option>
+                        <option value="compliance">⚖️ Compliance - Fact checking</option>
+                        <option value="evaluator">📊 Evaluator - Quality assessment</option>
+                        <option value="manager">👔 Manager - Final approval</option>
+                        <option value="kpi_engine">📈 KPI Engine - Performance optimization</option>
+                    </select>
+                </div>
+
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Version (auto-generated if new)</label>
+                    <input type="text" id="subagent-version" class="admin-form-input" placeholder="1.0.0" readonly>
+                    <small style="color: rgba(255,255,255,0.6);">Version will be auto-incremented for updates</small>
+                </div>
+
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Status</label>
+                    <select id="subagent-status" class="admin-select" style="width: 100%;" required>
+                        <option value="active">✅ Active</option>
+                        <option value="testing">🧪 Testing</option>
+                        <option value="deprecated">❌ Deprecated</option>
+                        <option value="experimental">🔬 Experimental</option>
+                    </select>
+                </div>
+
+                <div class="admin-form-group">
+                    <label class="admin-form-label">System Prompt</label>
+                    <textarea id="subagent-prompt" class="admin-form-input" rows="8" required
+                        placeholder="You are a strategic content planner..."></textarea>
+                </div>
+
+                <div class="admin-form-group"
+                    style="background: rgba(22, 224, 189, 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(22, 224, 189, 0.2);">
+                    <label class="admin-form-label" style="color: #16e0bd;">🚀 Runtime Profile (Override)</label>
+                    <select id="subagent-profile" class="admin-select" style="width: 100%;">
+                        <option value="">Select a Profile...</option>
+                        <!-- Options will be loaded dynamically -->
+                    </select>
+                    <small style="color: rgba(255,255,255,0.6); display: block; margin-top: 5px;">
+                        Select a Runtime Profile to override the default model settings below.
+                    </small>
+                </div>
+
+                <div class="admin-form-group">
+                    <label class="admin-form-label">LLM Text Model</label>
+                    <select id="model-llm-text" class="admin-select" style="width: 100%;">
+                        <option value="gpt-4">GPT-4 (OpenAI)</option>
+                        <option value="gpt-4-turbo">GPT-4 Turbo (OpenAI)</option>
+                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo (OpenAI)</option>
+                        <option value="claude-3-opus">Claude 3 Opus (Anthropic)</option>
+                        <option value="claude-3-sonnet">Claude 3 Sonnet (Anthropic)</option>
+                        <option value="gemini-pro">Gemini Pro (Google)</option>
+                        <option value="gemini-1.5-pro">Gemini 1.5 Pro (Google)</option>
+                    </select>
+                </div>
+
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Temperature</label>
+                    <input type="number" id="config-temperature" class="admin-form-input" min="0" max="2" step="0.1"
+                        value="0.7">
+                    <small style="color: rgba(255,255,255,0.6);">0.0 = Focused, 1.0 = Creative</small>
+                </div>
+
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Max Tokens</label>
+                    <input type="number" id="config-max-tokens" class="admin-form-input" min="100" max="8000" step="100"
+                        value="2000">
+                </div>
+
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Change Log (for version updates)</label>
+                    <input type="text" id="subagent-changelog" class="admin-form-input"
+                        placeholder="e.g. Enhanced prompt for better quality">
+                </div>
+            </form>
+        </div>
+        <div class="admin-modal-footer">
+            <button class="admin-btn-secondary" id="modal-cancel">Cancel</button>
+            <button class="admin-btn-primary" id="modal-save">Save Sub-Agent</button>
+        </div>
+    </div>
+</div>
+
+<!-- Version History Modal -->
+<div id="version-history-modal" class="admin-modal" style="display: none;">
+    <div class="admin-modal-content" style="max-width: 700px;">
+        <div class="admin-modal-header">
+            <h3 class="admin-modal-title">Version History</h3>
+            <button class="admin-modal-close" onclick="closeVersionHistory()">&times;</button>
+        </div>
+        <div class="admin-modal-body">
+            <div id="version-history-content" style="max-height: 500px; overflow-y: auto;">
+                Loading...
+            </div>
+        </div>
+        <div class="admin-modal-footer">
+            <button class="admin-btn-secondary" onclick="closeVersionHistory()">Close</button>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,161 @@
+<div class="admin-actions-bar">
+    <div class="admin-search-box">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="text" id="agentteam-search" placeholder="Search agent teams...">
+    </div>
+
+    <div class="admin-filters">
+        <select id="filter-status" class="admin-select">
+            <option value="all">All Status</option>
+            <option value="active">✅ Active</option>
+            <option value="testing">🧪 Testing</option>
+            <option value="deprecated">❌ Deprecated</option>
+        </select>
+
+        <button class="admin-btn-primary" id="add-agentteam-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Create New Team
+        </button>
+    </div>
+</div>
+
+<div class="admin-table-container">
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>Team Name</th>
+                <th>Version</th>
+                <th>Sub-Agents</th>
+                <th>Projects</th>
+                <th>Status</th>
+                <th>Last Updated</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="agentteams-table-body">
+            <tr>
+                <td colspan="7" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">
+                    Loading agent teams...
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Create Team Wizard Modal -->
+<div id="agentteam-modal" class="admin-modal" style="display: none;">
+    <div class="admin-modal-content"
+        style="max-width: 900px; min-height: 600px; display: flex; flex-direction: column;">
+
+        <!-- Wizard Header -->
+        <div class="admin-modal-header">
+            <div>
+                <h3 class="admin-modal-title" id="modal-title">Create New Agent Team</h3>
+                <div style="font-size: 13px; color: rgba(255,255,255,0.5); margin-top: 4px;">
+                    Step <span id="wizard-step-num">1</span> of 3: <span id="wizard-step-title">Team Info</span>
+                </div>
+            </div>
+            <button class="admin-modal-close" id="modal-close">&times;</button>
+        </div>
+
+        <!-- Wizard Progress Bar -->
+        <div style="background: rgba(255,255,255,0.1); height: 4px; width: 100%;">
+            <div id="wizard-progress"
+                style="background: #16e0bd; height: 100%; width: 33%; transition: width 0.3s ease;"></div>
+        </div>
+
+        <!-- Wizard Body -->
+        <div class="admin-modal-body" style="flex: 1; overflow-y: auto; padding: 24px;">
+            <form id="agentteam-form">
+                <input type="hidden" id="agentteam-id">
+
+                <!-- Step 1: Select Template -->
+                <div id="step-1" class="wizard-step">
+                    <p style="margin-bottom: 16px; color: rgba(255,255,255,0.7);">
+                        Choose a base template for your new agent team.
+                    </p>
+                    <div id="wizard-templates-grid"
+                        style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;">
+                        <!-- Dynamically populated -->
+                        <div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">Loading
+                            Templates...</div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Instance Configuration -->
+                <div id="step-2" class="wizard-step" style="display: none;">
+                    <div class="admin-form-group">
+                        <label class="admin-form-label">Selected Template</label>
+                        <div id="selected-template-display"
+                            style="background: rgba(22, 224, 189, 0.1); border: 1px solid rgba(22, 224, 189, 0.3); padding: 12px; border-radius: 6px; color: #16e0bd; font-weight: 600;">
+                            -
+                        </div>
+                    </div>
+
+                    <div class="admin-form-group">
+                        <label class="admin-form-label">Team Name (Instance Name)</label>
+                        <input type="text" id="team-name" class="admin-form-input" required
+                            placeholder="e.g. Instagram Growth Team A">
+                        <small style="color: rgba(255,255,255,0.5);">Unique name for this team instance.</small>
+                    </div>
+
+                    <div class="admin-form-group">
+                        <label class="admin-form-label">Description</label>
+                        <textarea id="team-description" class="admin-form-input" rows="3"
+                            placeholder="Describe the goal of this specific team..."></textarea>
+                    </div>
+
+                    <div class="admin-form-group">
+                        <label class="admin-form-label">Status</label>
+                        <select id="team-status" class="admin-select" style="width: 100%;" required>
+                            <option value="active">✅ Active</option>
+                            <option value="testing">🧪 Testing</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Step 3: Review & Create -->
+                <div id="step-3" class="wizard-step" style="display: none;">
+                    <div
+                        style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 8px; margin-bottom: 24px;">
+                        <h4 style="margin: 0 0 12px 0; color: #16e0bd;">Instance Summary</h4>
+                        <div style="display: grid; grid-template-columns: 120px 1fr; gap: 8px; font-size: 14px;">
+                            <div style="color: rgba(255,255,255,0.5);">Template:</div>
+                            <div id="review-template" style="font-weight: 600;">-</div>
+
+                            <div style="color: rgba(255,255,255,0.5);">Instance Name:</div>
+                            <div id="review-name">-</div>
+
+                            <div style="color: rgba(255,255,255,0.5);">Description:</div>
+                            <div id="review-desc">-</div>
+                        </div>
+                    </div>
+
+                    <h4 style="margin: 0 0 12px 0;">Sub-Agents to be Created</h4>
+                    <p style="font-size: 13px; color: rgba(255,255,255,0.5); margin-bottom: 12px;">
+                        The following Sub-Agent instances will be automatically created based on the template.
+                    </p>
+                    <div id="review-agents-list" style="display: flex; flex-direction: column; gap: 8px;">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>
+
+            </form>
+        </div>
+
+        <!-- Wizard Footer -->
+        <div class="admin-modal-footer" style="justify-content: space-between;">
+            <button class="admin-btn-secondary" id="wizard-prev" style="visibility: hidden;">Back</button>
+            <div style="display: flex; gap: 12px;">
+                <button class="admin-btn-secondary" id="modal-cancel">Cancel</button>
+                <button class="admin-btn-primary" id="wizard-next">Next Step</button>
+            </div>
+        </div>
+    </div>
+</div>

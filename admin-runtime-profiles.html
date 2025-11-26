@@ -1,0 +1,133 @@
+<!-- Runtime Profiles Management Page -->
+<div id="runtime-profiles-container">
+    <div class="admin-header">
+        <h2 class="admin-title">Runtime Profiles</h2>
+        <div class="admin-actions">
+            <div class="admin-search-box">
+                <input type="text" id="profile-search" class="admin-search-input" placeholder="Search profiles...">
+            </div>
+            <select id="filter-capability" class="admin-select">
+                <option value="all">All Capabilities</option>
+                <option value="chat">Chat</option>
+                <option value="vision">Vision</option>
+                <option value="embedding">Embedding</option>
+                <option value="image_generation">Image Gen</option>
+            </select>
+            <button type="button" class="admin-btn-primary" id="add-profile-btn">+ Create Profile</button>
+        </div>
+    </div>
+
+    <div class="admin-card">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Profile ID / Name</th>
+                    <th>Provider / Model</th>
+                    <th>Capabilities</th>
+                    <th>Cost Tier</th>
+                    <th>Status</th>
+                    <th>Updated</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="profiles-table-body">
+                <!-- Dynamically populated -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Create/Edit Profile Modal -->
+<div id="profile-modal" class="admin-modal" style="display: none;">
+    <div class="admin-modal-content" style="max-width: 600px;">
+        <div class="admin-modal-header">
+            <h3 class="admin-modal-title" id="modal-title">Create Runtime Profile</h3>
+            <button class="admin-modal-close" id="modal-close">&times;</button>
+        </div>
+        <div class="admin-modal-body">
+            <form id="profile-form">
+                <input type="hidden" id="profile-doc-id">
+
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Profile ID (Unique)</label>
+                    <input type="text" id="profile-id" class="admin-form-input" required
+                        placeholder="e.g. rtp_chat_balanced_v1">
+                    <small style="color: rgba(255,255,255,0.5);">Used by templates to reference this profile.</small>
+                </div>
+
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Display Name</label>
+                    <input type="text" id="profile-name" class="admin-form-input" required
+                        placeholder="e.g. Balanced Chat Model v1">
+                </div>
+
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Description</label>
+                    <textarea id="profile-desc" class="admin-form-input" rows="2"
+                        placeholder="e.g. Good balance of performance and cost for general tasks"></textarea>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="admin-form-group">
+                        <label class="admin-form-label">Provider</label>
+                        <select id="profile-provider" class="admin-select" style="width: 100%;" required>
+                            <option value="openai">OpenAI</option>
+                            <option value="anthropic">Anthropic</option>
+                            <option value="google">Google Gemini</option>
+                            <option value="mock">Mock (Testing)</option>
+                            <option value="custom">Custom / Local</option>
+                        </select>
+                    </div>
+                    <div class="admin-form-group">
+                        <label class="admin-form-label">Model ID</label>
+                        <input type="text" id="profile-model" class="admin-form-input" required
+                            placeholder="e.g. gpt-4o-mini">
+                    </div>
+                </div>
+
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Capabilities</label>
+                    <div
+                        style="display: flex; gap: 16px; flex-wrap: wrap; background: rgba(255,255,255,0.05); padding: 12px; border-radius: 6px;">
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                            <input type="checkbox" id="cap-chat" checked> Chat
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                            <input type="checkbox" id="cap-vision"> Vision
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                            <input type="checkbox" id="cap-embedding"> Embedding
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                            <input type="checkbox" id="cap-image"> Image Gen
+                        </label>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="admin-form-group">
+                        <label class="admin-form-label">Cost Tier</label>
+                        <select id="profile-cost" class="admin-select" style="width: 100%;">
+                            <option value="cheap">Cheap (Draft/Bulk)</option>
+                            <option value="medium" selected>Medium (Balanced)</option>
+                            <option value="expensive">Expensive (High Quality)</option>
+                        </select>
+                    </div>
+                    <div class="admin-form-group">
+                        <label class="admin-form-label">Status</label>
+                        <select id="profile-status" class="admin-select" style="width: 100%;">
+                            <option value="active">Active</option>
+                            <option value="testing">Testing</option>
+                            <option value="deprecated">Deprecated</option>
+                        </select>
+                    </div>
+                </div>
+
+            </form>
+        </div>
+        <div class="admin-modal-footer">
+            <button class="admin-btn-secondary" id="modal-cancel">Cancel</button>
+            <button class="admin-btn-primary" id="modal-save">Save Profile</button>
+        </div>
+    </div>
+</div>

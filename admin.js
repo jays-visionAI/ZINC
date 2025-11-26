@@ -111,18 +111,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function navigateToPage(page) {
-        // Handle project-detail/{id} pattern
+        // Handle detail pages pattern
         let actualPage = page;
-        if (page.startsWith('project-detail/')) {
+        if (page.startsWith('agentteam-detail/')) {
+            actualPage = 'agentteam-detail';
+        } else if (page.startsWith('agentrun-detail/')) {
+            actualPage = 'agentrun-detail';
+        } else if (page.startsWith('project-detail/')) {
             actualPage = 'project-detail';
         }
 
         currentPage = actualPage;
 
-        // Update active nav item (highlight projects for detail pages)
+        // Update active nav item
         document.querySelectorAll(".admin-nav-item").forEach(item => {
             const itemPage = item.dataset.page;
             const isActive = itemPage === actualPage ||
+                (actualPage === 'agentteam-detail' && itemPage === 'agentteams') ||
+                (actualPage === 'agentrun-detail' && itemPage === 'agentteams') || // Keep parent active
                 (actualPage === 'project-detail' && itemPage === 'projects');
             item.classList.toggle("active", isActive);
         });
@@ -130,10 +136,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         // Update page title
         const titles = {
             overview: "Overview",
-            projects: "Projects List",
+            projects: "Project Management",
             'project-detail': "Project Details",
+            'agentteam-detail': "Agent Team Detail",
             users: "User Management",
-            agents: "Agent Management",
+            agentteams: "Agent Team Management",
+            subagents: "Sub-Agent Management",
+            'runtime-profiles': 'Runtime Profile Management',
+            'kpi-management': 'KPI Management',
             industries: "Industry Master",
             subscriptions: "Subscription Management",
             settings: "Settings"
@@ -149,19 +159,30 @@ document.addEventListener("DOMContentLoaded", async () => {
         contentArea.innerHTML = '<div class="admin-loading">Loading...</div>';
 
         try {
-            const response = await fetch(`admin-${page}.html`);
+            // Cache busting for development
+            const timestamp = Date.now();
+            const response = await fetch(`admin-${page}.html?v=${timestamp}`);
             console.log(`Loading page: admin-${page}.html`);
             if (response.ok) {
                 const html = await response.text();
                 contentArea.innerHTML = html;
 
                 // Initialize page-specific scripts
-                const initFuncName = `init${capitalize(page)}`;
+                const initFuncName = `init${capitalize(page.replace(/-/g, ''))}`;
+                console.log(`Looking for ${initFuncName}, exists: ${typeof window[initFuncName]}`);
                 if (window[initFuncName]) {
+                    console.log(`Calling ${initFuncName} directly`);
                     window[initFuncName](currentUser);
                 } else {
-                    // Load external script if init function doesn't exist
-                    loadPageScript(page);
+                    // Load external script
+                    console.log(`Loading script for ${page}`);
+                    loadPageScript(page, () => {
+                        const funcName = `init${capitalize(page.replace(/-/g, ''))}`;
+                        console.log(`Script loaded, calling ${funcName}`);
+                        if (window[funcName]) {
+                            window[funcName](currentUser);
+                        }
+                    });
                 }
             } else {
                 // Fallback for pages without dedicated HTML
@@ -182,15 +203,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    function loadPageScript(page) {
+    function loadPageScript(page, callback) {
         // Remove old script if exists
         const oldScript = document.querySelector(`script[data-page="${page}"]`);
         if (oldScript) oldScript.remove();
 
-        // Try to load new script
+        // Try to load new script with cache busting
         const script = document.createElement("script");
-        script.src = `admin-${page}.js`;
+        script.src = `admin-${page}.js?v=${Date.now()}`;
         script.dataset.page = page;
+        script.onload = () => {
+            console.log(`Script loaded for ${page}`);
+            if (callback) callback();
+        };
         script.onerror = () => {
             console.log(`No script file for ${page} page`);
         };
