@@ -26,7 +26,7 @@
         const tbody = document.querySelector('.admin-table tbody');
         if (!tbody) return;
 
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">Loading users...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">Loading users...</td></tr>';
 
         try {
             // Fetch all user documents from Firestore
@@ -40,7 +40,7 @@
             // Get current authenticated user to check if admin
             const currentUser = firebase.auth().currentUser;
             if (!currentUser) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #ef4444;">Not authenticated</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #ef4444;">Not authenticated</td></tr>';
                 return;
             }
 
@@ -63,6 +63,7 @@
                         role: userData.role,
                         createdAt: userData.createdAt,
                         lastLogin: userData.lastLogin,
+                        lastAccess: userData.lastAccess,
                         projectCount: projectsSnapshot.size
                     });
                 } catch (error) {
@@ -76,6 +77,7 @@
                         role: userData.role,
                         createdAt: userData.createdAt,
                         lastLogin: userData.lastLogin,
+                        lastAccess: userData.lastAccess,
                         projectCount: 0
                     });
                 }
@@ -93,7 +95,7 @@
 
         } catch (error) {
             console.error("Error loading users:", error);
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #ef4444;">Error loading users: ${error.message}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #ef4444;">Error loading users: ${error.message}</td></tr>`;
         }
     }
 
@@ -118,17 +120,21 @@
         tbody.innerHTML = "";
 
         if (filteredUsers.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">No users found</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">No users found</td></tr>';
             return;
         }
 
         filteredUsers.forEach(u => {
             const tr = document.createElement("tr");
 
-            // Format date
+            // Format dates
             const joinedDate = u.createdAt
-                ? new Date(u.createdAt.seconds * 1000).toLocaleDateString()
+                ? new Date(u.createdAt.seconds * 1000).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
                 : "-";
+
+            const lastAccessDate = u.lastAccess
+                ? new Date(u.lastAccess.seconds * 1000).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+                : (u.lastLogin ? new Date(u.lastLogin.seconds * 1000).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' }) : "-");
 
             // Tier badge
             const tier = u.tier || 'free';
@@ -142,9 +148,10 @@
                 <td><span class="admin-status-badge ${tierClass}">${tier.toUpperCase()}</span></td>
                 <td>${u.projectCount}</td>
                 <td>${joinedDate}</td>
-                <td>
-                    <button class="admin-btn-secondary" onclick="viewUserDetail('${u.id}')">View</button>
-                    ${u.role !== 'admin' ? `<button class="admin-btn-secondary" style="background: #ef4444; margin-left: 8px;" onclick="deleteUser('${u.id}', '${u.email}')">Delete</button>` : ''}
+                <td>${lastAccessDate}</td>
+                <td style="white-space: nowrap;">
+                    <button class="admin-btn-secondary" style="padding: 4px 8px; font-size: 12px; width: 60px; display: inline-block;" onclick="viewUserDetail('${u.id}')">View</button>
+                    ${u.role !== 'admin' ? `<button class="admin-btn-secondary" style="background: #ef4444; padding: 4px 8px; font-size: 12px; width: 60px; margin-left: 6px; display: inline-block;" onclick="deleteUser('${u.id}', '${u.email}')">Delete</button>` : ''}
                 </td>
             `;
             tbody.appendChild(tr);
@@ -165,7 +172,7 @@
 
         try {
             const tbody = document.querySelector('.admin-table tbody');
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">Deleting user...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">Deleting user...</td></tr>';
 
             // 1. Delete all user's projects
             const projectsSnapshot = await db.collection("projects")

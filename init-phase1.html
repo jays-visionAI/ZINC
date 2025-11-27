@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Initialize Phase 1 Collections</title>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+
+    <!-- Firebase Config -->
+    <script src="firebase-config.js"></script>
+
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #4ade80;
+        }
+
+        p {
+            line-height: 1.6;
+        }
+
+        .status {
+            padding: 15px;
+            background: #333;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Initializing Phase 1 Collections...</h1>
+        <p>Please wait while we seed the Firestore database with PRD 5.1 data models.</p>
+        <p>Check the browser console for detailed logs.</p>
+        <div id="status" class="status">Running...</div>
+    </div>
+
+    <script>
+        // Initialize Firebase
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.firestore();
+
+        // Redirect console.log to UI for visibility
+        const originalLog = console.log;
+        const statusDiv = document.getElementById('status');
+
+        console.log = function (...args) {
+            originalLog.apply(console, args);
+            const msg = args.join(' ');
+            const p = document.createElement('div');
+            p.textContent = '> ' + msg;
+            p.style.marginBottom = '5px';
+            p.style.fontFamily = 'monospace';
+            statusDiv.appendChild(p);
+        };
+    </script>
+
+    <!-- Run Initialization Script -->
+    <script src="scripts/init-phase1-collections.js"></script>
+</body>
+
+</html>

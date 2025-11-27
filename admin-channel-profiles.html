@@ -1,0 +1,99 @@
+<div class="admin-actions-bar">
+    <div class="admin-search-box">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="text" id="channel-search" placeholder="Search channels...">
+    </div>
+
+    <div class="admin-filters">
+        <!-- Future filters can go here -->
+    </div>
+</div>
+
+<div class="admin-table-container">
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>Platform</th>
+                <th>Content Types</th>
+                <th>Interaction Tone</th>
+                <th>KPI Focus</th>
+                <th>Version</th>
+                <th>Last Updated</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="channels-table-body">
+            <tr>
+                <td colspan="7" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">
+                    Loading channel profiles...
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Channel Profile Modal -->
+<div id="channel-modal" class="admin-modal" style="display: none;">
+    <div class="admin-modal-content" style="max-width: 900px;">
+        <div class="admin-modal-header">
+            <h3 class="admin-modal-title" id="modal-title">Edit Channel Profile</h3>
+            <button class="admin-modal-close" id="modal-close">&times;</button>
+        </div>
+        <div class="admin-modal-body">
+            <form id="channel-form">
+                <input type="hidden" id="channel-id">
+
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Platform Name</label>
+                    <input type="text" id="channel-name" class="admin-form-input" readonly
+                        style="background: rgba(255,255,255,0.05);">
+                </div>
+
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Content Types (Comma separated)</label>
+                    <input type="text" id="channel-content-types" class="admin-form-input"
+                        placeholder="image, short_video, story...">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div class="admin-form-group">
+                        <label class="admin-form-label">Length Rules (JSON)</label>
+                        <textarea id="channel-length-rules" class="admin-form-input" rows="6"
+                            style="font-family: monospace; font-size: 12px;"></textarea>
+                    </div>
+                    <div class="admin-form-group">
+                        <label class="admin-form-label">Interaction Style (JSON)</label>
+                        <textarea id="channel-interaction-style" class="admin-form-input" rows="6"
+                            style="font-family: monospace; font-size: 12px;"></textarea>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div class="admin-form-group">
+                        <label class="admin-form-label">SEO Rules (JSON)</label>
+                        <textarea id="channel-seo-rules" class="admin-form-input" rows="6"
+                            style="font-family: monospace; font-size: 12px;"></textarea>
+                    </div>
+                    <div class="admin-form-group">
+                        <label class="admin-form-label">KPI Weights (JSON)</label>
+                        <textarea id="channel-kpi-weights" class="admin-form-input" rows="6"
+                            style="font-family: monospace; font-size: 12px;"></textarea>
+                    </div>
+                </div>
+
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Version</label>
+                    <input type="text" id="channel-version" class="admin-form-input" placeholder="1.0.0">
+                </div>
+
+            </form>
+        </div>
+        <div class="admin-modal-footer">
+            <button class="admin-btn-secondary" id="modal-cancel">Cancel</button>
+            <button class="admin-btn-primary" id="modal-save">Save Profile</button>
+        </div>
+    </div>
+</div>

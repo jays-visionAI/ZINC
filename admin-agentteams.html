@@ -99,15 +99,25 @@
                     </div>
                 </div>
 
-                <!-- Step 2: Role Selection (Reusing step-1 ID for logic compatibility) -->
+                <!-- Step 2: Role Definition (Reusing step-1 ID for logic compatibility) -->
                 <div id="step-1" class="wizard-step" style="display: none;">
-                    <p style="margin-bottom: 16px; color: rgba(255,255,255,0.7);">
-                        Select the agent roles to include in this template.
-                    </p>
-                    <div id="wizard-templates-grid"
-                        style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <p style="margin: 0; color: rgba(255,255,255,0.7);">
+                            Define the roles required for this team.
+                        </p>
+                        <button type="button" id="add-role-btn" class="admin-btn-secondary"
+                            style="font-size: 12px; padding: 6px 12px;">
+                            + Add Role
+                        </button>
+                    </div>
+
+                    <div id="wizard-roles-list"
+                        style="display: flex; flex-direction: column; gap: 12px; max-height: 400px; overflow-y: auto;">
                         <!-- Dynamically populated -->
-                        <div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">Loading Roles...
+                        <div
+                            style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5); border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px;">
+                            No roles defined. Click "+ Add Role" to start.
                         </div>
                     </div>
                 </div>

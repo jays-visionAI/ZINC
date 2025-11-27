@@ -5,8 +5,111 @@
 (function () {
     let templates = [];
     let filteredTemplates = [];
+    let currentAdapters = []; // Store adapters being edited
     let unsubscribe = null;
     const projectId = "default_project";
+
+    // 🔹 Canonical Engine Types (PRD 5.0)
+    // Canonical values (snake_case) are used for DB storage and backend logic
+    // UI labels are used for display in dropdowns and tables
+    const ENGINE_TYPES = {
+        planner: {
+            canonical: 'planner',
+            label: 'Planner',
+            icon: '🎯',
+            description: 'Strategic content planning'
+        },
+        research: {
+            canonical: 'research',
+            label: 'Research',
+            icon: '🔍',
+            description: 'Market analysis'
+        },
+        creator_text: {
+            canonical: 'creator_text',
+            label: 'Creator.Text',
+            icon: '✍️',
+            description: 'Text generation'
+        },
+        creator_image: {
+            canonical: 'creator_image',
+            label: 'Creator.Image',
+            icon: '🎨',
+            description: 'Image generation'
+        },
+        creator_video: {
+            canonical: 'creator_video',
+            label: 'Creator.Video',
+            icon: '🎬',
+            description: 'Video generation'
+        },
+        engagement: {
+            canonical: 'engagement',
+            label: 'Engagement',
+            icon: '💬',
+            description: 'Reply & Interaction'
+        },
+        compliance: {
+            canonical: 'compliance',
+            label: 'Compliance',
+            icon: '⚖️',
+            description: 'Fact checking & Safety'
+        },
+        evaluator: {
+            canonical: 'evaluator',
+            label: 'Evaluator',
+            icon: '📊',
+            description: 'Quality assessment'
+        },
+        manager: {
+            canonical: 'manager',
+            label: 'Manager',
+            icon: '👔',
+            description: 'Final approval'
+        },
+        kpi: {
+            canonical: 'kpi',
+            label: 'KPI',
+            icon: '📈',
+            description: 'Performance optimization'
+        },
+        seo_watcher: {
+            canonical: 'seo_watcher',
+            label: 'SEO Watcher',
+            icon: '🔎',
+            description: 'SEO policy monitoring'
+        }
+    };
+
+    // Helper: Get engine type config by canonical value or label
+    function getEngineTypeConfig(value) {
+        // Try direct lookup by canonical
+        if (ENGINE_TYPES[value]) return ENGINE_TYPES[value];
+
+        // Try lookup by label (for backward compatibility)
+        for (const key in ENGINE_TYPES) {
+            if (ENGINE_TYPES[key].label === value) return ENGINE_TYPES[key];
+        }
+
+        // Legacy fallback mappings
+        const legacyMap = {
+            'Planner': 'planner',
+            'Research': 'research',
+            'Creator.Text': 'creator_text',
+            'Creator.Image': 'creator_image',
+            'Creator.Video': 'creator_video',
+            'Engagement': 'engagement',
+            'Compliance': 'compliance',
+            'Evaluator': 'evaluator',
+            'Manager': 'manager',
+            'KPI': 'kpi',
+            'creator': 'creator_text', // Legacy
+            'kpi_engine': 'kpi' // Legacy
+        };
+
+        const canonical = legacyMap[value];
+        return canonical ? ENGINE_TYPES[canonical] : null;
+    }
 
     window.initSubagents = function (user) {
         console.log("Initializing Sub-Agent Templates Page...");
@@ -50,29 +153,50 @@
         const searchInput = document.getElementById("subagent-search");
         const typeFilter = document.getElementById("filter-type");
         const statusFilter = document.getElementById("filter-status");
+        const addBtn = document.getElementById("add-subagent-btn");
+        const modalClose = document.getElementById("modal-close");
+        const modalCancel = document.getElementById("modal-cancel");
+        const modalSave = document.getElementById("modal-save");
+        const addAdapterBtn = document.getElementById("add-adapter-btn");
 
         if (searchInput) searchInput.addEventListener("input", handleFilters);
         if (typeFilter) typeFilter.addEventListener("change", handleFilters);
         if (statusFilter) statusFilter.addEventListener("change", handleFilters);
 
-        // Event Delegation
-        document.body.addEventListener('click', function (e) {
-            if (e.target.id === 'add-subagent-btn' || e.target.closest('#add-subagent-btn')) {
-                openModal();
-            }
-            if (e.target.id === 'modal-close' || e.target.closest('#modal-close')) {
-                closeModal();
-            }
-            if (e.target.id === 'modal-cancel') {
-                closeModal();
-            }
-            if (e.target.id === 'modal-save') {
-                saveTemplate();
-            }
-            if (e.target.id === 'subagent-modal') {
-                closeModal();
-            }
+        // Tab Switching
+        document.querySelectorAll('.admin-tab').forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                e.preventDefault();
+                // Deactivate all
+                document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.admin-tab-content').forEach(c => c.classList.remove('active'));
+
+                // Activate clicked
+                tab.classList.add('active');
+                const tabId = tab.dataset.tab;
+                document.getElementById(`tab-${tabId}`).classList.add('active');
+            });
         });
+
+        // Direct event listeners for buttons
+        if (addBtn) {
+            addBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                console.log('Add Sub-Agent button clicked');
+                openModal(false);
+            });
+        }
+
+        if (addAdapterBtn) {
+            addAdapterBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                addAdapter();
+            });
+        }
+
+        if (modalClose) modalClose.addEventListener('click', closeModal);
+        if (modalCancel) modalCancel.addEventListener('click', closeModal);
+        if (modalSave) modalSave.addEventListener('click', saveTemplate);
     }
 
     function loadTemplates() {
@@ -95,7 +219,9 @@
                 });
 
                 templates.sort((a, b) => {
-                    if (a.type !== b.type) return a.type.localeCompare(b.type);
+                    const typeA = a.type || '';
+                    const typeB = b.type || '';
+                    if (typeA !== typeB) return typeA.localeCompare(typeB);
                     return compareVersions(b.version, a.version);
                 });
 
@@ -146,7 +272,7 @@
             <tr>
                 <td>
                     ${getTypeIcon(tpl.type)} 
-                    <strong>${capitalizeFirst(tpl.type)}</strong>
+                    <strong>${getEngineTypeConfig(tpl.type)?.label || capitalizeFirst(tpl.type)}</strong>
                 </td>
                 <td>
                     <code style="font-size: 12px; color: #4ecdc4;">${tpl.id}</code>
@@ -164,12 +290,12 @@
                 </td>
                 <td>${formatDate(tpl.updated_at)}</td>
                 <td>
-                    <div style="display: flex; gap: 8px;">
-                        <button onclick="editTemplate('${tpl.id}')" class="admin-btn-icon" title="Edit">
-                            ✏️
+                    <div style="display: flex; gap: 6px;">
+                        <button onclick="editTemplate('${tpl.id}')" class="admin-btn-secondary" style="padding: 4px 8px; font-size: 12px; width: 60px;">
+                            Edit
                         </button>
-                        <button onclick="deleteTemplate('${tpl.id}')" class="admin-btn-icon" title="Delete" style="color: #ef4444;">
-                            🗑️
+                        <button onclick="deleteTemplate('${tpl.id}')" class="admin-btn-secondary" style="background: #ef4444; padding: 4px 8px; font-size: 12px; width: 60px;">
+                            Delete
                         </button>
                     </div>
                 </td>
@@ -178,11 +304,8 @@
     }
 
     function getTypeIcon(type) {
-        const icons = {
-            planner: '🎯', research: '🔍', creator: '✍️',
-            compliance: '⚖️', evaluator: '📊', manager: '👔', kpi_engine: '📈'
-        };
-        return icons[type] || '🤖';
+        const config = getEngineTypeConfig(type);
+        return config ? config.icon : '🤖';
     }
 
     function getStatusBadge(status) {
@@ -223,10 +346,18 @@
         title.textContent = isEdit ? 'Edit Template' : 'Create Sub-Agent Template';
         modal.style.display = 'flex';
 
+        // Reset Tabs
+        document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.admin-tab-content').forEach(c => c.classList.remove('active'));
+        document.querySelector('.admin-tab[data-tab="overview"]').classList.add('active');
+        document.getElementById('tab-overview').classList.add('active');
+
         if (!isEdit) {
             document.getElementById('subagent-form').reset();
             document.getElementById('subagent-id').value = '';
             document.getElementById('subagent-version').value = '1.0.0';
+            currentAdapters = [];
+            renderAdapters();
         }
     }
 
@@ -238,6 +369,7 @@
 
     // CRUD Operations
     window.editTemplate = async function (id) {
+        console.log('Edit template called:', id);
         try {
             const doc = await db.collection('subAgentTemplates').doc(id).get();
             if (!doc.exists) {
@@ -257,12 +389,138 @@
             document.getElementById('config-max-tokens').value = tpl.config?.maxTokens || 2000;
             document.getElementById('subagent-profile').value = tpl.runtime_profile_id || '';
 
+            // Load Adapters
+            await loadAdapters(id);
+
             openModal(true);
         } catch (error) {
             console.error('Error loading template:', error);
             alert(`Error: ${error.message}`);
         }
     };
+
+    async function loadAdapters(templateId) {
+        currentAdapters = [];
+        try {
+            const snapshot = await db.collection('subAgentChannelAdapters')
+                .where('subAgentTemplateId', '==', templateId)
+                .get();
+
+            snapshot.forEach(doc => {
+                currentAdapters.push({ id: doc.id, ...doc.data() });
+            });
+            renderAdapters();
+        } catch (error) {
+            console.error("Error loading adapters:", error);
+        }
+    }
+
+    function renderAdapters() {
+        const list = document.getElementById('adapters-list');
+        if (!list) return;
+
+        if (currentAdapters.length === 0) {
+            list.innerHTML = '<div style="text-align: center; padding: 20px; color: rgba(255,255,255,0.3); border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px;">No channel adapters configured.</div>';
+            return;
+        }
+
+        list.innerHTML = currentAdapters.map((adapter, index) => `
+            <div class="adapter-item" style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <strong style="color: #16e0bd;">${adapter.channelId}</strong>
+                    <button type="button" onclick="removeAdapter(${index})" style="background: none; border: none; color: #ef4444; cursor: pointer;">&times;</button>
+                </div>
+                <input type="text" placeholder="Prompt Override..." 
+                    value="${adapter.promptOverrides || ''}" 
+                    onchange="updateAdapter(${index}, 'promptOverrides', this.value)"
+                    class="admin-form-input" style="font-size: 12px; margin-bottom: 5px;">
+                <div style="display: flex; gap: 10px;">
+                    <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                        <input type="checkbox" ${adapter.enabled ? 'checked' : ''} 
+                            onchange="updateAdapter(${index}, 'enabled', this.checked)"> Enabled
+                    </label>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    window.addAdapter = function () {
+        const channelId = prompt("Enter Channel ID (e.g., instagram, x, youtube):");
+        if (!channelId) return;
+
+        // Check if already exists
+        if (currentAdapters.find(a => a.channelId === channelId)) {
+            alert("Adapter for this channel already exists.");
+            return;
+        }
+
+        currentAdapters.push({
+            channelId: channelId.toLowerCase(),
+            promptOverrides: "",
+            enabled: true,
+            isNew: true // Flag to identify new adapters
+        });
+        renderAdapters();
+    };
+
+    window.updateAdapter = function (index, field, value) {
+        if (currentAdapters[index]) {
+            currentAdapters[index][field] = value;
+        }
+    };
+
+    window.removeAdapter = function (index) {
+        if (confirm("Remove this adapter?")) {
+            const adapter = currentAdapters[index];
+            if (!adapter.isNew) {
+                // If it's an existing adapter, we might want to track it for deletion
+                // For now, we'll just remove from UI and handle deletion logic if needed, 
+                // or just let the save function overwrite/delete.
+                // Simpler approach: We will delete from Firestore on Save if it's missing from the list?
+                // Or just delete immediately? Deleting immediately is risky if user cancels.
+                // Let's mark as deleted.
+                adapter.isDeleted = true;
+            } else {
+                currentAdapters.splice(index, 1);
+            }
+            renderAdapters(); // Need to filter out deleted ones in render
+        }
+    };
+
+    // Update render to hide deleted
+    const originalRender = renderAdapters;
+    renderAdapters = function () {
+        const list = document.getElementById('adapters-list');
+        if (!list) return;
+
+        const visibleAdapters = currentAdapters.filter(a => !a.isDeleted);
+
+        if (visibleAdapters.length === 0) {
+            list.innerHTML = '<div style="text-align: center; padding: 20px; color: rgba(255,255,255,0.3); border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px;">No channel adapters configured.</div>';
+            return;
+        }
+
+        list.innerHTML = visibleAdapters.map((adapter, index) => {
+            // Find actual index in main array
+            const realIndex = currentAdapters.indexOf(adapter);
+            return `
+            <div class="adapter-item" style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <strong style="color: #16e0bd;">${adapter.channelId}</strong>
+                    <button type="button" onclick="removeAdapter(${realIndex})" style="background: none; border: none; color: #ef4444; cursor: pointer;">&times;</button>
+                </div>
+                <textarea placeholder="Prompt Override..." 
+                    onchange="updateAdapter(${realIndex}, 'promptOverrides', this.value)"
+                    class="admin-form-input" style="font-size: 12px; margin-bottom: 5px; min-height: 60px;">${adapter.promptOverrides || ''}</textarea>
+                <div style="display: flex; gap: 10px;">
+                    <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                        <input type="checkbox" ${adapter.enabled ? 'checked' : ''} 
+                            onchange="updateAdapter(${realIndex}, 'enabled', this.checked)"> Enabled
+                    </label>
+                </div>
+            </div>
+        `}).join('');
+    }
 
     async function saveTemplate() {
         const saveBtn = document.getElementById('modal-save');
@@ -301,14 +559,17 @@
                 updated_at: firebase.firestore.FieldValue.serverTimestamp()
             };
 
+            let templateId = id;
+
             if (id) {
                 // Update existing
                 await db.collection('subAgentTemplates').doc(id).update(templateData);
-                alert('✅ Template updated successfully!');
             } else {
                 // Create new
                 const newVersion = '1.0.0';
-                const newId = `tpl_${type}_v${newVersion.replace(/\./g, '_')}`;
+                const safeType = type.replace(/\./g, '_');
+                const newId = `tpl_${safeType}_v${newVersion.replace(/\./g, '_')}`;
+                templateId = newId;
 
                 templateData.id = newId;
                 templateData.version = newVersion;
@@ -316,9 +577,39 @@
                 templateData.created_by = firebase.auth().currentUser?.uid || 'system';
 
                 await db.collection('subAgentTemplates').doc(newId).set(templateData);
-                alert('✅ Template created successfully!');
             }
 
+            // Save Adapters
+            const batch = db.batch();
+
+            currentAdapters.forEach(adapter => {
+                if (adapter.isDeleted) {
+                    if (adapter.id) {
+                        const ref = db.collection('subAgentChannelAdapters').doc(adapter.id);
+                        batch.delete(ref);
+                    }
+                } else {
+                    const adapterData = {
+                        subAgentTemplateId: templateId,
+                        channelId: adapter.channelId,
+                        promptOverrides: adapter.promptOverrides,
+                        enabled: adapter.enabled,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    };
+
+                    if (adapter.id) {
+                        const ref = db.collection('subAgentChannelAdapters').doc(adapter.id);
+                        batch.update(ref, adapterData);
+                    } else {
+                        const ref = db.collection('subAgentChannelAdapters').doc();
+                        batch.set(ref, adapterData);
+                    }
+                }
+            });
+
+            await batch.commit();
+
+            alert('Template saved successfully!');
             closeModal();
         } catch (error) {
             console.error('Error saving template:', error);
@@ -330,14 +621,61 @@
     }
 
     window.deleteTemplate = async function (id) {
-        if (!confirm('Are you sure you want to delete this template?')) return;
+        console.log('Delete template called:', id);
+
+        if (!confirm('Are you sure you want to delete this Sub-Agent template?\n\nThis action cannot be undone.')) {
+            return;
+        }
 
         try {
+            // Require Google Authentication for deletion
+            const user = firebase.auth().currentUser;
+            if (!user) {
+                alert('You must be logged in to delete templates.');
+                return;
+            }
+
+            // Show loading message
+            const tbody = document.getElementById('subagents-table-body');
+            const originalContent = tbody.innerHTML;
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #16e0bd;">Waiting for Google Authentication...</td></tr>';
+
+            // Reauthenticate with Google
+            const provider = new firebase.auth.GoogleAuthProvider();
+            try {
+                await user.reauthenticateWithPopup(provider);
+                console.log('Reauthentication successful');
+
+                // Show deleting message
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #16e0bd;">Deleting template...</td></tr>';
+            } catch (authError) {
+                // Restore original content
+                tbody.innerHTML = originalContent;
+
+                if (authError.code === 'auth/popup-closed-by-user') {
+                    alert('Authentication cancelled.\n\nTemplate was not deleted.');
+                } else if (authError.code === 'auth/cancelled-popup-request') {
+                    alert('Authentication popup was blocked or cancelled.\n\nTemplate was not deleted.');
+                } else {
+                    console.error('Reauthentication error:', authError);
+                    alert(`Authentication failed: ${authError.message}\n\nTemplate was not deleted.`);
+                }
+                return;
+            }
+
+            // Proceed with deletion after successful authentication
             await db.collection('subAgentTemplates').doc(id).delete();
-            alert('✅ Template deleted');
+
+            // Show success and reload
+            setTimeout(() => {
+                alert('Sub-Agent template deleted successfully!');
+                loadTemplates();
+            }, 500);
+
         } catch (error) {
-            console.error('Error:', error);
-            alert(`Error: ${error.message}`);
+            console.error('Error deleting template:', error);
+            alert(`Error deleting template: ${error.message}`);
+            loadTemplates();
         }
     };
 

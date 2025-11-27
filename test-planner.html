@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test PlannerEngine</title>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+
+    <!-- Firebase Config -->
+    <script src="firebase-config.js"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            padding: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #fff;
+            margin-bottom: 10px;
+        }
+
+        h2 {
+            color: #e0e0e0;
+            font-size: 1.2em;
+            margin-top: 30px;
+        }
+
+        .subtitle {
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 30px;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            margin: 10px 10px 10px 0;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .results {
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            margin-top: 20px;
+            font-family: 'Monaco', monospace;
+            font-size: 0.9em;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .results div {
+            margin-bottom: 8px;
+        }
+
+        .success {
+            color: #4ade80;
+        }
+
+        .error {
+            color: #f87171;
+        }
+
+        .info {
+            color: #60a5fa;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🎯 PlannerEngine Test</h1>
+        <p class="subtitle">Test Campaign and ContentBrief generation (PRD 5.1)</p>
+
+        <h2>Actions</h2>
+        <button onclick="testGenerateCampaign()">Generate Campaign</button>
+        <button onclick="testGenerateBriefs()">Generate Content Briefs</button>
+        <button onclick="testGenerateContent()">Generate Text Content</button>
+        <button onclick="clearResults()">Clear Results</button>
+
+        <h2>Results</h2>
+        <div id="results" class="results">
+            <div class="info">Click a button to test PlannerEngine...</div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Firebase
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.firestore();
+
+        let currentCampaignId = null;
+        let currentBriefId = null;
+
+        // Log helper
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = type;
+            div.textContent = message;
+            results.appendChild(div);
+            results.scrollTop = results.scrollHeight;
+            console.log(message);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        async function testGenerateCampaign() {
+            try {
+                log('🚀 Testing Campaign Generation...', 'info');
+
+                const planner = new PlannerEngine('default_project', db);
+                await planner.init();
+
+                const request = {
+                    campaignName: 'Product Launch Q1 2025',
+                    type: 'launch',
+                    goal: 'signups',
+                    platforms: ['x', 'linkedin', 'instagram'],
+                    targetAudience: 'B2B SaaS founders',
+                    description: 'Launch campaign for new AI marketing tool',
+                    kpiTargets: {
+                        impressions: 100000,
+                        engagementRate: 0.04,
+                        signups: 500
+                    }
+                };
+
+                const campaign = await planner.generateCampaign(request);
+                currentCampaignId = campaign.campaignId;
+
+                log(`✅ Campaign created: ${campaign.campaignId}`, 'success');
+                log(`   Name: ${campaign.name}`, 'info');
+                log(`   Type: ${campaign.type}`, 'info');
+                log(`   Platforms: ${campaign.platforms.join(', ')}`, 'info');
+                log(`   Phases: ${campaign.structureSummary.phases.length}`, 'info');
+
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+
+        async function testGenerateBriefs() {
+            if (!currentCampaignId) {
+                log('⚠️ Please generate a campaign first!', 'error');
+                return;
+            }
+
+            try {
+                log('📝 Testing ContentBrief Generation...', 'info');
+
+                const planner = new PlannerEngine('default_project', db);
+                await planner.init();
+
+                const briefs = await planner.generateContentBriefs(currentCampaignId, 3);
+
+                log(`✅ Generated ${briefs.length} content briefs`, 'success');
+                briefs.forEach((brief, i) => {
+                    log(`   ${i + 1}. ${brief.briefId} - ${brief.platform} (${brief.format})`, 'info');
+                });
+
+                // Save first brief ID for content generation
+                currentBriefId = briefs[0].briefId;
+
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+
+        async function testGenerateContent() {
+            if (!currentBriefId) {
+                log('⚠️ Please generate content briefs first!', 'error');
+                return;
+            }
+
+            try {
+                log('✍️ Testing Text Content Generation...', 'info');
+
+                const creator = new CreatorTextEngine('default_project', db);
+                await creator.init();
+
+                const content = await creator.generateContent(currentBriefId);
+
+                log(`✅ Content created: ${content.contentId}`, 'success');
+                log(`   Platform: ${content.platform} (${content.format})`, 'info');
+                log(`   Title: ${content.textPayload.title}`, 'info');
+                log(`   Characters: ${content.renderMeta.characterCount}`, 'info');
+                log(`   Hook: ${content.textPayload.hook.substring(0, 50)}...`, 'info');
+
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+    </script>
+
+    <!-- Load Engines -->
+    <script src="scripts/engines/planner-engine.js"></script>
+    <script src="scripts/engines/creator-text-engine.js"></script>
+</body>
+
+</html>
+```

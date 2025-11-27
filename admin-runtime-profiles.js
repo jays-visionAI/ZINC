@@ -7,7 +7,7 @@
     let unsubscribe = null;
     const projectId = "default_project"; // In real app, this might be global or system-level
 
-    window.initRuntimeprofiles = function (user) {
+    window.initRuntimeProfiles = function (user) {
         console.log("Initializing Runtime Profiles Page...");
 
         if (unsubscribe) {
@@ -138,7 +138,7 @@
                 <td>${getStatusBadge(p.status)}</td>
                 <td style="font-size: 12px; color: rgba(255,255,255,0.5);">${formatDate(p.updated_at)}</td>
                 <td onclick="event.stopPropagation();">
-                    <button onclick="editProfile('${p.docId}')" class="admin-btn-icon">✏️</button>
+                    <button onclick="editProfile('${p.docId}')" class="admin-btn-secondary" style="padding: 4px 8px; font-size: 12px;">Edit</button>
                 </td>
             </tr>
         `).join('');

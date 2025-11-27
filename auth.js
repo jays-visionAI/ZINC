@@ -33,14 +33,16 @@ async function signInWithGoogle() {
                     photoURL: user.photoURL,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                     lastLogin: firebase.firestore.FieldValue.serverTimestamp(),
+                    lastAccess: firebase.firestore.FieldValue.serverTimestamp(),
                     tier: 'free',
                     role: 'user'
                 });
                 console.log('New user document created in Firestore');
             } else {
-                // Update last login time
+                // Update last login and last access time
                 await userRef.update({
                     lastLogin: firebase.firestore.FieldValue.serverTimestamp(),
+                    lastAccess: firebase.firestore.FieldValue.serverTimestamp(),
                     email: user.email,
                     displayName: user.displayName,
                     photoURL: user.photoURL
