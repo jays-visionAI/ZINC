@@ -172,6 +172,11 @@
                 <div class="step-line"></div>
                 <div class="step-indicator" data-step="3">
                     <div class="step-number">3</div>
+                    <span class="step-label">Agent Team</span>
+                </div>
+                <div class="step-line"></div>
+                <div class="step-indicator" data-step="4">
+                    <div class="step-number">4</div>
                     <span class="step-label">Launch</span>
                 </div>
             </div>
@@ -239,8 +244,25 @@
                     </div>
                 </div>
 
-                <!-- Step 3: Summary -->
+                <!-- Step 3: Agent Team Selection -->
                 <div class="wizard-step" id="step-3">
+                    <div class="form-group">
+                        <label>Select Agent Team Template</label>
+                        <p style="font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 16px;">
+                            Choose a pre-configured team of agents to manage this project.
+                        </p>
+                        <div id="agent-template-grid"
+                            style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px;">
+                            <!-- Dynamically populated -->
+                            <div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">Loading
+                                Templates...</div>
+                        </div>
+                        <input type="hidden" id="selected-template-id" required>
+                    </div>
+                </div>
+
+                <!-- Step 4: Summary -->
+                <div class="wizard-step" id="step-4">
                     <div class="summary-card">
                         <h4>Ready to Initialize Hive</h4>
                         <div class="summary-item">
@@ -252,8 +274,8 @@
                             <span class="value" id="summary-industry">-</span>
                         </div>
                         <div class="summary-item">
-                            <span class="label">Target:</span>
-                            <span class="value" id="summary-target">-</span>
+                            <span class="label">Agent Team:</span>
+                            <span class="value" id="summary-team">-</span>
                         </div>
                         <div class="summary-item">
                             <span class="label">Assets:</span>

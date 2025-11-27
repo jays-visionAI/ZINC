@@ -198,7 +198,4 @@
         }
     };
 
-    // Run immediately on first load
-    window.initUsers();
-
 })();

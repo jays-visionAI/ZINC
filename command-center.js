@@ -19,6 +19,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let uploadedFiles = [];
     let currentUser = null;
     let availableIndustries = [];
+    let agentTemplates = [];
 
     // 🔹 Auth Listener
     firebase.auth().onAuthStateChanged((user) => {
@@ -78,7 +79,8 @@ document.addEventListener("DOMContentLoaded", () => {
             try {
                 btnNext.classList.add("btn-loading");
                 await saveDraftStep2();
-                updateSummary();
+                // Load templates before showing step 3
+                await loadAgentTemplates();
                 goToStep(3);
             } catch (error) {
                 console.error("Error in step 2:", error);
@@ -86,6 +88,18 @@ document.addEventListener("DOMContentLoaded", () => {
             } finally {
                 btnNext.classList.remove("btn-loading");
             }
+        } else if (currentStep === 3) {
+            // Validate Step 3
+            const selectedTemplateId = document.getElementById("selected-template-id").value;
+            if (!selectedTemplateId) {
+                alert("Please select an Agent Team Template.");
+                return;
+            }
+
+            // Save draft step 3 (optional, but good for persistence)
+            await saveDraftStep3();
+            updateSummary();
+            goToStep(4);
         }
     });
 
@@ -96,7 +110,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     btnLaunch.addEventListener("click", async () => {
-        if (currentStep === 3) {
+        if (currentStep === 4) {
             const originalText = btnLaunch.textContent;
             try {
                 btnLaunch.classList.add("btn-loading");
@@ -135,6 +149,10 @@ document.addEventListener("DOMContentLoaded", () => {
             btnNext.style.display = "block";
             btnLaunch.style.display = "none";
         } else if (step === 3) {
+            btnPrev.style.display = "block";
+            btnNext.style.display = "block";
+            btnLaunch.style.display = "none";
+        } else if (step === 4) {
             btnPrev.style.display = "block";
             btnNext.style.display = "none";
             btnLaunch.style.display = "block";
@@ -382,11 +400,86 @@ document.addEventListener("DOMContentLoaded", () => {
         await db.collection("projects").doc(draftId).update(data);
     }
 
-    // 🔹 Step 3 Logic
+    // 🔹 Step 3 Logic (Agent Team Selection)
+    async function loadAgentTemplates() {
+        const grid = document.getElementById('agent-template-grid');
+        grid.innerHTML = '<div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">Loading Templates...</div>';
+
+        try {
+            const snapshot = await db.collection('agentSetTemplates')
+                .where('status', '==', 'active')
+                .get();
+
+            agentTemplates = [];
+            snapshot.forEach(doc => {
+                agentTemplates.push({ id: doc.id, ...doc.data() });
+            });
+
+            if (agentTemplates.length === 0) {
+                grid.innerHTML = '<div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">No active templates found.</div>';
+                return;
+            }
+
+            renderTemplateGrid();
+        } catch (error) {
+            console.error("Error loading templates:", error);
+            grid.innerHTML = '<div style="text-align: center; padding: 40px; color: #ef4444;">Error loading templates.</div>';
+        }
+    }
+
+    function renderTemplateGrid() {
+        const grid = document.getElementById('agent-template-grid');
+        const selectedId = document.getElementById('selected-template-id').value;
+
+        grid.innerHTML = agentTemplates.map(tpl => {
+            const isSelected = tpl.id === selectedId;
+            const roleCount = tpl.roles ? tpl.roles.length : 0;
+
+            return `
+            <div class="template-card ${isSelected ? 'selected' : ''}" 
+                 onclick="selectTemplate('${tpl.id}')"
+                 style="background: rgba(255,255,255,0.05); border: 1px solid ${isSelected ? '#16e0bd' : 'rgba(255,255,255,0.1)'}; padding: 20px; border-radius: 8px; cursor: pointer; transition: all 0.2s; position: relative;">
+                
+                <div style="font-weight: 600; font-size: 16px; margin-bottom: 8px; color: ${isSelected ? '#16e0bd' : 'white'};">${tpl.name}</div>
+                <div style="font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 16px; min-height: 40px;">${tpl.description || 'No description'}</div>
+                
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <span style="background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; font-size: 12px;">${roleCount} Agents</span>
+                    <span style="background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; font-size: 12px;">${tpl.channel_type || 'Multi-channel'}</span>
+                </div>
+
+                ${isSelected ? '<div style="position: absolute; top: 10px; right: 10px; color: #16e0bd;">✓</div>' : ''}
+            </div>
+            `;
+        }).join('');
+    }
+
+    window.selectTemplate = function (id) {
+        document.getElementById('selected-template-id').value = id;
+        renderTemplateGrid();
+    };
+
+    async function saveDraftStep3() {
+        if (!draftId) return;
+        const selectedTemplateId = document.getElementById("selected-template-id").value;
+
+        await db.collection("projects").doc(draftId).update({
+            selectedTemplateId: selectedTemplateId,
+            draftStep: 3,
+            stepProgress: 3,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    }
+
+    // 🔹 Step 4 Logic (Summary & Finalize)
     function updateSummary() {
         document.getElementById("summary-name").textContent = document.getElementById("project-name").value;
         document.getElementById("summary-industry").textContent = document.getElementById("industry").value;
-        document.getElementById("summary-target").textContent = document.getElementById("target-market").value || "N/A";
+
+        const templateId = document.getElementById("selected-template-id").value;
+        const template = agentTemplates.find(t => t.id === templateId);
+        document.getElementById("summary-team").textContent = template ? template.name : "Not Selected";
+
         document.getElementById("summary-assets").textContent = `${uploadedFiles.length} files`;
     }
 
@@ -395,46 +488,109 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (!draftId) {
             console.error("No draft ID found, attempting to create new project...");
-            // Fallback: Create new project if draftId is missing (shouldn't happen normally)
-            await saveDraftStep1(); // This will set draftId
-            if (!draftId) {
-                throw new Error("Could not create project. Please try again.");
-            }
+            await saveDraftStep1();
+            if (!draftId) throw new Error("Could not create project. Please try again.");
             return;
         }
 
-        const data = {
-            isDraft: false,
-            draftStep: null,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(), // Reset created at to launch time
-            status: "Normal",
-            // Initialize metrics
-            followerGrowth30d: 0,
-            followerGrowthDelta: 0,
-            engagementRate: 0,
-            engagementRateDelta: 0,
-            pendingApprovals: 0,
-            agentHealthCurrent: 100,
-            agentHealthMax: 100,
-            stepProgress: 3,
-            totalAgents: 0,
-            avgFollowerGrowth30d: 0,
-            avgEngagementRate: 0,
-            totalContentCreated: 0,
-            totalContentApproved: 0,
-            avgApprovalRate: 0,
-            kpiLastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        };
+        const selectedTemplateId = document.getElementById("selected-template-id").value;
+        if (!selectedTemplateId) {
+            alert("Agent Team Template is missing. Please go back and select one.");
+            return;
+        }
 
         try {
+            // 1. Create AgentSet Instance
+            const template = agentTemplates.find(t => t.id === selectedTemplateId);
+            if (!template) throw new Error("Selected template not found.");
+
+            const agentSetId = `set_${Date.now()}`;
+            const agentSetData = {
+                agent_set_id: agentSetId,
+                name: `${document.getElementById("project-name").value} Team`,
+                template_id: selectedTemplateId,
+                status: 'active',
+                version: '1.0.0',
+                created_at: firebase.firestore.FieldValue.serverTimestamp(),
+                updated_at: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            await db.collection(`projects/${draftId}/agentSets`).doc(agentSetId).set(agentSetData);
+
+            // 2. Create Sub-Agent Instances based on Template Roles
+            // We need to find active SubAgent Templates for each role
+            // Optimization: Fetch all active subAgentTemplates once
+            const subAgentTemplatesSnapshot = await db.collection('subAgentTemplates')
+                .where('status', '==', 'active')
+                .get();
+
+            const subAgentTemplates = [];
+            subAgentTemplatesSnapshot.forEach(doc => subAgentTemplates.push(doc.data()));
+
+            const createAgentPromises = template.roles.map(async (roleDef) => {
+                // Find matching template for this role
+                // Logic: Find template where type == roleDef.role
+                const subTemplate = subAgentTemplates.find(t => t.type === roleDef.role);
+
+                if (subTemplate) {
+                    const subAgentId = `${roleDef.role}_${Date.now()}`;
+                    const subAgentData = {
+                        sub_agent_id: subAgentId,
+                        agent_set_id: agentSetId,
+                        type: roleDef.role,
+                        version: '1.0.0', // Instance version starts at 1.0.0
+                        template_id: subTemplate.id, // Link to source template
+                        status: 'active',
+                        system_prompt: subTemplate.system_prompt, // Copy prompt
+                        model_provider: subTemplate.model_provider,
+                        config: subTemplate.config,
+                        runtime_profile_id: subTemplate.runtime_profile_id,
+                        created_at: firebase.firestore.FieldValue.serverTimestamp(),
+                        updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                    };
+                    return db.collection(`projects/${draftId}/subAgents`).doc(subAgentId).set(subAgentData);
+                } else {
+                    console.warn(`No active template found for role: ${roleDef.role}`);
+                    // Optional: Create a placeholder or skip
+                    return Promise.resolve();
+                }
+            });
+
+            await Promise.all(createAgentPromises);
+
+            // 3. Finalize Project Document
+            const data = {
+                isDraft: false,
+                draftStep: null,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                status: "Normal",
+                activeAgentSetId: agentSetId, // Link active set
+                // Initialize metrics
+                followerGrowth30d: 0,
+                followerGrowthDelta: 0,
+                engagementRate: 0,
+                engagementRateDelta: 0,
+                pendingApprovals: 0,
+                agentHealthCurrent: 100,
+                agentHealthMax: 100,
+                stepProgress: 4, // Completed
+                totalAgents: template.roles.length,
+                avgFollowerGrowth30d: 0,
+                avgEngagementRate: 0,
+                totalContentCreated: 0,
+                totalContentApproved: 0,
+                avgApprovalRate: 0,
+                kpiLastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
             await db.collection("projects").doc(draftId).update(data);
             console.log("Project finalized successfully");
             closeModal();
             // loadProjects listener will auto-update the grid
         } catch (error) {
             console.error("Error finalizing project:", error);
-            throw error; // Re-throw to be caught by the button handler
+            throw error;
         }
     }
 
@@ -486,11 +642,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
         newBtnFresh.addEventListener("click", () => {
             resumeModal.classList.remove("open");
-            clearDraftAndStartFresh(id);
+            window.clearDraftAndStartFresh(id);
         });
     }
 
-    function resumeDraft(id, data) {
+    window.resumeDraft = function (id, data) {
         draftId = id;
 
         // Pre-fill Step 1
@@ -515,46 +671,40 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById("project-description").value = data.description;
         }
 
-        // Note: Files cannot be pre-filled due to browser security, 
-        // but we could show previously uploaded files list if we stored them.
+        // Pre-fill Step 3
+        if (data.selectedTemplateId) {
+            document.getElementById("selected-template-id").value = data.selectedTemplateId;
+        }
 
         // Open modal and go to saved step
         modal.classList.add("open");
 
-        // Determine step to resume
         let targetStep = data.draftStep || 1;
-        // If step 2 was saved, we go to step 2. If step 1 saved, go to step 2 (since step 1 is done).
-        // Logic: if draftStep is 1, it means step 1 was saved, so user is ready for step 2.
-        // If draftStep is 2, user was on step 2.
-
-        // Actually, let's just go to the step they were working on.
-        // If they saved step 1, they are now on step 2.
+        // Logic: if draftStep is 1, user finished step 1, so go to 2.
         if (targetStep === 1) currentStep = 2;
+        else if (targetStep === 2) currentStep = 3;
+        else if (targetStep === 3) currentStep = 4;
         else currentStep = targetStep;
 
-        // Ensure we don't go beyond step 2 for drafts
-        if (currentStep > 2) currentStep = 2;
+        if (currentStep > 4) currentStep = 4;
 
         goToStep(currentStep);
-    }
+    };
 
-    async function clearDraftAndStartFresh(id) {
-        if (confirm("Are you sure? This will delete your saved draft.")) {
-            try {
-                await db.collection("projects").doc(id).delete();
-                draftId = null;
-                initProjectWizard();
-            } catch (error) {
-                console.error("Error deleting draft:", error);
-                alert("Failed to delete draft.");
-            }
+    window.clearDraftAndStartFresh = async function (id) {
+        // Removed confirm() as the user choice in the dialog is sufficient confirmation
+        try {
+            await db.collection("projects").doc(id).delete();
+            draftId = null;
+            window.initProjectWizard();
+        } catch (error) {
+            console.error("Error deleting draft:", error);
+            alert("Failed to delete draft.");
         }
-    }
+    };
 
     // 🔹 Initialization Logic
-    // 🔹 Initialization Logic
-    // 🔹 Initialization Logic
-    function initProjectWizard() {
+    window.initProjectWizard = function () {
         console.log("Initializing wizard...");
         try {
             modal.classList.add("open");
@@ -665,7 +815,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 </div>
 
                 <div class="card-actions">
-                    <button class="btn-mission">Jump to Mission Control</button>
+                    <button class="btn-mission" onclick="window.location.href='project-detail.html?id=${p.id}'">Jump to Mission Control</button>
                     <button class="btn-settings">⚙️</button>
                 </div>
             `;

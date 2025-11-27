@@ -1,18 +1,67 @@
 <div class="admin-card">
-    <div class="admin-card-header">
-        <h3 class="admin-card-title">Global Settings</h3>
+    <div style="margin-bottom: 24px;">
+        <h3 style="margin: 0;">System Settings</h3>
+        <p style="margin: 4px 0 0 0; color: rgba(255,255,255,0.5); font-size: 14px;">
+            Configure global system settings and API keys.
+        </p>
     </div>
 
-    <div class="admin-placeholder">
-        <h3>System Configuration</h3>
-        <p>Global settings will be configured here, including:</p>
-        <ul style="list-style: none; padding: 0; color: rgba(255,255,255,0.6);">
-            <li>• Default language and localization</li>
-            <li>• Supported currencies</li>
-            <li>• Branding (logo, colors, fonts)</li>
-            <li>• PWA configuration</li>
-            <li>• API keys and integrations</li>
-            <li>• Admin access control</li>
-        </ul>
+    <!-- API Keys Section -->
+    <div
+        style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05);">
+        <h4 style="margin: 0 0 16px 0; color: #fff;">LLM Provider API Keys</h4>
+
+        <div class="admin-form-group">
+            <label class="admin-form-label">OpenAI API Key</label>
+            <div style="display: flex; gap: 12px;">
+                <input type="password" id="openai-api-key" class="admin-form-input" placeholder="sk-..."
+                    autocomplete="off">
+                <button id="toggle-openai-key" class="admin-btn-secondary" style="width: auto; padding: 0 12px;">
+                    👁️
+                </button>
+            </div>
+            <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 8px;">
+                Required for "openai" provider runtime profiles. Stored locally in your browser for now.
+            </p>
+        </div>
+
+        <div class="admin-form-group" style="margin-top: 20px;">
+            <label class="admin-form-label">Anthropic API Key</label>
+            <div style="display: flex; gap: 12px;">
+                <input type="password" id="anthropic-api-key" class="admin-form-input" placeholder="sk-ant-..."
+                    autocomplete="off">
+                <button id="toggle-anthropic-key" class="admin-btn-secondary" style="width: auto; padding: 0 12px;">
+                    👁️
+                </button>
+            </div>
+            <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 8px;">
+                Required for "anthropic" provider runtime profiles.
+            </p>
+        </div>
+
+        <div style="margin-top: 32px; display: flex; justify-content: flex-end;">
+            <button id="save-settings-btn" class="admin-btn-primary" style="min-width: 120px;">
+                Save Settings
+            </button>
+        </div>
+    </div>
+
+    <!-- Maintenance Section -->
+    <div
+        style="margin-top: 24px; background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05);">
+        <h4 style="margin: 0 0 16px 0; color: #fff;">System Maintenance</h4>
+
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div>
+                <strong style="display: block; color: #e2e8f0; margin-bottom: 4px;">Update Sub-Agent Prompts</strong>
+                <p style="margin: 0; font-size: 12px; color: rgba(255,255,255,0.4);">
+                    Injects high-quality system prompts for Planner, Creator, and Manager (Required for Real LLM
+                    Execution).
+                </p>
+            </div>
+            <button id="update-prompts-btn" class="admin-btn-secondary">
+                Update Prompts
+            </button>
+        </div>
     </div>
 </div>

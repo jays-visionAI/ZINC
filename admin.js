@@ -140,6 +140,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             projects: "Project Management",
             'project-detail': "Project Details",
             'agentteam-detail': "Agent Team Detail",
+            'agentrun-detail': "Task Execution Detail",
             users: "User Management",
             agentteams: "Agent Team Management",
             agentruns: "Agent Execution Logs",
@@ -172,7 +173,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 contentArea.innerHTML = html;
 
                 // Initialize page-specific scripts
-                const initFuncName = `init${capitalize(page.replace(/-/g, ''))}`;
+                // Convert page name to init function name (e.g., 'agentrun-detail' -> 'initAgentrunDetail')
+                const initFuncName = `init${page.split('-').map(word => capitalize(word)).join('')}`;
                 console.log(`Looking for ${initFuncName}, exists: ${typeof window[initFuncName]}`);
                 if (window[initFuncName]) {
                     console.log(`Calling ${initFuncName} directly`);
@@ -181,7 +183,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     // Load external script
                     console.log(`Loading script for ${page}`);
                     loadPageScript(page, () => {
-                        const funcName = `init${capitalize(page.replace(/-/g, ''))}`;
+                        const funcName = `init${page.split('-').map(word => capitalize(word)).join('')}`;
                         console.log(`Script loaded, calling ${funcName}`);
                         if (window[funcName]) {
                             window[funcName](currentUser);
