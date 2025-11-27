@@ -1,0 +1,147 @@
+<div id="run-detail-container">
+    <!-- Run Header -->
+    <div style="background: rgba(255,255,255,0.05); padding: 24px; border-radius: 12px; margin-bottom: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: start;">
+            <div>
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                    <h2 style="margin: 0; font-size: 24px;">Task Execution Detail</h2>
+                    <span id="run-status"
+                        style="padding: 6px 12px; border-radius: 6px; font-weight: 600; font-size: 14px;">Loading...</span>
+                </div>
+                <div style="display: flex; gap: 24px; font-size: 14px; color: rgba(255,255,255,0.7); margin-top: 12px;">
+                    <div>
+                        <span style="color: rgba(255,255,255,0.4);">Task ID:</span>
+                        <code id="run-id" style="color: #16e0bd;">-</code>
+                    </div>
+                    <div>
+                        <span style="color: rgba(255,255,255,0.4);">Agent Team:</span>
+                        <span id="run-team">-</span>
+                    </div>
+                    <div>
+                        <span style="color: rgba(255,255,255,0.4);">Started:</span>
+                        <span id="run-started">-</span>
+                    </div>
+                    <div>
+                        <span style="color: rgba(255,255,255,0.4);">Duration:</span>
+                        <span id="run-duration">-</span>
+                    </div>
+                </div>
+            </div>
+            <button onclick="window.history.back()" class="admin-btn-secondary">Back</button>
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 300px 1fr; gap: 24px;">
+        <!-- Left: Execution Timeline -->
+        <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; height: fit-content;">
+            <h3 style="margin: 0 0 20px 0; font-size: 16px; color: rgba(255,255,255,0.8);">Execution Flow</h3>
+            <div id="execution-timeline" class="timeline-container">
+                <!-- Steps injected here -->
+                <div style="text-align: center; color: rgba(255,255,255,0.5);">Loading steps...</div>
+            </div>
+        </div>
+
+        <!-- Right: Step Detail & Artifacts -->
+        <div style="background: rgba(255,255,255,0.05); padding: 24px; border-radius: 12px; min-height: 500px;">
+            <div id="step-detail-placeholder"
+                style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: rgba(255,255,255,0.3);">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"
+                    style="margin-bottom: 16px;">
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                    <line x1="8" y1="21" x2="16" y2="21"></line>
+                    <line x1="12" y1="17" x2="12" y2="21"></line>
+                </svg>
+                <p>Select a step from the timeline to view details</p>
+            </div>
+
+            <div id="step-detail-content" style="display: none;">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                    <div>
+                        <h3 id="detail-title" style="margin: 0; font-size: 18px;">-</h3>
+                        <div id="detail-meta" style="font-size: 13px; color: rgba(255,255,255,0.5); margin-top: 4px;">-
+                        </div>
+                    </div>
+                    <span id="detail-status"
+                        style="font-size: 12px; padding: 4px 8px; border-radius: 4px; background: rgba(255,255,255,0.1);">Completed</span>
+                </div>
+
+                <!-- Input Section -->
+                <div style="margin-bottom: 24px;">
+                    <h4 style="font-size: 14px; color: rgba(255,255,255,0.6); margin-bottom: 8px;">Input / Prompt</h4>
+                    <div id="detail-input"
+                        style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px; font-family: monospace; font-size: 13px; white-space: pre-wrap; color: #e2e8f0;">
+                    </div>
+                </div>
+
+                <!-- Output/Artifact Section -->
+                <div>
+                    <h4 style="font-size: 14px; color: #16e0bd; margin-bottom: 8px;">Output Artifact</h4>
+                    <div id="detail-output"
+                        style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px; font-family: monospace; font-size: 13px; white-space: pre-wrap; color: #16e0bd; overflow-x: auto;">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .timeline-step {
+        display: flex;
+        gap: 16px;
+        padding: 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.2s;
+        position: relative;
+    }
+
+    .timeline-step:hover {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .timeline-step.active {
+        background: rgba(22, 224, 189, 0.1);
+        border: 1px solid rgba(22, 224, 189, 0.3);
+    }
+
+    .timeline-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        z-index: 1;
+    }
+
+    .timeline-connector {
+        position: absolute;
+        left: 27px;
+        top: 44px;
+        bottom: -12px;
+        width: 2px;
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .timeline-step:last-child .timeline-connector {
+        display: none;
+    }
+
+    .step-status-icon {
+        position: absolute;
+        bottom: -2px;
+        right: -2px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        border: 2px solid #1a1a1a;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 8px;
+    }
+</style>

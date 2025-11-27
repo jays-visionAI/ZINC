@@ -1,0 +1,105 @@
+<div class="admin-card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <div>
+            <h3 style="margin: 0;">Performance & KPI</h3>
+            <p style="margin: 4px 0 0 0; color: rgba(255,255,255,0.5); font-size: 14px;">Track content performance and
+                agent effectiveness</p>
+        </div>
+        <button id="record-kpi-btn" class="admin-btn-primary">
+            + Record KPI
+        </button>
+    </div>
+
+    <!-- Filters -->
+    <div style="display: flex; gap: 16px; margin-bottom: 24px;">
+        <div class="admin-search-box" style="flex: 1;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="perf-search" placeholder="Search by Content ID or Platform..."
+                onkeyup="filterPerformance()">
+        </div>
+        <select id="perf-platform-filter" class="admin-select" style="width: 150px;" onchange="filterPerformance()">
+            <option value="all">All Platforms</option>
+            <option value="instagram">Instagram</option>
+            <option value="twitter">Twitter</option>
+            <option value="manual">Manual</option>
+        </select>
+    </div>
+
+    <!-- Performance Table -->
+    <div class="admin-table-container">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Content ID</th>
+                    <th>Platform</th>
+                    <th>AgentSet Ver</th>
+                    <th>Metrics</th>
+                    <th>Engagement Rate</th>
+                    <th>Score</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody id="performance-table-body">
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.3);">
+                        Loading performance data...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Record KPI Modal -->
+<div id="performance-modal" class="admin-modal" style="display: none;">
+    <div class="admin-modal-content" style="max-width: 600px;">
+        <div class="admin-modal-header">
+            <h3 class="admin-modal-title">Record Performance KPI</h3>
+            <button class="admin-modal-close" onclick="closePerformanceModal()">&times;</button>
+        </div>
+        <div class="admin-modal-body">
+            <div class="admin-form-group">
+                <label class="admin-form-label">Link to Task (Optional)</label>
+                <input type="text" id="perf-task-id" class="admin-form-input"
+                    placeholder="Enter Task ID (e.g. task_173...)">
+                <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 4px;">Linking a task automatically
+                    pulls AgentSet and Version info.</p>
+            </div>
+
+            <div class="admin-form-group">
+                <label class="admin-form-label">Platform</label>
+                <select id="perf-platform" class="admin-select" style="width: 100%;">
+                    <option value="instagram">Instagram</option>
+                    <option value="twitter">Twitter</option>
+                    <option value="linkedin">LinkedIn</option>
+                </select>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Impressions</label>
+                    <input type="number" id="perf-impressions" class="admin-form-input" placeholder="0">
+                </div>
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Likes</label>
+                    <input type="number" id="perf-likes" class="admin-form-input" placeholder="0">
+                </div>
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Comments</label>
+                    <input type="number" id="perf-comments" class="admin-form-input" placeholder="0">
+                </div>
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Saves/Shares</label>
+                    <input type="number" id="perf-saves" class="admin-form-input" placeholder="0">
+                </div>
+            </div>
+        </div>
+        <div class="admin-modal-footer">
+            <button type="button" class="admin-btn-secondary" onclick="closePerformanceModal()">Cancel</button>
+            <button type="button" class="admin-btn-primary" onclick="savePerformance()">Calculate & Save</button>
+        </div>
+    </div>
+</div>

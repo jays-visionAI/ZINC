@@ -1,6 +1,6 @@
 # 🔥 Firebase 연동 가이드
 
-ZINC 프로젝트의 로그인 및 데이터 저장을 위한 Firebase 설정 방법입니다.
+ZYNK 프로젝트의 로그인 및 데이터 저장을 위한 Firebase 설정 방법입니다.
 
 ## 1. Firebase 프로젝트 생성
 1. [Firebase 콘솔](https://console.firebase.google.com/)에 접속합니다.
@@ -27,7 +27,7 @@ ZINC 프로젝트의 로그인 및 데이터 저장을 위한 Firebase 설정 �
 ## 4. 웹 앱 추가 및 설정 가져오기
 1. 프로젝트 개요(메인 화면)로 돌아갑니다.
 2. 상단의 **`</>` (웹)** 아이콘을 클릭합니다.
-3. 앱 닉네임을 입력합니다 (예: `ZINC Web`).
+3. 앱 닉네임을 입력합니다 (예: `ZYNK Web`).
 4. **"앱 등록"**을 클릭합니다.
 5. **"Firebase SDK 추가"** 단계에서 `const firebaseConfig = { ... }` 부분을 찾습니다.
 6. `{` 부터 `}` 까지의 내용을 복사합니다.

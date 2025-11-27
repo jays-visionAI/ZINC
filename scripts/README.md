@@ -14,7 +14,7 @@
 This adds new fields to existing projects.
 
 **In Browser Console:**
-1. Open your ZINC app (localhost:8000 or deployed URL)
+1. Open your ZYNK app (localhost:8000 or deployed URL)
 2. Login as any user
 3. Open browser console (F12)
 4. Copy and paste the contents of `migrate-projects-v2.js`
@@ -93,7 +93,7 @@ This creates the initial agent library.
 **Problem**: Firebase not initialized.
 
 **Solution**: 
-- Make sure you're on the ZINC app page
+- Make sure you're on the ZYNK app page
 - Check browser console for Firebase errors
 - Verify `firebase-config.js` is loaded
 

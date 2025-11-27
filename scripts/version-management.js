@@ -39,7 +39,7 @@
             }
 
             const currentAgent = currentAgentDoc.data();
-            const currentVersion = currentAgent.version;
+            const currentVersion = currentAgent.version || "1.0.0"; // Default to 1.0.0 if missing
 
             // 2. 새 버전 번호 계산
             const newVersion = incrementVersion(currentVersion, versionType);
@@ -216,6 +216,7 @@
     // =============================================
 
     function incrementVersion(version, type) {
+        if (!version) version = "1.0.0";
         const [major, minor, patch] = version.split('.').map(Number);
 
         switch (type) {

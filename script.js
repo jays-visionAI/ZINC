@@ -256,4 +256,4 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-console.log('🚀 ZINC - AI-Powered Social Media Automation');
+console.log('🚀 ZYNK - AI-Powered Social Media Automation');

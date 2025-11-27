@@ -1,0 +1,104 @@
+// Firestore Security Rules for ZYIC AGENT OS - Phase 1
+// 경로: Firebase Console → Firestore Database → Rules
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function: Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function: Check if user is admin
+    function isAdmin() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+    }
+    
+    // Helper function: Check if user owns the project
+    function isProjectOwner(projectId) {
+      return isAuthenticated() &&
+             get(/databases/$(database)/documents/projects/$(projectId)).data.userId == request.auth.uid;
+    }
+
+    // ============================================
+    // ZYIC AGENT OS Collections
+    // ============================================
+    
+    // Sub-Agents: Admin can write, authenticated users can read
+    match /projects/{projectId}/subAgents/{subAgentId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    // AgentSets: Admin can write, authenticated users can read
+    match /projects/{projectId}/agentSets/{agentSetId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    // Agent Tasks: Project owner and admin can read/write
+    match /projects/{projectId}/agentTasks/{taskId} {
+      allow read: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
+      allow create: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
+      allow update: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
+      allow delete: if isAdmin();
+    }
+    
+    // Artifacts: Project owner and admin can read, system can write
+    match /projects/{projectId}/artifacts/{artifactId} {
+      allow read: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
+      allow write: if isAdmin(); // In Phase 2, Cloud Functions will write
+    }
+    
+    // Sub-Agent History: Admin only
+    match /projects/{projectId}/subAgent_history/{historyId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+    
+    // AgentSet History: Admin only
+    match /projects/{projectId}/agentSet_history/{historyId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // ============================================
+    // Existing Collections (기존 규칙 유지)
+    // ============================================
+    
+    // Users collection
+    match /users/{uid} {
+      allow read: if isAuthenticated();
+      allow write: if request.auth.uid == uid;
+      allow read: if isAdmin();
+    }
+    
+    // Projects collection
+    match /projects/{projectId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
+      
+      // Project sub-agents (nested)
+      match /agents/{agentId} {
+        allow read: if isAuthenticated();
+        allow write: if isAuthenticated() && (get(/databases/$(database)/documents/projects/$(projectId)).data.userId == request.auth.uid || isAdmin());
+      }
+    }
+    
+    // Industries collection
+    match /industries/{industryId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    // Master agents library
+    match /agents/{agentId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+  }
+}

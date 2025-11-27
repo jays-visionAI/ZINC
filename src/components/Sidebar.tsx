@@ -53,7 +53,7 @@ export default function Sidebar() {
                         Z
                     </text>
                 </svg>
-                <span className="text-2xl font-bold text-white">ZINC</span>
+                <span className="text-2xl font-bold text-white">ZYNK</span>
             </Link>
 
             {/* Menu */}
@@ -63,8 +63,8 @@ export default function Sidebar() {
                         key={item.name}
                         href={item.href}
                         className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${item.name === "Command Center"
-                                ? "bg-mint text-charcoal font-semibold active-sidebar"
-                                : "text-gray-300 hover:bg-gray-800"
+                            ? "bg-mint text-charcoal font-semibold active-sidebar"
+                            : "text-gray-300 hover:bg-gray-800"
                             }`}
                     >
                         <span>{item.icon}</span>

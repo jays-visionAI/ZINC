@@ -65,7 +65,7 @@ service cloud.firestore {
 ```
 
 > [!WARNING]
-> **Admin Access**: To grant admin privileges, manually add `role: "admin"` field to a user document in the Firestore Console. See [ADMIN_SETUP.md](file:///Users/sangjaeseo/Antigravity/ZINC/ADMIN_SETUP.md) for detailed instructions.
+> **Admin Access**: To grant admin privileges, manually add `role: "admin"` field to a user document in the Firestore Console. See [ADMIN_SETUP.md](file:///Users/sangjaeseo/Antigravity/ZYNK/ADMIN_SETUP.md) for detailed instructions.
 
 ## 3. Storage (New!)
 *   **Go to:** Build > Storage

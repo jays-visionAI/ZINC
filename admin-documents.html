@@ -1,0 +1,195 @@
+<div class="admin-card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <div>
+            <h3 style="margin: 0;">Documentation</h3>
+            <p style="margin: 4px 0 0 0; color: rgba(255,255,255,0.5); font-size: 14px;">System guides and technical
+                documentation</p>
+        </div>
+        <button id="create-doc-btn" class="admin-btn-primary">
+            + New Document
+        </button>
+    </div>
+
+    <!-- Filters -->
+    <div style="display: flex; gap: 16px; margin-bottom: 24px;">
+        <div class="admin-search-box" style="flex: 1;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="doc-search" placeholder="Search documents..." onkeyup="filterDocuments()">
+        </div>
+        <select id="doc-category-filter" class="admin-select" style="width: 180px;" onchange="filterDocuments()">
+            <option value="all">All Categories</option>
+            <option value="user_guide">User Guides</option>
+            <option value="technical">Technical Docs</option>
+            <option value="api">API Reference</option>
+        </select>
+    </div>
+
+    <!-- Documents Grid -->
+    <div id="documents-grid"
+        style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px;">
+        <div style="text-align: center; padding: 60px; color: rgba(255,255,255,0.3); grid-column: 1 / -1;">
+            Loading documents...
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Document Modal -->
+<div id="document-modal" class="admin-modal" style="display: none;">
+    <div class="admin-modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+        <div class="admin-modal-header">
+            <h3 class="admin-modal-title" id="doc-modal-title">New Document</h3>
+            <button class="admin-modal-close" onclick="closeDocumentModal()">&times;</button>
+        </div>
+        <div class="admin-modal-body">
+            <input type="hidden" id="doc-edit-id">
+
+            <div class="admin-form-group">
+                <label class="admin-form-label">Title</label>
+                <input type="text" id="doc-title" class="admin-form-input" placeholder="Document Title">
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Category</label>
+                    <select id="doc-category" class="admin-select" style="width: 100%;">
+                        <option value="user_guide">User Guide</option>
+                        <option value="technical">Technical</option>
+                        <option value="api">API Reference</option>
+                    </select>
+                </div>
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Status</label>
+                    <select id="doc-status" class="admin-select" style="width: 100%;">
+                        <option value="draft">Draft</option>
+                        <option value="published">Published</option>
+                        <option value="archived">Archived</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="admin-form-group">
+                <label class="admin-form-label">Tags (comma separated)</label>
+                <input type="text" id="doc-tags" class="admin-form-input" placeholder="guide, setup, configuration">
+            </div>
+
+            <div class="admin-form-group">
+                <label class="admin-form-label">Content (Markdown)</label>
+                <textarea id="doc-content" class="admin-form-input" rows="15"
+                    placeholder="# Document Title&#10;&#10;Write your documentation in Markdown format..."></textarea>
+                <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 4px;">
+                    Supports Markdown formatting. Preview available after saving.
+                </p>
+            </div>
+        </div>
+        <div class="admin-modal-footer" style="display: flex; gap: 12px; justify-content: space-between;">
+            <button type="button" class="admin-btn-primary" onclick="saveDocument()" style="flex: 2;">
+                Save Document
+            </button>
+            <button type="button" id="delete-doc-btn" class="admin-btn-secondary"
+                style="background: rgba(239,68,68,0.1); color: #ef4444; border-color: #ef4444; display: none; flex: 1;">
+                🗑️ Delete
+            </button>
+            <button type="button" class="admin-btn-secondary" onclick="closeDocumentModal()" style="flex: 1;">
+                Cancel
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- View Document Modal -->
+<div id="view-document-modal" class="admin-modal" style="display: none;">
+    <div class="admin-modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+        <div class="admin-modal-header">
+            <h3 class="admin-modal-title" id="view-doc-title">Document</h3>
+            <div style="display: flex; gap: 8px;">
+                <button class="admin-btn-secondary" onclick="viewDocumentHistory()" style="padding: 8px 16px;">
+                    📜 History
+                </button>
+                <button class="admin-btn-secondary" onclick="editCurrentDocument()" style="padding: 8px 16px;">
+                    Edit
+                </button>
+                <button class="admin-modal-close" onclick="closeViewDocumentModal()">&times;</button>
+            </div>
+        </div>
+        <div class="admin-modal-body">
+            <div id="view-doc-meta"
+                style="margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+            </div>
+            <div id="view-doc-content" style="line-height: 1.8; color: rgba(255,255,255,0.9);"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Version History Modal -->
+<div id="history-modal" class="admin-modal" style="display: none;">
+    <div class="admin-modal-content" style="max-width: 700px;">
+        <div class="admin-modal-header">
+            <h3 class="admin-modal-title">Version History</h3>
+            <button class="admin-modal-close" onclick="closeHistoryModal()">&times;</button>
+        </div>
+        <div class="admin-modal-body">
+            <div id="history-list" style="max-height: 400px; overflow-y: auto;">
+                Loading history...
+            </div>
+        </div>
+    </div>
+</div><!-- Delete Confirmation Modal -->
+<div id="delete-confirm-modal" class="admin-modal" style="display: none; z-index: 10000;">
+    <div class="admin-modal-content" style="max-width: 500px;">
+        <div class="admin-modal-header">
+            <h3 class="admin-modal-title">⚠️ 문서 삭제 확인</h3>
+        </div>
+        <div class="admin-modal-body">
+            <p id="delete-confirm-message" style="margin-bottom: 24px; line-height: 1.6;">
+                정말로 이 문서를 삭제하시겠습니까?<br>
+                <strong id="delete-doc-name" style="color: #16e0bd;"></strong><br><br>
+                이 작업은 되돌릴 수 없습니다.
+            </p>
+
+            <div class="admin-form-group">
+                <label class="admin-form-label">🔐 계정 인증</label>
+                <input type="password" id="delete-password-input" class="admin-form-input"
+                    placeholder="이메일/비밀번호로 로그인한 경우 비밀번호 입력" autocomplete="off">
+                <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 4px;">
+                    Google 계정으로 로그인한 경우 비밀번호 입력 없이 "삭제" 버튼을 클릭하면 Google 인증 팝업이 나타납니다.
+                </p>
+            </div>
+        </div>
+        <div class="admin-modal-footer" style="display: flex; gap: 12px; justify-content: flex-end;">
+            <button type="button" class="admin-btn-secondary" onclick="cancelDelete()">취소</button>
+            <button type="button" class="admin-btn-primary" style="background: #ef4444; border-color: #ef4444;"
+                onclick="confirmDelete()">삭제</button>
+        </div>
+    </div>
+</div><!-- Delete Confirmation Modal -->
+<div id="delete-confirm-modal" class="admin-modal" style="display: none; z-index: 10000;">
+    <div class="admin-modal-content" style="max-width: 500px;">
+        <div class="admin-modal-header">
+            <h3 class="admin-modal-title">⚠️ 문서 삭제 확인</h3>
+        </div>
+        <div class="admin-modal-body">
+            <p id="delete-confirm-message" style="margin-bottom: 24px; line-height: 1.6;">
+                정말로 이 문서를 삭제하시겠습니까?<br>
+                <strong id="delete-doc-name" style="color: #16e0bd;"></strong><br><br>
+                이 작업은 되돌릴 수 없습니다.
+            </p>
+
+            <div class="admin-form-group">
+                <label class="admin-form-label">🔐 Google 계정 비밀번호 확인</label>
+                <input type="password" id="delete-password-input" class="admin-form-input"
+                    placeholder="현재 로그인한 Google 계정의 비밀번호를 입력하세요" autocomplete="off">
+                <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 4px;">
+                    보안을 위해 현재 로그인한 Google 계정의 비밀번호를 다시 입력해주세요.
+                </p>
+            </div>
+        </div>
+        <div class="admin-modal-footer" style="display: flex; gap: 12px; justify-content: flex-end;">
+            <button type="button" class="admin-btn-secondary" onclick="cancelDelete()">취소</button>
+            <button type="button" class="admin-btn-primary" style="background: #ef4444; border-color: #ef4444;"
+                onclick="confirmDelete()">삭제</button>
+        </div>
+    </div>
+</div>

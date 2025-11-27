@@ -78,7 +78,7 @@
 
     function renderTeamDetail() {
         document.getElementById('team-name').textContent = currentTeam.agent_set_name || currentTeam.agent_set_id;
-        document.getElementById('team-version').textContent = `v${currentTeam.agent_set_version}`;
+        document.getElementById('team-version').textContent = `v${currentTeam.agent_set_version || '1.0.0'}`;
         document.getElementById('team-status').innerHTML = getStatusBadge(currentTeam.status || 'active');
         document.getElementById('team-description').textContent = currentTeam.description || 'No description';
         document.getElementById('team-id').textContent = currentTeam.agent_set_id;
@@ -149,20 +149,54 @@
                         </div>
                     </div>
                     <div style="display: flex; gap: 8px;">
-                        <button onclick="editSubAgentInline('${role.key}', '${subAgentId}')" class="admin-btn-icon" title="Edit">
-                            ✏️
+                        <button type="button" class="btn-edit" data-role="${role.key}" data-id="${subAgentId}"
+                                style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;"
+                                onmouseover="this.style.background='rgba(59, 130, 246, 0.3)'" 
+                                onmouseout="this.style.background='rgba(59, 130, 246, 0.2)'">
+                            Edit
                         </button>
-                        <button onclick="changeSubAgentVersion('${role.key}')" class="admin-btn-icon" title="Change Version">
-                            🔄
+                        <button type="button" class="btn-change" data-role="${role.key}"
+                                style="background: rgba(168, 85, 247, 0.2); color: #a78bfa; border: 1px solid rgba(168, 85, 247, 0.4); padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;"
+                                onmouseover="this.style.background='rgba(168, 85, 247, 0.3)'" 
+                                onmouseout="this.style.background='rgba(168, 85, 247, 0.2)'">
+                            Change
                         </button>
-                        <button onclick="removeSubAgent('${role.key}')" class="admin-btn-icon" title="Remove" style="color: #ef4444;">
-                            ✖️
+                        <button type="button" class="btn-remove" data-role="${role.key}"
+                                style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;"
+                                onmouseover="this.style.background='rgba(239, 68, 68, 0.3)'" 
+                                onmouseout="this.style.background='rgba(239, 68, 68, 0.2)'">
+                            Remove
                         </button>
                     </div>
                 </div>
             </div>
             `;
         }).join('');
+
+        // Setup event delegation (idempotent)
+        if (!grid.hasAttribute('data-listeners-attached')) {
+            grid.setAttribute('data-listeners-attached', 'true');
+            grid.addEventListener('click', (e) => {
+                const editBtn = e.target.closest('.btn-edit');
+                const changeBtn = e.target.closest('.btn-change');
+                const removeBtn = e.target.closest('.btn-remove');
+
+                if (editBtn) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Edit clicked (delegation)', editBtn.dataset.role, editBtn.dataset.id);
+                    window.editSubAgentInline(editBtn.dataset.role, editBtn.dataset.id);
+                } else if (changeBtn) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    window.changeSubAgentVersion(changeBtn.dataset.role);
+                } else if (removeBtn) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    window.removeSubAgent(removeBtn.dataset.role);
+                }
+            });
+        }
     }
 
     function findSubAgentById(id) {
@@ -174,6 +208,11 @@
     }
 
     function compareVersions(v1, v2) {
+        // Handle undefined or null versions
+        if (!v1 || !v2) return 0;
+        if (typeof v1 !== 'string') v1 = String(v1);
+        if (typeof v2 !== 'string') v2 = String(v2);
+
         const parts1 = v1.split('.').map(Number);
         const parts2 = v2.split('.').map(Number);
         for (let i = 0; i < 3; i++) {
@@ -185,13 +224,19 @@
 
     // SubAgent Assignment
     window.assignSubAgent = function () {
-        document.getElementById('assign-subagent-modal').style.display = 'flex';
+        const modal = document.getElementById('assign-subagent-modal');
+        modal.style.display = 'flex';
+        void modal.offsetWidth; // Force reflow
+        modal.classList.add('open');
         updateSubAgentOptions();
     };
 
     window.assignSubAgentToRole = function (role) {
         document.getElementById('assign-role').value = role;
-        document.getElementById('assign-subagent-modal').style.display = 'flex';
+        const modal = document.getElementById('assign-subagent-modal');
+        modal.style.display = 'flex';
+        void modal.offsetWidth; // Force reflow
+        modal.classList.add('open');
         updateSubAgentOptions();
     };
 
@@ -234,29 +279,57 @@
     };
 
     window.closeAssignModal = function () {
-        document.getElementById('assign-subagent-modal').style.display = 'none';
+        const modal = document.getElementById('assign-subagent-modal');
+        modal.classList.remove('open');
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 200);
     };
 
     // Edit SubAgent (Create New Version)
     window.editSubAgentInline = async function (role, currentId) {
+        console.log("editSubAgentInline called:", role, currentId);
         try {
+            console.log("Fetching sub-agent document...");
             const agentDoc = await db.collection(`projects/${projectId}/subAgents`).doc(currentId).get();
+            console.log("Sub-agent doc fetched. Exists:", agentDoc.exists);
+
             if (!agentDoc.exists) {
+                console.error("Agent document not found!");
                 alert('Agent not found');
                 return;
             }
 
             const agent = agentDoc.data();
+            console.log("Agent data:", agent);
+
+            console.log("Populating modal fields...");
+            const modal = document.getElementById('edit-subagent-modal');
+            if (!modal) {
+                console.error("FATAL: edit-subagent-modal element not found in DOM!");
+                alert("Error: Modal element missing");
+                return;
+            }
 
             document.getElementById('edit-current-id').value = currentId;
             document.getElementById('edit-role').value = role;
             document.getElementById('edit-prompt').value = agent.system_prompt || '';
-            document.getElementById('edit-model').value = agent.model_provider?.llmText?.model || 'gpt-4';
+
+            // Safe access to model
+            const model = agent.model_provider?.llmText?.model || 'gpt-4';
+            document.getElementById('edit-model').value = model;
+
             document.getElementById('edit-temperature').value = agent.config?.temperature || 0.7;
             document.getElementById('edit-changelog').value = '';
 
-            document.getElementById('edit-subagent-modal').style.display = 'flex';
+            console.log("Modal fields populated. Showing modal...");
+            modal.style.display = 'flex';
+            // Force reflow
+            void modal.offsetWidth;
+            modal.classList.add('open');
+            console.log("Modal display set to flex and open class added. Z-index:", window.getComputedStyle(modal).zIndex);
         } catch (error) {
+            console.error("Error in editSubAgentInline:", error);
             alert(`Error: ${error.message}`);
         }
     };
@@ -297,7 +370,11 @@
     };
 
     window.closeEditModal = function () {
-        document.getElementById('edit-subagent-modal').style.display = 'none';
+        const modal = document.getElementById('edit-subagent-modal');
+        modal.classList.remove('open');
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 200); // Wait for transition
     };
 
     window.changeSubAgentVersion = function (role) {

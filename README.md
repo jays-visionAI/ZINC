@@ -1,6 +1,6 @@
-# ZINC Landing Page
+# ZYNK Landing Page
 
-This repository contains the **ZINC** AI‑powered social media automation landing page.
+This repository contains the **ZYNK** AI‑powered social media automation landing page.
 
 ## Features
 - Multi‑language support (English / Korean) with a language toggle.

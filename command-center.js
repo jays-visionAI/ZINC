@@ -104,6 +104,7 @@ document.addEventListener("DOMContentLoaded", () => {
             } catch (error) {
                 console.error("Error finalizing project:", error);
                 alert("Failed to launch project. Please try again.");
+            } finally {
                 btnLaunch.classList.remove("btn-loading");
             }
         }
@@ -397,9 +398,9 @@ document.addEventListener("DOMContentLoaded", () => {
             // Fallback: Create new project if draftId is missing (shouldn't happen normally)
             await saveDraftStep1(); // This will set draftId
             if (!draftId) {
-                alert("Error: Could not create project. Please try again.");
-                return;
+                throw new Error("Could not create project. Please try again.");
             }
+            return;
         }
 
         const data = {

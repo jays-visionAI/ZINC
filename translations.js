@@ -76,7 +76,7 @@ const translations = {
         'footer.support.help': 'Customer Support',
         'footer.support.docs': 'Documentation',
         'footer.support.contact': 'Contact',
-        'footer.copyright': '2024 ZINC. All rights reserved.',
+        'footer.copyright': '2024 ZYNK. All rights reserved.',
         'footer.privacy': 'Privacy Policy',
         'footer.terms': 'Terms of Service',
 
@@ -168,7 +168,7 @@ const translations = {
         'footer.support.help': '고객 지원',
         'footer.support.docs': '문서',
         'footer.support.contact': '문의하기',
-        'footer.copyright': '2024 ZINC. All rights reserved.',
+        'footer.copyright': '2024 ZYNK. All rights reserved.',
         'footer.privacy': '개인정보처리방침',
         'footer.terms': '이용약관',
 
@@ -187,12 +187,12 @@ const translations = {
 };
 
 // Get current language from localStorage or default to Korean
-let currentLang = localStorage.getItem('zinc-language') || 'ko';
+let currentLang = localStorage.getItem('zynk-language') || 'ko';
 
 // Function to translate the page
 function translatePage(lang) {
     currentLang = lang;
-    localStorage.setItem('zinc-language', lang);
+    localStorage.setItem('zynk-language', lang);
 
     // Update all elements with data-i18n attribute
     document.querySelectorAll('[data-i18n]').forEach(element => {

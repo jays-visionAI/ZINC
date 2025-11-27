@@ -1,6 +1,6 @@
 # ☁️ Cloudflare Pages 배포 가이드
 
-GitHub에 업로드된 ZINC 프로젝트를 Cloudflare Pages를 통해 무료로 배포하는 방법입니다.
+GitHub에 업로드된 ZYNK 프로젝트를 Cloudflare Pages를 통해 무료로 배포하는 방법입니다.
 
 ## 1. Cloudflare Pages 프로젝트 생성
 1. [Cloudflare 대시보드](https://dash.cloudflare.com/)에 로그인합니다.
@@ -10,7 +10,7 @@ GitHub에 업로드된 ZINC 프로젝트를 Cloudflare Pages를 통해 무료로
 
 ## 2. GitHub 저장소 연결
 1. GitHub 계정을 연결하라는 창이 뜨면 승인합니다.
-2. 저장소 목록에서 **`ZINC`** (또는 `jays-visionAI/ZINC`)를 선택합니다.
+2. 저장소 목록에서 **`ZYNK`** (또는 `jays-visionAI/ZYNK`)를 선택합니다.
 3. **"설정 시작(Begin setup)"**을 클릭합니다.
 
 ## 3. 빌드 설정 (Build Settings)

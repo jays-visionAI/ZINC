@@ -1,4 +1,4 @@
-# ZINC Admin Panel Setup Guide
+# ZYNK Admin Panel Setup Guide
 
 ## Quick Start
 

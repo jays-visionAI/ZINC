@@ -1,0 +1,126 @@
+<div id="team-detail-container">
+    <!-- Team Header -->
+    <div style="background: rgba(255,255,255,0.05); padding: 24px; border-radius: 12px; margin-bottom: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: start;">
+            <div>
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                    <h2 id="team-name" style="margin: 0; font-size: 24px;">Loading...</h2>
+                    <span id="team-version"
+                        style="background: rgba(22, 224, 189, 0.2); padding: 6px 12px; border-radius: 6px; font-weight: 600; font-size: 14px;"></span>
+                    <span id="team-status"></span>
+                </div>
+                <p id="team-description" style="margin: 8px 0 0 0; color: rgba(255,255,255,0.7); font-size: 14px;"></p>
+                <div style="margin-top: 12px; display: flex; gap: 16px; font-size: 13px; color: rgba(255,255,255,0.6);">
+                    <span>ID: <code id="team-id" style="color: #4ecdc4;"></code></span>
+                    <span>Created: <span id="team-created"></span></span>
+                    <span>Updated: <span id="team-updated"></span></span>
+                </div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button type="button" onclick="editTeamInfo()" class="admin-btn-secondary">Edit Info</button>
+                <button type="button" onclick="viewTeamHistory()" class="admin-btn-secondary">📜 Version
+                    History</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SubAgents Section -->
+    <div style="background: rgba(255,255,255,0.05); padding: 24px; border-radius: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 style="margin: 0;">Sub-Agents (7 Core Roles)</h3>
+            <button type="button" onclick="assignSubAgent()" class="admin-btn-primary">
+                + Assign Sub-Agent
+            </button>
+        </div>
+
+        <div id="subagents-grid"></div>
+    </div>
+</div>
+
+<!-- Assign SubAgent Modal -->
+<div id="assign-subagent-modal" class="admin-modal" style="display: none;">
+    <div class="admin-modal-content" style="max-width: 700px;">
+        <div class="admin-modal-header">
+            <h3 class="admin-modal-title">Assign Sub-Agent</h3>
+            <button class="admin-modal-close" onclick="closeAssignModal()">&times;</button>
+        </div>
+        <div class="admin-modal-body">
+            <div class="admin-form-group">
+                <label class="admin-form-label">Role</label>
+                <select id="assign-role" class="admin-select" style="width: 100%;">
+                    <option value="planner">🎯 Planner</option>
+                    <option value="research">🔍 Research</option>
+                    <option value="creator">✍️ Creator</option>
+                    <option value="compliance">⚖️ Compliance</option>
+                    <option value="evaluator">📊 Evaluator</option>
+                    <option value="manager">👔 Manager</option>
+                    <option value="kpi_engine">📈 KPI Engine</option>
+                </select>
+            </div>
+
+            <div class="admin-form-group">
+                <label class="admin-form-label">Select Sub-Agent</label>
+                <select id="assign-subagent" class="admin-select" style="width: 100%;">
+                    <option value="">Loading...</option>
+                </select>
+            </div>
+
+            <div id="subagent-preview"
+                style="margin-top: 16px; padding: 16px; background: rgba(0,0,0,0.3); border-radius: 8px; display: none;">
+                <h4 style="margin: 0 0 12px 0; font-size: 14px;">Preview</h4>
+                <div id="preview-content"></div>
+            </div>
+        </div>
+        <div class="admin-modal-footer">
+            <button type="button" class="admin-btn-secondary" onclick="closeAssignModal()">Cancel</button>
+            <button type="button" class="admin-btn-primary" onclick="confirmAssign()">Assign</button>
+        </div>
+    </div>
+</div>
+
+<!-- Edit SubAgent Modal (Create New Version) -->
+<div id="edit-subagent-modal" class="admin-modal" style="display: none;">
+    <div class="admin-modal-content" style="max-width: 800px;">
+        <div class="admin-modal-header">
+            <h3 class="admin-modal-title">Edit Sub-Agent (Create New Version)</h3>
+            <button class="admin-modal-close" onclick="closeEditModal()">&times;</button>
+        </div>
+        <div class="admin-modal-body">
+            <input type="hidden" id="edit-current-id">
+            <input type="hidden" id="edit-role">
+
+            <div class="admin-form-group">
+                <label class="admin-form-label">System Prompt</label>
+                <textarea id="edit-prompt" class="admin-form-input" rows="10"></textarea>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div class="admin-form-group">
+                    <label class="admin-form-label">LLM Model</label>
+                    <select id="edit-model" class="admin-select" style="width: 100%;">
+                        <option value="gpt-4">GPT-4</option>
+                        <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                        <option value="claude-3-opus">Claude 3 Opus</option>
+                        <option value="claude-3-sonnet">Claude 3 Sonnet</option>
+                        <option value="gemini-pro">Gemini Pro</option>
+                    </select>
+                </div>
+
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Temperature</label>
+                    <input type="number" id="edit-temperature" class="admin-form-input" min="0" max="2" step="0.1"
+                        value="0.7">
+                </div>
+            </div>
+
+            <div class="admin-form-group">
+                <label class="admin-form-label">Change Log (Required)</label>
+                <input type="text" id="edit-changelog" class="admin-form-input" placeholder="Describe what changed...">
+            </div>
+        </div>
+        <div class="admin-modal-footer">
+            <button type="button" class="admin-btn-secondary" onclick="closeEditModal()">Cancel</button>
+            <button type="button" class="admin-btn-primary" onclick="confirmEdit()">Create New Version</button>
+        </div>
+    </div>
+</div>

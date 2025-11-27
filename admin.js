@@ -128,7 +128,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             const itemPage = item.dataset.page;
             const isActive = itemPage === actualPage ||
                 (actualPage === 'agentteam-detail' && itemPage === 'agentteams') ||
-                (actualPage === 'agentrun-detail' && itemPage === 'agentteams') || // Keep parent active
+                (actualPage === 'agentteam-detail' && itemPage === 'agentteams') ||
+                (actualPage === 'agentrun-detail' && itemPage === 'agentruns') || // Keep parent active
                 (actualPage === 'project-detail' && itemPage === 'projects');
             item.classList.toggle("active", isActive);
         });
@@ -141,10 +142,13 @@ document.addEventListener("DOMContentLoaded", async () => {
             'agentteam-detail': "Agent Team Detail",
             users: "User Management",
             agentteams: "Agent Team Management",
+            agentruns: "Agent Execution Logs",
             subagents: "Sub-Agent Management",
             'runtime-profiles': 'Runtime Profile Management',
             'kpi-management': 'KPI Management',
+            performance: "Performance & KPI",
             industries: "Industry Master",
+            documents: "Documentation",
             subscriptions: "Subscription Management",
             settings: "Settings"
         };

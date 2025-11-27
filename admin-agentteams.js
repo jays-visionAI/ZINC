@@ -469,7 +469,7 @@
             const projectCount = 0;
 
             return `
-            <tr style="cursor: pointer;" onclick="viewTeamDetail('${team.id}')">
+            <tr style="cursor: pointer;" onclick="window.viewTeamDetail('${team.id}')">
                 <td>
                     <strong style="font-size: 14px;">${team.agent_set_name || team.agent_set_id}</strong>
                     <div style="font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px;">
@@ -495,14 +495,23 @@
                 <td>${formatDate(team.updated_at)}</td>
                 <td onclick="event.stopPropagation();">
                     <div style="display: flex; gap: 8px;">
-                        <button onclick="viewTeamDetail('${team.id}')" class="admin-btn-icon" title="View Details">
-                            👁️
+                        <button type="button" onclick="event.preventDefault(); event.stopPropagation(); window.viewTeamDetail('${team.id}'); return false;" 
+                                style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s;"
+                                onmouseover="this.style.background='rgba(59, 130, 246, 0.3)'" 
+                                onmouseout="this.style.background='rgba(59, 130, 246, 0.2)'">
+                            View
                         </button>
-                        <button onclick="viewHistory('${team.id}')" class="admin-btn-icon" title="Version History">
-                            📜
+                        <button type="button" onclick="event.preventDefault(); event.stopPropagation(); window.viewHistory('${team.id}'); return false;" 
+                                style="background: rgba(168, 85, 247, 0.2); color: #a78bfa; border: 1px solid rgba(168, 85, 247, 0.4); padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s;"
+                                onmouseover="this.style.background='rgba(168, 85, 247, 0.3)'" 
+                                onmouseout="this.style.background='rgba(168, 85, 247, 0.2)'">
+                            History
                         </button>
-                        <button onclick="deleteTeam('${team.id}')" class="admin-btn-icon" title="Deprecate" style="color: #ef4444;">
-                            🗑️
+                        <button type="button" onclick="event.preventDefault(); event.stopPropagation(); window.deleteTeam('${team.id}'); return false;" 
+                                style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s;"
+                                onmouseover="this.style.background='rgba(239, 68, 68, 0.3)'" 
+                                onmouseout="this.style.background='rgba(239, 68, 68, 0.2)'">
+                            Delete
                         </button>
                     </div>
                 </td>

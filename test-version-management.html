@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZYIC Agent OS - Version Management Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #16e0bd;
+        }
+
+        .test-btn {
+            background: #16e0bd;
+            color: #1a1a2e;
+            border: none;
+            padding: 12px 24px;
+            margin: 10px 5px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .test-btn:hover {
+            background: #13c4a3;
+        }
+
+        .output {
+            background: #0f3460;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .success {
+            color: #16e0bd;
+        }
+
+        .error {
+            color: #ff6b6b;
+        }
+
+        .info {
+            color: #4ecdc4;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🧪 ZYIC Agent OS - Version Management Test</h1>
+    <p>브라우저 콘솔(F12)과 아래 버튼으로 테스트하세요.</p>
+
+    <div>
+        <button class="test-btn" onclick="test1_checkVersions()">Test 1: 현재 버전 확인</button>
+        <button class="test-btn" onclick="test2_updateSubAgent()">Test 2: Planner 업데이트</button>
+        <button class="test-btn" onclick="test3_updateAgentSet()">Test 3: AgentSet 적용</button>
+        <button class="test-btn" onclick="test4_viewHistory()">Test 4: History 조회</button>
+        <button class="test-btn" onclick="test5_runTask()">Test 5: 업그레이드된 Agent로 Task 실행</button>
+        <button class="test-btn" onclick="clearOutput()">Clear</button>
+    </div>
+
+    <div id="output" class="output">테스트 버튼을 클릭하세요...</div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+    <!-- Firebase Config -->
+    <script src="firebase-config.js"></script>
+
+    <!-- ZYIC Agent OS Scripts -->
+    <script src="scripts/init-agent-os-phase1.js"></script>
+    <script src="scripts/orchestrator-phase1.js"></script>
+    <script src="scripts/version-management.js"></script>
+
+    <script>
+        const output = document.getElementById('output');
+
+        function log(message, type = 'info') {
+            const span = document.createElement('span');
+            span.className = type;
+            span.textContent = message + '\n';
+            output.appendChild(span);
+            output.scrollTop = output.scrollHeight;
+            console.log(message);
+        }
+
+        function clearOutput() {
+            output.textContent = '';
+        }
+
+        // Test 1: 현재 버전 확인
+        async function test1_checkVersions() {
+            log('=== Test 1: 현재 버전 확인 ===', 'info');
+            try {
+                const versions = await getSubAgentVersions("planner");
+                log(`✅ Planner 버전: ${versions.length}개`, 'success');
+                versions.forEach(v => {
+                    log(`   - ${v.version} (${v.sub_agent_id}) - ${v.status}`);
+                });
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Test 2: SubAgent 업데이트
+        async function test2_updateSubAgent() {
+            log('\n=== Test 2: Planner 업데이트 ===', 'info');
+            try {
+                const result = await updateSubAgentVersion(
+                    "planner_v1_0_0",
+                    {
+                        system_prompt: `You are an expert strategic content planner for social media.
+Your role is to:
+- Deeply analyze the user's request and target audience
+- Define clear, measurable content goals and KPIs
+- Create a detailed, actionable content outline
+- Set precise tone, style, and brand guidelines
+- Consider platform-specific best practices
+
+Output a comprehensive JSON plan with: goal, target_audience, tone, content_outline, kpi_targets, platform_notes`
+                    },
+                    "Enhanced system prompt with detailed instructions",
+                    "minor"
+                );
+
+                log(`✅ Success!`, 'success');
+                log(`   Old: ${result.oldVersion} (${result.oldAgentId})`);
+                log(`   New: ${result.newVersion} (${result.newAgentId})`);
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Test 3: AgentSet 업데이트
+        async function test3_updateAgentSet() {
+            log('\n=== Test 3: AgentSet 업데이트 ===', 'info');
+            try {
+                const result = await updateAgentSetSubAgent(
+                    "default_team_v1",
+                    "planner",
+                    "planner_v1_1_0"
+                );
+
+                log(`✅ Success!`, 'success');
+                log(`   AgentSet version: ${result.oldVersion} → ${result.newVersion}`);
+                log(`   Planner: ${result.oldSubAgent} → ${result.newSubAgent}`);
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Test 4: History 조회
+        async function test4_viewHistory() {
+            log('\n=== Test 4: History 조회 ===', 'info');
+            try {
+                const history = await getAgentSetHistory("default_team_v1");
+                log(`✅ History: ${history.length}개`, 'success');
+                history.forEach(h => {
+                    log(`   v${h.previous_version} → v${h.version}`);
+                    log(`      Reason: ${h.change_reason}`);
+                });
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Test 5: Task 실행
+        async function test5_runTask() {
+            log('\n=== Test 5: 업그레이드된 Agent로 Task 실행 ===', 'info');
+            try {
+                const taskId = await createTestTask();
+                log(`✅ Task created: ${taskId}`);
+
+                log(`\n⏳ Running task...`);
+                await runAgentSetTask(taskId);
+
+                log(`\n✅ Task completed! Check console for details.`, 'success');
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        // 페이지 로드 시
+        window.addEventListener('DOMContentLoaded', () => {
+            log('🚀 ZYIC Agent OS - Version Management System');
+            log('✅ All scripts loaded successfully!', 'success');
+            log('\n버튼을 클릭하거나 콘솔(F12)에서 직접 함수를 호출하세요:\n');
+            log('Available functions:');
+            log('  - getSubAgentVersions(agentType)');
+            log('  - updateSubAgentVersion(...)');
+            log('  - updateAgentSetSubAgent(...)');
+            log('  - getAgentSetHistory(agentSetId)');
+            log('  - rollbackSubAgent(...)');
+        });
+    </script>
+</body>
+
+</html>

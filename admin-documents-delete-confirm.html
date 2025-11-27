@@ -1,0 +1,29 @@
+<!-- Delete Confirmation Modal -->
+<div id="delete-confirm-modal" class="admin-modal" style="display: none; z-index: 10000;">
+    <div class="admin-modal-content" style="max-width: 500px;">
+        <div class="admin-modal-header">
+            <h3 class="admin-modal-title">⚠️ 문서 삭제 확인</h3>
+        </div>
+        <div class="admin-modal-body">
+            <p id="delete-confirm-message" style="margin-bottom: 24px; line-height: 1.6;">
+                정말로 이 문서를 삭제하시겠습니까?<br>
+                <strong id="delete-doc-name" style="color: #16e0bd;"></strong><br><br>
+                이 작업은 되돌릴 수 없습니다.
+            </p>
+
+            <div class="admin-form-group">
+                <label class="admin-form-label">🔐 Google 계정 비밀번호 확인</label>
+                <input type="password" id="delete-password-input" class="admin-form-input"
+                    placeholder="현재 로그인한 Google 계정의 비밀번호를 입력하세요" autocomplete="off">
+                <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 4px;">
+                    보안을 위해 현재 로그인한 Google 계정의 비밀번호를 다시 입력해주세요.
+                </p>
+            </div>
+        </div>
+        <div class="admin-modal-footer" style="display: flex; gap: 12px; justify-content: flex-end;">
+            <button type="button" class="admin-btn-secondary" onclick="cancelDelete()">취소</button>
+            <button type="button" class="admin-btn-primary" style="background: #ef4444; border-color: #ef4444;"
+                onclick="confirmDelete()">삭제</button>
+        </div>
+    </div>
+</div>
