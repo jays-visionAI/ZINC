@@ -46,14 +46,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             const project = doc.data();
             renderProjectInfo(project);
 
-            if (project.activeAgentSetId) {
-                loadAgentTeam(id, project.activeAgentSetId);
-            } else {
-                renderNoTeamState();
-            }
-
-            // Load Channel Cards (Active Deployments)
-            loadChannelCards(id);
+            // Load Agent Swarm (Active Deployments)
+            loadAgentSwarm(id);
 
             // Load KPIs (using project data for now)
             renderKPIs(project);
@@ -422,7 +416,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             alert("✅ Team deployed successfully!");
             closeDeployWizard();
-            loadChannelCards(projectId); // Refresh cards
+            loadAgentSwarm(projectId); // Refresh cards
 
         } catch (error) {
             console.error("Error deploying team:", error);
@@ -432,10 +426,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    // --- Channel Cards Logic ---
+    // --- Agent Swarm Logic ---
 
-    async function loadChannelCards(projectId) {
-        const grid = document.getElementById("channel-cards-grid");
+    async function loadAgentSwarm(projectId) {
+        const grid = document.getElementById("agent-swarm-grid");
         if (!grid) return;
 
         try {
@@ -447,41 +441,171 @@ document.addEventListener("DOMContentLoaded", async () => {
             const instances = [];
             snapshot.forEach(doc => instances.push({ id: doc.id, ...doc.data() }));
 
-            if (instances.length === 0) {
-                grid.innerHTML = '<div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5); grid-column: 1 / -1; border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px;">No active channels. Click "Deploy Team" to start.</div>';
-                return;
+            let html = '';
+
+            // Render Instances
+            if (instances.length > 0) {
+                html += instances.map(inst => renderAgentCard(inst)).join('');
+            } else {
+                // Render Dummy/Placeholder Cards if no instances
+                html += renderPlaceholderCard('x', 'Vanguard (X)', 'Trend Setter', 'active');
+                html += renderPlaceholderCard('linkedin', 'Strategist (LI)', 'Thought Leader', 'cooldown');
             }
 
-            // Fetch channel details for names/icons
-            // Optimization: We could store channelName in the instance to avoid extra reads
-            // We already did that in deployTeam (channelName)
-
-            grid.innerHTML = instances.map(inst => `
-                <div class="admin-card" style="border-top: 4px solid #16e0bd;">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
-                        <div>
-                            <h3 style="margin: 0; font-size: 18px; color: white;">${inst.name}</h3>
-                            <div style="font-size: 13px; color: rgba(255,255,255,0.5); margin-top: 4px;">Deployed: ${formatDate(inst.deployedAt)}</div>
-                        </div>
-                        <div style="background: rgba(255,255,255,0.1); padding: 8px; border-radius: 50%;">
-                            ${getChannelIconById(inst.channelId)}
-                        </div>
+            // Add "Deploy New Agent" Card
+            html += `
+                <div class="add-agent-card" onclick="document.getElementById('btn-deploy-team').click()">
+                    <div class="add-icon-circle">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
                     </div>
-                    
-                    <div style="display: flex; gap: 12px; margin-top: 16px;">
-                        <button class="admin-btn-secondary" style="flex: 1; font-size: 13px;" onclick="viewTeamDetails('${inst.id}')">Manage</button>
-                        <button class="admin-btn-secondary" style="flex: 0 0 auto; font-size: 13px; padding: 0 12px;" onclick="openChannelConfig('${inst.id}')" title="Configure Channel">
-                            ⚙️
-                        </button>
-                        <button class="admin-btn-secondary" style="flex: 1; font-size: 13px; background: rgba(239, 68, 68, 0.1); color: #f87171; border-color: rgba(239, 68, 68, 0.3);" onclick="deactivateTeam('${inst.id}')">Stop</button>
-                    </div>
+                    <div class="add-text">Deploy New Agent</div>
                 </div>
-            `).join('');
+            `;
+
+            grid.innerHTML = html;
 
         } catch (error) {
-            console.error("Error loading channel cards:", error);
-            grid.innerHTML = '<div style="text-align: center; color: #ef4444;">Error loading active channels.</div>';
+            console.error("Error loading agent swarm:", error);
+            grid.innerHTML = '<div style="text-align: center; color: #ef4444;">Error loading agent swarm.</div>';
         }
+    }
+
+    function renderAgentCard(inst) {
+        return `
+            <div class="agent-card">
+                <div class="agent-card-header">
+                    <div class="agent-info">
+                        <div class="agent-icon">
+                            ${getChannelIconById(inst.channelId)}
+                        </div>
+                        <div class="agent-details">
+                            <div class="agent-name">
+                                ${inst.name}
+                                ${inst.status === 'error' ? '<span style="color: #ef4444;">!</span>' : ''}
+                            </div>
+                            <div class="agent-role">${inst.templateName || 'Custom Agent'}</div>
+                        </div>
+                    </div>
+                    <div class="agent-status status-${inst.status === 'active' ? 'active' : 'inactive'}">
+                        ${inst.status}
+                    </div>
+                </div>
+
+                <div class="agent-directive active">
+                    <div class="directive-label">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                        </svg>
+                        Active Directive:
+                    </div>
+                    <div class="directive-text">
+                        Autonomous mode active. Scanning ecosystem for engagement opportunities.
+                    </div>
+                </div>
+
+                <div class="agent-metrics">
+                    <div class="metric-item">
+                        <div class="metric-header">
+                            <span>Daily Actions</span>
+                            <span>8/15</span>
+                        </div>
+                        <div class="metric-bar-bg">
+                            <div class="metric-bar-fill" style="width: 53%; background: #16e0bd;"></div>
+                        </div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-header">
+                            <span>Neural Sync</span>
+                            <span style="color: #16e0bd;">91%</span>
+                        </div>
+                        <div class="metric-bar-bg">
+                            <div class="metric-bar-fill" style="width: 91%; background: linear-gradient(90deg, #16e0bd, #3b82f6);"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="agent-actions">
+                    <button class="btn-view-history" onclick="viewTeamDetails('${inst.id}')">View History</button>
+                    <button class="btn-settings" onclick="openChannelConfig('${inst.id}')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderPlaceholderCard(platform, name, role, status) {
+        const isCooldown = status === 'cooldown';
+        return `
+            <div class="agent-card" style="opacity: 0.8;">
+                <div class="agent-card-header">
+                    <div class="agent-info">
+                        <div class="agent-icon">
+                            ${getChannelIcon(platform)}
+                        </div>
+                        <div class="agent-details">
+                            <div class="agent-name">
+                                ${name}
+                                <span style="color: #ef4444;">!</span>
+                            </div>
+                            <div class="agent-role">${role}</div>
+                        </div>
+                    </div>
+                    <div class="agent-status status-${status}">
+                        ${status.toUpperCase()}
+                    </div>
+                </div>
+
+                <div class="agent-directive ${isCooldown ? 'warning' : 'active'}">
+                    <div class="directive-label">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                        </svg>
+                        Active Directive:
+                    </div>
+                    <div class="directive-text">
+                        ${isCooldown ? "Daily quota reached. Analyzing day's performance." : "Autonomous mode active. Scanning ecosystem for engagement opportunities."}
+                    </div>
+                </div>
+
+                <div class="agent-metrics">
+                    <div class="metric-item">
+                        <div class="metric-header">
+                            <span>Daily Actions</span>
+                            <span>${isCooldown ? '0/5' : '8/15'}</span>
+                        </div>
+                        <div class="metric-bar-bg">
+                            <div class="metric-bar-fill" style="width: ${isCooldown ? '0%' : '53%'}; background: ${isCooldown ? '#3b82f6' : '#16e0bd'};"></div>
+                        </div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-header">
+                            <span>Neural Sync</span>
+                            <span style="color: #16e0bd;">${isCooldown ? '97%' : '91%'}</span>
+                        </div>
+                        <div class="metric-bar-bg">
+                            <div class="metric-bar-fill" style="width: ${isCooldown ? '97%' : '91%'}; background: linear-gradient(90deg, #16e0bd, #3b82f6);"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="agent-actions">
+                    <button class="btn-view-history" onclick="alert('This is a demo agent.')">View History</button>
+                    <button class="btn-settings" onclick="alert('This is a demo agent.')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        `;
     }
 
     function getChannelIcon(platform) {
@@ -1688,7 +1812,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (!confirm("Are you sure you want to stop this team?")) return;
         try {
             await db.collection("projectAgentTeamInstances").doc(instanceId).update({ status: 'inactive' });
-            loadChannelCards(new URLSearchParams(window.location.search).get('id'));
+            loadAgentSwarm(new URLSearchParams(window.location.search).get('id'));
         } catch (error) {
             console.error("Error stopping team:", error);
             alert("Error stopping team.");

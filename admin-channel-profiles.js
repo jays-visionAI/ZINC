@@ -2,6 +2,7 @@
 // Channel Profile Management Page
 
 (function () {
+    console.log("🔹 admin-channel-profiles.js loaded!");
     let profiles = [];
     let unsubscribe = null;
 
@@ -14,6 +15,16 @@
         }
 
         profiles = [];
+
+        // Move modal to body level (must be outside #admin-content for proper overlay)
+        setTimeout(() => {
+            const modal = document.getElementById('channel-modal');
+            if (modal && modal.parentElement.id === 'admin-content') {
+                console.log("🔹 Moving modal to body on init...");
+                document.body.appendChild(modal);
+            }
+        }, 100);
+
         loadProfiles();
         setupEventListeners();
     };
@@ -135,8 +146,30 @@
 
     // Modal Functions
     window.editProfile = function (id) {
+        console.log("🔹 editProfile called with id:", id);
+        console.log("🔹 profiles array:", profiles);
         const profile = profiles.find(p => p.id === id);
-        if (!profile) return;
+        console.log("🔹 found profile:", profile);
+        if (!profile) {
+            console.error("❌ Profile not found for id:", id);
+            return;
+        }
+
+        // Check if modal exists
+        let modal = document.getElementById('channel-modal');
+        console.log("🔹 Modal element:", modal);
+
+        if (!modal) {
+            console.error("❌ Modal element not found in DOM!");
+            alert("Error: Modal not found. Please refresh the page.");
+            return;
+        }
+
+        // Ensure modal is in body (not inside admin-content)
+        if (modal.parentElement.id === 'admin-content') {
+            console.log("🔹 Moving modal to body...");
+            document.body.appendChild(modal);
+        }
 
         document.getElementById('channel-id').value = profile.id;
         document.getElementById('channel-name').value = profile.name;
@@ -149,11 +182,17 @@
         document.getElementById('channel-seo-rules').value = JSON.stringify(profile.seoRules || {}, null, 2);
         document.getElementById('channel-kpi-weights').value = JSON.stringify(profile.kpiWeights || {}, null, 2);
 
-        document.getElementById('channel-modal').style.display = 'flex';
+        console.log("🔹 Opening modal...");
+        modal.style.display = 'flex';
+        modal.classList.add('open');
     };
 
     function closeModal() {
-        document.getElementById('channel-modal').style.display = 'none';
+        const modal = document.getElementById('channel-modal');
+        if (modal) {
+            modal.style.display = 'none';
+            modal.classList.remove('open');
+        }
     }
 
     async function saveProfile() {
@@ -165,7 +204,7 @@
             saveBtn.textContent = 'Saving...';
 
             const contentTypes = document.getElementById('channel-content-types').value.split(',').map(s => s.trim()).filter(Boolean);
-            const version = document.getElementById('channel-version').value;
+            const currentVersion = document.getElementById('channel-version').value;
 
             // Parse JSON fields
             const lengthRules = JSON.parse(document.getElementById('channel-length-rules').value);
@@ -173,17 +212,42 @@
             const seoRules = JSON.parse(document.getElementById('channel-seo-rules').value);
             const kpiWeights = JSON.parse(document.getElementById('channel-kpi-weights').value);
 
+            // Get current profile for backup
+            const currentProfileDoc = await db.collection('channelProfiles').doc(id).get();
+            const currentProfile = currentProfileDoc.data();
+
+            // Auto-increment version (patch version)
+            const versionParts = currentVersion.split('.');
+            const major = parseInt(versionParts[0]) || 1;
+            const minor = parseInt(versionParts[1]) || 0;
+            const patch = parseInt(versionParts[2]) || 0;
+            const newVersion = `${major}.${minor}.${patch + 1}`;
+
+            // Backup current version to history
+            if (currentProfile) {
+                await db.collection('channelProfileVersions').add({
+                    profileId: id,
+                    version: currentProfile.version,
+                    data: currentProfile,
+                    archivedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    archivedBy: firebase.auth().currentUser?.email || 'unknown'
+                });
+            }
+
+            // Update profile with new version
             await db.collection('channelProfiles').doc(id).update({
                 contentTypes,
                 lengthRules,
                 interactionStyle,
                 seoRules,
                 kpiWeights,
-                version,
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                version: newVersion,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedBy: firebase.auth().currentUser?.email || 'unknown'
             });
 
-            alert('Profile updated successfully!');
+            console.log(`✅ Profile updated: ${currentVersion} → ${newVersion}`);
+            alert(`Profile updated successfully!\nVersion: ${currentVersion} → ${newVersion}`);
             closeModal();
 
         } catch (error) {

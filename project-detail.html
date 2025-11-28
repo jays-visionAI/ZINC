@@ -139,47 +139,23 @@
                         </div>
                     </div>
 
-                    <!-- Channel Cards Section -->
-                    <section class="dashboard-section" style="margin-top: 32px;">
-                        <div class="section-header">
-                            <h2>Active Channels</h2>
+                    <!-- Agent Swarm Section -->
+                    <section class="agent-swarm-section">
+                        <div class="agent-swarm-header">
+                            <h2>Agent Swarm</h2>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)"
+                                stroke-width="2" style="cursor: help;">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="16" x2="12" y2="12"></line>
+                                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                            </svg>
                         </div>
-                        <div id="channel-cards-grid"
-                            style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
+                        <div id="agent-swarm-grid" class="agent-swarm-grid">
                             <!-- Dynamically populated -->
                             <div
                                 style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5); grid-column: 1 / -1; border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px;">
-                                No active channels. Click "Deploy Team" to start.
+                                Loading agent swarm...
                             </div>
-                        </div>
-                    </section>
-
-                    <!-- Active Agents List -->
-                    <section class="dashboard-section" style="margin-top: 32px;">
-                        <div class="section-header">
-                            <h2>Deployed Agents</h2>
-                        </div>
-
-                        <div class="admin-table-container">
-                            <table class="admin-table">
-                                <thead>
-                                    <tr>
-                                        <th>Agent Role</th>
-                                        <th>Status</th>
-                                        <th>Current Task</th>
-                                        <th>Last Active</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="agents-table-body">
-                                    <tr>
-                                        <td colspan="5"
-                                            style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">
-                                            Loading agents...
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
                         </div>
                     </section>
 
