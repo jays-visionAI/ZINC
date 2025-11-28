@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seed Channel Profiles</title>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+
+    <!-- Firebase Config -->
+    <script src="firebase-config.js"></script>
+
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+        }
+
+        h1 {
+            color: #fff;
+            margin-bottom: 10px;
+        }
+
+        p {
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .status {
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            margin-top: 20px;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .status div {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🌐 Seed 13 Channel Profiles</h1>
+        <p>This will create channel profiles for all 13 social media platforms:</p>
+        <ul>
+            <li>Instagram, LinkedIn, Medium, X (Twitter), YouTube</li>
+            <li>Facebook, TikTok, Pinterest, Reddit, Threads</li>
+            <li>Snapchat, Discord, Telegram</li>
+        </ul>
+        <p><strong>Note:</strong> This will overwrite existing profiles with the same IDs.</p>
+
+        <div id="status" class="status">
+            <div>Ready to seed profiles...</div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Firebase
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.firestore();
+
+        // Redirect console.log to UI
+        const originalLog = console.log;
+        const statusDiv = document.getElementById('status');
+
+        console.log = function (...args) {
+            originalLog.apply(console, args);
+            const msg = args.join(' ');
+            const p = document.createElement('div');
+            p.textContent = '> ' + msg;
+            statusDiv.appendChild(p);
+            statusDiv.scrollTop = statusDiv.scrollHeight;
+        };
+    </script>
+
+    <!-- Run Seed Script -->
+    <script src="scripts/seed-channel-profiles.js"></script>
+</body>
+
+</html>

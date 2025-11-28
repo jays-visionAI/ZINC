@@ -470,6 +470,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                     
                     <div style="display: flex; gap: 12px; margin-top: 16px;">
                         <button class="admin-btn-secondary" style="flex: 1; font-size: 13px;" onclick="viewTeamDetails('${inst.id}')">Manage</button>
+                        <button class="admin-btn-secondary" style="flex: 0 0 auto; font-size: 13px; padding: 0 12px;" onclick="openChannelConfig('${inst.id}')" title="Configure Channel">
+                            ⚙️
+                        </button>
                         <button class="admin-btn-secondary" style="flex: 1; font-size: 13px; background: rgba(239, 68, 68, 0.1); color: #f87171; border-color: rgba(239, 68, 68, 0.3);" onclick="deactivateTeam('${inst.id}')">Stop</button>
                     </div>
                 </div>
@@ -503,12 +506,1183 @@ document.addEventListener("DOMContentLoaded", async () => {
         return getChannelIcon('instagram');
     }
 
-    window.viewTeamDetails = function (instanceId) {
-        // For now, just reload the page with this team active?
-        // Or navigate to a team detail page?
-        // Let's just alert for Phase 1
-        alert(`Managing Team: ${instanceId}`);
+    // --- Configuration Panel Logic ---
+
+    let configResolver = null;
+    let currentConfigInstanceId = null;
+    let currentConfigData = null; // Stores current effective config
+    let currentOverrides = {}; // Stores pending overrides
+    let currentPlatform = 'x'; // Default platform
+
+    // --- Configuration Schemas ---
+    const CONFIG_SCHEMAS = {
+        x: {
+            goals: [
+                { key: 'followers', type: 'slider', label: 'Follower Growth', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.25 },
+                { key: 'engagement', type: 'slider', label: 'Engagement', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.35 },
+                { key: 'clicks', type: 'slider', label: 'Link Clicks', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.25 },
+                { key: 'impressions', type: 'slider', label: 'Impressions', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.15 }
+            ],
+            planner: [
+                {
+                    key: 'postFrequency', type: 'select', label: 'Posting Frequency', options: [
+                        { value: 'low', label: 'Low (1-3/day)' },
+                        { value: 'medium', label: 'Medium (3-5/day)' },
+                        { value: 'high', label: 'High (5-10/day)' },
+                        { value: 'aggressive', label: 'Aggressive (10+/day)' }
+                    ], default: 'medium'
+                },
+                { key: 'formatMix.shortTweet', type: 'slider', label: 'Short Tweet', min: 0, max: 100, default: 60 },
+                { key: 'formatMix.thread', type: 'slider', label: 'Thread', min: 0, max: 100, default: 80 },
+                { key: 'formatMix.imagePost', type: 'slider', label: 'Image Post', min: 0, max: 100, default: 30 },
+                { key: 'formatMix.videoPost', type: 'slider', label: 'Video Post', min: 0, max: 100, default: 10 },
+                {
+                    key: 'experimentIntensity', type: 'select', label: 'Experiment Intensity', options: [
+                        { value: 'low', label: 'Low (Safe)' },
+                        { value: 'medium', label: 'Medium (Balanced)' },
+                        { value: 'high', label: 'High (Experimental)' },
+                        { value: 'aggressive', label: 'Aggressive' }
+                    ], default: 'medium'
+                },
+                { key: 'avgThreadLength', type: 'slider', label: 'Target Thread Length', min: 3, max: 25, step: 1, default: 7 }
+            ],
+            creator_text: [
+                {
+                    key: 'tonePreset', type: 'select', label: 'Tone Preset', options: [
+                        { value: 'calm', label: 'Calm & Thoughtful' },
+                        { value: 'professional', label: 'Professional & Clear' },
+                        { value: 'bold', label: 'Bold & Confident' },
+                        { value: 'humorous', label: 'Humorous & Witty' },
+                        { value: 'provocative', label: 'Provocative & Contrarian' }
+                    ], default: 'professional'
+                },
+                {
+                    key: 'hookStyle', type: 'multi-select', label: 'Hook Style (Select 1-3)', options: [
+                        { value: 'question', label: 'Question ("What if...")' },
+                        { value: 'stat', label: 'Statistic ("93% of...")' },
+                        { value: 'story', label: 'Story ("Last week...")' },
+                        { value: 'contrarian', label: 'Contrarian ("Everyone is wrong...")' },
+                        { value: 'value_prop', label: 'Value Prop ("How to 10x...")' }
+                    ], default: ['question', 'stat']
+                },
+                { key: 'hashtagCount', type: 'slider', label: 'Hashtags per Post', min: 0, max: 5, step: 1, default: 3 },
+                {
+                    key: 'emojiUsage', type: 'select', label: 'Emoji Usage', options: [
+                        { value: 'none', label: 'None' },
+                        { value: 'minimal', label: 'Minimal (1-2)' },
+                        { value: 'moderate', label: 'Moderate (3-5)' },
+                        { value: 'high', label: 'High (5+)' }
+                    ], default: 'minimal'
+                },
+                {
+                    key: 'ctaIntensity', type: 'select', label: 'Call-to-Action Intensity', options: [
+                        { value: 'soft', label: 'Soft ("Learn more")' },
+                        { value: 'medium', label: 'Medium ("Check it out")' },
+                        { value: 'aggressive', label: 'Aggressive ("Sign up NOW")' }
+                    ], default: 'medium'
+                }
+            ],
+            engagement: [
+                {
+                    key: 'autoReplyLevel', type: 'select', label: 'Auto-Reply Level', options: [
+                        { value: 'off', label: 'Off (Manual Only)' },
+                        { value: 'low', label: 'Low (@Mentions Only)' },
+                        { value: 'medium', label: 'Medium (+ Keywords)' },
+                        { value: 'high', label: 'High (Proactive)' }
+                    ], default: 'medium'
+                },
+                { key: 'dailyReplyCap', type: 'slider', label: 'Max Replies/Day', min: 0, max: 200, step: 5, default: 50 },
+                { key: 'replyToMentions', type: 'toggle', label: 'Reply to @Mentions', default: true },
+                { key: 'replyToKeywords', type: 'tag-input', label: 'Keywords (Press Enter)', default: [] },
+                {
+                    key: 'escalationTriggers', type: 'multi-select', label: 'Escalation Rules (Alert Human)', options: [
+                        { value: 'negative_sentiment', label: 'Negative Sentiment' },
+                        { value: 'complaint', label: 'Complaints' },
+                        { value: 'support_question', label: 'Support Questions' },
+                        { value: 'pricing_inquiry', label: 'Pricing Inquiries' }
+                    ], default: ['complaint']
+                }
+            ]
+        },
+        instagram: {
+            goals: [
+                { key: 'followers', type: 'slider', label: 'Follower Growth', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.30 },
+                { key: 'engagement', type: 'slider', label: 'Engagement', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.40 },
+                { key: 'clicks', type: 'slider', label: 'Link Clicks', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.10 },
+                { key: 'reach', type: 'slider', label: 'Reach', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.20 }
+            ],
+            planner: [
+                {
+                    key: 'postFrequency', type: 'select', label: 'Feed Post Frequency', options: [
+                        { value: 'low', label: 'Low (3-4/week)' },
+                        { value: 'medium', label: 'Medium (1/day)' },
+                        { value: 'high', label: 'High (1-2/day)' },
+                        { value: 'aggressive', label: 'Aggressive (3+/day)' }
+                    ], default: 'medium'
+                },
+                {
+                    key: 'storyFrequency', type: 'select', label: 'Story Frequency', options: [
+                        { value: 'low', label: 'Low (1-2/day)' },
+                        { value: 'medium', label: 'Medium (3-5/day)' },
+                        { value: 'high', label: 'High (5-10/day)' }
+                    ], default: 'medium'
+                },
+                { key: 'formatMix.reel', type: 'slider', label: 'Reels', min: 0, max: 100, default: 60 },
+                { key: 'formatMix.carousel', type: 'slider', label: 'Carousel', min: 0, max: 100, default: 30 },
+                { key: 'formatMix.singleImage', type: 'slider', label: 'Single Image', min: 0, max: 100, default: 10 },
+                { key: 'formatMix.story', type: 'slider', label: 'Story Weight', min: 0, max: 100, default: 50 },
+                {
+                    key: 'visualStyle', type: 'select', label: 'Visual Style', options: [
+                        { value: 'minimalist', label: 'Minimalist' },
+                        { value: 'vibrant', label: 'Vibrant' },
+                        { value: 'professional', label: 'Professional' },
+                        { value: 'grunge', label: 'Grunge' },
+                        { value: 'pastel', label: 'Pastel' }
+                    ], default: 'professional'
+                },
+                { key: 'filterIntensity', type: 'slider', label: 'Filter Intensity', min: 0, max: 100, default: 20 }
+            ],
+            creator_text: [
+                {
+                    key: 'captionLength', type: 'select', label: 'Caption Length', options: [
+                        { value: 'short', label: 'Short (1-2 lines)' },
+                        { value: 'medium', label: 'Medium (Paragraph)' },
+                        { value: 'microblog', label: 'Microblog (Long Form)' }
+                    ], default: 'medium'
+                },
+                {
+                    key: 'tonePreset', type: 'select', label: 'Tone Preset', options: [
+                        { value: 'friendly', label: 'Friendly & Casual' },
+                        { value: 'professional', label: 'Professional' },
+                        { value: 'inspirational', label: 'Inspirational' },
+                        { value: 'witty', label: 'Witty' }
+                    ], default: 'professional'
+                },
+                {
+                    key: 'emojiUsage', type: 'select', label: 'Emoji Usage', options: [
+                        { value: 'none', label: 'None' },
+                        { value: 'minimal', label: 'Minimal' },
+                        { value: 'moderate', label: 'Moderate' },
+                        { value: 'heavy', label: 'Heavy' }
+                    ], default: 'moderate'
+                },
+                { key: 'hashtagCount', type: 'slider', label: 'Hashtags', min: 0, max: 30, step: 1, default: 15 },
+                {
+                    key: 'hashtagStrategy', type: 'select', label: 'Hashtags Strategy', options: [
+                        { value: 'broad', label: 'Broad Only' },
+                        { value: 'niche', label: 'Niche Only' },
+                        { value: 'mixed', label: 'Mixed' }
+                    ], default: 'mixed'
+                }
+            ],
+            engagement: [
+                {
+                    key: 'autoReplyLevel', type: 'select', label: 'Auto-Reply Level', options: [
+                        { value: 'off', label: 'Off' },
+                        { value: 'low', label: 'Low' },
+                        { value: 'medium', label: 'Medium' },
+                        { value: 'high', label: 'High' }
+                    ], default: 'medium'
+                },
+                { key: 'replyToComments', type: 'toggle', label: 'Reply to Comments', default: true },
+                { key: 'replyToDMs', type: 'toggle', label: 'Reply to DMs', default: false },
+                { key: 'replyToMentions', type: 'toggle', label: 'Reply to Mentions', default: true },
+                { key: 'replyToKeywords', type: 'tag-input', label: 'Keywords', default: [] }
+            ]
+        },
+        youtube: {
+            goals: [
+                { key: 'subscribers', type: 'slider', label: 'Subscriber Growth', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.30 },
+                { key: 'watchTime', type: 'slider', label: 'Watch Time', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.35 },
+                { key: 'engagement', type: 'slider', label: 'Engagement (Likes/Comments)', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.20 },
+                { key: 'clicks', type: 'slider', label: 'Click-Through Rate', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.15 }
+            ],
+            planner: [
+                {
+                    key: 'postFrequency', type: 'select', label: 'Upload Frequency', options: [
+                        { value: 'low', label: 'Low (1-2/week)' },
+                        { value: 'medium', label: 'Medium (3-4/week)' },
+                        { value: 'high', label: 'High (Daily)' },
+                        { value: 'aggressive', label: 'Aggressive (Multiple/day)' }
+                    ], default: 'medium'
+                },
+                { key: 'formatMix.longForm', type: 'slider', label: 'Long-Form Videos (8+ min)', min: 0, max: 100, default: 60 },
+                { key: 'formatMix.shorts', type: 'slider', label: 'YouTube Shorts', min: 0, max: 100, default: 40 },
+                { key: 'videoLength', type: 'slider', label: 'Target Video Length (min)', min: 5, max: 60, step: 5, default: 15 },
+                { key: 'seoOptimization', type: 'toggle', label: 'SEO Optimization', default: true }
+            ],
+            creator_text: [
+                {
+                    key: 'titleStyle', type: 'select', label: 'Title Style', options: [
+                        { value: 'descriptive', label: 'Descriptive' },
+                        { value: 'clickbait', label: 'Clickbait' },
+                        { value: 'keyword_rich', label: 'Keyword-Rich' }
+                    ], default: 'descriptive'
+                },
+                {
+                    key: 'thumbnailStyle', type: 'select', label: 'Thumbnail Style', options: [
+                        { value: 'minimal', label: 'Minimal' },
+                        { value: 'bold_text', label: 'Bold Text Overlay' },
+                        { value: 'face_focus', label: 'Face Focus' }
+                    ], default: 'bold_text'
+                },
+                {
+                    key: 'descriptionLength', type: 'select', label: 'Description Length', options: [
+                        { value: 'short', label: 'Short (1-2 paragraphs)' },
+                        { value: 'medium', label: 'Medium (3-5 paragraphs)' },
+                        { value: 'long', label: 'Long (Full SEO)' }
+                    ], default: 'medium'
+                }
+            ],
+            engagement: [
+                {
+                    key: 'autoReplyLevel', type: 'select', label: 'Comment Reply Level', options: [
+                        { value: 'off', label: 'Off' },
+                        { value: 'low', label: 'Low (Top Comments)' },
+                        { value: 'medium', label: 'Medium' },
+                        { value: 'high', label: 'High (All Comments)' }
+                    ], default: 'medium'
+                },
+                { key: 'pinTopComment', type: 'toggle', label: 'Auto-Pin Top Comment', default: true },
+                { key: 'communityPosts', type: 'toggle', label: 'Enable Community Posts', default: true }
+            ]
+        },
+        linkedin: {
+            goals: [
+                { key: 'connections', type: 'slider', label: 'Connection Growth', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.25 },
+                { key: 'engagement', type: 'slider', label: 'Engagement', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.35 },
+                { key: 'impressions', type: 'slider', label: 'Impressions', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.25 },
+                { key: 'leads', type: 'slider', label: 'Lead Generation', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.15 }
+            ],
+            planner: [
+                {
+                    key: 'postFrequency', type: 'select', label: 'Posting Frequency', options: [
+                        { value: 'low', label: 'Low (2-3/week)' },
+                        { value: 'medium', label: 'Medium (1/day)' },
+                        { value: 'high', label: 'High (2/day)' }
+                    ], default: 'medium'
+                },
+                { key: 'formatMix.textPost', type: 'slider', label: 'Text Posts', min: 0, max: 100, default: 40 },
+                { key: 'formatMix.article', type: 'slider', label: 'LinkedIn Articles', min: 0, max: 100, default: 20 },
+                { key: 'formatMix.imagePost', type: 'slider', label: 'Image Posts', min: 0, max: 100, default: 30 },
+                { key: 'formatMix.videoPost', type: 'slider', label: 'Video Posts', min: 0, max: 100, default: 10 }
+            ],
+            creator_text: [
+                {
+                    key: 'tonePreset', type: 'select', label: 'Tone', options: [
+                        { value: 'professional', label: 'Professional' },
+                        { value: 'thought_leader', label: 'Thought Leader' },
+                        { value: 'conversational', label: 'Conversational' },
+                        { value: 'inspirational', label: 'Inspirational' }
+                    ], default: 'professional'
+                },
+                { key: 'hashtagCount', type: 'slider', label: 'Hashtags', min: 0, max: 5, step: 1, default: 3 },
+                { key: 'includeCallToAction', type: 'toggle', label: 'Include CTA', default: true }
+            ],
+            engagement: [
+                {
+                    key: 'autoReplyLevel', type: 'select', label: 'Auto-Reply Level', options: [
+                        { value: 'off', label: 'Off' },
+                        { value: 'low', label: 'Low' },
+                        { value: 'medium', label: 'Medium' },
+                        { value: 'high', label: 'High' }
+                    ], default: 'low'
+                },
+                { key: 'connectionRequests', type: 'toggle', label: 'Auto-Accept Connections', default: false },
+                { key: 'endorseSkills', type: 'toggle', label: 'Auto-Endorse Skills', default: false }
+            ]
+        },
+        tiktok: {
+            goals: [
+                { key: 'followers', type: 'slider', label: 'Follower Growth', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.30 },
+                { key: 'views', type: 'slider', label: 'Video Views', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.40 },
+                { key: 'engagement', type: 'slider', label: 'Engagement', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.20 },
+                { key: 'shares', type: 'slider', label: 'Shares', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.10 }
+            ],
+            planner: [
+                {
+                    key: 'postFrequency', type: 'select', label: 'Posting Frequency', options: [
+                        { value: 'low', label: 'Low (1/day)' },
+                        { value: 'medium', label: 'Medium (2-3/day)' },
+                        { value: 'high', label: 'High (4-5/day)' },
+                        { value: 'aggressive', label: 'Aggressive (6+/day)' }
+                    ], default: 'medium'
+                },
+                {
+                    key: 'videoLength', type: 'select', label: 'Video Length', options: [
+                        { value: 'short', label: 'Short (15-30s)' },
+                        { value: 'medium', label: 'Medium (30-60s)' },
+                        { value: 'long', label: 'Long (1-3min)' }
+                    ], default: 'medium'
+                },
+                { key: 'trendParticipation', type: 'slider', label: 'Trend Participation', min: 0, max: 100, default: 70 },
+                { key: 'originalContent', type: 'slider', label: 'Original Content', min: 0, max: 100, default: 30 }
+            ],
+            creator_text: [
+                {
+                    key: 'captionStyle', type: 'select', label: 'Caption Style', options: [
+                        { value: 'minimal', label: 'Minimal' },
+                        { value: 'engaging', label: 'Engaging' },
+                        { value: 'storytelling', label: 'Storytelling' }
+                    ], default: 'engaging'
+                },
+                { key: 'hashtagCount', type: 'slider', label: 'Hashtags', min: 0, max: 10, step: 1, default: 5 },
+                {
+                    key: 'emojiUsage', type: 'select', label: 'Emoji Usage', options: [
+                        { value: 'none', label: 'None' },
+                        { value: 'minimal', label: 'Minimal' },
+                        { value: 'moderate', label: 'Moderate' },
+                        { value: 'heavy', label: 'Heavy' }
+                    ], default: 'moderate'
+                }
+            ],
+            engagement: [
+                {
+                    key: 'autoReplyLevel', type: 'select', label: 'Comment Reply Level', options: [
+                        { value: 'off', label: 'Off' },
+                        { value: 'low', label: 'Low' },
+                        { value: 'medium', label: 'Medium' },
+                        { value: 'high', label: 'High' }
+                    ], default: 'medium'
+                },
+                { key: 'duetEnabled', type: 'toggle', label: 'Enable Duets', default: true },
+                { key: 'stitchEnabled', type: 'toggle', label: 'Enable Stitch', default: true }
+            ]
+        },
+        facebook: {
+            goals: [
+                { key: 'followers', type: 'slider', label: 'Page Followers', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.25 },
+                { key: 'engagement', type: 'slider', label: 'Engagement', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.35 },
+                { key: 'reach', type: 'slider', label: 'Reach', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.25 },
+                { key: 'conversions', type: 'slider', label: 'Conversions', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.15 }
+            ],
+            planner: [
+                {
+                    key: 'postFrequency', type: 'select', label: 'Posting Frequency', options: [
+                        { value: 'low', label: 'Low (1/day)' },
+                        { value: 'medium', label: 'Medium (2-3/day)' },
+                        { value: 'high', label: 'High (4+/day)' }
+                    ], default: 'medium'
+                },
+                { key: 'formatMix.textPost', type: 'slider', label: 'Text Posts', min: 0, max: 100, default: 30 },
+                { key: 'formatMix.imagePost', type: 'slider', label: 'Image Posts', min: 0, max: 100, default: 40 },
+                { key: 'formatMix.videoPost', type: 'slider', label: 'Video Posts', min: 0, max: 100, default: 20 },
+                { key: 'formatMix.story', type: 'slider', label: 'Stories', min: 0, max: 100, default: 10 }
+            ],
+            creator_text: [
+                {
+                    key: 'tonePreset', type: 'select', label: 'Tone', options: [
+                        { value: 'friendly', label: 'Friendly' },
+                        { value: 'professional', label: 'Professional' },
+                        { value: 'casual', label: 'Casual' },
+                        { value: 'promotional', label: 'Promotional' }
+                    ], default: 'friendly'
+                },
+                {
+                    key: 'emojiUsage', type: 'select', label: 'Emoji Usage', options: [
+                        { value: 'none', label: 'None' },
+                        { value: 'minimal', label: 'Minimal' },
+                        { value: 'moderate', label: 'Moderate' },
+                        { value: 'heavy', label: 'Heavy' }
+                    ], default: 'moderate'
+                }
+            ],
+            engagement: [
+                {
+                    key: 'autoReplyLevel', type: 'select', label: 'Auto-Reply Level', options: [
+                        { value: 'off', label: 'Off' },
+                        { value: 'low', label: 'Low' },
+                        { value: 'medium', label: 'Medium' },
+                        { value: 'high', label: 'High' }
+                    ], default: 'medium'
+                },
+                { key: 'messengerAutoReply', type: 'toggle', label: 'Messenger Auto-Reply', default: false }
+            ]
+        },
+        pinterest: {
+            goals: [
+                { key: 'followers', type: 'slider', label: 'Follower Growth', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.20 },
+                { key: 'saves', type: 'slider', label: 'Pin Saves', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.40 },
+                { key: 'clicks', type: 'slider', label: 'Outbound Clicks', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.30 },
+                { key: 'impressions', type: 'slider', label: 'Impressions', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.10 }
+            ],
+            planner: [
+                {
+                    key: 'postFrequency', type: 'select', label: 'Pin Frequency', options: [
+                        { value: 'low', label: 'Low (5-10/day)' },
+                        { value: 'medium', label: 'Medium (10-20/day)' },
+                        { value: 'high', label: 'High (20-30/day)' }
+                    ], default: 'medium'
+                },
+                { key: 'formatMix.standardPin', type: 'slider', label: 'Standard Pins', min: 0, max: 100, default: 60 },
+                { key: 'formatMix.videoPin', type: 'slider', label: 'Video Pins', min: 0, max: 100, default: 20 },
+                { key: 'formatMix.ideaPin', type: 'slider', label: 'Idea Pins', min: 0, max: 100, default: 20 }
+            ],
+            creator_text: [
+                {
+                    key: 'titleStyle', type: 'select', label: 'Pin Title Style', options: [
+                        { value: 'descriptive', label: 'Descriptive' },
+                        { value: 'keyword_rich', label: 'Keyword-Rich' },
+                        { value: 'actionable', label: 'Actionable' }
+                    ], default: 'keyword_rich'
+                },
+                {
+                    key: 'descriptionLength', type: 'select', label: 'Description Length', options: [
+                        { value: 'short', label: 'Short' },
+                        { value: 'medium', label: 'Medium' },
+                        { value: 'long', label: 'Long (SEO Optimized)' }
+                    ], default: 'long'
+                }
+            ],
+            engagement: [
+                {
+                    key: 'autoReplyLevel', type: 'select', label: 'Comment Reply Level', options: [
+                        { value: 'off', label: 'Off' },
+                        { value: 'low', label: 'Low' },
+                        { value: 'medium', label: 'Medium' }
+                    ], default: 'low'
+                }
+            ]
+        },
+        reddit: {
+            goals: [
+                { key: 'karma', type: 'slider', label: 'Karma Growth', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.30 },
+                { key: 'engagement', type: 'slider', label: 'Engagement (Comments/Upvotes)', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.40 },
+                { key: 'reach', type: 'slider', label: 'Reach', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.20 },
+                { key: 'clicks', type: 'slider', label: 'Link Clicks', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.10 }
+            ],
+            planner: [
+                {
+                    key: 'postFrequency', type: 'select', label: 'Posting Frequency', options: [
+                        { value: 'low', label: 'Low (1-2/day)' },
+                        { value: 'medium', label: 'Medium (3-5/day)' },
+                        { value: 'high', label: 'High (5+/day)' }
+                    ], default: 'low'
+                },
+                { key: 'formatMix.textPost', type: 'slider', label: 'Text Posts', min: 0, max: 100, default: 50 },
+                { key: 'formatMix.linkPost', type: 'slider', label: 'Link Posts', min: 0, max: 100, default: 30 },
+                { key: 'formatMix.imagePost', type: 'slider', label: 'Image Posts', min: 0, max: 100, default: 20 }
+            ],
+            creator_text: [
+                {
+                    key: 'tonePreset', type: 'select', label: 'Tone', options: [
+                        { value: 'casual', label: 'Casual' },
+                        { value: 'informative', label: 'Informative' },
+                        { value: 'humorous', label: 'Humorous' },
+                        { value: 'serious', label: 'Serious' }
+                    ], default: 'casual'
+                },
+                {
+                    key: 'titleStyle', type: 'select', label: 'Title Style', options: [
+                        { value: 'question', label: 'Question-Based' },
+                        { value: 'statement', label: 'Statement' },
+                        { value: 'clickbait', label: 'Engaging/Clickbait' }
+                    ], default: 'question'
+                }
+            ],
+            engagement: [
+                {
+                    key: 'autoReplyLevel', type: 'select', label: 'Comment Reply Level', options: [
+                        { value: 'off', label: 'Off' },
+                        { value: 'low', label: 'Low' },
+                        { value: 'medium', label: 'Medium' },
+                        { value: 'high', label: 'High' }
+                    ], default: 'medium'
+                },
+                { key: 'subredditEngagement', type: 'toggle', label: 'Cross-Subreddit Engagement', default: true }
+            ]
+        },
+        medium: {
+            goals: [
+                { key: 'followers', type: 'slider', label: 'Follower Growth', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.25 },
+                { key: 'reads', type: 'slider', label: 'Article Reads', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.40 },
+                { key: 'claps', type: 'slider', label: 'Claps', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.20 },
+                { key: 'readTime', type: 'slider', label: 'Read Time', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.15 }
+            ],
+            planner: [
+                {
+                    key: 'postFrequency', type: 'select', label: 'Publishing Frequency', options: [
+                        { value: 'low', label: 'Low (1-2/week)' },
+                        { value: 'medium', label: 'Medium (3-4/week)' },
+                        { value: 'high', label: 'High (Daily)' }
+                    ], default: 'low'
+                },
+                {
+                    key: 'articleLength', type: 'select', label: 'Article Length', options: [
+                        { value: 'short', label: 'Short (3-5 min read)' },
+                        { value: 'medium', label: 'Medium (5-10 min read)' },
+                        { value: 'long', label: 'Long (10+ min read)' }
+                    ], default: 'medium'
+                }
+            ],
+            creator_text: [
+                {
+                    key: 'tonePreset', type: 'select', label: 'Writing Tone', options: [
+                        { value: 'professional', label: 'Professional' },
+                        { value: 'conversational', label: 'Conversational' },
+                        { value: 'academic', label: 'Academic' },
+                        { value: 'storytelling', label: 'Storytelling' }
+                    ], default: 'conversational'
+                },
+                { key: 'includeImages', type: 'toggle', label: 'Include Images', default: true },
+                { key: 'seoOptimization', type: 'toggle', label: 'SEO Optimization', default: true }
+            ],
+            engagement: [
+                {
+                    key: 'autoReplyLevel', type: 'select', label: 'Comment Reply Level', options: [
+                        { value: 'off', label: 'Off' },
+                        { value: 'low', label: 'Low' },
+                        { value: 'medium', label: 'Medium' }
+                    ], default: 'low'
+                },
+                { key: 'highlightComments', type: 'toggle', label: 'Auto-Highlight Comments', default: false }
+            ]
+        },
+        threads: {
+            goals: [
+                { key: 'followers', type: 'slider', label: 'Follower Growth', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.30 },
+                { key: 'engagement', type: 'slider', label: 'Engagement', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.40 },
+                { key: 'reach', type: 'slider', label: 'Reach', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.20 },
+                { key: 'shares', type: 'slider', label: 'Shares', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.10 }
+            ],
+            planner: [
+                {
+                    key: 'postFrequency', type: 'select', label: 'Posting Frequency', options: [
+                        { value: 'low', label: 'Low (1-3/day)' },
+                        { value: 'medium', label: 'Medium (3-5/day)' },
+                        { value: 'high', label: 'High (5-10/day)' }
+                    ], default: 'medium'
+                },
+                { key: 'formatMix.textPost', type: 'slider', label: 'Text Posts', min: 0, max: 100, default: 60 },
+                { key: 'formatMix.imagePost', type: 'slider', label: 'Image Posts', min: 0, max: 100, default: 30 },
+                { key: 'formatMix.videoPost', type: 'slider', label: 'Video Posts', min: 0, max: 100, default: 10 }
+            ],
+            creator_text: [
+                {
+                    key: 'tonePreset', type: 'select', label: 'Tone', options: [
+                        { value: 'casual', label: 'Casual' },
+                        { value: 'professional', label: 'Professional' },
+                        { value: 'witty', label: 'Witty' },
+                        { value: 'thoughtful', label: 'Thoughtful' }
+                    ], default: 'casual'
+                },
+                {
+                    key: 'emojiUsage', type: 'select', label: 'Emoji Usage', options: [
+                        { value: 'none', label: 'None' },
+                        { value: 'minimal', label: 'Minimal' },
+                        { value: 'moderate', label: 'Moderate' }
+                    ], default: 'minimal'
+                }
+            ],
+            engagement: [
+                {
+                    key: 'autoReplyLevel', type: 'select', label: 'Auto-Reply Level', options: [
+                        { value: 'off', label: 'Off' },
+                        { value: 'low', label: 'Low' },
+                        { value: 'medium', label: 'Medium' },
+                        { value: 'high', label: 'High' }
+                    ], default: 'medium'
+                },
+                { key: 'replyToMentions', type: 'toggle', label: 'Reply to Mentions', default: true }
+            ]
+        },
+        bluesky: {
+            goals: [
+                { key: 'followers', type: 'slider', label: 'Follower Growth', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.30 },
+                { key: 'engagement', type: 'slider', label: 'Engagement', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.40 },
+                { key: 'reach', type: 'slider', label: 'Reach', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.20 },
+                { key: 'clicks', type: 'slider', label: 'Link Clicks', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.10 }
+            ],
+            planner: [
+                {
+                    key: 'postFrequency', type: 'select', label: 'Posting Frequency', options: [
+                        { value: 'low', label: 'Low (1-3/day)' },
+                        { value: 'medium', label: 'Medium (3-5/day)' },
+                        { value: 'high', label: 'High (5-10/day)' }
+                    ], default: 'medium'
+                },
+                { key: 'formatMix.textPost', type: 'slider', label: 'Text Posts', min: 0, max: 100, default: 70 },
+                { key: 'formatMix.imagePost', type: 'slider', label: 'Image Posts', min: 0, max: 100, default: 20 },
+                { key: 'formatMix.thread', type: 'slider', label: 'Threads', min: 0, max: 100, default: 10 }
+            ],
+            creator_text: [
+                {
+                    key: 'tonePreset', type: 'select', label: 'Tone', options: [
+                        { value: 'casual', label: 'Casual' },
+                        { value: 'professional', label: 'Professional' },
+                        { value: 'thoughtful', label: 'Thoughtful' },
+                        { value: 'humorous', label: 'Humorous' }
+                    ], default: 'thoughtful'
+                },
+                { key: 'contentWarnings', type: 'toggle', label: 'Use Content Warnings', default: false }
+            ],
+            engagement: [
+                {
+                    key: 'autoReplyLevel', type: 'select', label: 'Auto-Reply Level', options: [
+                        { value: 'off', label: 'Off' },
+                        { value: 'low', label: 'Low' },
+                        { value: 'medium', label: 'Medium' }
+                    ], default: 'low'
+                },
+                { key: 'replyToMentions', type: 'toggle', label: 'Reply to Mentions', default: true }
+            ]
+        },
+        mastodon: {
+            goals: [
+                { key: 'followers', type: 'slider', label: 'Follower Growth', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.30 },
+                { key: 'engagement', type: 'slider', label: 'Engagement (Boosts/Favs)', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.40 },
+                { key: 'reach', type: 'slider', label: 'Reach', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.20 },
+                { key: 'clicks', type: 'slider', label: 'Link Clicks', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.10 }
+            ],
+            planner: [
+                {
+                    key: 'postFrequency', type: 'select', label: 'Posting Frequency', options: [
+                        { value: 'low', label: 'Low (1-3/day)' },
+                        { value: 'medium', label: 'Medium (3-5/day)' },
+                        { value: 'high', label: 'High (5-10/day)' }
+                    ], default: 'medium'
+                },
+                { key: 'formatMix.textPost', type: 'slider', label: 'Text Posts', min: 0, max: 100, default: 70 },
+                { key: 'formatMix.imagePost', type: 'slider', label: 'Image Posts', min: 0, max: 100, default: 20 },
+                { key: 'formatMix.thread', type: 'slider', label: 'Threads', min: 0, max: 100, default: 10 }
+            ],
+            creator_text: [
+                {
+                    key: 'tonePreset', type: 'select', label: 'Tone', options: [
+                        { value: 'casual', label: 'Casual' },
+                        { value: 'professional', label: 'Professional' },
+                        { value: 'activist', label: 'Activist' },
+                        { value: 'community_focused', label: 'Community-Focused' }
+                    ], default: 'community_focused'
+                },
+                { key: 'contentWarnings', type: 'toggle', label: 'Use Content Warnings (CW)', default: true },
+                { key: 'altTextRequired', type: 'toggle', label: 'Require Alt Text for Images', default: true }
+            ],
+            engagement: [
+                {
+                    key: 'autoReplyLevel', type: 'select', label: 'Auto-Reply Level', options: [
+                        { value: 'off', label: 'Off' },
+                        { value: 'low', label: 'Low' },
+                        { value: 'medium', label: 'Medium' }
+                    ], default: 'low'
+                },
+                { key: 'replyToMentions', type: 'toggle', label: 'Reply to Mentions', default: true },
+                { key: 'crossInstanceEngagement', type: 'toggle', label: 'Cross-Instance Engagement', default: true }
+            ]
+        },
+        discord: {
+            goals: [
+                { key: 'members', type: 'slider', label: 'Member Growth', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.30 },
+                { key: 'engagement', type: 'slider', label: 'Message Engagement', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.40 },
+                { key: 'retention', type: 'slider', label: 'Member Retention', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.20 },
+                { key: 'activity', type: 'slider', label: 'Daily Active Users', min: 0, max: 1, step: 0.05, isPercent: true, default: 0.10 }
+            ],
+            planner: [
+                {
+                    key: 'postFrequency', type: 'select', label: 'Message Frequency', options: [
+                        { value: 'low', label: 'Low (Occasional)' },
+                        { value: 'medium', label: 'Medium (Regular)' },
+                        { value: 'high', label: 'High (Very Active)' }
+                    ], default: 'medium'
+                },
+                { key: 'formatMix.announcement', type: 'slider', label: 'Announcements', min: 0, max: 100, default: 30 },
+                { key: 'formatMix.discussion', type: 'slider', label: 'Discussions', min: 0, max: 100, default: 50 },
+                { key: 'formatMix.event', type: 'slider', label: 'Events', min: 0, max: 100, default: 20 }
+            ],
+            creator_text: [
+                {
+                    key: 'tonePreset', type: 'select', label: 'Tone', options: [
+                        { value: 'casual', label: 'Casual' },
+                        { value: 'friendly', label: 'Friendly' },
+                        { value: 'professional', label: 'Professional' },
+                        { value: 'gaming', label: 'Gaming/Meme' }
+                    ], default: 'friendly'
+                },
+                {
+                    key: 'emojiUsage', type: 'select', label: 'Emoji/Emote Usage', options: [
+                        { value: 'none', label: 'None' },
+                        { value: 'minimal', label: 'Minimal' },
+                        { value: 'moderate', label: 'Moderate' },
+                        { value: 'heavy', label: 'Heavy' }
+                    ], default: 'moderate'
+                }
+            ],
+            engagement: [
+                {
+                    key: 'autoReplyLevel', type: 'select', label: 'Auto-Reply Level', options: [
+                        { value: 'off', label: 'Off' },
+                        { value: 'low', label: 'Low (Mentions Only)' },
+                        { value: 'medium', label: 'Medium' },
+                        { value: 'high', label: 'High (Active Participation)' }
+                    ], default: 'medium'
+                },
+                { key: 'welcomeNewMembers', type: 'toggle', label: 'Welcome New Members', default: true },
+                { key: 'moderationAssist', type: 'toggle', label: 'Moderation Assistance', default: false }
+            ]
+        }
     };
+
+    // Initialize ConfigResolver
+    try {
+        configResolver = new ConfigResolver(db, projectId);
+    } catch (e) {
+        console.error("Failed to init ConfigResolver:", e);
+    }
+
+    // Panel Event Listeners
+    const configOverlay = document.getElementById('config-overlay');
+    const configPanel = document.getElementById('config-panel');
+    const configClose = document.getElementById('config-close');
+    const configSave = document.getElementById('config-save');
+    const configReset = document.getElementById('config-reset-all');
+
+    if (configClose) configClose.addEventListener('click', closeConfigPanel);
+    if (configOverlay) configOverlay.addEventListener('click', closeConfigPanel);
+    if (configSave) configSave.addEventListener('click', saveConfigChanges);
+    if (configReset) configReset.addEventListener('click', resetAllConfig);
+
+    // Tab Switching
+    document.querySelectorAll('.config-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.config-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.config-section').forEach(s => s.classList.remove('active'));
+
+            tab.classList.add('active');
+            const tabName = tab.dataset.tab;
+            const section = document.getElementById(`config-section-${tabName}`);
+            if (section) section.classList.add('active');
+        });
+    });
+
+    window.openChannelConfig = async function (instanceId) {
+        if (!configResolver) return alert("Config System not initialized");
+
+        currentConfigInstanceId = instanceId;
+        currentOverrides = {}; // Reset pending overrides
+
+        // Show loading state
+        document.getElementById('config-content').innerHTML = '<div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">Loading configuration...</div>';
+
+        configOverlay.classList.add('active');
+        configPanel.classList.add('active');
+
+        try {
+            // Get Instance Details
+            const instanceDoc = await db.collection("projectAgentTeamInstances").doc(instanceId).get();
+            const instance = instanceDoc.data();
+
+            // Update Header
+            document.getElementById('config-channel-name').textContent = instance.name;
+            document.getElementById('config-channel-icon').innerHTML = getChannelIconById(instance.channelId);
+            document.getElementById('config-template-name').textContent = `Template: ${instance.templateId || 'Custom'}`;
+            document.getElementById('config-profile-name').textContent = `Runtime Profile: ${instance.configProfileId || 'Default'}`;
+
+            // Determine platform from channelId
+            const channelId = instance.channelId.toLowerCase();
+            currentPlatform = 'x'; // Default
+
+            // Platform detection based on channelId
+            if (channelId.includes('instagram')) currentPlatform = 'instagram';
+            else if (channelId.includes('youtube')) currentPlatform = 'youtube';
+            else if (channelId.includes('linkedin')) currentPlatform = 'linkedin';
+            else if (channelId.includes('tiktok')) currentPlatform = 'tiktok';
+            else if (channelId.includes('facebook')) currentPlatform = 'facebook';
+            else if (channelId.includes('pinterest')) currentPlatform = 'pinterest';
+            else if (channelId.includes('reddit')) currentPlatform = 'reddit';
+            else if (channelId.includes('medium')) currentPlatform = 'medium';
+            else if (channelId.includes('threads')) currentPlatform = 'threads';
+            else if (channelId.includes('bluesky')) currentPlatform = 'bluesky';
+            else if (channelId.includes('mastodon')) currentPlatform = 'mastodon';
+            else if (channelId.includes('discord')) currentPlatform = 'discord';
+
+
+            // Load Effective Configs for all engines
+            const [goals, planner, creator, engagement] = await Promise.all([
+                configResolver.getEffectiveConfig(instanceId, 'goals'),
+                configResolver.getEffectiveConfig(instanceId, 'planner'),
+                configResolver.getEffectiveConfig(instanceId, 'creator_text'),
+                configResolver.getEffectiveConfig(instanceId, 'engagement')
+            ]);
+
+            currentConfigData = { goals, planner, creator_text: creator, engagement };
+
+            renderConfigUI();
+
+        } catch (error) {
+            console.error("Error opening config:", error);
+            document.getElementById('config-content').innerHTML = `<div style="text-align: center; color: #ef4444; padding: 20px;">Error: ${error.message}</div>`;
+        }
+    };
+
+    function closeConfigPanel() {
+        configOverlay.classList.remove('active');
+        configPanel.classList.remove('active');
+    }
+
+    function renderConfigUI() {
+        const container = document.getElementById('config-content');
+        container.innerHTML = '';
+
+        const schema = CONFIG_SCHEMAS[currentPlatform] || CONFIG_SCHEMAS['x'];
+
+        // 1. Goals Tab
+        const goalsSection = createSection('goals', true);
+        goalsSection.innerHTML = renderSchemaTab('goals', schema.goals, currentConfigData.goals);
+        container.appendChild(goalsSection);
+
+        // 2. Planner Tab
+        const plannerSection = createSection('planner', false);
+        plannerSection.innerHTML = renderSchemaTab('planner', schema.planner, currentConfigData.planner);
+        container.appendChild(plannerSection);
+
+        // 3. Creator Text Tab
+        const creatorSection = createSection('creator_text', false);
+        creatorSection.innerHTML = renderSchemaTab('creator_text', schema.creator_text, currentConfigData.creator_text);
+        container.appendChild(creatorSection);
+
+        // 4. Engagement Tab
+        const engagementSection = createSection('engagement', false);
+        engagementSection.innerHTML = renderSchemaTab('engagement', schema.engagement, currentConfigData.engagement);
+        container.appendChild(engagementSection);
+
+        // 5. Advanced Tab (Still manual for now as it's optional/generic)
+        const advancedSection = createSection('advanced', false);
+        advancedSection.innerHTML = renderAdvancedTab(currentConfigData.advanced || {});
+        container.appendChild(advancedSection);
+
+        // Re-attach listeners for inputs
+        attachInputListeners();
+    }
+
+    function createSection(id, isActive) {
+        const div = document.createElement('div');
+        div.id = `config-section-${id}`;
+        div.className = `config-section ${isActive ? 'active' : ''}`;
+        return div;
+    }
+
+    // --- Render Helpers ---
+
+    function renderSchemaTab(engine, fields, config) {
+        if (!fields) return '<div style="padding: 20px; color: rgba(255,255,255,0.5);">No configuration available for this section.</div>';
+
+        return fields.map(field => {
+            const value = getDeepValue(config, field.key) ?? field.default;
+
+            // Group logic could be added here if schema supports groups
+            // For now, wrap each field in a div or render directly
+
+            let fieldHtml = '';
+            switch (field.type) {
+                case 'slider':
+                    fieldHtml = renderSlider(engine, field.key, field.label, value, field.min, field.max, field.step, field.isPercent);
+                    break;
+                case 'select':
+                    fieldHtml = renderSelect(engine, field.key, field.label, field.options, value);
+                    break;
+                case 'multi-select':
+                    fieldHtml = renderMultiSelect(engine, field.key, field.options, value, field.label);
+                    break;
+                case 'toggle':
+                    fieldHtml = renderToggle(engine, field.key, field.label, value);
+                    break;
+                case 'tag-input':
+                    fieldHtml = `
+                        <div class="config-group">
+                            <label class="config-label">${field.label}</label>
+                            ${renderTagInput(engine, field.key, value)}
+                        </div>`;
+                    break;
+                default:
+                    fieldHtml = `<div>Unknown field type: ${field.type}</div>`;
+            }
+            return fieldHtml;
+        }).join('');
+    }
+
+    function renderSelect(engine, key, label, options, currentValue) {
+        const optionsHtml = options.map(opt =>
+            `<option value="${opt.value}" ${opt.value === currentValue ? 'selected' : ''}>${opt.label}</option>`
+        ).join('');
+
+        return `
+            <div class="config-group">
+                <label class="config-label">${label}</label>
+                <select class="config-select" data-engine="${engine}" data-key="${key}">
+                    ${optionsHtml}
+                </select>
+            </div>
+        `;
+    }
+
+    function renderSlider(engine, key, label, value, min, max, step = 1, isPercent = false) {
+        const displayValue = isPercent ? `${Math.round(value * 100)}%` : value;
+        return `
+            <div style="margin-bottom: 12px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                    <span style="font-size: 12px; color: rgba(255,255,255,0.7);">${label}</span>
+                    <span class="config-value" id="val-${engine}-${key.replace('.', '-')}">${displayValue}</span>
+                </div>
+                <div class="config-slider-container">
+                    <input type="range" class="config-slider" 
+                        data-engine="${engine}" data-key="${key}"
+                        min="${min}" max="${max}" step="${step}" value="${value}"
+                        oninput="document.getElementById('val-${engine}-${key.replace('.', '-')}').textContent = ${isPercent} ? Math.round(this.value * 100) + '%' : this.value">
+                </div>
+            </div>
+        `;
+    }
+
+    function renderAdvancedTab(config) {
+        return `
+            <div class="config-group">
+                <label class="config-label">Optimization</label>
+                ${renderToggle('advanced', 'seoOptimization', 'SEO Optimization', config.seoOptimization !== false)}
+                ${renderToggle('advanced', 'linkPreviewOptimization', 'Rich Link Previews', config.linkPreviewOptimization !== false)}
+            </div>
+
+            <div class="config-group">
+                <label class="config-label">Structure Strategy</label>
+                <div style="margin-bottom: 12px;">
+                    <label class="config-label" style="font-size: 12px;">Thread Structure</label>
+                    <select class="config-select" data-engine="advanced" data-key="threadStructure">
+                        <option value="linear" ${config.threadStructure === 'linear' ? 'selected' : ''}>Linear (Standard)</option>
+                        <option value="branching" ${config.threadStructure === 'branching' ? 'selected' : ''}>Branching (Complex)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="config-label" style="font-size: 12px;">Retweet Strategy</label>
+                    <select class="config-select" data-engine="advanced" data-key="retweetStrategy">
+                        <option value="off" ${config.retweetStrategy === 'off' ? 'selected' : ''}>Off</option>
+                        <option value="selective" ${config.retweetStrategy === 'selective' ? 'selected' : ''}>Selective (High Performers)</option>
+                        <option value="aggressive" ${config.retweetStrategy === 'aggressive' ? 'selected' : ''}>Aggressive</option>
+                    </select>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderMultiSelect(engine, key, options, selectedValues) {
+        const items = options.map(opt => {
+            const isChecked = selectedValues.includes(opt.value);
+            return `
+                <label class="config-checkbox-item">
+                    <input type="checkbox" class="config-multi-checkbox" 
+                        data-engine="${engine}" data-key="${key}" value="${opt.value}"
+                        ${isChecked ? 'checked' : ''}>
+                    ${opt.label}
+                </label>
+            `;
+        }).join('');
+
+        return `<div class="config-multiselect-container">${items}</div>`;
+    }
+
+    function renderToggle(engine, key, label, isChecked) {
+        return `
+            <div class="config-toggle-container">
+                <span class="config-toggle-label">${label}</span>
+                <label class="config-toggle">
+                    <input type="checkbox" class="config-toggle-input" 
+                        data-engine="${engine}" data-key="${key}"
+                        ${isChecked ? 'checked' : ''}>
+                    <span class="config-toggle-slider"></span>
+                </label>
+            </div>
+        `;
+    }
+
+    function renderTagInput(engine, key, tags) {
+        const tagItems = tags.map(tag => `
+            <span class="config-tag">
+                ${tag}
+                <span class="config-tag-remove" data-tag="${tag}" data-engine="${engine}" data-key="${key}">&times;</span>
+            </span>
+        `).join('');
+
+        return `
+            <div class="config-tag-container" id="tags-${engine}-${key}">
+                ${tagItems}
+                <input type="text" class="config-tag-input" 
+                    data-engine="${engine}" data-key="${key}" 
+                    placeholder="Add keyword...">
+            </div>
+        `;
+    }
+
+    function attachInputListeners() {
+        // 1. Sliders & Selects
+        document.querySelectorAll('.config-slider, .config-select').forEach(input => {
+            input.addEventListener('change', (e) => {
+                updateConfigValue(e.target.dataset.engine, e.target.dataset.key, e.target.value, e.target.type);
+            });
+        });
+
+        // 2. Toggles (Single Checkbox)
+        document.querySelectorAll('.config-toggle-input').forEach(input => {
+            input.addEventListener('change', (e) => {
+                updateConfigValue(e.target.dataset.engine, e.target.dataset.key, e.target.checked);
+            });
+        });
+
+        // 3. Multi-Select (Checkbox Group)
+        document.querySelectorAll('.config-multi-checkbox').forEach(input => {
+            input.addEventListener('change', (e) => {
+                const engine = e.target.dataset.engine;
+                const key = e.target.dataset.key;
+                const value = e.target.value;
+
+                // Get current array (from overrides or currentConfigData)
+                let currentArray = getDeepValue(currentOverrides, engine, key);
+                if (currentArray === undefined) {
+                    currentArray = getDeepValue(currentConfigData, engine, key) || [];
+                    // Clone it to avoid mutating original
+                    currentArray = [...currentArray];
+                }
+
+                if (e.target.checked) {
+                    if (!currentArray.includes(value)) currentArray.push(value);
+                } else {
+                    currentArray = currentArray.filter(v => v !== value);
+                }
+
+                updateConfigValue(engine, key, currentArray);
+            });
+        });
+
+        // 4. Tag Inputs
+        document.querySelectorAll('.config-tag-input').forEach(input => {
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const tag = e.target.value.trim();
+                    if (!tag) return;
+
+                    const engine = e.target.dataset.engine;
+                    const key = e.target.dataset.key;
+
+                    let currentTags = getDeepValue(currentOverrides, engine, key);
+                    if (currentTags === undefined) {
+                        currentTags = getDeepValue(currentConfigData, engine, key) || [];
+                        currentTags = [...currentTags];
+                    }
+
+                    if (!currentTags.includes(tag)) {
+                        currentTags.push(tag);
+                        updateConfigValue(engine, key, currentTags);
+
+                        // Re-render tags part only
+                        const container = document.getElementById(`tags-${engine}-${key}`);
+                        // Insert before input
+                        const span = document.createElement('span');
+                        span.className = 'config-tag';
+                        span.innerHTML = `${tag} <span class="config-tag-remove" data-tag="${tag}" data-engine="${engine}" data-key="${key}">&times;</span>`;
+                        container.insertBefore(span, input);
+
+                        // Re-attach remove listener for new tag
+                        span.querySelector('.config-tag-remove').addEventListener('click', handleTagRemove);
+                    }
+                    e.target.value = '';
+                }
+            });
+        });
+
+        // Tag Remove Listeners
+        document.querySelectorAll('.config-tag-remove').forEach(btn => {
+            btn.addEventListener('click', handleTagRemove);
+        });
+    }
+
+    function handleTagRemove(e) {
+        const engine = e.target.dataset.engine;
+        const key = e.target.dataset.key;
+        const tagToRemove = e.target.dataset.tag;
+
+        let currentTags = getDeepValue(currentOverrides, engine, key);
+        if (currentTags === undefined) {
+            currentTags = getDeepValue(currentConfigData, engine, key) || [];
+            currentTags = [...currentTags];
+        }
+
+        currentTags = currentTags.filter(t => t !== tagToRemove);
+        updateConfigValue(engine, key, currentTags);
+
+        // Remove from DOM
+        e.target.parentElement.remove();
+    }
+
+    function updateConfigValue(engine, key, value, type) {
+        // Convert types if needed
+        if (type === 'range') {
+            value = parseFloat(value);
+        }
+
+        // Handle nested keys (e.g. formatMix.shortTweet)
+        if (!currentOverrides[engine]) currentOverrides[engine] = {};
+
+        if (key.includes('.')) {
+            const [parent, child] = key.split('.');
+            if (!currentOverrides[engine][parent]) {
+                // Initialize with current config value if exists, or empty obj
+                const existingParent = currentConfigData[engine]?.[parent] || {};
+                currentOverrides[engine][parent] = { ...existingParent };
+            }
+            currentOverrides[engine][parent][child] = value;
+        } else {
+            currentOverrides[engine][key] = value;
+        }
+
+        console.log('Config changed:', currentOverrides);
+    }
+
+    function getDeepValue(obj, engine, key) {
+        if (!obj || !obj[engine]) return undefined;
+        if (key.includes('.')) {
+            const [parent, child] = key.split('.');
+            return obj[engine][parent]?.[child];
+        }
+        return obj[engine][key];
+    }
+
+    async function saveConfigChanges() {
+        if (!currentConfigInstanceId) return;
+
+        const btn = document.getElementById('config-save');
+        btn.textContent = 'Saving...';
+        btn.disabled = true;
+
+        try {
+            // Save overrides using ConfigResolver
+            await configResolver.saveChannelConfig(
+                currentConfigInstanceId,
+                currentOverrides,
+                currentUser.uid
+            );
+
+            alert('✅ Configuration saved successfully!');
+            closeConfigPanel();
+
+        } catch (error) {
+            console.error("Error saving config:", error);
+            alert(`Error saving: ${error.message}`);
+        } finally {
+            btn.textContent = 'Save Changes';
+            btn.disabled = false;
+        }
+    }
+
+    async function resetAllConfig() {
+        if (!confirm("Are you sure you want to reset all overrides to default?")) return;
+
+        try {
+            await configResolver.resetAllOverrides(currentConfigInstanceId);
+            alert('✅ Configuration reset to defaults!');
+            closeConfigPanel();
+        } catch (error) {
+            console.error("Error resetting config:", error);
+            alert(`Error resetting: ${error.message}`);
+        }
+    }
 
     window.deactivateTeam = async function (instanceId) {
         if (!confirm("Are you sure you want to stop this team?")) return;

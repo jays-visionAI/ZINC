@@ -109,7 +109,6 @@
     }
 
     function getChannelIcon(id) {
-        // Simple mapping for now, can be replaced with SVGs
         const icons = {
             instagram: '📸',
             x: '🐦',
@@ -117,7 +116,13 @@
             medium: '📝',
             linkedin: '💼',
             facebook: '📘',
-            tiktok: '🎵'
+            tiktok: '🎵',
+            pinterest: '📌',
+            reddit: '🤖',
+            threads: '🧵',
+            snapchat: '👻',
+            discord: '💬',
+            telegram: '✈️'
         };
         return icons[id] || '🌐';
     }

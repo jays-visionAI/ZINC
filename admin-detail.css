@@ -133,3 +133,393 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* Slide-in Configuration Panel */
+.config-panel-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.config-panel-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.config-panel {
+    position: fixed;
+    top: 0;
+    right: -600px;
+    width: 600px;
+    height: 100%;
+    background: #0f172a;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+    z-index: 1001;
+    transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+}
+
+.config-panel.active {
+    right: 0;
+}
+
+.config-header {
+    padding: 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.config-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #fff;
+    margin: 0 0 8px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.config-subtitle {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.5);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.config-close {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.config-close:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.config-tabs {
+    display: flex;
+    padding: 0 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.02);
+    overflow-x: auto;
+}
+
+.config-tab {
+    padding: 16px 4px;
+    margin-right: 24px;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.config-tab:hover {
+    color: #fff;
+}
+
+.config-tab.active {
+    color: #16e0bd;
+    border-bottom-color: #16e0bd;
+}
+
+.config-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+}
+
+.config-section {
+    margin-bottom: 32px;
+    display: none;
+}
+
+.config-section.active {
+    display: block;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.config-footer {
+    padding: 24px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.02);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Form Elements */
+.config-group {
+    margin-bottom: 24px;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 16px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.config-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.9);
+    margin-bottom: 8px;
+}
+
+.config-description {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 12px;
+    line-height: 1.4;
+}
+
+.config-slider-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.config-slider {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    outline: none;
+}
+
+.config-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    background: #16e0bd;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.1s;
+}
+
+.config-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+
+.config-value {
+    font-family: monospace;
+    font-size: 12px;
+    color: #16e0bd;
+    min-width: 40px;
+    text-align: right;
+}
+
+.config-select {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    outline: none;
+}
+
+.config-select:focus {
+    border-color: #16e0bd;
+}
+
+.config-checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.config-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.8);
+    cursor: pointer;
+}
+
+.config-checkbox {
+    accent-color: #16e0bd;
+}
+
+.config-reset-btn {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 11px;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+    margin-top: 8px;
+}
+
+.config-reset-btn:hover {
+    color: #f87171;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .config-panel {
+        width: 100%;
+        right: -100%;
+    }
+}
+
+/* Toggle Switch */
+.config-toggle-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.config-toggle-label {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.config-toggle {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 20px;
+}
+
+.config-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.config-toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.1);
+    transition: .4s;
+    border-radius: 20px;
+}
+
+.config-toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 2px;
+    bottom: 2px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+.config-toggle input:checked+.config-toggle-slider {
+    background-color: #16e0bd;
+}
+
+.config-toggle input:checked+.config-toggle-slider:before {
+    transform: translateX(20px);
+}
+
+/* Tag Input */
+.config-tag-container {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 4px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    min-height: 38px;
+}
+
+.config-tag {
+    background: rgba(22, 224, 189, 0.2);
+    color: #16e0bd;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.config-tag-remove {
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.config-tag-input {
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 13px;
+    padding: 4px;
+    flex: 1;
+    min-width: 60px;
+    outline: none;
+}
+
+/* Multi-Select (Simple Checkbox List for now) */
+.config-multiselect-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.config-checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.8);
+    cursor: pointer;
+}
+
+.config-checkbox-item input[type="checkbox"] {
+    accent-color: #16e0bd;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}

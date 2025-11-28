@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Config UI</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="admin-detail.css">
+
+    <style>
+        body {
+            background-color: #0A0A0F;
+            color: white;
+        }
+    </style>
+</head>
+
+<body class="dashboard-body">
+    <!-- Mock Auth & Setup -->
+    <script>
+        // Mock Firebase Auth before other scripts run
+        const mockUser = {
+            uid: 'test_user_123',
+            displayName: 'Test User',
+            email: 'test@example.com'
+        };
+
+        // We need to intercept firebase.auth() calls
+        // Since we load firebase SDKs below, we'll wrap them or inject logic after they load but before project-detail.js
+    </script>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+    <!-- Config -->
+    <script src="firebase-config.js"></script>
+
+    <!-- Mock Auth Implementation -->
+    <script>
+        // Override auth() to return our mock
+        const originalAuth = firebase.auth;
+        firebase.auth = function () {
+            const authInstance = originalAuth();
+
+            // Override onAuthStateChanged
+            authInstance.onAuthStateChanged = function (callback) {
+                // Immediately trigger with mock user
+                callback(mockUser);
+                return () => { }; // Unsubscribe function
+            };
+
+            // Override currentUser
+            Object.defineProperty(authInstance, 'currentUser', {
+                get: () => mockUser
+            });
+
+            return authInstance;
+        };
+
+        // Also patch the prototype just in case
+        // firebase.auth.Auth.prototype.onAuthStateChanged = ... (complex, better to wrap the factory)
+    </script>
+
+    <!-- Load ConfigResolver -->
+    <script src="scripts/config-resolver.js"></script>
+
+    <!-- UI Structure (Copied from project-detail.html) -->
+    <div class="dashboard-layout">
+        <main class="dashboard-main">
+            <header class="dashboard-header">
+                <div>
+                    <h1 id="project-title">Test Project</h1>
+                    <div class="header-subtitle">Config UI Test Mode</div>
+                </div>
+            </header>
+
+            <div class="dashboard-content">
+                <div class="dashboard-inner">
+                    <!-- Channel Cards Section -->
+                    <section class="dashboard-section" style="margin-top: 32px;">
+                        <div class="section-header">
+                            <h2>Active Channels</h2>
+                        </div>
+                        <div id="channel-cards-grid"
+                            style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
+                            <!-- Dynamically populated -->
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Configuration Slide-in Panel -->
+    <div class="config-panel-overlay" id="config-overlay"></div>
+    <div class="config-panel" id="config-panel">
+        <div class="config-header">
+            <button class="config-close" id="config-close">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+            <div class="config-title">
+                <span id="config-channel-icon"></span>
+                <span id="config-channel-name">Configure Channel</span>
+            </div>
+            <div class="config-subtitle">
+                <span id="config-template-name">Template: Loading...</span>
+                <span id="config-profile-name">Runtime Profile: Loading...</span>
+            </div>
+        </div>
+
+        <div class="config-tabs">
+            <div class="config-tab active" data-tab="goals">🎯 Goals & KPI</div>
+            <div class="config-tab" data-tab="planner">📝 Content Strategy</div>
+            <div class="config-tab" data-tab="creator_text">💬 Tone & Copy</div>
+            <div class="config-tab" data-tab="engagement">🤖 Engagement</div>
+            <div class="config-tab" data-tab="advanced">⚙️ Advanced</div>
+        </div>
+
+        <div class="config-content" id="config-content">
+            <!-- Dynamic Content Loaded Here -->
+            <div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">
+                Select a tab to configure settings.
+            </div>
+        </div>
+
+        <div class="config-footer">
+            <button class="admin-btn-secondary" id="config-reset-all">Reset All to Template</button>
+            <button class="admin-btn-primary" id="config-save">Save Changes</button>
+        </div>
+    </div>
+
+    <!-- Load Project Detail Logic -->
+    <script src="project-detail.js"></script>
+
+</body>
+
+</html>

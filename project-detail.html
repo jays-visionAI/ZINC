@@ -270,6 +270,50 @@
         </div>
     </div>
 
+    <!-- Configuration Slide-in Panel -->
+    <div class="config-panel-overlay" id="config-overlay"></div>
+    <div class="config-panel" id="config-panel">
+        <div class="config-header">
+            <button class="config-close" id="config-close">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+            <div class="config-title">
+                <span id="config-channel-icon"></span>
+                <span id="config-channel-name">Configure Channel</span>
+            </div>
+            <div class="config-subtitle">
+                <span id="config-template-name">Template: Loading...</span>
+                <span id="config-profile-name">Runtime Profile: Loading...</span>
+            </div>
+        </div>
+
+        <div class="config-tabs">
+            <div class="config-tab active" data-tab="goals">🎯 Goals & KPI</div>
+            <div class="config-tab" data-tab="planner">📝 Content Strategy</div>
+            <div class="config-tab" data-tab="creator_text">💬 Tone & Copy</div>
+            <div class="config-tab" data-tab="engagement">🤖 Engagement</div>
+            <div class="config-tab" data-tab="advanced">⚙️ Advanced</div>
+        </div>
+
+        <div class="config-content" id="config-content">
+            <!-- Dynamic Content Loaded Here -->
+            <div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">
+                Select a tab to configure settings.
+            </div>
+        </div>
+
+        <div class="config-footer">
+            <button class="admin-btn-secondary" id="config-reset-all">Reset All to Template</button>
+            <button class="admin-btn-primary" id="config-save">Save Changes</button>
+        </div>
+    </div>
+
+    <!-- Load ConfigResolver -->
+    <script src="scripts/config-resolver.js"></script>
+
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
