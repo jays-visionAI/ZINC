@@ -26,7 +26,7 @@ try {
     app = firebase.initializeApp(firebaseConfig);
     auth = firebase.auth();
     db = firebase.firestore();
-    storage = firebase.storage();
+    // storage = firebase.storage(); // Commented out - Storage SDK not loaded
     console.log("Firebase initialized successfully");
 } catch (error) {
     console.error("Firebase initialization failed:", error);

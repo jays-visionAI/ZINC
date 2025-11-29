@@ -104,15 +104,32 @@
                     </div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <!-- v2.0 3-Axis Fields -->
+                <div
+                    style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 8px;">
                     <div class="admin-form-group">
-                        <label class="admin-form-label">Cost Tier</label>
-                        <select id="profile-cost" class="admin-select" style="width: 100%;">
-                            <option value="cheap">Cheap (Draft/Bulk)</option>
-                            <option value="medium" selected>Medium (Balanced)</option>
-                            <option value="expensive">Expensive (High Quality)</option>
+                        <label class="admin-form-label">Role Type</label>
+                        <select id="profile-role" class="admin-select" style="width: 100%;" required>
+                            <!-- Populated by JS -->
                         </select>
                     </div>
+                    <div class="admin-form-group">
+                        <label class="admin-form-label">Language</label>
+                        <select id="profile-language" class="admin-select" style="width: 100%;" required>
+                            <!-- Populated by JS -->
+                        </select>
+                    </div>
+                    <div class="admin-form-group">
+                        <label class="admin-form-label">Tier</label>
+                        <select id="profile-tier" class="admin-select" style="width: 100%;" required>
+                            <option value="economy">Economy</option>
+                            <option value="balanced" selected>Balanced</option>
+                            <option value="premium">Premium</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                     <div class="admin-form-group">
                         <label class="admin-form-label">Status</label>
                         <select id="profile-status" class="admin-select" style="width: 100%;">
@@ -121,6 +138,11 @@
                             <option value="deprecated">Deprecated</option>
                         </select>
                     </div>
+                    <div class="admin-form-group">
+                        <label class="admin-form-label">Cost Hint (Legacy)</label>
+                        <input type="text" id="profile-cost-hint" class="admin-form-input" readonly
+                            placeholder="Auto-set from Tier">
+                    </div>
                 </div>
 
             </form>
@@ -128,6 +150,10 @@
         <div class="admin-modal-footer">
             <button class="admin-btn-secondary" id="modal-cancel">Cancel</button>
             <button class="admin-btn-primary" id="modal-save">Save Profile</button>
+            <button class="admin-btn-primary" id="modal-save-as-new" style="display: none; background: #10b981;"
+                onclick="window.saveAsNewVersion(event)">
+                💾 Save as New Version
+            </button>
         </div>
     </div>
 </div>

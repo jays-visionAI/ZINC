@@ -20,8 +20,145 @@
                 <line x1="12" y1="5" x2="12" y2="19"></line>
                 <line x1="5" y1="12" x2="19" y2="12"></line>
             </svg>
-            Create Template
+            Create Agent
         </button>
+    </div>
+</div>
+
+<!-- Template Detail Modal (Included from template-detail.html) -->
+<div id="template-detail-modal" class="admin-modal" style="display: none;">
+    <div class="modal-content template-detail-content">
+        <!-- Header -->
+        <div class="template-detail-header">
+            <div class="header-left">
+                <h1 id="template-detail-title">Template Name</h1>
+                <p class="template-id" id="template-detail-id">ID: ...</p>
+            </div>
+            <div class="header-right">
+                <span class="badge" id="template-detail-status">Status</span>
+                <span class="badge badge-secondary" id="template-detail-version">v...</span>
+                <span class="badge badge-info" id="template-detail-channel">Channel</span>
+                <button class="btn-close" onclick="closeTemplateDetail()">×</button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="template-detail-body">
+            <!-- Left Column: Template Information -->
+            <div class="detail-column">
+                <div class="detail-section">
+                    <h3 class="section-title">Template Information</h3>
+
+                    <div class="info-group">
+                        <label>Name</label>
+                        <p id="detail-name">-</p>
+                    </div>
+
+                    <div class="info-group">
+                        <label>Description</label>
+                        <p id="detail-description" class="text-muted">-</p>
+                    </div>
+
+                    <div class="info-group">
+                        <label>TARGET CHANNEL</label>
+                        <div class="channel-type-display">
+                            <span class="channel-icon" id="detail-channel-icon">📱</span>
+                            <span id="detail-channel-type">-</span>
+                        </div>
+                    </div>
+
+                    <div class="info-row">
+                        <div class="info-group">
+                            <label>Version</label>
+                            <p id="detail-version-text">-</p>
+                        </div>
+                        <div class="info-group">
+                            <label>Status</label>
+                            <p>
+                                <span class="status-indicator" id="detail-status-indicator"></span>
+                                <span id="detail-status-text">-</span>
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="info-group">
+                        <label>Created</label>
+                        <p id="detail-created">-</p>
+                    </div>
+
+                    <div class="info-group">
+                        <label>Last Updated</label>
+                        <p id="detail-updated">-</p>
+                    </div>
+
+                    <div class="info-group">
+                        <label>Created By</label>
+                        <p id="detail-created-by">-</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Center Column: Roles Configuration -->
+            <div class="detail-column">
+                <div class="detail-section">
+                    <h3 class="section-title"
+                        style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>
+                            Sub-Agents
+                            <span class="role-count" id="role-count">(0)</span>
+                        </span>
+                        <button class="btn-sm btn-secondary" onclick="openAddSubAgentModal()"
+                            style="font-size: 11px; padding: 4px 10px; height: 24px; line-height: 1;">
+                            + Add Sub-Agent
+                        </button>
+                    </h3>
+
+                    <div id="roles-list" class="roles-list">
+                        <!-- Roles will be dynamically inserted here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Deployment Stats -->
+            <div class="detail-column">
+                <div class="detail-section">
+                    <h3 class="section-title">Deployment Statistics</h3>
+
+                    <div class="stat-card">
+                        <div class="stat-item">
+                            <span class="stat-label">Active Deployments</span>
+                            <span class="stat-value stat-success" id="active-deployments">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Total Deployments</span>
+                            <span class="stat-value" id="total-deployments">0</span>
+                        </div>
+                    </div>
+
+                    <h4 class="subsection-title">Recent Deployments</h4>
+                    <div id="recent-deployments" class="deployments-list">
+                        <!-- Deployments will be dynamically inserted here -->
+                    </div>
+
+                    <button class="btn-secondary btn-full" onclick="viewAllDeployments()">
+                        View All Deployments
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer Actions -->
+        <div class="template-detail-footer">
+            <button class="btn-primary" onclick="editCurrentTemplate()">
+                <span>✏️</span> Edit Template
+            </button>
+            <button class="btn-secondary" onclick="duplicateCurrentTemplate()">
+                <span>📋</span> Duplicate
+            </button>
+            <button class="btn-danger-outline" onclick="deleteCurrentTemplate()">
+                <span>🗑️</span> Delete
+            </button>
+        </div>
     </div>
 </div>
 
@@ -29,10 +166,10 @@
     <table class="admin-table">
         <thead>
             <tr>
-                <th>Template Name</th>
+                <th>Agent Team Name</th>
                 <th>Version</th>
-                <th>Roles</th>
-                <th>Channel Type</th>
+                <th># of Sub-Agents</th>
+                <th>TARGET CHANNEL</th>
                 <th>Status</th>
                 <th>Last Updated</th>
                 <th>Actions</th>
@@ -46,6 +183,29 @@
             </tr>
         </tbody>
     </table>
+</div>
+
+<!-- Add Sub-Agent Modal -->
+<div id="add-subagent-modal" class="admin-modal" style="display: none; z-index: 1100;">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+            <h3>Add Sub-Agent</h3>
+            <button class="btn-close" onclick="closeAddSubAgentModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="admin-search-box" style="margin-bottom: 16px; width: 100%;">
+                <input type="text" id="subagent-search" placeholder="Search sub-agents..." onkeyup="filterSubAgents()"
+                    style="width: 100%;">
+            </div>
+            <div id="available-subagents-list" class="available-subagents-list"
+                style="max-height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+                <!-- List items will be injected here -->
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeAddSubAgentModal()">Cancel</button>
+        </div>
+    </div>
 </div>
 
 <!-- Create Template Wizard Modal -->
@@ -75,23 +235,42 @@
             <form id="agentteam-form">
                 <input type="hidden" id="agentteam-id">
 
-                <!-- Step 1: Basic Info (Reusing step-2 ID for logic compatibility) -->
-                <div id="step-2" class="wizard-step">
+                <!-- Step 1: Basic Info -->
+                <div id="step-1" class="wizard-step">
                     <div class="admin-form-group">
-                        <label class="admin-form-label">Template Name</label>
+                        <label class="admin-form-label">1. Agent Team Name</label>
                         <input type="text" id="team-name" class="admin-form-input" required
                             placeholder="e.g. Full Marketing Team">
                         <small style="color: rgba(255,255,255,0.5);">Name of this reusable team template.</small>
                     </div>
 
                     <div class="admin-form-group">
-                        <label class="admin-form-label">Description</label>
+                        <label class="admin-form-label">2. Target Channel</label>
+                        <select id="team-channel" class="admin-select" style="width: 100%;">
+                            <option value="multi-channel">Multi Channel</option>
+                            <option value="instagram">Instagram</option>
+                            <option value="x">X (Twitter)</option>
+                            <option value="youtube">YouTube</option>
+                            <option value="linkedin">LinkedIn</option>
+                            <option value="tiktok">TikTok</option>
+                            <option value="blog">Blog</option>
+                            <option value="facebook">Facebook</option>
+                            <option value="threads">Threads</option>
+                            <option value="pinterest">Pinterest</option>
+                            <option value="snapchat">Snapchat</option>
+                            <option value="reddit">Reddit</option>
+                            <option value="discord">Discord</option>
+                        </select>
+                    </div>
+
+                    <div class="admin-form-group">
+                        <label class="admin-form-label">3. Description</label>
                         <textarea id="team-description" class="admin-form-input" rows="3"
                             placeholder="Describe the purpose and capabilities of this team..."></textarea>
                     </div>
 
                     <div class="admin-form-group">
-                        <label class="admin-form-label">Status</label>
+                        <label class="admin-form-label">4. Status</label>
                         <select id="team-status" class="admin-select" style="width: 100%;" required>
                             <option value="active">✅ Active</option>
                             <option value="draft">📝 Draft</option>
@@ -99,25 +278,33 @@
                     </div>
                 </div>
 
-                <!-- Step 2: Role Definition (Reusing step-1 ID for logic compatibility) -->
-                <div id="step-1" class="wizard-step" style="display: none;">
-                    <div
-                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                        <p style="margin: 0; color: rgba(255,255,255,0.7);">
-                            Define the roles required for this team.
+                <!-- Step 2: Role Selection -->
+                <div id="step-2" class="wizard-step" style="display: none;">
+                    <div style="margin-bottom: 16px;">
+                        <p style="margin: 0 0 12px 0; color: rgba(255,255,255,0.7);">
+                            Select the sub-agents to include in this team.
                         </p>
-                        <button type="button" id="add-role-btn" class="admin-btn-secondary"
-                            style="font-size: 12px; padding: 6px 12px;">
-                            + Add Role
-                        </button>
-                    </div>
 
-                    <div id="wizard-roles-list"
-                        style="display: flex; flex-direction: column; gap: 12px; max-height: 400px; overflow-y: auto;">
-                        <!-- Dynamically populated -->
+                        <!-- Control Buttons -->
+                        <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                            <button type="button" onclick="toggleAllRoles(true)" class="btn-sm btn-secondary">Select
+                                All</button>
+                            <button type="button" onclick="toggleAllRoles(false)" class="btn-sm btn-secondary">Deselect
+                                All</button>
+                        </div>
+
+                        <!-- Header Row -->
                         <div
-                            style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5); border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px;">
-                            No roles defined. Click "+ Add Role" to start.
+                            style="display: flex; padding: 8px 12px; background: rgba(255,255,255,0.1); border-radius: 4px; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.8); margin-bottom: 8px;">
+                            <div style="width: 40px; text-align: center;">Select</div>
+                            <div style="flex: 1;">Sub-Agent</div>
+                            <div style="flex: 1;">Sub-Agent's Role</div>
+                        </div>
+
+                        <!-- Roles List -->
+                        <div id="wizard-roles-list"
+                            style="display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto;">
+                            <!-- Dynamically populated -->
                         </div>
                     </div>
                 </div>
@@ -136,6 +323,9 @@
 
                             <div style="color: rgba(255,255,255,0.5);">Description:</div>
                             <div id="review-desc">-</div>
+
+                            <div style="color: rgba(255,255,255,0.5);">Number of Assigned Sub-agent:</div>
+                            <div id="review-count" style="font-weight: 600; color: #16e0bd;">0</div>
                         </div>
                     </div>
 

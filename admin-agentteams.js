@@ -3,6 +3,13 @@
 // Refactored for Phase 2 Architecture Alignment
 
 (function () {
+    // Load template detail script
+    if (!document.querySelector('script[src="template-detail.js"]')) {
+        const script = document.createElement('script');
+        script.src = 'template-detail.js';
+        document.body.appendChild(script);
+    }
+
     let templates = [];
     let filteredTemplates = [];
     let unsubscribe = null;
@@ -23,17 +30,17 @@
 
     // Role Types (PRD 5.0 - Canonical snake_case values)
     const ROLE_TYPES = [
-        { value: 'planner', label: '🎯 Planner', icon: '🎯' },
-        { value: 'research', label: '🔍 Research', icon: '🔍' },
-        { value: 'creator_text', label: '✍️ Creator.Text', icon: '✍️' },
-        { value: 'creator_image', label: '🎨 Creator.Image', icon: '🎨' },
-        { value: 'creator_video', label: '🎬 Creator.Video', icon: '🎬' },
-        { value: 'engagement', label: '💬 Engagement', icon: '💬' },
-        { value: 'compliance', label: '⚖️ Compliance', icon: '⚖️' },
-        { value: 'evaluator', label: '📊 Evaluator', icon: '📊' },
-        { value: 'manager', label: '👔 Manager', icon: '👔' },
-        { value: 'kpi', label: '📈 KPI', icon: '📈' },
-        { value: 'seo_watcher', label: '🔎 SEO Watcher', icon: '🔎' }
+        { value: 'planner', label: '🎯 Planner', icon: '🎯', defaultName: '콘텐츠기획설계 Agent' },
+        { value: 'creator_text', label: '✍️ Creator.Text', icon: '✍️', defaultName: '텍스트생성 에이전트' },
+        { value: 'creator_image', label: '🎨 Creator.Image', icon: '🎨', defaultName: '이미지생성 에이전트' },
+        { value: 'creator_video', label: '🎬 Creator.Video', icon: '🎬', defaultName: '비디오생성 에이전트' },
+        { value: 'research', label: '🔍 Research', icon: '🔍', defaultName: '시장조사 Agent' },
+        { value: 'engagement', label: '💬 Engagement', icon: '💬', defaultName: '소통/댓글 관리 Agent' },
+        { value: 'compliance', label: '⚖️ Compliance', icon: '⚖️', defaultName: '심의/규정 준수 Agent' },
+        { value: 'evaluator', label: '📊 Evaluator', icon: '📊', defaultName: '성과 분석 Agent' },
+        { value: 'manager', label: '👔 Manager', icon: '👔', defaultName: '총괄 매니저 Agent' },
+        { value: 'kpi', label: '📈 KPI', icon: '📈', defaultName: '지표 관리 Agent' },
+        { value: 'seo_watcher', label: '🔎 SEO Watcher', icon: '🔎', defaultName: 'SEO 모니터링 Agent' }
     ];
 
     window.initAgentteams = function (user) {
@@ -76,7 +83,7 @@
         if (createBtn) {
             const newBtn = createBtn.cloneNode(true);
             createBtn.parentNode.replaceChild(newBtn, createBtn);
-            newBtn.textContent = "+ Create Template"; // Update button text
+            newBtn.textContent = "+ Create Agent"; // Update button text
             newBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 openWizard();
@@ -148,8 +155,8 @@
         // Step 3: Review - Reusing 'step-3'
 
         // Let's dynamically adjust visibility
-        document.getElementById('step-1').style.display = currentStep === 2 ? 'block' : 'none'; // Role Selection
-        document.getElementById('step-2').style.display = currentStep === 1 ? 'block' : 'none'; // Basic Info
+        document.getElementById('step-1').style.display = currentStep === 1 ? 'block' : 'none'; // Basic Info
+        document.getElementById('step-2').style.display = currentStep === 2 ? 'block' : 'none'; // Role Selection
         document.getElementById('step-3').style.display = currentStep === 3 ? 'block' : 'none'; // Review
 
         // Update Buttons
@@ -175,67 +182,56 @@
         const list = document.getElementById('wizard-roles-list');
         if (!list) return;
 
-        if (wizardData.roles.length === 0) {
-            list.innerHTML = '<div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5); border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px;">No roles defined. Click "+ Add Role" to start.</div>';
-            return;
-        }
-
-        list.innerHTML = wizardData.roles.map((role, index) => `
-            <div class="role-item" style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
-                <div style="display: flex; gap: 10px; margin-bottom: 8px;">
-                    <div style="flex: 1;">
-                        <label style="font-size: 11px; color: rgba(255,255,255,0.5);">Role Name</label>
-                        <input type="text" class="admin-form-input" value="${role.name}" 
-                            placeholder="e.g. Strategist"
-                            onchange="updateRole(${index}, 'name', this.value)"
-                            style="font-size: 13px; padding: 6px;">
-                    </div>
-                    <div style="flex: 1;">
-                        <label style="font-size: 11px; color: rgba(255,255,255,0.5);">Required Type</label>
-                        <select class="admin-select" style="width: 100%; font-size: 13px; padding: 6px;"
-                            onchange="updateRole(${index}, 'type', this.value)">
-                            ${ROLE_TYPES.map(t => `<option value="${t.value}" ${role.type === t.value ? 'selected' : ''}>${t.label}</option>`).join('')}
-                        </select>
-                    </div>
-                    <button type="button" onclick="removeRole(${index})" style="background: none; border: none; color: #ef4444; cursor: pointer; align-self: center; margin-top: 14px;">&times;</button>
+        list.innerHTML = ROLE_TYPES.map((roleType, index) => {
+            const isSelected = wizardData.roles.some(r => r.type === roleType.value);
+            return `
+            <div class="role-item-row" style="display: flex; align-items: center; padding: 10px 12px; background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.05);">
+                <div style="width: 40px; text-align: center;">
+                    <input type="checkbox" ${isSelected ? 'checked' : ''} 
+                        onchange="toggleRole('${roleType.value}', this.checked)"
+                        style="transform: scale(1.2); cursor: pointer;">
                 </div>
-                <div>
-                    <label style="font-size: 11px; color: rgba(255,255,255,0.5);">Default Template (Optional)</label>
-                    <select class="admin-select" style="width: 100%; font-size: 13px; padding: 6px;"
-                        onchange="updateRole(${index}, 'defaultTemplateId', this.value)">
-                        <option value="">-- No Default --</option>
-                        ${subAgentTemplates.filter(t => t.type === role.type).map(t =>
-            `<option value="${t.id}" ${role.defaultTemplateId === t.id ? 'selected' : ''}>${t.id} (v${t.version})</option>`
-        ).join('')}
-                    </select>
+                <div style="flex: 1; display: flex; align-items: center; gap: 8px;">
+                    <span>${roleType.icon}</span>
+                    <span style="font-size: 13px; color: rgba(255,255,255,0.9);">${roleType.label}</span>
+                </div>
+                <div style="flex: 1;">
+                    <span style="font-size: 13px; color: rgba(255,255,255,0.7);">${roleType.defaultName}</span>
                 </div>
             </div>
-        `).join('');
+        `}).join('');
     }
 
-    window.addRole = function () {
-        wizardData.roles.push({
-            name: '',
-            type: 'planner',
-            defaultTemplateId: '',
-            behaviourPackId: null // Phase 1 preparation
-        });
-        renderRoleSelection();
-    };
-
-    window.updateRole = function (index, field, value) {
-        if (wizardData.roles[index]) {
-            wizardData.roles[index][field] = value;
-            if (field === 'type') {
-                // Reset default template if type changes
-                wizardData.roles[index].defaultTemplateId = '';
-                renderRoleSelection(); // Re-render to update template options
+    window.toggleRole = function (type, checked) {
+        if (checked) {
+            const roleType = ROLE_TYPES.find(t => t.value === type);
+            if (roleType && !wizardData.roles.some(r => r.type === type)) {
+                wizardData.roles.push({
+                    name: roleType.defaultName,
+                    type: roleType.value,
+                    defaultTemplateId: '', // Hidden in UI, default empty
+                    behaviourPackId: null
+                });
             }
+        } else {
+            wizardData.roles = wizardData.roles.filter(r => r.type !== type);
         }
+        // No need to re-render entire list, checkbox state is handled by browser
+        // But if we want to update summary or other UI, we might need to.
+        // For now, just updating data is enough.
     };
 
-    window.removeRole = function (index) {
-        wizardData.roles.splice(index, 1);
+    window.toggleAllRoles = function (checked) {
+        if (checked) {
+            wizardData.roles = ROLE_TYPES.map(t => ({
+                name: t.defaultName,
+                type: t.value,
+                defaultTemplateId: '',
+                behaviourPackId: null
+            }));
+        } else {
+            wizardData.roles = [];
+        }
         renderRoleSelection();
     };
 
@@ -248,6 +244,7 @@
                 return;
             }
             wizardData.name = name;
+            wizardData.channel = document.getElementById('team-channel').value;
             wizardData.description = document.getElementById('team-description').value;
             wizardData.status = document.getElementById('team-status').value;
             currentStep++;
@@ -276,6 +273,7 @@
         document.getElementById('review-template').textContent = "New Template"; // Static text
         document.getElementById('review-name').textContent = wizardData.name;
         document.getElementById('review-desc').textContent = wizardData.description || 'No description';
+        document.getElementById('review-count').textContent = wizardData.roles.length;
 
         const list = document.getElementById('review-agents-list');
         list.innerHTML = wizardData.roles.map(role => {
@@ -417,13 +415,13 @@
                     </span>
                 </td>
                 <td>
-                    <span style="font-size: 13px;">
-                        ${roleCount} roles
+                    <span style="font-size: 13px; font-weight: 600;">
+                        ${roleCount}
                     </span>
                 </td>
                 <td>
                     <span style="font-size: 13px;">
-                        ${tpl.channel_type || 'General'}
+                        ${formatChannelType(tpl.channel_type)}
                     </span>
                 </td>
                 <td>${getStatusBadge(tpl.status || 'active')}</td>
@@ -459,8 +457,19 @@
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     }
 
+    function formatChannelType(channelType) {
+        if (!channelType) return 'General';
+        return channelType.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    }
+
     window.viewTemplateDetail = function (id) {
-        alert(`Template Detail View for ${id} (Coming Soon)`);
+        // Call the template detail view function from template-detail.js
+        if (typeof openTemplateDetail === 'function') {
+            openTemplateDetail(id);
+        } else {
+            console.error('openTemplateDetail function not found. Make sure template-detail.js is loaded.');
+            alert('Template detail view is not available.');
+        }
     };
 
     window.deleteTemplate = async function (id) {

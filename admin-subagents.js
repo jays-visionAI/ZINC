@@ -127,24 +127,93 @@
         setupEventListeners();
     };
 
-    function loadRuntimeProfiles() {
-        const select = document.getElementById('subagent-profile');
-        if (!select) return;
+    // --- v2.0 Helpers ---
 
-        // Runtime Profiles are global/shared, so we fetch from project level for now
-        db.collection(`projects/${projectId}/runtimeProfiles`)
+    function populateMetadataDropdowns() {
+        const roleSelect = document.getElementById('subagent-role');
+        const langSelect = document.getElementById('subagent-language');
+
+        if (!roleSelect || !langSelect) return;
+
+        // Clear existing
+        roleSelect.innerHTML = '<option value="">Select Role Type...</option>';
+        langSelect.innerHTML = '<option value="">Select Language...</option>';
+
+        if (window.RuntimeProfileUtils) {
+            window.RuntimeProfileUtils.ROLE_TYPES.forEach(role => {
+                const option = document.createElement('option');
+                option.value = role;
+                option.textContent = role;
+                roleSelect.appendChild(option);
+            });
+
+            window.RuntimeProfileUtils.LANGUAGES.forEach(lang => {
+                const option = document.createElement('option');
+                option.value = lang;
+                option.textContent = lang.toUpperCase();
+                langSelect.appendChild(option);
+            });
+        }
+    }
+
+    function filterRuntimeProfiles() {
+        const role = document.getElementById('subagent-role').value;
+        const lang = document.getElementById('subagent-language').value;
+        const profileSelect = document.getElementById('subagent-profile');
+
+        if (!profileSelect) return;
+
+        // Re-populate options based on all loaded profiles
+        // We need to store all profiles first. 
+        // Let's modify loadRuntimeProfiles to store them in a variable.
+        if (!window.allRuntimeProfiles) return;
+
+        let filtered = window.allRuntimeProfiles;
+
+        // Filter logic:
+        // If role/lang selected, prioritize matching profiles
+        // But for now, let's just show all but sort them? 
+        // Or filter strictly? PRD says "prioritize".
+        // Let's sort: exact match first, then others.
+
+        if (role && lang) {
+            filtered.sort((a, b) => {
+                const aMatch = (a.role_type === role && a.language === lang) ? 2 : (a.role_type === role ? 1 : 0);
+                const bMatch = (b.role_type === role && b.language === lang) ? 2 : (b.role_type === role ? 1 : 0);
+                return bMatch - aMatch;
+            });
+        }
+
+        let options = '<option value="">Select a Profile...</option>';
+        filtered.forEach(data => {
+            const isMatch = (role && lang && data.role_type === role && data.language === lang);
+            const style = isMatch ? 'font-weight: bold; color: #16e0bd;' : '';
+            const matchBadge = isMatch ? ' [RECOMMENDED]' : '';
+
+            options += `<option value="${data.id}" style="${style}">
+                ${data.name} (${data.provider})${matchBadge}
+            </option>`;
+        });
+        profileSelect.innerHTML = options;
+
+        // Auto-select if exact match found and nothing selected
+        if (role && lang && !profileSelect.value) {
+            const exactMatch = filtered.find(p => p.role_type === role && p.language === lang && p.tier === 'balanced');
+            if (exactMatch) profileSelect.value = exactMatch.id;
+        }
+    }
+
+    function loadRuntimeProfiles() {
+        // v2.0: Use root `runtimeProfiles` collection
+        db.collection('runtimeProfiles')
             .where('status', '==', 'active')
             .get()
             .then(snapshot => {
-                let options = '<option value="">Select a Profile...</option>';
+                window.allRuntimeProfiles = [];
                 snapshot.forEach(doc => {
-                    const data = doc.data();
-                    const costTier = data.cost_hint?.tier ? `[💰${capitalizeFirst(data.cost_hint.tier)}]` : '';
-                    options += `<option value="${data.runtime_profile_id}">
-                        ${data.name} (${data.provider}) - ${costTier}
-                    </option>`;
+                    window.allRuntimeProfiles.push({ id: doc.id, ...doc.data() });
                 });
-                select.innerHTML = options;
+                filterRuntimeProfiles(); // Initial render
             })
             .catch(err => console.error("Error loading profiles:", err));
     }
@@ -158,6 +227,12 @@
         const modalCancel = document.getElementById("modal-cancel");
         const modalSave = document.getElementById("modal-save");
         const addAdapterBtn = document.getElementById("add-adapter-btn");
+
+        // v2.0 Listeners
+        const roleSelect = document.getElementById('subagent-role');
+        const langSelect = document.getElementById('subagent-language');
+        if (roleSelect) roleSelect.addEventListener('change', filterRuntimeProfiles);
+        if (langSelect) langSelect.addEventListener('change', filterRuntimeProfiles);
 
         if (searchInput) searchInput.addEventListener("input", handleFilters);
         if (typeFilter) typeFilter.addEventListener("change", handleFilters);
@@ -179,13 +254,7 @@
         });
 
         // Direct event listeners for buttons
-        if (addBtn) {
-            addBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                console.log('Add Sub-Agent button clicked');
-                openModal(false);
-            });
-        }
+        // addBtn listener removed as it's handled by onclick in HTML now
 
         if (addAdapterBtn) {
             addAdapterBtn.addEventListener('click', (e) => {
@@ -340,32 +409,143 @@
 
     // Modal Functions
     function openModal(isEdit = false) {
+        console.log('openModal called, isEdit:', isEdit);
         const modal = document.getElementById('subagent-modal');
         const title = document.getElementById('modal-title');
 
+        if (!modal) {
+            console.error('Modal element not found!');
+            return;
+        }
+
         title.textContent = isEdit ? 'Edit Template' : 'Create Sub-Agent Template';
         modal.style.display = 'flex';
+        // Add 'open' class for opacity transition
+        requestAnimationFrame(() => {
+            modal.classList.add('open');
+        });
+        console.log('Modal display set to flex and open class added');
 
         // Reset Tabs
         document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.admin-tab-content').forEach(c => c.classList.remove('active'));
-        document.querySelector('.admin-tab[data-tab="overview"]').classList.add('active');
-        document.getElementById('tab-overview').classList.add('active');
+
+        const overviewTab = document.querySelector('.admin-tab[data-tab="overview"]');
+        if (overviewTab) overviewTab.classList.add('active');
+
+        const overviewContent = document.getElementById('tab-overview');
+        if (overviewContent) overviewContent.classList.add('active');
 
         if (!isEdit) {
-            document.getElementById('subagent-form').reset();
-            document.getElementById('subagent-id').value = '';
-            document.getElementById('subagent-version').value = '1.0.0';
+            console.log('Resetting form for create mode');
+            const form = document.getElementById('subagent-form');
+            if (form) form.reset();
+
+            const idInput = document.getElementById('subagent-id');
+            if (idInput) idInput.value = '';
+
+            const versionInput = document.getElementById('subagent-version');
+            if (versionInput) versionInput.value = '1.0.0';
+
             currentAdapters = [];
             renderAdapters();
+        }
+
+        // Populate dropdowns if needed
+        populateMetadataDropdowns();
+
+        // Initialize Sliders
+        setupSliders();
+    }
+
+    function setupSliders() {
+        const tempSlider = document.getElementById('config-temperature-slider');
+        const tempInput = document.getElementById('config-temperature');
+        const tempDisplay = document.getElementById('temp-display');
+
+        const tokenSlider = document.getElementById('config-max-tokens-slider');
+        const tokenInput = document.getElementById('config-max-tokens');
+        const tokenDisplay = document.getElementById('tokens-display');
+
+        function sync(source, target, display) {
+            if (source && target) {
+                target.value = source.value;
+                if (display) display.textContent = source.value;
+            }
+        }
+
+        if (tempSlider && tempInput) {
+            tempSlider.oninput = () => sync(tempSlider, tempInput, tempDisplay);
+            tempInput.oninput = () => sync(tempInput, tempSlider, tempDisplay);
+            // Init
+            sync(tempInput, tempSlider, tempDisplay);
+        }
+
+        if (tokenSlider && tokenInput) {
+            tokenSlider.oninput = () => sync(tokenSlider, tokenInput, tokenDisplay);
+            tokenInput.oninput = () => sync(tokenInput, tokenSlider, tokenDisplay);
+            // Init
+            sync(tokenInput, tokenSlider, tokenDisplay);
         }
     }
 
     function closeModal() {
         const modal = document.getElementById('subagent-modal');
-        modal.style.display = 'none';
-        document.getElementById('subagent-form').reset();
+        if (modal) {
+            modal.classList.remove('open');
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 200); // Wait for transition
+        }
+        const form = document.getElementById('subagent-form');
+        if (form) form.reset();
     }
+
+    // Expose to window for direct HTML access
+    window.openSubAgentModal = function () {
+        openModal(false);
+    };
+
+    window.createSubAgent = function () {
+        console.log('createSubAgent called');
+        openModal(false);
+    };
+
+    window.addAdapterFromUI = function () {
+        const select = document.getElementById('new-adapter-channel');
+        if (!select) return;
+
+        const channelId = select.value;
+        if (!channelId) {
+            alert("Please select a channel first.");
+            return;
+        }
+
+        // Check if already exists
+        if (currentAdapters.find(a => a.channelId === channelId && !a.isDeleted)) {
+            alert("Adapter for this channel already exists.");
+            return;
+        }
+
+        currentAdapters.push({
+            channelId: channelId.toLowerCase(),
+            promptOverrides: "",
+            enabled: true,
+            isNew: true
+        });
+
+        renderAdapters();
+
+        // Reset selection
+        select.value = "";
+    };
+
+    // Legacy function support removed or redirected
+    window.addAdapter = function () {
+        // Redirect to UI based add
+        document.querySelector('.admin-tab[data-tab="adapters"]').click();
+        document.getElementById('new-adapter-channel').focus();
+    };
 
     // CRUD Operations
     window.editTemplate = async function (id) {
@@ -444,25 +624,6 @@
         `).join('');
     }
 
-    window.addAdapter = function () {
-        const channelId = prompt("Enter Channel ID (e.g., instagram, x, youtube):");
-        if (!channelId) return;
-
-        // Check if already exists
-        if (currentAdapters.find(a => a.channelId === channelId)) {
-            alert("Adapter for this channel already exists.");
-            return;
-        }
-
-        currentAdapters.push({
-            channelId: channelId.toLowerCase(),
-            promptOverrides: "",
-            enabled: true,
-            isNew: true // Flag to identify new adapters
-        });
-        renderAdapters();
-    };
-
     window.updateAdapter = function (index, field, value) {
         if (currentAdapters[index]) {
             currentAdapters[index][field] = value;
@@ -522,101 +683,61 @@
         `}).join('');
     }
 
-    async function saveTemplate() {
-        const saveBtn = document.getElementById('modal-save');
-        const id = document.getElementById('subagent-id').value;
-        const type = document.getElementById('subagent-type').value;
-        const status = document.getElementById('subagent-status').value;
-        const systemPrompt = document.getElementById('subagent-prompt').value;
-        const llmModel = document.getElementById('model-llm-text').value;
-        const temperature = parseFloat(document.getElementById('config-temperature').value);
-        const maxTokens = parseInt(document.getElementById('config-max-tokens').value);
-        const runtimeProfileId = document.getElementById('subagent-profile').value;
-
-        if (!type || !systemPrompt) {
-            alert('Please fill in required fields');
-            return;
-        }
+    async function saveTemplate(e) {
+        e.preventDefault();
+        const btn = document.getElementById('modal-save');
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
 
         try {
-            saveBtn.disabled = true;
-            saveBtn.textContent = 'Saving...';
+            const id = document.getElementById('subagent-id').value;
+            const type = document.getElementById('subagent-type').value;
 
-            const templateData = {
-                type,
-                status,
-                system_prompt: systemPrompt,
-                runtime_profile_id: runtimeProfileId || null,
-                model_provider: {
-                    llmText: { provider: 'openai', model: llmModel, enabled: false },
-                    llmImage: { enabled: false },
-                    embeddings: { provider: 'openai', model: 'text-embedding-ada-002' }
-                },
+            if (!type) throw new Error("Engine Type is required");
+
+            const data = {
+                type: type,
+                status: document.getElementById('subagent-status').value,
+                system_prompt: document.getElementById('subagent-prompt').value,
+
+                // v2.0 Fields
+                role_type: document.getElementById('subagent-role').value,
+                primary_language: document.getElementById('subagent-language').value,
+                runtime_profile_id: document.getElementById('subagent-profile').value,
+
                 config: {
-                    temperature,
-                    maxTokens
+                    temperature: parseFloat(document.getElementById('config-temperature').value),
+                    maxTokens: parseInt(document.getElementById('config-max-tokens').value)
                 },
+                model_provider: {
+                    provider: 'openai', // Default for now
+                    model: document.getElementById('model-llm-text').value
+                },
+                channel_adapters: currentAdapters,
                 updated_at: firebase.firestore.FieldValue.serverTimestamp()
             };
 
-            let templateId = id;
-
             if (id) {
-                // Update existing
-                await db.collection('subAgentTemplates').doc(id).update(templateData);
+                await db.collection('subAgentTemplates').doc(id).update(data);
             } else {
-                // Create new
-                const newVersion = '1.0.0';
-                const safeType = type.replace(/\./g, '_');
-                const newId = `tpl_${safeType}_v${newVersion.replace(/\./g, '_')}`;
-                templateId = newId;
-
-                templateData.id = newId;
-                templateData.version = newVersion;
-                templateData.created_at = firebase.firestore.FieldValue.serverTimestamp();
-                templateData.created_by = firebase.auth().currentUser?.uid || 'system';
-
-                await db.collection('subAgentTemplates').doc(newId).set(templateData);
+                // Generate ID: tpl_{type}_v{version}
+                const version = '1.0.0';
+                const newId = `tpl_${type}_v${version.replace(/\./g, '_')}_${Date.now().toString().slice(-4)}`;
+                data.id = newId;
+                data.version = version;
+                data.created_at = firebase.firestore.FieldValue.serverTimestamp();
+                await db.collection('subAgentTemplates').doc(newId).set(data);
             }
 
-            // Save Adapters
-            const batch = db.batch();
-
-            currentAdapters.forEach(adapter => {
-                if (adapter.isDeleted) {
-                    if (adapter.id) {
-                        const ref = db.collection('subAgentChannelAdapters').doc(adapter.id);
-                        batch.delete(ref);
-                    }
-                } else {
-                    const adapterData = {
-                        subAgentTemplateId: templateId,
-                        channelId: adapter.channelId,
-                        promptOverrides: adapter.promptOverrides,
-                        enabled: adapter.enabled,
-                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                    };
-
-                    if (adapter.id) {
-                        const ref = db.collection('subAgentChannelAdapters').doc(adapter.id);
-                        batch.update(ref, adapterData);
-                    } else {
-                        const ref = db.collection('subAgentChannelAdapters').doc();
-                        batch.set(ref, adapterData);
-                    }
-                }
-            });
-
-            await batch.commit();
-
-            alert('Template saved successfully!');
             closeModal();
+            alert('✅ Template saved successfully!');
+            loadTemplates(); // Refresh list
         } catch (error) {
-            console.error('Error saving template:', error);
+            console.error("Error saving template:", error);
             alert(`Error: ${error.message}`);
         } finally {
-            saveBtn.disabled = false;
-            saveBtn.textContent = 'Save Template';
+            btn.disabled = false;
+            btn.textContent = 'Save Template';
         }
     }
 

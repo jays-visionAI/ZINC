@@ -185,10 +185,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         alert(`Logs for agent ${agentId} (Coming Soon)`);
     };
 
-    // Manage Team Button
-    document.getElementById("btn-manage-team").addEventListener("click", () => {
-        alert("Team Management features coming in next update.");
-    });
+    // Manage Team Button (check if exists on this page)
+    const manageTeamBtn = document.getElementById("btn-manage-team");
+    if (manageTeamBtn) {
+        manageTeamBtn.addEventListener("click", () => {
+            alert("Team Management features coming in next update.");
+        });
+    }
 
     // --- Deployment Wizard Logic ---
 
@@ -207,19 +210,31 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (prevBtn) prevBtn.addEventListener("click", handleDeployPrev);
     }
 
-    function openDeployWizard() {
+    window.openDeployWizard = function () {
+        console.log('[DEBUG] openDeployWizard called');
         deployStep = 1;
         deployData = { channelId: '', channelName: '', templateId: '', templateName: '', roles: [] };
 
         const modal = document.getElementById("deploy-modal");
+        console.log('[DEBUG] Modal element:', modal);
+        if (!modal) {
+            console.error('[DEBUG] Deploy modal not found!');
+            return;
+        }
         modal.style.display = "flex";
+        modal.classList.add('open');  // ← Add 'open' class for CSS visibility
+        console.log('[DEBUG] Modal display set to flex and open class added');
 
         updateDeployUI();
         loadChannels();
-    }
+    };
 
-    function closeDeployWizard() {
-        document.getElementById("deploy-modal").style.display = "none";
+    window.closeDeployWizard = function () {
+        const modal = document.getElementById("deploy-modal");
+        if (modal) {
+            modal.style.display = "none";
+            modal.classList.remove('open');  // ← Remove 'open' class
+        }
     }
 
     function updateDeployUI() {
@@ -243,12 +258,63 @@ document.addEventListener("DOMContentLoaded", async () => {
         grid.innerHTML = '<div style="text-align: center; padding: 20px;">Loading Channels...</div>';
 
         try {
+            console.log('[DEBUG] Loading channels for projectId:', projectId);
+
+            // 1. Get all active channels
             const snapshot = await db.collection("channelProfiles").where("status", "==", "active").get();
-            channelProfiles = [];
-            snapshot.forEach(doc => channelProfiles.push({ id: doc.id, ...doc.data() }));
+            let allChannels = [];
+            snapshot.forEach(doc => allChannels.push({ id: doc.id, ...doc.data() }));
+
+            // [MOCK DATA] If no channels found in DB, use Mock Data
+            if (allChannels.length === 0) {
+                console.log('[DEBUG] No channels in DB, using Mock Data');
+                allChannels = [
+                    { id: 'demo-x', name: 'X (Twitter)', platform: 'x', status: 'active' },
+                    { id: 'demo-li', name: 'LinkedIn', platform: 'linkedin', status: 'active' },
+                    { id: 'demo-ig', name: 'Instagram', platform: 'instagram', status: 'active' },
+                    { id: 'demo-tt', name: 'TikTok', platform: 'tiktok', status: 'active' },
+                    { id: 'demo-yt', name: 'YouTube', platform: 'youtube', status: 'active' }
+                ];
+            }
+            console.log('[DEBUG] All active channels found:', allChannels.length, allChannels);
+
+            // 2. Get already deployed channels for this project
+            const deployedSnapshot = await db.collection("projectAgentTeamInstances")
+                .where("projectId", "==", projectId)
+                .where("status", "==", "active")
+                .get();
+
+            const deployedChannelIds = new Set();
+            const deployedPlatforms = new Set(); // Track platforms for demo mode filtering
+
+            deployedSnapshot.forEach(doc => {
+                const data = doc.data();
+                if (data.channelId) deployedChannelIds.add(data.channelId);
+                if (data.platform) deployedPlatforms.add(data.platform);
+            });
+            console.log('[DEBUG] Already deployed channelIds:', Array.from(deployedChannelIds));
+
+            // 3. Filter out already deployed channels
+            // If no real instances exist, we are in "Demo Mode" showing placeholders for X and LinkedIn
+            // So we should filter out X and LinkedIn from the available options
+            if (deployedSnapshot.empty) {
+                console.log('[DEBUG] No real instances found. Filtering out demo placeholders (X, LinkedIn)');
+                channelProfiles = allChannels.filter(channel =>
+                    channel.platform !== 'x' && channel.platform !== 'linkedin'
+                );
+            } else {
+                // Normal filtering by ID
+                channelProfiles = allChannels.filter(channel => !deployedChannelIds.has(channel.id));
+            }
+
+            console.log('[DEBUG] Available channels after filtering:', channelProfiles.length, channelProfiles);
 
             if (channelProfiles.length === 0) {
-                grid.innerHTML = '<div style="text-align: center; padding: 20px;">No active channels found.</div>';
+                if (deployedChannelIds.size > 0 || deployedSnapshot.empty) {
+                    grid.innerHTML = '<div style="text-align: center; padding: 20px;">All available channels already have agent teams deployed.</div>';
+                } else {
+                    grid.innerHTML = '<div style="text-align: center; padding: 20px;">No active channels found.</div>';
+                }
                 return;
             }
 
@@ -258,6 +324,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                      style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 8px; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); text-align: center;">
                     <div style="font-size: 24px; margin-bottom: 8px;">${getChannelIcon(channel.platform)}</div>
                     <div style="font-weight: 600;">${channel.name}</div>
+                    <div style="font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 4px;">${channel.platform}</div>
                 </div>
             `).join('');
 
@@ -391,21 +458,58 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             await db.collection("projectAgentTeamInstances").doc(instanceId).set(instanceData);
 
-            // 2. Create Sub-Agents (Instances)
-            // For Phase 1, we'll just create placeholder records in `subAgents` collection
-            // In a real system, this would trigger backend provisioning
+            // 2. Create Sub-Agent Instances
+            // Fetch templates first to get runtime_profile_id
+            const templateIds = deployData.roles.map(r => r.defaultTemplateId).filter(id => id);
+            const templateMap = {};
+
+            if (templateIds.length > 0) {
+                // Firestore 'in' query supports max 10 items. If more, we might need multiple queries.
+                // Assuming < 10 roles for now.
+                try {
+                    const templatesSnap = await db.collection('subAgentTemplates')
+                        .where(firebase.firestore.FieldPath.documentId(), 'in', templateIds)
+                        .get();
+                    templatesSnap.forEach(doc => {
+                        templateMap[doc.id] = doc.data();
+                    });
+                } catch (err) {
+                    console.error("Error fetching templates for deployment:", err);
+                }
+            }
+
             const batch = db.batch();
 
             deployData.roles.forEach((role, index) => {
                 const agentId = `agent_${instanceId}_${index}`;
-                const agentRef = db.collection(`projects/${projectId}/subAgents`).doc(agentId);
+                // CORRECTED PATH: projectAgentTeamInstances/{teamId}/subAgents/{agentId}
+                const agentRef = db.collection('projectAgentTeamInstances').doc(instanceId).collection('subAgents').doc(agentId);
+
+                const templateId = role.defaultTemplateId || 'tpl_default';
+                const template = templateMap[templateId] || {};
+                const runtimeProfileId = template.runtime_profile_id || null;
 
                 batch.set(agentRef, {
                     id: agentId,
-                    agent_set_id: instanceId, // Linking to the team instance
-                    type: role.type,
-                    name: role.name,
-                    status: 'idle',
+                    project_id: projectId,
+                    team_instance_id: instanceId,
+                    role_name: role.name,
+                    role_type: role.type,
+                    template_id: templateId,
+                    runtime_profile_id: runtimeProfileId, // v2.0 Link
+                    display_order: index,
+                    status: 'active',
+                    // Initialize metrics for Mission Control
+                    metrics: {
+                        success_rate: 100,
+                        total_runs: 0,
+                        daily_actions_completed: 0,
+                        daily_actions_quota: 10,
+                        last_active_at: null
+                    },
+                    likes_count: 0,
+                    rating_avg: 0,
+                    rating_count: 0,
                     version: '1.0.0',
                     created_at: firebase.firestore.FieldValue.serverTimestamp(),
                     updated_at: firebase.firestore.FieldValue.serverTimestamp()
@@ -454,7 +558,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             // Add "Deploy New Agent" Card
             html += `
-                <div class="add-agent-card" onclick="document.getElementById('btn-deploy-team').click()">
+                <div class="add-agent-card" onclick="openDeployWizard()">
                     <div class="add-icon-circle">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -596,7 +700,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 </div>
 
                 <div class="agent-actions">
-                    <button class="btn-view-history" onclick="alert('This is a demo agent.')">View History</button>
+                    <button class="btn-view-history" onclick="viewTeamDetails('demo-${platform}')">View History</button>
                     <button class="btn-settings" onclick="alert('This is a demo agent.')">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="3"></circle>
@@ -1820,3 +1924,278 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
 });
+
+// --- Agent Team Detail Panel Logic ---
+
+let selectedInstanceId = null;
+let selectedSubAgentId = null;
+let selectedRunId = null;
+
+window.viewTeamDetails = async function (instanceId) {
+    selectedInstanceId = instanceId;
+    const panel = document.getElementById('agent-detail-panel');
+    if (!panel) {
+        return;
+    }
+
+    try {
+        // Get current project ID from URL or global state
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectId = urlParams.get('id') || window.currentProjectId || 'default_project';
+
+        // Scroll to panel
+        panel.style.display = 'grid';
+        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        // Render Panel Structure
+        await renderDetailPanel(instanceId, projectId);
+
+        // Load real data using View History module
+        if (typeof openViewHistory === 'function') {
+            openViewHistory(projectId, instanceId);
+        } else {
+            console.error('[View History] openViewHistory function not found');
+        }
+    } catch (error) {
+        console.error("Error rendering detail panel:", error);
+    }
+};
+
+async function renderDetailPanel(instanceId, projectId) {
+    const panel = document.getElementById('agent-detail-panel');
+
+    // Create panel structure with proper container IDs
+    panel.innerHTML = `
+        <div id="col-sub-agents" class="detail-column">
+            <div class="column-header">
+                <div class="column-title">Assigned Agent Team</div>
+            </div>
+            <div class="column-content">
+                <div id="sub-agent-list">
+                    <div class="loading-state">Loading sub-agents...</div>
+                </div>
+            </div>
+        </div>
+        <div id="col-recent-runs" class="detail-column">
+            <div class="column-header">
+                <div class="column-title">Recent Runs</div>
+            </div>
+            <div class="column-content">
+                <div id="runs-list">
+                    <div class="loading-state">Loading runs...</div>
+                </div>
+            </div>
+        </div>
+        <div id="col-generated-content" class="detail-column">
+            <div class="column-header">
+                <div class="column-title">Generated Content</div>
+            </div>
+            <div class="column-content">
+                <div id="content-list">
+                    <div class="loading-state">Loading content...</div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function renderSubAgentsColumn(data) {
+    const panel = document.getElementById('agent-detail-panel');
+
+    // Check if columns exist, if not create them
+    if (!document.getElementById('col-sub-agents')) {
+        panel.innerHTML = `
+            <div id="col-sub-agents" class="detail-column"></div>
+            <div id="col-recent-runs" class="detail-column"></div>
+            <div id="col-generated-content" class="detail-column"></div>
+        `;
+    }
+
+    const col = document.getElementById('col-sub-agents');
+    if (col) {
+        col.innerHTML = `
+            <div class="column-header">
+                <div class="column-title">Assigned Agent Team</div>
+            </div>
+            <div class="column-content">
+                <div class="team-info-card">
+                    <div class="team-name-large">${data.teamName}</div>
+                    <div class="team-desc">${data.teamDesc}</div>
+                </div>
+
+                <div class="sub-agent-list-header">Active Sub-Agents</div>
+                <div id="sub-agent-list">
+                    ${data.subAgents.map(agent => renderSubAgentCard(agent)).join('')}
+                </div>
+            </div>
+        `;
+    } else {
+        console.error("Failed to create sub-agents column");
+    }
+}
+
+function renderSubAgentCard(agent) {
+    return `
+            <div class="sub-agent-card ${selectedSubAgentId === agent.id ? 'selected' : ''}" 
+                 onclick="selectSubAgent('${agent.id}')" id="sa-card-${agent.id}">
+                <div class="sub-agent-header">
+                    <div class="sub-agent-name">${agent.name}</div>
+                    <div class="sr-badge">${agent.successRate}% SR</div>
+                </div>
+                <div class="sub-agent-role">${agent.role}</div>
+                <div class="sub-agent-meta">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    Last active ${agent.lastActive}
+                </div>
+            </div>
+        `;
+}
+
+window.selectSubAgent = function (subAgentId) {
+    selectedSubAgentId = subAgentId;
+
+    // Update UI selection
+    document.querySelectorAll('.sub-agent-card').forEach(el => el.classList.remove('selected'));
+    const card = document.getElementById(`sa-card-${subAgentId}`);
+    if (card) card.classList.add('selected');
+
+    // Filter Runs
+    // In real app, fetch runs for this sub-agent
+    // Here we use the global mock data (stored in window for simplicity or re-generated)
+    const data = window.currentMockData;
+    const runs = data.runs.filter(r => r.subAgentId === subAgentId);
+
+    renderRecentRunsColumn(runs);
+
+    // Select first run if available
+    if (runs.length > 0) {
+        selectRun(runs[0].id);
+    } else {
+        renderGeneratedContentColumn([]);
+    }
+};
+
+function renderRecentRunsColumn(runs) {
+    const html = `
+            <div class="column-header">
+                <div class="column-title">Recent Runs</div>
+                <a href="#" class="column-action">View All</a>
+            </div>
+            <div class="column-content">
+                <div class="filter-pills">
+                    <div class="filter-pill active">All Status</div>
+                    <div class="filter-pill">Running</div>
+                    <div class="filter-pill">Failed</div>
+                </div>
+                <div id="run-list">
+                    ${runs.map(run => renderRunCard(run)).join('')}
+                </div>
+            </div>
+        `;
+    document.getElementById('col-recent-runs').innerHTML = html;
+}
+
+function renderRunCard(run) {
+    return `
+            <div class="run-card ${selectedRunId === run.id ? 'selected' : ''}" 
+                 onclick="selectRun('${run.id}')" id="run-card-${run.id}">
+                <div class="run-header">
+                    <div class="run-status status-${run.status.toLowerCase()}">${run.status}</div>
+                    <div class="run-id">#${run.id}</div>
+                </div>
+                <div class="run-prompt">${run.prompt}</div>
+                <div class="run-footer">
+                    <div style="display:flex;align-items:center;gap:4px;">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
+                        ${run.subAgentName}
+                    </div>
+                    <div>${run.time}</div>
+                </div>
+            </div>
+        `;
+}
+
+window.selectRun = function (runId) {
+    selectedRunId = runId;
+
+    // Update UI selection
+    document.querySelectorAll('.run-card').forEach(el => el.classList.remove('selected'));
+    const card = document.getElementById(`run-card-${runId}`);
+    if (card) card.classList.add('selected');
+
+    // Filter Content
+    const data = window.currentMockData;
+    const content = data.content.filter(c => c.runId === runId);
+
+    renderGeneratedContentColumn(content);
+};
+
+function renderGeneratedContentColumn(content) {
+    const html = `
+            <div class="column-header">
+                <div class="column-title">Generated Content</div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+            </div>
+            <div class="column-content">
+                ${content.length > 0 ? content.map(c => renderContentCard(c)).join('') : '<div style="text-align:center;color:rgba(255,255,255,0.4);margin-top:20px;">No content generated.</div>'}
+            </div>
+        `;
+    document.getElementById('col-generated-content').innerHTML = html;
+}
+
+function renderContentCard(content) {
+    return `
+            <div class="content-card">
+                <div class="content-thumb">
+                    <img src="${content.image}" alt="${content.title}" onerror="this.style.display='none';this.parentNode.innerHTML='<div style=\\'color:rgba(255,255,255,0.2);\\'>No Image</div>'">
+                    <div class="content-type-badge">Image Post</div>
+                    <div class="content-status-badge content-status-${content.status.toLowerCase()}">${content.status}</div>
+                </div>
+                <div class="content-body">
+                    <div class="content-title">${content.title}</div>
+                    <div class="content-caption">${content.caption}</div>
+                    <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-bottom:12px;text-align:right;">${content.timeAgo}</div>
+                    <div class="content-actions">
+                        <button class="btn-content-action" onclick="alert('Copied to clipboard!')">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                            Copy
+                        </button>
+                        <button class="btn-content-action btn-content-primary" onclick="window.open('${content.url || '#'}', '_blank')">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                            Schedule
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+}
+
+// --- Mock Data Generator ---
+function generateMockDetailData(instanceId) {
+    const data = {
+        teamName: "Visual Storyteller V2",
+        teamDesc: "Generates lifestyle imagery and engaging captions for daily posts.",
+        subAgents: [
+            { id: 'sa1', name: 'TrendHunter', role: 'Researcher', successRate: 98, lastActive: '10m ago' },
+            { id: 'sa2', name: 'PixelPerfect', role: 'Image Generator', successRate: 92, lastActive: '15m ago' },
+            { id: 'sa3', name: 'CopyMaster', role: 'Copywriter', successRate: 99, lastActive: '5m ago' },
+            { id: 'sa4', name: 'SchedBot', role: 'Scheduler', successRate: 100, lastActive: '2m ago' }
+        ],
+        runs: [
+            { id: '980504', status: 'SUCCESS', prompt: 'Create a vibrant post about spicy tteokbokki for the weekend crowd.', subAgentId: 'sa1', subAgentName: 'PixelPerfect', time: '15:46:20' },
+            { id: '088219', status: 'SUCCESS', prompt: 'Generate 5 hashtags for the Kimchi stew post.', subAgentId: 'sa1', subAgentName: 'CopyMaster', time: '14:20:10' },
+            { id: '112233', status: 'FAILED', prompt: 'Analyze top 10 trends in K-Food.', subAgentId: 'sa1', subAgentName: 'TrendHunter', time: '12:05:00' },
+            { id: '445566', status: 'RUNNING', prompt: 'Generating image for Bibimbap special.', subAgentId: 'sa2', subAgentName: 'PixelPerfect', time: 'Now' },
+            { id: '778899', status: 'SUCCESS', prompt: 'Drafting caption for Bulgogi launch.', subAgentId: 'sa3', subAgentName: 'CopyMaster', time: 'Yesterday' }
+        ],
+        content: [
+            { runId: '980504', title: 'Spicy Weekend', caption: 'Weekend plans? solved. 🌶️🧀 Dive into the spicy goodness of Cheese Tteokbokki! #KFood', status: 'Scheduled', timeAgo: '10 mins ago', image: 'https://images.unsplash.com/photo-1583563420875-19747530d4c9?auto=format&fit=crop&q=80&w=600', url: '#' },
+            { runId: '445566', title: 'Bibimbap Special', caption: 'Healthy, colorful, and delicious. What is your favorite topping?', status: 'Draft', timeAgo: '2 hours ago', image: 'https://images.unsplash.com/photo-1590301157890-4810ed352733?auto=format&fit=crop&q=80&w=600', url: '#' },
+            { runId: '778899', title: 'Bulgogi Launch', caption: 'Experience the authentic taste of Korean BBQ at home. Our new Bulgogi kit is here! 🔥🥩 #KoreanBBQ #Bulgogi', status: 'Success', timeAgo: 'Yesterday', image: 'https://placehold.co/600x400/16e0bd/000000?text=Bulgogi+Launch', url: '#' }
+        ]
+    };
+
+    // Store globally for filtering
+    window.currentMockData = data;
+    return data;
+}
