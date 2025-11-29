@@ -130,7 +130,7 @@
         filteredTemplates = [];
 
         loadTemplates();
-        loadRuntimeProfiles();
+        // loadRuntimeProfiles(); // Deprecated in favor of Dynamic Resolution
         setupEventListeners();
     };
 
@@ -139,27 +139,36 @@
     function populateMetadataDropdowns() {
         const roleSelect = document.getElementById('subagent-role');
         const langSelect = document.getElementById('subagent-language');
+        const tierSelect = document.getElementById('subagent-tier');
 
-        if (!roleSelect || !langSelect) return;
+        // Check if utils-runtime-resolver.js is loaded
+        if (typeof window.getAvailableRoleTypes !== 'function') {
+            console.warn('utils-runtime-resolver.js not loaded, using defaults');
+            return;
+        }
 
-        // Clear existing
-        roleSelect.innerHTML = '<option value="">Select Role Type...</option>';
-        langSelect.innerHTML = '<option value="">Select Language...</option>';
+        // Populate Roles
+        if (roleSelect) {
+            const roles = window.getAvailableRoleTypes();
+            roleSelect.innerHTML = roles.map(r =>
+                `<option value="${r.value}">${r.label}</option>`
+            ).join('');
+        }
 
-        if (window.RuntimeProfileUtils) {
-            window.RuntimeProfileUtils.ROLE_TYPES.forEach(role => {
-                const option = document.createElement('option');
-                option.value = role;
-                option.textContent = role;
-                roleSelect.appendChild(option);
-            });
+        // Populate Languages
+        if (langSelect) {
+            const langs = window.getAvailableLanguages();
+            langSelect.innerHTML = langs.map(l =>
+                `<option value="${l.value}">${l.flag} ${l.label}</option>`
+            ).join('');
+        }
 
-            window.RuntimeProfileUtils.LANGUAGES.forEach(lang => {
-                const option = document.createElement('option');
-                option.value = lang;
-                option.textContent = lang.toUpperCase();
-                langSelect.appendChild(option);
-            });
+        // Populate Tiers
+        if (tierSelect) {
+            const tiers = window.getAvailableTiers();
+            tierSelect.innerHTML = tiers.map(t =>
+                `<option value="${t.value}">${t.label} - ${t.description}</option>`
+            ).join('');
         }
     }
 
@@ -574,7 +583,13 @@
             document.getElementById('model-llm-text').value = tpl.model_provider?.llmText?.model || 'gpt-4';
             document.getElementById('config-temperature').value = tpl.config?.temperature || 0.7;
             document.getElementById('config-max-tokens').value = tpl.config?.maxTokens || 2000;
-            document.getElementById('subagent-profile').value = tpl.runtime_profile_id || '';
+            document.getElementById('config-temperature').value = tpl.config?.temperature || 0.7;
+            document.getElementById('config-max-tokens').value = tpl.config?.maxTokens || 2000;
+
+            // v2.0 Metadata
+            if (document.getElementById('subagent-role')) document.getElementById('subagent-role').value = tpl.role_type || 'strategist';
+            if (document.getElementById('subagent-language')) document.getElementById('subagent-language').value = tpl.primary_language || 'en';
+            if (document.getElementById('subagent-tier')) document.getElementById('subagent-tier').value = tpl.preferred_tier || 'balanced';
 
             // Load Adapters
             await loadAdapters(id);
@@ -702,30 +717,32 @@
 
             if (!type) throw new Error("Engine Type is required");
 
-            const data = {
-                type: type,
+            const newVersion = document.getElementById('subagent-version').value; // Assuming this is where version comes from
+
+            const subAgentData = {
+                type: document.getElementById('subagent-type').value,
+                version: newVersion,
                 status: document.getElementById('subagent-status').value,
                 system_prompt: document.getElementById('subagent-prompt').value,
 
-                // v2.0 Fields
+                // v2.0 Metadata (for Dynamic Resolution)
                 role_type: document.getElementById('subagent-role').value,
                 primary_language: document.getElementById('subagent-language').value,
-                runtime_profile_id: document.getElementById('subagent-profile').value,
+                preferred_tier: document.getElementById('subagent-tier').value,
 
+                // Legacy Config (Overridable by Runtime Rule)
                 config: {
                     temperature: parseFloat(document.getElementById('config-temperature').value),
                     maxTokens: parseInt(document.getElementById('config-max-tokens').value)
                 },
-                model_provider: {
-                    provider: 'openai', // Default for now
-                    model: document.getElementById('model-llm-text').value
-                },
+
+                updated_at: firebase.firestore.FieldValue.serverTimestamp(),
+                updated_by: firebase.auth().currentUser?.uid || 'system',
                 channel_adapters: currentAdapters,
-                updated_at: firebase.firestore.FieldValue.serverTimestamp()
             };
 
             if (id) {
-                await db.collection('subAgentTemplates').doc(id).update(data);
+                await db.collection('subAgentTemplates').doc(id).update(subAgentData);
             } else {
                 // Generate ID: tpl_{type}_v{version}
                 const version = '1.0.0';

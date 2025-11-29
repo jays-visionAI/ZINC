@@ -9,7 +9,8 @@
 
     <!-- Scripts -->
     <script src="firebase-config.js"></script>
-    <script src="auth.js"></script>
+    <script src="utils-runtime-resolver.js"></script>
+    <script src="admin-subagents.js"></script>
     <script src="utils-runtime-profile.js"></script>
 
 
@@ -109,18 +110,24 @@
                         </select>
                     </div>
 
-                    <!-- v2.0 3-Axis Metadata -->
+                    <!-- v2.0 Runtime Configuration (Dynamic Resolution) -->
                     <div
-                        style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+                        style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 8px;">
                         <div class="admin-form-group">
-                            <label class="admin-form-label">Role Type (v2.0)</label>
+                            <label class="admin-form-label">Role Type</label>
                             <select id="subagent-role" class="admin-select" style="width: 100%;" required>
                                 <!-- Populated by JS -->
                             </select>
                         </div>
                         <div class="admin-form-group">
-                            <label class="admin-form-label">Primary Language (v2.0)</label>
+                            <label class="admin-form-label">Primary Language</label>
                             <select id="subagent-language" class="admin-select" style="width: 100%;" required>
+                                <!-- Populated by JS -->
+                            </select>
+                        </div>
+                        <div class="admin-form-group">
+                            <label class="admin-form-label">Preferred Tier</label>
+                            <select id="subagent-tier" class="admin-select" style="width: 100%;" required>
                                 <!-- Populated by JS -->
                             </select>
                         </div>
@@ -154,14 +161,16 @@
                 <div id="tab-global" class="admin-tab-content">
                     <div class="admin-form-group"
                         style="background: rgba(22, 224, 189, 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(22, 224, 189, 0.2);">
-                        <label class="admin-form-label" style="color: #16e0bd;">🚀 Default Runtime Profile</label>
-                        <select id="subagent-profile" class="admin-select" style="width: 100%;">
-                            <option value="">Select a Profile...</option>
-                            <!-- Options will be loaded dynamically -->
-                        </select>
-                        <small style="color: rgba(255,255,255,0.6); display: block; margin-top: 5px;">
-                            Select a default Runtime Profile for instances created from this template.
-                        </small>
+                        <label class="admin-form-label" style="color: #16e0bd;">🚀 Dynamic Runtime Resolution</label>
+                        <p style="font-size: 13px; color: rgba(255,255,255,0.7); margin-top: 4px; line-height: 1.4;">
+                            LLM configuration is now <strong>dynamically resolved</strong> at runtime based on:
+                            <br>• Engine Type (e.g., Planner)
+                            <br>• Role Type (e.g., Strategist)
+                            <br>• Language (e.g., Korean)
+                            <br>• Preferred Tier (e.g., Balanced)
+                            <br><br>
+                            This eliminates the need to manually select a Runtime Profile.
+                        </p>
                     </div>
 
                     <div class="admin-form-group">
