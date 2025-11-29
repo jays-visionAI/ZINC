@@ -373,7 +373,8 @@
             'evaluator': '📊',
             'manager': '👔',
             'kpi': '📈',
-            'seo_watcher': '🔎'
+            'seo_watcher': '🔎',
+            'knowledge_curator': '📚'
         };
         return icons[roleType] || '🤖';
     }

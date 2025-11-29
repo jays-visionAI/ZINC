@@ -78,6 +78,12 @@
             label: 'SEO Watcher',
             icon: '🔎',
             description: 'SEO policy monitoring'
+        },
+        knowledge_curator: {
+            canonical: 'knowledge_curator',
+            label: 'Knowledge Curator',
+            icon: '📚',
+            description: 'Brand memory & knowledge management'
         }
     };
 
@@ -103,6 +109,7 @@
             'Evaluator': 'evaluator',
             'Manager': 'manager',
             'KPI': 'kpi',
+            'Knowledge Curator': 'knowledge_curator',
             'creator': 'creator_text', // Legacy
             'kpi_engine': 'kpi' // Legacy
         };

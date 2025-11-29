@@ -40,7 +40,8 @@
         { value: 'evaluator', label: '📊 Evaluator', icon: '📊', defaultName: '성과 분석 Agent' },
         { value: 'manager', label: '👔 Manager', icon: '👔', defaultName: '총괄 매니저 Agent' },
         { value: 'kpi', label: '📈 KPI', icon: '📈', defaultName: '지표 관리 Agent' },
-        { value: 'seo_watcher', label: '🔎 SEO Watcher', icon: '🔎', defaultName: 'SEO 모니터링 Agent' }
+        { value: 'seo_watcher', label: '🔎 SEO Watcher', icon: '🔎', defaultName: 'SEO 모니터링 Agent' },
+        { value: 'knowledge_curator', label: '📚 Knowledge Curator', icon: '📚', defaultName: '브랜드 지식 관리 Agent' }
     ];
 
     window.initAgentteams = function (user) {
