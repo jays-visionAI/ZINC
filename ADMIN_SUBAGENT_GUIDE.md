@@ -23,7 +23,7 @@ Phase 1.5 버전 관리 시스템과 연동된 Admin UI가 완성되었습니다
 
 페이지가 열리면:
 
-- ✅ 7개 SubAgent 표시됨 (Planner, Research, Creator, 등)
+- ✅ 12개 SubAgent 타입 지원 (Planner, Research, Creator, Evaluator, Manager, KPI, SEO Watcher, Knowledge Curator 등)
 - 버전별로 정렬 (같은 Type은 버전 내림차순)
 - 필터링 가능:
   - Type (Planner, Creator, Manager 등)
@@ -187,7 +187,7 @@ AgentSet 관리 페이지에서:
 
 ### 필터
 
-- **Type 필터**: 7가지 Agent 타입
+- **Type 필터**: 12가지 Agent 타입
 - **Status 필터**: Active, Testing, Deprecated, Experimental
 - **검색**: ID 또는 Type 이름
 

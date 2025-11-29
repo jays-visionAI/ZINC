@@ -175,11 +175,14 @@ function getEngineIcon(roleType) {
     creator_text: '✍️',
     creator_image: '🎨',
     creator_video: '🎬',
+    research: '🔍',
     engagement: '💬',
     compliance: '⚖️',
     evaluator: '📊',
     manager: '👔',
-    kpi: '📈'
+    kpi: '📈',
+    seo_watcher: '🔎',
+    knowledge_curator: '📚'
   };
   return icons[roleType] || '🤖';
 }
@@ -190,11 +193,14 @@ function formatRoleType(roleType) {
     creator_text: 'Creator.Text',
     creator_image: 'Creator.Image',
     creator_video: 'Creator.Video',
+    research: 'Research',
     engagement: 'Engagement',
     compliance: 'Compliance',
     evaluator: 'Evaluator',
     manager: 'Manager',
-    kpi: 'KPI'
+    kpi: 'KPI',
+    seo_watcher: 'SEO Watcher',
+    knowledge_curator: 'Knowledge Curator'
   };
   return labels[roleType] || roleType;
 }
