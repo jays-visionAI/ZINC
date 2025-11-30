@@ -100,5 +100,22 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
+    // Runtime Profiles: Admin can write, authenticated users can read
+    match /runtimeProfiles/{profileId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Agent Set Templates (Root): Admin can write, authenticated users can read
+    match /agentSetTemplates/{templateId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Channel Profiles: Admin can write, authenticated users can read
+    match /channelProfiles/{profileId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
   }
 }

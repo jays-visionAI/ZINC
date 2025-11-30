@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Debug Runtime Profiles</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #111;
+            color: #eee;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th,
+        td {
+            border: 1px solid #444;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background: #222;
+        }
+
+        .error {
+            color: #f87171;
+        }
+
+        .success {
+            color: #22c55e;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Runtime Profiles Debugger</h1>
+    <div id="status">Loading...</div>
+    <div id="summary"></div>
+    <table id="profiles-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Engine Type</th>
+                <th>Model Name</th>
+                <th>Status</th>
+                <th>Raw Data</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="firebase-config.js"></script>
+
+    <script>
+        const statusDiv = document.getElementById('status');
+        const summaryDiv = document.getElementById('summary');
+        const tbody = document.querySelector('#profiles-table tbody');
+
+        async function debugProfiles() {
+            try {
+                if (!firebase.apps.length) {
+                    statusDiv.innerHTML = '<span class="error">Firebase not initialized! Check firebase-config.js</span>';
+                    return;
+                }
+
+                const db = firebase.firestore();
+                statusDiv.textContent = 'Querying runtimeProfiles...';
+
+                const snapshot = await db.collection('runtimeProfiles').get();
+
+                if (snapshot.empty) {
+                    statusDiv.innerHTML = '<span class="error">No documents found in runtimeProfiles collection.</span>';
+                    return;
+                }
+
+                statusDiv.innerHTML = `<span class="success">Found ${snapshot.size} profiles.</span>`;
+
+                const profiles = [];
+                const engineTypes = new Set();
+
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    profiles.push({ id: doc.id, ...data });
+                    if (data.engine_type) engineTypes.add(data.engine_type);
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${doc.id}</td>
+                        <td>${data.engine_type || '<span class="error">MISSING</span>'}</td>
+                        <td>${data.model_name || 'N/A'}</td>
+                        <td>${data.status || 'N/A'}</td>
+                        <td><pre>${JSON.stringify(data, null, 2)}</pre></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                summaryDiv.innerHTML = `<strong>Unique Engine Types:</strong> ${Array.from(engineTypes).join(', ')}`;
+                console.log('Profiles:', profiles);
+
+            } catch (error) {
+                console.error(error);
+                statusDiv.innerHTML = `<span class="error">Error: ${error.message}</span>`;
+            }
+        }
+
+        // Wait for config to load
+        setTimeout(debugProfiles, 1000);
+    </script>
+</body>
+
+</html>

@@ -12,78 +12,105 @@
     // 🔹 Canonical Engine Types (PRD 5.0)
     // Canonical values (snake_case) are used for DB storage and backend logic
     // UI labels are used for display in dropdowns and tables
+    // 🔹 Canonical Engine Types (PRD 5.0)
+    // Canonical values (snake_case) are used for DB storage and backend logic
+    // UI labels are used for display in dropdowns and tables
     const ENGINE_TYPES = {
         planner: {
             canonical: 'planner',
             label: 'Planner',
             icon: '🎯',
-            description: 'Strategic content planning'
+            description: 'Strategic content planning and scheduling engine.',
+            status: 'active',
+            kpi: { runs: '1.2k', success: '99%', latency: '2.1s', teams: '8' }
         },
         research: {
             canonical: 'research',
             label: 'Research',
             icon: '🔍',
-            description: 'Market analysis'
+            description: 'Market analysis and trend discovery engine.',
+            status: 'active',
+            kpi: { runs: '850', success: '98%', latency: '4.5s', teams: '5' }
         },
         creator_text: {
             canonical: 'creator_text',
             label: 'Creator.Text',
             icon: '✍️',
-            description: 'Text generation'
+            description: 'High-quality text generation for posts and articles.',
+            status: 'active',
+            kpi: { runs: '15k', success: '99.5%', latency: '1.2s', teams: '12' }
         },
         creator_image: {
             canonical: 'creator_image',
             label: 'Creator.Image',
             icon: '🎨',
-            description: 'Image generation'
+            description: 'AI image generation and visual asset creation.',
+            status: 'active',
+            kpi: { runs: '4.2k', success: '97%', latency: '8.5s', teams: '10' }
         },
         creator_video: {
             canonical: 'creator_video',
             label: 'Creator.Video',
             icon: '🎬',
-            description: 'Video generation'
+            description: 'Short-form video generation and editing.',
+            status: 'experimental',
+            kpi: { runs: '120', success: '85%', latency: '45s', teams: '2' }
         },
         engagement: {
             canonical: 'engagement',
             label: 'Engagement',
             icon: '💬',
-            description: 'Reply & Interaction'
+            description: 'Community interaction and reply management.',
+            status: 'active',
+            kpi: { runs: '22k', success: '99.9%', latency: '0.8s', teams: '12' }
         },
         compliance: {
             canonical: 'compliance',
             label: 'Compliance',
             icon: '⚖️',
-            description: 'Fact checking & Safety'
+            description: 'Brand safety, fact-checking, and policy enforcement.',
+            status: 'active',
+            kpi: { runs: '35k', success: '100%', latency: '0.5s', teams: '12' }
         },
         evaluator: {
             canonical: 'evaluator',
             label: 'Evaluator',
             icon: '📊',
-            description: 'Quality assessment'
+            description: 'Quality assessment and performance scoring.',
+            status: 'active',
+            kpi: { runs: '12k', success: '99%', latency: '1.5s', teams: '9' }
         },
         manager: {
             canonical: 'manager',
             label: 'Manager',
             icon: '👔',
-            description: 'Final approval'
+            description: 'Final approval and team orchestration.',
+            status: 'active',
+            kpi: { runs: '5.6k', success: '99%', latency: '1.8s', teams: '12' }
         },
         kpi: {
             canonical: 'kpi',
             label: 'KPI',
             icon: '📈',
-            description: 'Performance optimization'
+            description: 'Data analytics and performance optimization.',
+            status: 'active',
+            kpi: { runs: '8.9k', success: '99%', latency: '3.2s', teams: '7' }
         },
         seo_watcher: {
             canonical: 'seo_watcher',
             label: 'SEO Watcher',
             icon: '🔎',
-            description: 'SEO policy monitoring'
+            description: 'SEO policy monitoring and keyword optimization.',
+            status: 'active',
+            kpi: { runs: '3.4k', success: '98%', latency: '2.5s', teams: '4' }
         },
         knowledge_curator: {
             canonical: 'knowledge_curator',
             label: 'Knowledge Curator',
             icon: '📚',
-            description: 'Brand memory & knowledge management'
+            description: 'Brand memory and knowledge base management.',
+            status: 'active',
+            kpi: { runs: '1.1k', success: '99%', latency: '1.5s', teams: '6' }
         }
     };
 
@@ -227,6 +254,66 @@ Your responsibilities:
 Always prioritize accurate, up-to-date information.`
     };
 
+    // ===== Page View Management =====
+
+    window.switchPageView = function (viewName) {
+        // Update Tabs
+        document.querySelectorAll('.page-tab').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.id === `tab-btn-${viewName}`) btn.classList.add('active');
+        });
+
+        // Update Views
+        document.querySelectorAll('.page-view').forEach(view => {
+            view.style.display = 'none';
+        });
+
+        const targetView = document.getElementById(`view-${viewName}`);
+        if (targetView) {
+            targetView.style.display = 'block';
+            // Trigger specific load logic if needed
+            if (viewName === 'canvas') renderCanvasView();
+            if (viewName === 'templates') {
+                // Ensure table is rendered if not already
+                if (templates.length === 0) loadTemplates();
+            }
+        }
+    };
+
+    function renderCanvasView() {
+        const grid = document.getElementById('engine-canvas-grid');
+        if (!grid) return;
+
+        grid.innerHTML = Object.values(ENGINE_TYPES).map((engine, index) => `
+            <div class="engine-card ${index % 3 === 0 ? 'pulse' : ''}" onclick="switchPageView('templates'); document.getElementById('filter-type').value='${engine.canonical}'; handleFilters();">
+                <div class="status-dot status-${engine.status}"></div>
+                <div class="engine-icon-wrapper">
+                    ${engine.icon}
+                </div>
+                <div class="engine-title">${engine.label}</div>
+                <div class="engine-desc">${engine.description}</div>
+                
+                <div class="engine-kpi-grid">
+                    <div class="kpi-item">
+                        <span class="kpi-label">Total Runs</span>
+                        <span class="kpi-value">${engine.kpi.runs}</span>
+                    </div>
+                    <div class="kpi-item">
+                        <span class="kpi-label">Success Rate</span>
+                        <span class="kpi-value" style="color: #22c55e;">${engine.kpi.success}</span>
+                    </div>
+                    <div class="kpi-item">
+                        <span class="kpi-label">Avg Latency</span>
+                        <span class="kpi-value">${engine.kpi.latency}</span>
+                    </div>
+                    <div class="kpi-item">
+                        <span class="kpi-label">Active Teams</span>
+                        <span class="kpi-value" style="color: #16e0bd;">${engine.kpi.teams}</span>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
 
     window.initSubagents = function (user) {
         console.log("Initializing Sub-Agent Templates Page...");
@@ -239,10 +326,15 @@ Always prioritize accurate, up-to-date information.`
         templates = [];
         filteredTemplates = [];
 
+        // Default to Canvas View
+        renderCanvasView();
+
+        // Pre-load templates for Tab 2
         loadTemplates();
-        // loadRuntimeProfiles(); // Deprecated in favor of Dynamic Resolution
+
         setupEventListeners();
     };
+
 
     // --- v2.0 Helpers ---
 

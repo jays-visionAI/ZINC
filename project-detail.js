@@ -265,17 +265,16 @@ document.addEventListener("DOMContentLoaded", async () => {
             let allChannels = [];
             snapshot.forEach(doc => allChannels.push({ id: doc.id, ...doc.data() }));
 
-            // [MOCK DATA] If no channels found in DB, use Mock Data
+            // [MOCK DATA REMOVED] - We only use real data from channelProfiles
+            // If no channels are found, auto-generate them
             if (allChannels.length === 0) {
-                console.log('[DEBUG] No channels in DB, using Mock Data');
-                allChannels = [
-                    { id: 'demo-x', name: 'X (Twitter)', platform: 'x', status: 'active' },
-                    { id: 'demo-li', name: 'LinkedIn', platform: 'linkedin', status: 'active' },
-                    { id: 'demo-ig', name: 'Instagram', platform: 'instagram', status: 'active' },
-                    { id: 'demo-tt', name: 'TikTok', platform: 'tiktok', status: 'active' },
-                    { id: 'demo-yt', name: 'YouTube', platform: 'youtube', status: 'active' }
-                ];
+                console.log('[DEBUG] No channels in DB. Auto-generating channel profiles...');
+                await window.generateChannelProfiles();
+                // Reload channels after generation
+                const retrySnapshot = await db.collection("channelProfiles").where("status", "==", "active").get();
+                retrySnapshot.forEach(doc => allChannels.push({ id: doc.id, ...doc.data() }));
             }
+
             console.log('[DEBUG] All active channels found:', allChannels.length, allChannels);
 
             // 2. Get already deployed channels for this project
@@ -303,8 +302,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                     channel.platform !== 'x' && channel.platform !== 'linkedin'
                 );
             } else {
-                // Normal filtering by ID
-                channelProfiles = allChannels.filter(channel => !deployedChannelIds.has(channel.id));
+                // [MODIFIED] We allow multiple teams per channel, so we DO NOT filter out deployed channels.
+                // channelProfiles = allChannels.filter(channel => !deployedChannelIds.has(channel.id));
+                channelProfiles = allChannels;
             }
 
             console.log('[DEBUG] Available channels after filtering:', channelProfiles.length, channelProfiles);
@@ -324,7 +324,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                      style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 8px; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); text-align: center;">
                     <div style="font-size: 24px; margin-bottom: 8px;">${getChannelIcon(channel.platform)}</div>
                     <div style="font-weight: 600;">${channel.name}</div>
-                    <div style="font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 4px;">${channel.platform}</div>
+                    <div style="font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 4px;">${channel.name} Team</div>
                 </div>
             `).join('');
 
@@ -362,14 +362,23 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return;
             }
 
-            grid.innerHTML = teamTemplates.map(tpl => `
+            grid.innerHTML = teamTemplates.map(tpl => {
+                // Get role icons
+                const roleIcons = (tpl.roles || []).map(role => getRoleIcon(role.type)).join(' ');
+                const description = tpl.description || 'No description available';
+
+                return `
                 <div class="template-card-select ${deployData.templateId === tpl.id ? 'selected' : ''}" 
                      onclick="selectTemplate('${tpl.id}', '${tpl.name}')"
-                     style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 8px; cursor: pointer; border: 1px solid rgba(255,255,255,0.1);">
-                    <div style="font-weight: 600; margin-bottom: 4px;">${tpl.name}</div>
-                    <div style="font-size: 12px; color: rgba(255,255,255,0.5);">${tpl.roles ? tpl.roles.length : 0} Roles</div>
+                     style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); transition: all 0.2s;">
+                    <div style="font-weight: 600; font-size: 16px; margin-bottom: 8px; color: #fff;">${tpl.name}</div>
+                    <div style="font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 12px; line-height: 1.4;">${description}</div>
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1);">
+                        <div style="font-size: 20px; display: flex; gap: 6px;">${roleIcons}</div>
+                        <div style="font-size: 12px; color: rgba(255,255,255,0.5);">${tpl.roles ? tpl.roles.length : 0} Roles</div>
+                    </div>
                 </div>
-            `).join('');
+            `}).join('');
 
             // Add style for selection
             if (!document.getElementById('template-select-style')) {
@@ -717,11 +726,41 @@ document.addEventListener("DOMContentLoaded", async () => {
         const icons = {
             instagram: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>',
             x: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l11.733 16h4.267l-11.733 -16z"></path><path d="M4 20l6.768 -6.768m2.46 -2.46l6.772 -6.772"></path></svg>',
+            twitter: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z"></path></svg>',
             youtube: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.33 29 29 0 0 0-.46-5.33z"></path><polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"></polygon></svg>',
             linkedin: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path><rect x="2" y="9" width="4" height="12"></rect><circle cx="4" cy="4" r="2"></circle></svg>',
-            medium: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6.5" cy="12" r="5.5"></circle><ellipse cx="17.5" cy="12" rx="3.5" ry="5.5"></ellipse><ellipse cx="23" cy="12" rx="1" ry="5.5"></ellipse></svg>'
+            medium: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6.5" cy="12" r="5.5"></circle><ellipse cx="17.5" cy="12" rx="3.5" ry="5.5"></ellipse><ellipse cx="23" cy="12" rx="1" ry="5.5"></ellipse></svg>',
+            discord: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="12" r="1"></circle><circle cx="15" cy="12" r="1"></circle><path d="M7.5 7.5c3.5-1 5.5-1 9 0 1.5 5.5 1.5 10 0 15.5-3.5 1-5.5 1-9 0-1.5-5.5-1.5-10 0-15.5z"></path></svg>',
+            facebook: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>',
+            pinterest: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 12a4 4 0 1 1 8 0 4 4 0 0 1-8 0z"></path><path d="M12 2a10 10 0 0 0-3.5 19.4C9 20 9 19 9 18c0-1 0-3 0-4 0-3-2-5-2-5s1-1 3-1 3 2 3 5c0 3-2 5-4 5-1 0-2-1-2-2 0-2 1-4 2-5 1-1 1-2 0-2-2 0-3 2-3 5 0 2 1 4 2 5"></path></svg>', // Approximate
+            reddit: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M17 13c0 2-2 3-5 3s-5-1-5-3"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>',
+            snapchat: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2c-4 0-6 3-6 6 0 2 1 3 1 4 0 2-2 3-2 5 0 2 3 4 7 4s7-2 7-4c0-2-2-3-2-5 0-1 1-2 1-4 0-3-2-6-6-6z"></path></svg>', // Approximate
+            telegram: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>',
+            threads: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10 10 10 0 0 0-10-10zm0 16a6 6 0 1 1 6-6 6 6 0 0 1-6 6z"></path></svg>', // Approximate
+            tiktok: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"></path></svg>'
         };
-        return icons[platform?.toLowerCase()] || icons['instagram']; // Default
+
+        // Normalize platform string
+        const key = platform?.toLowerCase().replace(/\s+/g, '');
+
+        // Try exact match, then loose match
+        if (icons[key]) return icons[key];
+
+        // Handle variations
+        if (key.includes('twitter')) return icons['x'];
+        if (key.includes('facebook')) return icons['facebook'];
+        if (key.includes('insta')) return icons['instagram'];
+        if (key.includes('linked')) return icons['linkedin'];
+        if (key.includes('tube')) return icons['youtube'];
+        if (key.includes('tok')) return icons['tiktok'];
+        if (key.includes('snap')) return icons['snapchat'];
+        if (key.includes('tele')) return icons['telegram'];
+        if (key.includes('disc')) return icons['discord'];
+        if (key.includes('red')) return icons['reddit'];
+        if (key.includes('pin')) return icons['pinterest'];
+        if (key.includes('thread')) return icons['threads'];
+
+        return icons['instagram']; // Fallback
     }
 
     function getChannelIconById(id) {

@@ -20,7 +20,7 @@
                 <line x1="12" y1="5" x2="12" y2="19"></line>
                 <line x1="5" y1="12" x2="19" y2="12"></line>
             </svg>
-            Create Agent
+            Create Agent Template
         </button>
     </div>
 </div>
@@ -218,7 +218,7 @@
             <div>
                 <h3 class="admin-modal-title" id="modal-title">Create Agent Team Template</h3>
                 <div style="font-size: 13px; color: rgba(255,255,255,0.5); margin-top: 4px;">
-                    Step <span id="wizard-step-num">1</span> of 3: <span id="wizard-step-title">Basic Info</span>
+                    Step <span id="wizard-step-num">1</span> of 4: <span id="wizard-step-title">Basic Info</span>
                 </div>
             </div>
             <button class="admin-modal-close" id="modal-close">&times;</button>
@@ -227,7 +227,7 @@
         <!-- Wizard Progress Bar -->
         <div style="background: rgba(255,255,255,0.1); height: 4px; width: 100%;">
             <div id="wizard-progress"
-                style="background: #16e0bd; height: 100%; width: 33%; transition: width 0.3s ease;"></div>
+                style="background: #16e0bd; height: 100%; width: 25%; transition: width 0.3s ease;"></div>
         </div>
 
         <!-- Wizard Body -->
@@ -245,32 +245,13 @@
                     </div>
 
                     <div class="admin-form-group">
-                        <label class="admin-form-label">2. Target Channel</label>
-                        <select id="team-channel" class="admin-select" style="width: 100%;">
-                            <option value="multi-channel">Multi Channel</option>
-                            <option value="instagram">Instagram</option>
-                            <option value="x">X (Twitter)</option>
-                            <option value="youtube">YouTube</option>
-                            <option value="linkedin">LinkedIn</option>
-                            <option value="tiktok">TikTok</option>
-                            <option value="blog">Blog</option>
-                            <option value="facebook">Facebook</option>
-                            <option value="threads">Threads</option>
-                            <option value="pinterest">Pinterest</option>
-                            <option value="snapchat">Snapchat</option>
-                            <option value="reddit">Reddit</option>
-                            <option value="discord">Discord</option>
-                        </select>
-                    </div>
-
-                    <div class="admin-form-group">
-                        <label class="admin-form-label">3. Description</label>
+                        <label class="admin-form-label">2. Description</label>
                         <textarea id="team-description" class="admin-form-input" rows="3"
                             placeholder="Describe the purpose and capabilities of this team..."></textarea>
                     </div>
 
                     <div class="admin-form-group">
-                        <label class="admin-form-label">4. Status</label>
+                        <label class="admin-form-label">3. Status</label>
                         <select id="team-status" class="admin-select" style="width: 100%;" required>
                             <option value="active">✅ Active</option>
                             <option value="draft">📝 Draft</option>
@@ -278,11 +259,12 @@
                     </div>
                 </div>
 
-                <!-- Step 2: Role Selection -->
+                <!-- Step 2: Role Configuration -->
                 <div id="step-2" class="wizard-step" style="display: none;">
                     <div style="margin-bottom: 16px;">
                         <p style="margin: 0 0 12px 0; color: rgba(255,255,255,0.7);">
-                            Select the sub-agents to include in this team.
+                            Configure the Sub-Agent roles for this team. Select engines and define their
+                            responsibilities.
                         </p>
 
                         <!-- Control Buttons -->
@@ -295,10 +277,12 @@
 
                         <!-- Header Row -->
                         <div
-                            style="display: flex; padding: 8px 12px; background: rgba(255,255,255,0.1); border-radius: 4px; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.8); margin-bottom: 8px;">
-                            <div style="width: 40px; text-align: center;">Select</div>
-                            <div style="flex: 1;">Sub-Agent</div>
-                            <div style="flex: 1;">Sub-Agent's Role</div>
+                            style="display: grid; grid-template-columns: 40px 1.5fr 1.5fr 80px 80px; gap: 12px; padding: 8px 12px; background: rgba(255,255,255,0.1); border-radius: 4px; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.8); margin-bottom: 8px;">
+                            <div style="text-align: center;">Use</div>
+                            <div>Engine Type</div>
+                            <div>Role Name (In Team)</div>
+                            <div style="text-align: center;">Required</div>
+                            <div style="text-align: center;">Active</div>
                         </div>
 
                         <!-- Roles List -->
@@ -309,30 +293,39 @@
                     </div>
                 </div>
 
-                <!-- Step 3: Review & Create -->
+                <!-- Step 3: Runtime Profile Connection -->
                 <div id="step-3" class="wizard-step" style="display: none;">
+                    <div style="margin-bottom: 16px;">
+                        <p style="margin: 0 0 12px 0; color: rgba(255,255,255,0.7);">
+                            Link Runtime Profiles to the selected roles. Runtime Profiles define the model and execution
+                            parameters for each agent.
+                        </p>
+
+                        <div id="wizard-template-connection-list"
+                            style="display: flex; flex-direction: column; gap: 12px;">
+                            <!-- Dynamically populated -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 4: Review & Create -->
+                <div id="step-4" class="wizard-step" style="display: none;">
                     <div
                         style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 8px; margin-bottom: 24px;">
                         <h4 style="margin: 0 0 12px 0; color: #16e0bd;">Template Summary</h4>
                         <div style="display: grid; grid-template-columns: 120px 1fr; gap: 8px; font-size: 14px;">
-                            <div style="color: rgba(255,255,255,0.5);">Type:</div>
-                            <div id="review-template" style="font-weight: 600;">-</div>
-
                             <div style="color: rgba(255,255,255,0.5);">Name:</div>
-                            <div id="review-name">-</div>
+                            <div id="review-name" style="font-weight: 600;">-</div>
 
                             <div style="color: rgba(255,255,255,0.5);">Description:</div>
                             <div id="review-desc">-</div>
 
-                            <div style="color: rgba(255,255,255,0.5);">Number of Assigned Sub-agent:</div>
+                            <div style="color: rgba(255,255,255,0.5);">Sub-Agents:</div>
                             <div id="review-count" style="font-weight: 600; color: #16e0bd;">0</div>
                         </div>
                     </div>
 
-                    <h4 style="margin: 0 0 12px 0;">Included Roles</h4>
-                    <p style="font-size: 13px; color: rgba(255,255,255,0.5); margin-bottom: 12px;">
-                        The following roles will be defined in this template.
-                    </p>
+                    <h4 style="margin: 0 0 12px 0;">Included Roles Configuration</h4>
                     <div id="review-agents-list" style="display: flex; flex-direction: column; gap: 8px;">
                         <!-- Dynamically populated -->
                     </div>

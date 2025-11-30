@@ -1,74 +1,332 @@
-<div class="admin-actions-bar">
-    <div class="admin-search-box">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="11" cy="11" r="8"></circle>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-        </svg>
-        <input type="text" id="subagent-search" placeholder="Search templates...">
+<style>
+    /* Page Tabs */
+    .page-tabs {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 24px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding-bottom: 0;
+    }
+
+    .page-tab {
+        background: none;
+        border: none;
+        color: rgba(255, 255, 255, 0.6);
+        padding: 12px 4px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        position: relative;
+        transition: all 0.2s;
+    }
+
+    .page-tab:hover {
+        color: #fff;
+    }
+
+    .page-tab.active {
+        color: #16e0bd;
+    }
+
+    .page-tab.active::after {
+        content: '';
+        position: absolute;
+        bottom: -1px;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background: #16e0bd;
+        box-shadow: 0 -2px 8px rgba(22, 224, 189, 0.5);
+    }
+
+    /* Canvas View Styles */
+    .canvas-header {
+        margin-bottom: 24px;
+    }
+
+    .canvas-header h2 {
+        font-size: 20px;
+        font-weight: 600;
+        color: #fff;
+        margin: 0 0 8px 0;
+    }
+
+    .canvas-header p {
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.5);
+        margin: 0;
+    }
+
+    .engine-canvas-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 20px;
+        padding-bottom: 40px;
+    }
+
+    .engine-card {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        padding: 20px;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        cursor: pointer;
+        backdrop-filter: blur(10px);
+    }
+
+    .engine-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        border-radius: 16px;
+        box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.02);
+        pointer-events: none;
+    }
+
+    .engine-card:hover {
+        transform: translateY(-4px);
+        border-color: rgba(22, 224, 189, 0.3);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2),
+            0 0 16px rgba(22, 224, 189, 0.1);
+    }
+
+    /* Pulse Animation for Glow */
+    @keyframes pulse-glow {
+        0% {
+            box-shadow: 0 0 0 0 rgba(22, 224, 189, 0);
+        }
+
+        50% {
+            box-shadow: 0 0 12px 2px rgba(22, 224, 189, 0.15);
+        }
+
+        100% {
+            box-shadow: 0 0 0 0 rgba(22, 224, 189, 0);
+        }
+    }
+
+    .engine-card.pulse {
+        animation: pulse-glow 3s infinite;
+    }
+
+    /* Float Animation for Icon */
+    @keyframes float-icon {
+
+        0%,
+        100% {
+            transform: translateY(0);
+        }
+
+        50% {
+            transform: translateY(-4px);
+        }
+    }
+
+    .engine-icon-wrapper {
+        width: 48px;
+        height: 48px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        margin-bottom: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        animation: float-icon 4s ease-in-out infinite;
+    }
+
+    .engine-card:nth-child(even) .engine-icon-wrapper {
+        animation-delay: 1s;
+    }
+
+    .engine-card:nth-child(3n) .engine-icon-wrapper {
+        animation-delay: 2s;
+    }
+
+    .engine-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #fff;
+        margin-bottom: 4px;
+    }
+
+    .engine-desc {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.5);
+        margin-bottom: 20px;
+        line-height: 1.4;
+        min-height: 34px;
+        /* 2 lines */
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .engine-kpi-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        padding-top: 16px;
+    }
+
+    .kpi-item {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .kpi-label {
+        font-size: 10px;
+        color: rgba(255, 255, 255, 0.4);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 2px;
+    }
+
+    .kpi-value {
+        font-size: 14px;
+        font-weight: 600;
+        color: #e2e8f0;
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Status Indicators */
+    .status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        position: absolute;
+        top: 20px;
+        right: 20px;
+    }
+
+    .status-active {
+        background: #22c55e;
+        box-shadow: 0 0 8px #22c55e;
+    }
+
+    .status-experimental {
+        background: #8b5cf6;
+        box-shadow: 0 0 8px #8b5cf6;
+    }
+
+    .status-deprecated {
+        background: #ef4444;
+        box-shadow: 0 0 8px #ef4444;
+    }
+</style>
+
+<!-- Page Tabs -->
+<div class="page-tabs">
+    <button class="page-tab active" onclick="switchPageView('canvas')" id="tab-btn-canvas">Sub-Agent List</button>
+    <button class="page-tab" onclick="switchPageView('templates')" id="tab-btn-templates">Sub-Agent Templates</button>
+</div>
+
+<!-- View 1: Canvas (Default) -->
+<div id="view-canvas" class="page-view">
+    <div class="canvas-header">
+        <div style="display: flex; justify-content: space-between; align-items: start;">
+            <div>
+                <h2>Sub-Agent List</h2>
+                <p>A visual canvas of ZYNK's 12 Sub-Agent Engines. These are the living cores of your agent swarm.</p>
+            </div>
+            <!-- Optional: Simple filter for canvas -->
+            <div style="display: flex; gap: 8px;">
+                <span
+                    style="font-size: 12px; color: rgba(255,255,255,0.4); padding: 4px 8px; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;">12
+                    Engines Active</span>
+            </div>
+        </div>
     </div>
-
-    <!-- Scripts -->
-    <script src="firebase-config.js"></script>
-    <script src="utils-runtime-resolver.js"></script>
-    <script src="admin-subagents.js"></script>
-    <script src="utils-runtime-profile.js"></script>
-
-
-    <div class="admin-filters">
-        <select id="filter-type" class="admin-select">
-            <option value="all">All Types</option>
-            <option value="planner">🎯 Planner</option>
-            <option value="research">🔍 Research</option>
-            <option value="creator_text">✍️ Creator.Text</option>
-            <option value="creator_image">🎨 Creator.Image</option>
-            <option value="creator_video">🎬 Creator.Video</option>
-            <option value="engagement">💬 Engagement</option>
-            <option value="compliance">⚖️ Compliance</option>
-            <option value="evaluator">📊 Evaluator</option>
-            <option value="manager">👔 Manager</option>
-            <option value="kpi">📈 KPI</option>
-            <option value="seo_watcher">🔎 SEO Watcher</option>
-            <option value="knowledge_curator">📚 Knowledge Curator</option>
-        </select>
-
-        <select id="filter-status" class="admin-select">
-            <option value="all">All Status</option>
-            <option value="active">✅ Active</option>
-            <option value="draft">📝 Draft</option>
-            <option value="deprecated">❌ Deprecated</option>
-        </select>
-
-        <button class="admin-btn-primary" id="add-subagent-btn" onclick="window.createSubAgent()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            Create Sub-Agent
-        </button>
+    <div class="engine-canvas-grid" id="engine-canvas-grid">
+        <!-- Cards will be injected by JS -->
+        <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: rgba(255,255,255,0.3);">
+            Initializing Neural Canvas...
+        </div>
     </div>
 </div>
 
-<div class="admin-table-container">
-    <table class="admin-table">
-        <thead>
-            <tr>
-                <th>Type</th>
-                <th>Template ID</th>
-                <th>Version</th>
-                <th>Status</th>
-                <th>Default Profile</th>
-                <th>Last Updated</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody id="subagents-table-body">
-            <tr>
-                <td colspan="7" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">
-                    Loading templates...
-                </td>
-            </tr>
-        </tbody>
-    </table>
+<!-- View 2: Templates (Existing) -->
+<div id="view-templates" class="page-view" style="display: none;">
+    <div class="admin-actions-bar">
+        <div class="admin-search-box">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="subagent-search" placeholder="Search templates...">
+        </div>
+
+        <!-- Scripts -->
+        <script src="firebase-config.js"></script>
+        <script src="utils-runtime-resolver.js"></script>
+        <script src="admin-subagents.js"></script>
+        <script src="utils-runtime-profile.js"></script>
+
+
+        <div class="admin-filters">
+            <select id="filter-type" class="admin-select">
+                <option value="all">All Types</option>
+                <option value="planner">🎯 Planner</option>
+                <option value="research">🔍 Research</option>
+                <option value="creator_text">✍️ Creator.Text</option>
+                <option value="creator_image">🎨 Creator.Image</option>
+                <option value="creator_video">🎬 Creator.Video</option>
+                <option value="engagement">💬 Engagement</option>
+                <option value="compliance">⚖️ Compliance</option>
+                <option value="evaluator">📊 Evaluator</option>
+                <option value="manager">👔 Manager</option>
+                <option value="kpi">📈 KPI</option>
+                <option value="seo_watcher">🔎 SEO Watcher</option>
+                <option value="knowledge_curator">📚 Knowledge Curator</option>
+            </select>
+
+            <select id="filter-status" class="admin-select">
+                <option value="all">All Status</option>
+                <option value="active">✅ Active</option>
+                <option value="draft">📝 Draft</option>
+                <option value="deprecated">❌ Deprecated</option>
+            </select>
+
+            <button class="admin-btn-primary" id="add-subagent-btn" onclick="window.createSubAgent()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Create Sub-Agent
+            </button>
+        </div>
+    </div>
+
+    <div class="admin-table-container">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Type</th>
+                    <th>Template ID</th>
+                    <th>Version</th>
+                    <th>Status</th>
+                    <th>Default Profile</th>
+                    <th>Last Updated</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="subagents-table-body">
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">
+                        Loading templates...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 </div>
 
 <!-- SubAgent Template Modal -->

@@ -149,6 +149,50 @@
         console.log('[Data Generator] Created dummy run and content.');
     }
 
+    // Generate Channel Profiles
+    window.generateChannelProfiles = async function () {
+        console.log('[Data Generator] Creating channel profiles...');
+
+        const channels = [
+            { id: 'ch_discord', platform: 'Discord', contentTypes: ['text', 'image', 'video', 'link'], tone: 'community_focused', kpiFocus: 'reactions, messages/frequency...' },
+            { id: 'ch_facebook', platform: 'Facebook', contentTypes: ['image', 'video', 'text', 'link'], tone: 'friendly', kpiFocus: 'shares, engagement...' },
+            { id: 'ch_instagram', platform: 'Instagram', contentTypes: ['image', 'short-video', 'carousel', 'story'], tone: 'visual_centric', kpiFocus: 'shares, reach...' },
+            { id: 'ch_linkedin', platform: 'LinkedIn', contentTypes: ['short-text', 'long-text', 'image', 'document'], tone: 'professional', kpiFocus: 'clicks, impressions...' },
+            { id: 'ch_medium', platform: 'Medium', contentTypes: ['long-text'], tone: 'professional', kpiFocus: 'reads, highlights...' },
+            { id: 'ch_pinterest', platform: 'Pinterest', contentTypes: ['image', 'video'], tone: 'inspirational', kpiFocus: 'clicks, impressions...' },
+            { id: 'ch_reddit', platform: 'Reddit', contentTypes: ['text', 'link', 'image', 'video'], tone: 'authentic', kpiFocus: 'awards, upvotes...' },
+            { id: 'ch_snapchat', platform: 'Snapchat', contentTypes: ['short-video', 'image', 'story'], tone: 'casual', kpiFocus: 'screenshots, shares...' },
+            { id: 'ch_telegram', platform: 'Telegram', contentTypes: ['text', 'image', 'video', 'document'], tone: 'informative', kpiFocus: 'replies, reactions...' },
+            { id: 'ch_threads', platform: 'Threads', contentTypes: ['short-text', 'image'], tone: 'conversational', kpiFocus: 'likes, reach...' },
+            { id: 'ch_tiktok', platform: 'TikTok', contentTypes: ['short-video'], tone: 'entertaining', kpiFocus: 'likes, views...' },
+            { id: 'ch_x', platform: 'X (Twitter)', contentTypes: ['short-text', 'thread', 'image', 'video'], tone: 'conversational', kpiFocus: 'replies, retweets...' },
+            { id: 'ch_youtube', platform: 'YouTube', contentTypes: ['long-video', 'short-video'], tone: 'informative', kpiFocus: 'watch-time, subscribers...' }
+        ];
+
+        const batch = db.batch();
+
+        channels.forEach(channel => {
+            const docRef = db.collection('channelProfiles').doc(channel.id);
+            batch.set(docRef, {
+                id: channel.id,
+                name: channel.platform,
+                platform: channel.platform.toLowerCase().replace(/\s+/g, '').replace(/[()]/g, ''),
+                contentTypes: channel.contentTypes,
+                interactionTone: channel.tone,
+                kpiFocus: channel.kpiFocus,
+                status: 'active',
+                version: 'v1.0.0',
+                lastUpdated: firebase.firestore.Timestamp.now(),
+                createdAt: firebase.firestore.Timestamp.now()
+            });
+        });
+
+        await batch.commit();
+        console.log(`[Data Generator] ✅ Created ${channels.length} channel profiles.`);
+        alert(`Created ${channels.length} channel profiles successfully!`);
+    };
+
     console.log('[Data Generator] Module loaded. Use window.generateTestData(projectId, teamId) to populate data.');
+    console.log('[Data Generator] Use window.generateChannelProfiles() to create channel profiles.');
 
 })();

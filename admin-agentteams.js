@@ -25,8 +25,8 @@
         status: 'active'
     };
 
-    // Available Sub-Agent Templates (for default selection)
-    let subAgentTemplates = [];
+    // Available Runtime Profiles (for default selection)
+    let runtimeProfiles = [];
 
     // Role Types (PRD 5.0 - Canonical snake_case values)
     const ROLE_TYPES = [
@@ -56,7 +56,7 @@
         filteredTemplates = [];
 
         loadTemplates();
-        loadSubAgentTemplates();
+        loadRuntimeProfiles();
         setupEventListeners();
     };
 
@@ -84,7 +84,6 @@
         if (createBtn) {
             const newBtn = createBtn.cloneNode(true);
             createBtn.parentNode.replaceChild(newBtn, createBtn);
-            newBtn.textContent = "+ Create Agent"; // Update button text
             newBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 openWizard();
@@ -112,10 +111,29 @@
 
     // --- Wizard Logic ---
 
+    // --- Wizard Logic ---
+
     function openWizard() {
         console.log("Opening Template Wizard...");
         currentStep = 1;
-        wizardData = { name: '', description: '', channel: 'multi-channel', roles: [], status: 'active' };
+
+        // Initialize with ALL roles selected by default
+        const initialRoles = ROLE_TYPES.map(t => ({
+            name: t.defaultName,
+            type: t.value,
+            is_required: true,
+            default_active: true,
+            defaultRuntimeProfileId: '',
+            behaviourPackId: null
+        }));
+
+        wizardData = {
+            name: '',
+            description: '',
+            // channel: 'multi-channel', // Removed
+            roles: initialRoles,
+            status: 'active'
+        };
 
         const form = document.getElementById('agentteam-form');
         const modal = document.getElementById('agentteam-modal');
@@ -129,6 +147,11 @@
         setTimeout(() => modal.classList.add('open'), 10);
 
         renderRoleSelection();
+
+        // Pre-load runtime profiles when wizard opens
+        loadRuntimeProfiles().then(() => {
+            console.log("Runtime Profiles pre-loaded:", runtimeProfiles.length);
+        });
     }
 
     function closeWizard() {
@@ -142,41 +165,55 @@
     function updateWizardUI() {
         // Update Header
         document.getElementById('wizard-step-num').textContent = currentStep;
-        const titles = { 1: 'Basic Info', 2: 'Select Roles', 3: 'Review & Save' };
+        const titles = { 1: 'Basic Info', 2: 'Role Configuration', 3: 'Runtime Profile', 4: 'Review & Save' };
         document.getElementById('wizard-step-title').textContent = titles[currentStep];
 
         // Update Progress Bar
-        const progress = (currentStep / 3) * 100;
+        const progress = (currentStep / 4) * 100;
         document.getElementById('wizard-progress').style.width = `${progress}%`;
 
         // Show/Hide Steps
-        // Note: We need to adjust the HTML structure slightly or reuse existing steps creatively
-        // Step 1: Template Info (Name, Desc) - Reusing 'step-2' (Instance Config) UI for this
-        // Step 2: Role Selection - Reusing 'step-1' (Select Template) UI for this
-        // Step 3: Review - Reusing 'step-3'
-
-        // Let's dynamically adjust visibility
-        document.getElementById('step-1').style.display = currentStep === 1 ? 'block' : 'none'; // Basic Info
-        document.getElementById('step-2').style.display = currentStep === 2 ? 'block' : 'none'; // Role Selection
-        document.getElementById('step-3').style.display = currentStep === 3 ? 'block' : 'none'; // Review
+        document.getElementById('step-1').style.display = currentStep === 1 ? 'block' : 'none';
+        document.getElementById('step-2').style.display = currentStep === 2 ? 'block' : 'none';
+        document.getElementById('step-3').style.display = currentStep === 3 ? 'block' : 'none';
+        document.getElementById('step-4').style.display = currentStep === 4 ? 'block' : 'none';
 
         // Update Buttons
         const prevBtn = document.getElementById('wizard-prev');
         const nextBtn = document.getElementById('wizard-next');
 
         prevBtn.style.visibility = currentStep === 1 ? 'hidden' : 'visible';
-        nextBtn.textContent = currentStep === 3 ? 'Create Template' : 'Next Step';
+        nextBtn.textContent = currentStep === 4 ? 'Create Template' : 'Next Step';
     }
 
-    function loadSubAgentTemplates() {
-        db.collection('subAgentTemplates').where('status', '==', 'active').get()
+    function loadRuntimeProfiles() {
+        console.log("Loading Runtime Profiles...");
+        return db.collection('runtimeProfiles').where('status', '==', 'active').get()
             .then(snapshot => {
-                subAgentTemplates = [];
+                runtimeProfiles = [];
                 snapshot.forEach(doc => {
-                    subAgentTemplates.push({ id: doc.id, ...doc.data() });
+                    const data = doc.data();
+                    // Map role_type to normalized engine type for compatibility
+                    // The new schema uses 'role_type', legacy used 'engine_type'
+                    const engineType = data.role_type || data.engine_type || data.engine || data.type || 'unknown';
+
+                    runtimeProfiles.push({
+                        id: doc.id,
+                        ...data,
+                        _normalized_engine_type: engineType
+                    });
                 });
+
+                if (runtimeProfiles.length > 0) {
+                    console.log("First Profile Data Sample:", runtimeProfiles[0]);
+                }
+
+                console.log(`Loaded ${runtimeProfiles.length} active runtime profiles.`);
+                // Log unique engine types found
+                const engineTypes = [...new Set(runtimeProfiles.map(p => p._normalized_engine_type))];
+                console.log("Available Role Types (Normalized):", engineTypes);
             })
-            .catch(err => console.error("Error loading sub-agent templates:", err));
+            .catch(err => console.error("Error loading runtime profiles:", err));
     }
 
     function renderRoleSelection() {
@@ -184,20 +221,42 @@
         if (!list) return;
 
         list.innerHTML = ROLE_TYPES.map((roleType, index) => {
-            const isSelected = wizardData.roles.some(r => r.type === roleType.value);
+            const roleData = wizardData.roles.find(r => r.type === roleType.value);
+            const isSelected = !!roleData;
+
+            // If selected, use stored values, otherwise use defaults
+            const roleName = roleData ? roleData.name : roleType.defaultName;
+            const isRequired = roleData ? roleData.is_required : true;
+            const isActive = roleData ? roleData.default_active : true;
+
             return `
-            <div class="role-item-row" style="display: flex; align-items: center; padding: 10px 12px; background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.05);">
-                <div style="width: 40px; text-align: center;">
-                    <input type="checkbox" ${isSelected ? 'checked' : ''} 
+            <div class="role-item-row" style="display: grid; grid-template-columns: 40px 1.5fr 1.5fr 80px 80px; gap: 12px; align-items: center; padding: 10px 12px; background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.05);">
+                <div style="text-align: center;">
+                    <input type="checkbox" ${isSelected ? 'checked' : ''}
                         onchange="toggleRole('${roleType.value}', this.checked)"
                         style="transform: scale(1.2); cursor: pointer;">
                 </div>
-                <div style="flex: 1; display: flex; align-items: center; gap: 8px;">
-                    <span>${roleType.icon}</span>
+                <div style="display: flex; align-items: center; gap: 8px; opacity: ${isSelected ? 1 : 0.5};">
                     <span style="font-size: 13px; color: rgba(255,255,255,0.9);">${roleType.label}</span>
                 </div>
-                <div style="flex: 1;">
-                    <span style="font-size: 13px; color: rgba(255,255,255,0.7);">${roleType.defaultName}</span>
+                <div>
+                    <input type="text" class="admin-form-input"
+                        value="${roleName}"
+                        ${!isSelected ? 'disabled' : ''}
+                        onchange="updateRoleData('${roleType.value}', 'name', this.value)"
+                        style="padding: 4px 8px; font-size: 13px; height: 30px;">
+                </div>
+                <div style="text-align: center;">
+                    <input type="checkbox" ${isRequired ? 'checked' : ''}
+                        ${!isSelected ? 'disabled' : ''}
+                        onchange="updateRoleData('${roleType.value}', 'is_required', this.checked)"
+                        style="cursor: pointer;">
+                </div>
+                <div style="text-align: center;">
+                    <input type="checkbox" ${isActive ? 'checked' : ''}
+                        ${!isSelected ? 'disabled' : ''}
+                        onchange="updateRoleData('${roleType.value}', 'default_active', this.checked)"
+                        style="cursor: pointer;">
                 </div>
             </div>
         `}).join('');
@@ -210,16 +269,23 @@
                 wizardData.roles.push({
                     name: roleType.defaultName,
                     type: roleType.value,
-                    defaultTemplateId: '', // Hidden in UI, default empty
+                    is_required: true,
+                    default_active: true,
+                    defaultRuntimeProfileId: '',
                     behaviourPackId: null
                 });
             }
         } else {
             wizardData.roles = wizardData.roles.filter(r => r.type !== type);
         }
-        // No need to re-render entire list, checkbox state is handled by browser
-        // But if we want to update summary or other UI, we might need to.
-        // For now, just updating data is enough.
+        renderRoleSelection(); // Re-render to update disabled states
+    };
+
+    window.updateRoleData = function (type, field, value) {
+        const roleIndex = wizardData.roles.findIndex(r => r.type === type);
+        if (roleIndex !== -1) {
+            wizardData.roles[roleIndex][field] = value;
+        }
     };
 
     window.toggleAllRoles = function (checked) {
@@ -227,7 +293,9 @@
             wizardData.roles = ROLE_TYPES.map(t => ({
                 name: t.defaultName,
                 type: t.value,
-                defaultTemplateId: '',
+                is_required: true,
+                default_active: true,
+                defaultRuntimeProfileId: '',
                 behaviourPackId: null
             }));
         } else {
@@ -235,6 +303,58 @@
         }
         renderRoleSelection();
     };
+
+    function renderRuntimeProfileConnection() {
+        const list = document.getElementById('wizard-template-connection-list');
+        if (!list) return;
+
+        console.log("Rendering Runtime Profile Connection Step...");
+        console.log("Current Roles:", wizardData.roles.map(r => r.type));
+        console.log("Available Profiles:", runtimeProfiles.length);
+
+        if (wizardData.roles.length === 0) {
+            list.innerHTML = '<div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">No roles selected. Please go back and select roles.</div>';
+            return;
+        }
+
+        list.innerHTML = wizardData.roles.map(role => {
+            const roleType = ROLE_TYPES.find(t => t.value === role.type);
+
+            // Filter runtime profiles using normalized role type
+            const availableProfiles = runtimeProfiles.filter(p =>
+                (p._normalized_engine_type || '').toLowerCase() === (role.type || '').toLowerCase()
+            );
+
+            console.log(`Role: ${role.type}, Matching Profiles: ${availableProfiles.length}`);
+
+            const options = availableProfiles.map(p =>
+                `<option value="${p.id}" ${role.defaultRuntimeProfileId === p.id ? 'selected' : ''}>${p.id} - ${p.model_name || 'Unknown Model'} (${p.tier || 'standard'})</option>`
+            ).join('');
+
+            return `
+            <div style="background: rgba(255,255,255,0.03); padding: 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                    <span style="font-size: 20px;">${roleType?.icon || '🤖'}</span>
+                    <div>
+                        <div style="font-weight: 600; color: #fff;">${role.name}</div>
+                        <div style="font-size: 12px; color: rgba(255,255,255,0.5);">${roleType?.label}</div>
+                    </div>
+                    ${role.is_required ? '<span style="font-size: 10px; background: rgba(239, 68, 68, 0.2); color: #f87171; padding: 2px 6px; border-radius: 4px; margin-left: auto;">Required</span>' : ''}
+                </div>
+
+                <div class="admin-form-group" style="margin-bottom: 0;">
+                    <label class="admin-form-label" style="font-size: 12px;">Runtime Profile</label>
+                    <select class="admin-select" style="width: 100%;"
+                        onchange="updateRoleData('${role.type}', 'defaultRuntimeProfileId', this.value)">
+                        <option value="">-- Select Runtime Profile --</option>
+                        ${options}
+                    </select>
+                    ${availableProfiles.length === 0 ? `<div style="font-size: 11px; color: #f87171; margin-top: 4px;">No active runtime profiles found for role type: <strong>${role.type}</strong></div>` : ''}
+                </div>
+            </div>
+            `;
+        }).join('');
+    }
 
     function handleNextStep() {
         if (currentStep === 1) {
@@ -245,22 +365,31 @@
                 return;
             }
             wizardData.name = name;
-            wizardData.channel = document.getElementById('team-channel').value;
+            // wizardData.channel = document.getElementById('team-channel').value; // Removed
             wizardData.description = document.getElementById('team-description').value;
             wizardData.status = document.getElementById('team-status').value;
             currentStep++;
+            updateWizardUI();
         } else if (currentStep === 2) {
             // Role Selection Validation
             if (wizardData.roles.length === 0) {
                 alert('Please select at least one role');
                 return;
             }
-            renderStep3();
-            currentStep++;
+            // Ensure runtime profiles are loaded before rendering connection step
+            loadRuntimeProfiles().then(() => {
+                renderRuntimeProfileConnection();
+                currentStep++;
+                updateWizardUI();
+            });
+            return; // exit early; UI will be updated in promise callback
         } else if (currentStep === 3) {
+            renderStep4();
+            currentStep++;
+            updateWizardUI();
+        } else if (currentStep === 4) {
             createTemplate();
         }
-        updateWizardUI();
     }
 
     function handlePrevStep() {
@@ -270,10 +399,10 @@
         }
     }
 
-    function renderStep3() {
-        document.getElementById('review-template').textContent = "New Template"; // Static text
+    function renderStep4() {
         document.getElementById('review-name').textContent = wizardData.name;
         document.getElementById('review-desc').textContent = wizardData.description || 'No description';
+        // document.getElementById('review-channel').textContent = formatChannelType(wizardData.channel); // Removed
         document.getElementById('review-count').textContent = wizardData.roles.length;
 
         const list = document.getElementById('review-agents-list');
@@ -281,15 +410,22 @@
             const typeObj = ROLE_TYPES.find(t => t.value === role.type);
             return `
             <div style="display: flex; justify-content: space-between; padding: 12px; background: rgba(255,255,255,0.03); border-radius: 4px; align-items: center;">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="font-size: 16px;">${typeObj?.icon || '🤖'}</span>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span style="font-size: 20px;">${typeObj?.icon || '🤖'}</span>
                     <div>
-                        <span style="text-transform: capitalize; font-weight: 500; display: block;">${role.name || 'Unnamed Role'}</span>
-                        <span style="font-size: 11px; color: rgba(255,255,255,0.4); text-transform: uppercase;">${typeObj?.label || role.type}</span>
+                        <span style="font-weight: 600; display: block; color: #fff;">${role.name}</span>
+                        <span style="font-size: 12px; color: rgba(255,255,255,0.5);">${typeObj?.label}</span>
                     </div>
                 </div>
-                <div style="font-size: 12px; color: rgba(255,255,255,0.5);">
-                    ${role.defaultTemplateId ? `<code style="color: #4ecdc4;">${role.defaultTemplateId}</code>` : 'No Default'}
+                <div style="text-align: right;">
+                     <div style="font-size: 12px; color: #16e0bd; margin-bottom: 2px;" title="Runtime Profile ID">
+                        ${role.defaultRuntimeProfileId || '<span style="color: rgba(255,255,255,0.3);">No Profile</span>'}
+                    </div>
+                    <div style="font-size: 11px; display: flex; gap: 8px; justify-content: flex-end;">
+                        ${role.is_required ? '<span style="color: #f87171;">Required</span>' : '<span style="color: rgba(255,255,255,0.3);">Optional</span>'}
+                        <span style="color: rgba(255,255,255,0.2);">|</span>
+                        ${role.default_active ? '<span style="color: #22c55e;">Active</span>' : '<span style="color: rgba(255,255,255,0.3);">Inactive</span>'}
+                    </div>
                 </div>
             </div>
         `}).join('');
@@ -310,7 +446,7 @@
                 description: wizardData.description,
                 status: wizardData.status,
                 version: '1.0.0',
-                channel_type: wizardData.channel,
+                // channel_type: wizardData.channel, // Removed
                 roles: wizardData.roles,
                 created_at: firebase.firestore.FieldValue.serverTimestamp(),
                 updated_at: firebase.firestore.FieldValue.serverTimestamp(),
@@ -331,6 +467,7 @@
             btn.textContent = 'Create Template';
         }
     }
+
 
     // --- List Logic (Templates) ---
 
