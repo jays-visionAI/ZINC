@@ -1,170 +1,275 @@
 // utils-runtime-resolver.js
-// Runtime Profile Dynamic Resolution System
-// Resolves LLM configuration based on Sub-Agent metadata
+// Runtime Profile Rule Resolver
+// Resolves runtime configuration based on role_type, language, and tier
 
-(function () {
-    'use strict';
+/**
+ * Resolves runtime configuration from runtimeProfileRules
+ * 
+ * @param {Object} meta - Metadata for resolution
+ * @param {string} meta.role_type - Engine type (planner, creator_text, etc.)
+ * @param {string} [meta.language='global'] - Language code (ko, en, global, etc.)
+ * @param {string} [meta.tier='balanced'] - Tier (creative, balanced, precise)
+ * 
+ * @returns {Promise<Object>} Resolved runtime configuration
+ * @returns {string} return.provider - LLM provider (openai, anthropic, etc.)
+ * @returns {string} return.model_id - Model identifier
+ * @returns {number} return.temperature - Temperature setting
+ * @returns {number} [return.top_p] - Top-p sampling parameter
+ * @returns {number} [return.max_tokens] - Maximum tokens
+ * @returns {string} return.runtime_rule_id - Source rule document ID
+ * @returns {string} return.resolved_language - Actual language used (after fallback)
+ * @returns {string} return.resolved_tier - Actual tier used (after fallback)
+ */
+async function resolveRuntimeConfig(meta) {
+    // Step 1: Input normalization
+    const role = meta.role_type;
+    const lang = (meta.language || 'global').toLowerCase();
+    const tier = meta.tier || 'balanced';
 
-    /**
-     * Resolve runtime configuration for a Sub-Agent
-     * @param {Object} subAgentTemplate - Sub-Agent template data
-     * @param {Object} [subAgentInstance] - Optional Sub-Agent instance data (for overrides)
-     * @returns {Promise<Object>} Resolved runtime configuration
-     */
-    window.resolveRuntimeConfig = async function (subAgentTemplate, subAgentInstance = null) {
-        const {
-            type,              // Engine type (e.g., "planner")
-            role_type,         // Role type (e.g., "strategist")
-            primary_language,  // Language (e.g., "ko")
-            preferred_tier     // Tier (e.g., "balanced")
-        } = subAgentTemplate;
+    if (!role) {
+        throw new Error('role_type is required');
+    }
 
-        // Validate required fields
-        if (!type) {
-            throw new Error('Sub-Agent template missing "type" field');
-        }
+    console.log(`[RuntimeResolver] Resolving: role=${role}, lang=${lang}, tier=${tier}`);
 
-        const tier = preferred_tier || 'balanced';
-        const language = primary_language || 'en';
+    try {
+        const db = firebase.firestore();
 
-        let rule;
+        // Step 2: Rule search with fallback
+        let rule = null;
+        let resolvedLanguage = lang;
 
-        // 1. Check for Instance-level Override
-        if (subAgentInstance && subAgentInstance.runtimeRuleOverrideId) {
-            console.log(`[Runtime Resolver] Using instance override rule: ${subAgentInstance.runtimeRuleOverrideId}`);
-            const ruleDoc = await db.collection('runtimeProfileRules').doc(subAgentInstance.runtimeRuleOverrideId).get();
-            if (ruleDoc.exists) {
-                rule = ruleDoc.data();
-            } else {
-                console.warn(`Override rule ${subAgentInstance.runtimeRuleOverrideId} not found, falling back to engine type.`);
-            }
-        }
-
-        // 2. Fetch Runtime Profile Rule for this engine type (if no override or override failed)
-        if (!rule) {
-            const rulesSnapshot = await db.collection('runtimeProfileRules')
-                .where('engine_type', '==', type)
-                .where('status', '==', 'active')
+        // 2.1: Try exact match (engine_type + language)
+        if (lang !== 'global') {
+            console.log(`[RuntimeResolver] Searching for: engine_type=${role}, language=${lang}`);
+            const exactSnapshot = await db.collection('runtimeProfileRules')
+                .where('engine_type', '==', role)
+                .where('language', '==', lang)
+                .where('is_active', '==', true)
                 .limit(1)
                 .get();
 
-            if (rulesSnapshot.empty) {
-                console.warn(`No runtime rule found for engine type: ${type}, using fallback`);
-                return getFallbackConfig(type, tier, language);
+            if (!exactSnapshot.empty) {
+                rule = { id: exactSnapshot.docs[0].id, ...exactSnapshot.docs[0].data() };
+                console.log(`[RuntimeResolver] ✓ Found exact match: ${rule.id}`);
             }
-            rule = rulesSnapshot.docs[0].data();
         }
 
-        // 2. Get base model configuration for the tier
-        let modelConfig = rule.models?.[tier];
+        // 2.2: Fallback to global language
+        if (!rule) {
+            console.log(`[RuntimeResolver] Falling back to: engine_type=${role}, language=global`);
+            const globalSnapshot = await db.collection('runtimeProfileRules')
+                .where('engine_type', '==', role)
+                .where('language', '==', 'global')
+                .where('is_active', '==', true)
+                .limit(1)
+                .get();
 
-        if (!modelConfig) {
-            console.warn(`No model config for tier: ${tier}, using balanced`);
-            modelConfig = rule.models?.balanced || rule.models?.creative || {};
+            if (!globalSnapshot.empty) {
+                rule = { id: globalSnapshot.docs[0].id, ...globalSnapshot.docs[0].data() };
+                resolvedLanguage = 'global';
+                console.log(`[RuntimeResolver] ✓ Found global fallback: ${rule.id}`);
+            }
         }
 
-        // 3. Apply language-specific overrides if available
-        if (rule.language_overrides?.[language]?.[tier]) {
-            const override = rule.language_overrides[language][tier];
-            modelConfig = { ...modelConfig, ...override };
+        // 2.3: No rule found
+        if (!rule) {
+            throw new Error(`No runtime profile rule found for role_type: ${role}`);
         }
 
-        // 4. Merge with Sub-Agent specific config
-        const finalConfig = {
-            provider: modelConfig.provider || 'openai',
-            model_id: modelConfig.model_id || 'gpt-4',
-            temperature: subAgentTemplate.config?.temperature ?? modelConfig.temperature ?? 0.7,
-            max_tokens: subAgentTemplate.config?.maxTokens ?? modelConfig.max_tokens ?? 2000,
-            top_p: modelConfig.top_p ?? 1.0,
-            frequency_penalty: modelConfig.frequency_penalty ?? 0,
-            presence_penalty: modelConfig.presence_penalty ?? 0,
+        // Step 3: Tier selection with fallback
+        let tierConfig = null;
+        let resolvedTier = tier;
 
-            // Metadata
-            language: language,
-            role_type: role_type || 'general',
-            tier: tier,
-            engine_type: type,
+        // 3.1: Try requested tier
+        if (rule.tiers && rule.tiers[tier]) {
+            tierConfig = rule.tiers[tier];
+            console.log(`[RuntimeResolver] ✓ Using requested tier: ${tier}`);
+        }
+        // 3.2: Fallback order: balanced → creative → precise
+        else {
+            const fallbackOrder = ['balanced', 'creative', 'precise'];
+            console.log(`[RuntimeResolver] ⚠️  Tier '${tier}' not found, trying fallback...`);
 
-            // Rule metadata
-            rule_id: rule.id || 'unknown',
-            resolution_source: subAgentInstance?.runtimeRuleOverrideId ? 'instance_override' : 'engine_default',
-            resolved_at: new Date().toISOString()
+            for (const fallbackTier of fallbackOrder) {
+                if (rule.tiers && rule.tiers[fallbackTier]) {
+                    tierConfig = rule.tiers[fallbackTier];
+                    resolvedTier = fallbackTier;
+                    console.log(`[RuntimeResolver] ✓ Using fallback tier: ${fallbackTier}`);
+                    break;
+                }
+            }
+        }
+
+        // 3.3: No tier config found
+        if (!tierConfig) {
+            throw new Error(`No tier configuration found in rule: ${rule.id}`);
+        }
+
+        // Step 4: Build return object
+        const config = {
+            provider: tierConfig.provider,
+            model_id: tierConfig.model_id,
+            temperature: tierConfig.temperature,
+            runtime_rule_id: rule.id,
+            resolved_language: resolvedLanguage,
+            resolved_tier: resolvedTier
         };
 
-        console.log(`[Runtime Resolver] Resolved config for ${type} (${language}, ${tier}):`, finalConfig);
-        return finalConfig;
-    };
+        // Optional fields
+        if (tierConfig.top_p !== undefined) {
+            config.top_p = tierConfig.top_p;
+        }
+        if (tierConfig.max_tokens !== undefined) {
+            config.max_tokens = tierConfig.max_tokens;
+        }
 
-    /**
-     * Fallback configuration when no rule is found
-     */
-    function getFallbackConfig(engineType, tier, language) {
-        console.warn(`Using fallback config for ${engineType}`);
+        console.log(`[RuntimeResolver] ✅ Resolved config:`, config);
+        return config;
 
-        const tierConfigs = {
-            creative: { temperature: 0.9, model_id: 'gpt-4-turbo' },
-            balanced: { temperature: 0.7, model_id: 'gpt-4' },
-            precise: { temperature: 0.3, model_id: 'gpt-4' }
-        };
+    } catch (error) {
+        console.error(`[RuntimeResolver] ❌ Error:`, error);
+        throw error;
+    }
+}
 
-        const config = tierConfigs[tier] || tierConfigs.balanced;
+/**
+ * Batch resolve multiple runtime configurations
+ * Useful for resolving entire agent teams
+ * 
+ * @param {Array<Object>} metaArray - Array of metadata objects
+ * @returns {Promise<Array<Object>>} Array of resolved configurations
+ */
+async function batchResolveRuntimeConfig(metaArray) {
+    console.log(`[RuntimeResolver] Batch resolving ${metaArray.length} configs...`);
 
+    const promises = metaArray.map(meta => resolveRuntimeConfig(meta));
+    const results = await Promise.all(promises);
+
+    console.log(`[RuntimeResolver] ✅ Batch resolved ${results.length} configs`);
+    return results;
+}
+
+/**
+ * Get all available runtime profile rules
+ * Useful for admin UI and debugging
+ * 
+ * @returns {Promise<Array<Object>>} Array of all active rules
+ */
+async function getAllRuntimeRules() {
+    try {
+        const db = firebase.firestore();
+        const snapshot = await db.collection('runtimeProfileRules')
+            .where('is_active', '==', true)
+            .get();
+
+        const rules = [];
+        snapshot.forEach(doc => {
+            rules.push({ id: doc.id, ...doc.data() });
+        });
+
+        console.log(`[RuntimeResolver] Found ${rules.length} active rules`);
+        return rules;
+
+    } catch (error) {
+        console.error(`[RuntimeResolver] Error fetching rules:`, error);
+        throw error;
+    }
+}
+
+/**
+ * Get available tiers for a specific role and language
+ * 
+ * @param {string} role_type - Engine type
+ * @param {string} [language='global'] - Language code
+ * @returns {Promise<Array<string>>} Array of available tier names
+ */
+async function getAvailableTiers(role_type, language = 'global') {
+    try {
+        const db = firebase.firestore();
+        const snapshot = await db.collection('runtimeProfileRules')
+            .where('engine_type', '==', role_type)
+            .where('language', '==', language)
+            .where('is_active', '==', true)
+            .limit(1)
+            .get();
+
+        if (snapshot.empty) {
+            // Fallback to global
+            const globalSnapshot = await db.collection('runtimeProfileRules')
+                .where('engine_type', '==', role_type)
+                .where('language', '==', 'global')
+                .where('is_active', '==', true)
+                .limit(1)
+                .get();
+
+            if (globalSnapshot.empty) {
+                return [];
+            }
+
+            const rule = globalSnapshot.docs[0].data();
+            return Object.keys(rule.tiers || {});
+        }
+
+        const rule = snapshot.docs[0].data();
+        return Object.keys(rule.tiers || {});
+
+    } catch (error) {
+        console.error(`[RuntimeResolver] Error fetching tiers:`, error);
+        return [];
+    }
+}
+
+/**
+ * Validate if a runtime configuration is valid
+ * 
+ * @param {Object} meta - Metadata to validate
+ * @returns {Promise<Object>} Validation result
+ */
+async function validateRuntimeConfig(meta) {
+    try {
+        const config = await resolveRuntimeConfig(meta);
         return {
-            provider: 'openai',
-            model_id: config.model_id,
-            temperature: config.temperature,
-            max_tokens: 2000,
-            language: language,
-            tier: tier,
-            engine_type: engineType,
-            is_fallback: true
+            valid: true,
+            config: config,
+            warnings: []
+        };
+    } catch (error) {
+        return {
+            valid: false,
+            error: error.message,
+            warnings: []
         };
     }
+}
 
-    /**
-     * Get available tiers for UI
-     */
-    window.getAvailableTiers = function () {
-        return [
-            { value: 'creative', label: 'Creative', description: 'High creativity, exploratory' },
-            { value: 'balanced', label: 'Balanced', description: 'Balanced creativity and accuracy' },
-            { value: 'precise', label: 'Precise', description: 'High accuracy, factual' }
-        ];
+// Export for global access (browser console debugging)
+if (typeof window !== 'undefined') {
+    window.resolveRuntimeConfig = resolveRuntimeConfig;
+    window.batchResolveRuntimeConfig = batchResolveRuntimeConfig;
+    window.getAllRuntimeRules = getAllRuntimeRules;
+    window.getAvailableTiers = getAvailableTiers;
+    window.validateRuntimeConfig = validateRuntimeConfig;
+
+    console.log('[RuntimeResolver] ✅ Utilities loaded and exposed to window');
+    console.log('[RuntimeResolver] Available functions:');
+    console.log('  - resolveRuntimeConfig(meta)');
+    console.log('  - batchResolveRuntimeConfig(metaArray)');
+    console.log('  - getAllRuntimeRules()');
+    console.log('  - getAvailableTiers(role_type, language)');
+    console.log('  - validateRuntimeConfig(meta)');
+    console.log('');
+    console.log('Example usage:');
+    console.log('  await resolveRuntimeConfig({ role_type: "planner", language: "ko", tier: "balanced" })');
+}
+
+// Export for module usage
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        resolveRuntimeConfig,
+        batchResolveRuntimeConfig,
+        getAllRuntimeRules,
+        getAvailableTiers,
+        validateRuntimeConfig
     };
-
-    /**
-     * Get available languages for UI
-     */
-    window.getAvailableLanguages = function () {
-        return [
-            { value: 'en', label: 'English', flag: '🇺🇸' },
-            { value: 'ko', label: '한국어', flag: '🇰🇷' },
-            { value: 'ja', label: '日本語', flag: '🇯🇵' },
-            { value: 'zh', label: '中文', flag: '🇨🇳' },
-            { value: 'es', label: 'Español', flag: '🇪🇸' },
-            { value: 'fr', label: 'Français', flag: '🇫🇷' },
-            { value: 'de', label: 'Deutsch', flag: '🇩🇪' },
-            { value: 'pt', label: 'Português', flag: '🇵🇹' },
-            { value: 'ar', label: 'العربية', flag: '🇸🇦' },
-            { value: 'hi', label: 'हिन्दी', flag: '🇮🇳' },
-            { value: 'ru', label: 'Русский', flag: '🇷🇺' },
-            { value: 'id', label: 'Bahasa Indonesia', flag: '🇮🇩' }
-        ];
-    };
-
-    /**
-     * Get available role types for UI
-     */
-    window.getAvailableRoleTypes = function () {
-        return [
-            { value: 'strategist', label: 'Strategist', description: 'Strategic planning and analysis' },
-            { value: 'analyst', label: 'Analyst', description: 'Data analysis and insights' },
-            { value: 'creator', label: 'Creator', description: 'Content creation' },
-            { value: 'curator', label: 'Curator', description: 'Content curation and organization' },
-            { value: 'moderator', label: 'Moderator', description: 'Content moderation' },
-            { value: 'optimizer', label: 'Optimizer', description: 'Performance optimization' }
-        ];
-    };
-
-    console.log('[Runtime Resolver] Module loaded');
-})();
+}

@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Runtime Resolver Tester</title>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            padding: 40px;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #e2e8f0;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #60a5fa;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #94a3b8;
+            margin-bottom: 32px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .card {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(96, 165, 250, 0.2);
+            border-radius: 12px;
+            padding: 24px;
+        }
+
+        .card h2 {
+            color: #60a5fa;
+            font-size: 18px;
+            margin-bottom: 16px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            color: #94a3b8;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 6px;
+        }
+
+        select,
+        input {
+            width: 100%;
+            padding: 10px 12px;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(96, 165, 250, 0.3);
+            border-radius: 6px;
+            color: #e2e8f0;
+            font-size: 14px;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            transition: all 0.2s;
+            margin-right: 8px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+        }
+
+        .result {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(96, 165, 250, 0.2);
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 16px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+        }
+
+        .success {
+            color: #22c55e;
+        }
+
+        .error {
+            color: #ef4444;
+        }
+
+        .key {
+            color: #60a5fa;
+        }
+
+        .value {
+            color: #fbbf24;
+        }
+
+        .console-output {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(96, 165, 250, 0.2);
+            border-radius: 8px;
+            padding: 16px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .log {
+            margin-bottom: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🔧 Runtime Resolver Tester</h1>
+        <p class="subtitle">Test the runtime configuration resolver with different inputs</p>
+
+        <div class="grid">
+            <!-- Input Form -->
+            <div class="card">
+                <h2>Input Parameters</h2>
+
+                <div class="form-group">
+                    <label>Role Type (Engine Type)</label>
+                    <select id="role-type">
+                        <option value="planner">planner</option>
+                        <option value="research">research</option>
+                        <option value="creator_text">creator_text</option>
+                        <option value="creator_image">creator_image</option>
+                        <option value="creator_video">creator_video</option>
+                        <option value="engagement">engagement</option>
+                        <option value="compliance">compliance</option>
+                        <option value="evaluator">evaluator</option>
+                        <option value="manager">manager</option>
+                        <option value="kpi">kpi</option>
+                        <option value="seo_watcher">seo_watcher</option>
+                        <option value="knowledge_curator">knowledge_curator</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Language</label>
+                    <select id="language">
+                        <option value="global">global</option>
+                        <option value="en">en (English)</option>
+                        <option value="ko">ko (Korean)</option>
+                        <option value="ja">ja (Japanese)</option>
+                        <option value="zh">zh (Chinese)</option>
+                        <option value="es">es (Spanish)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Tier</label>
+                    <select id="tier">
+                        <option value="balanced">balanced</option>
+                        <option value="creative">creative</option>
+                        <option value="precise">precise</option>
+                    </select>
+                </div>
+
+                <button onclick="testResolve()">🚀 Resolve Config</button>
+                <button onclick="testGetAllRules()">📋 Get All Rules</button>
+                <button onclick="testGetTiers()">🎯 Get Available Tiers</button>
+
+                <div id="result" class="result" style="display: none;"></div>
+            </div>
+
+            <!-- Console Output -->
+            <div class="card">
+                <h2>Console Output</h2>
+                <div id="console" class="console-output"></div>
+            </div>
+        </div>
+
+        <!-- All Rules Display -->
+        <div class="card" id="all-rules-card" style="display: none;">
+            <h2>All Runtime Profile Rules</h2>
+            <div id="all-rules"></div>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="utils-runtime-resolver.js"></script>
+
+    <script>
+        const consoleDiv = document.getElementById('console');
+        const resultDiv = document.getElementById('result');
+        const allRulesCard = document.getElementById('all-rules-card');
+        const allRulesDiv = document.getElementById('all-rules');
+
+        // Intercept console.log
+        const originalLog = console.log;
+        console.log = function (...args) {
+            originalLog.apply(console, args);
+            const div = document.createElement('div');
+            div.className = 'log';
+            div.textContent = args.map(a => typeof a === 'object' ? JSON.stringify(a, null, 2) : a).join(' ');
+            consoleDiv.appendChild(div);
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        };
+
+        async function testResolve() {
+            const roleType = document.getElementById('role-type').value;
+            const language = document.getElementById('language').value;
+            const tier = document.getElementById('tier').value;
+
+            resultDiv.style.display = 'none';
+            allRulesCard.style.display = 'none';
+
+            try {
+                console.log('='.repeat(60));
+                console.log(`Testing resolveRuntimeConfig...`);
+                console.log(`Input: role_type=${roleType}, language=${language}, tier=${tier}`);
+                console.log('='.repeat(60));
+
+                const config = await resolveRuntimeConfig({
+                    role_type: roleType,
+                    language: language,
+                    tier: tier
+                });
+
+                resultDiv.innerHTML = `
+                    <div class="success">✅ Resolution Successful</div>
+                    <pre>${JSON.stringify(config, null, 2)}</pre>
+                `;
+                resultDiv.style.display = 'block';
+
+            } catch (error) {
+                console.error('Error:', error);
+                resultDiv.innerHTML = `
+                    <div class="error">❌ Resolution Failed</div>
+                    <pre>${error.message}</pre>
+                `;
+                resultDiv.style.display = 'block';
+            }
+        }
+
+        async function testGetAllRules() {
+            allRulesCard.style.display = 'none';
+            resultDiv.style.display = 'none';
+
+            try {
+                console.log('='.repeat(60));
+                console.log(`Fetching all runtime rules...`);
+                console.log('='.repeat(60));
+
+                const rules = await getAllRuntimeRules();
+
+                let html = `<div class="success">Found ${rules.length} rules</div>`;
+                rules.forEach(rule => {
+                    html += `
+                        <div class="result" style="margin-top: 12px;">
+                            <div><span class="key">ID:</span> <span class="value">${rule.id}</span></div>
+                            <div><span class="key">Engine:</span> ${rule.engine_type}</div>
+                            <div><span class="key">Language:</span> ${rule.language}</div>
+                            <div><span class="key">Tiers:</span> ${Object.keys(rule.tiers || {}).join(', ')}</div>
+                        </div>
+                    `;
+                });
+
+                allRulesDiv.innerHTML = html;
+                allRulesCard.style.display = 'block';
+
+            } catch (error) {
+                console.error('Error:', error);
+                allRulesDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+                allRulesCard.style.display = 'block';
+            }
+        }
+
+        async function testGetTiers() {
+            const roleType = document.getElementById('role-type').value;
+            const language = document.getElementById('language').value;
+
+            resultDiv.style.display = 'none';
+            allRulesCard.style.display = 'none';
+
+            try {
+                console.log('='.repeat(60));
+                console.log(`Getting available tiers for ${roleType} (${language})...`);
+                console.log('='.repeat(60));
+
+                const tiers = await getAvailableTiers(roleType, language);
+
+                resultDiv.innerHTML = `
+                    <div class="success">✅ Available Tiers</div>
+                    <pre>${JSON.stringify(tiers, null, 2)}</pre>
+                `;
+                resultDiv.style.display = 'block';
+
+            } catch (error) {
+                console.error('Error:', error);
+                resultDiv.innerHTML = `
+                    <div class="error">❌ Error</div>
+                    <pre>${error.message}</pre>
+                `;
+                resultDiv.style.display = 'block';
+            }
+        }
+
+        // Auto-load on page load
+        window.addEventListener('load', () => {
+            console.log('🔧 Runtime Resolver Tester loaded');
+            console.log('Try resolving a configuration using the form above');
+        });
+    </script>
+</body>
+
+</html>
