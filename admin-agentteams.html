@@ -37,7 +37,6 @@
             <div class="header-right">
                 <span class="badge" id="template-detail-status">Status</span>
                 <span class="badge badge-secondary" id="template-detail-version">v...</span>
-                <span class="badge badge-info" id="template-detail-channel">Channel</span>
                 <button class="btn-close" onclick="closeTemplateDetail()">×</button>
             </div>
         </div>
@@ -60,11 +59,8 @@
                     </div>
 
                     <div class="info-group">
-                        <label>TARGET CHANNEL</label>
-                        <div class="channel-type-display">
-                            <span class="channel-icon" id="detail-channel-icon">📱</span>
-                            <span id="detail-channel-type">-</span>
-                        </div>
+                        <label>Description</label>
+                        <p id="detail-description" class="text-muted">-</p>
                     </div>
 
                     <div class="info-row">
@@ -169,7 +165,6 @@
                 <th>Agent Team Name</th>
                 <th>Version</th>
                 <th># of Sub-Agents</th>
-                <th>TARGET CHANNEL</th>
                 <th>Status</th>
                 <th>Last Updated</th>
                 <th>Actions</th>
@@ -361,3 +356,102 @@
         </div>
     </div>
 </div>
+
+<style>
+    /* Sub-Agent Card Runtime Styles */
+    .sub-agent-runtime-section {
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 12px;
+    }
+
+    .runtime-summary {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: rgba(255, 255, 255, 0.7);
+    }
+
+    .runtime-indicator {
+        color: #22c55e;
+        font-size: 8px;
+    }
+
+    .runtime-text {
+        font-family: 'JetBrains Mono', monospace;
+        letter-spacing: -0.02em;
+    }
+
+    .runtime-loading {
+        color: rgba(255, 255, 255, 0.4);
+        font-style: italic;
+    }
+
+    .runtime-error {
+        color: #ef4444;
+    }
+
+    .text-purple {
+        color: #a855f7;
+    }
+
+    .text-green {
+        color: #22c55e;
+    }
+
+    .text-blue {
+        color: #3b82f6;
+    }
+
+    /* Tooltip Styles */
+    .runtime-info-icon {
+        position: relative;
+        cursor: help;
+        opacity: 0.6;
+        transition: opacity 0.2s;
+    }
+
+    .runtime-info-icon:hover {
+        opacity: 1;
+    }
+
+    .runtime-tooltip {
+        visibility: hidden;
+        position: absolute;
+        bottom: 100%;
+        right: 0;
+        background-color: #1e293b;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 6px;
+        padding: 8px 12px;
+        width: 200px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+        z-index: 10;
+        opacity: 0;
+        transition: opacity 0.2s;
+        pointer-events: none;
+        margin-bottom: 8px;
+    }
+
+    .runtime-info-icon:hover .runtime-tooltip {
+        visibility: visible;
+        opacity: 1;
+    }
+
+    .runtime-tooltip-content {
+        text-align: left;
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.8);
+        line-height: 1.6;
+    }
+
+    .runtime-tooltip-content strong {
+        color: rgba(255, 255, 255, 0.4);
+        font-weight: normal;
+        margin-right: 4px;
+    }
+</style>

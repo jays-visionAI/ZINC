@@ -130,7 +130,6 @@
         wizardData = {
             name: '',
             description: '',
-            // channel: 'multi-channel', // Removed
             roles: initialRoles,
             status: 'active'
         };
@@ -618,11 +617,7 @@
                         ${roleCount}
                     </span>
                 </td>
-                <td>
-                    <span style="font-size: 13px;">
-                        ${formatChannelType(tpl.channel_type)}
-                    </span>
-                </td>
+
                 <td>${getStatusBadge(tpl.status || 'active')}</td>
                 <td>${formatDate(tpl.updated_at)}</td>
                 <td onclick="event.stopPropagation();">

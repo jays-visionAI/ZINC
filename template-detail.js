@@ -107,13 +107,10 @@
             document.getElementById('template-detail-status').textContent = formatStatus(template.status);
             document.getElementById('template-detail-status').className = `badge ${getStatusBadgeClass(template.status)}`;
             document.getElementById('template-detail-version').textContent = template.version || 'v1.0.0';
-            document.getElementById('template-detail-channel').textContent = formatChannelType(template.channel_type);
 
             // Populate template information
             document.getElementById('detail-name').textContent = template.name || 'Untitled';
             document.getElementById('detail-description').textContent = template.description || 'No description provided';
-            document.getElementById('detail-channel-icon').textContent = CHANNEL_ICONS[template.channel_type] || '📱';
-            document.getElementById('detail-channel-type').textContent = formatChannelType(template.channel_type);
             document.getElementById('detail-version-text').textContent = template.version || 'v1.0.0';
             document.getElementById('detail-status-text').textContent = formatStatus(template.status);
 
@@ -175,6 +172,52 @@
                 </button>
             ` : '';
 
+            // Resolve Runtime Config
+            let runtimeSummaryHtml = '<span class="runtime-loading">Resolving runtime...</span>';
+            let runtimeTooltip = '';
+
+            try {
+                if (typeof resolveRuntimeConfig === 'function') {
+                    // Use role properties or defaults
+                    const config = await resolveRuntimeConfig({
+                        role_type: role.type,
+                        language: role.language || 'global',
+                        tier: role.tier || 'balanced'
+                    });
+
+                    const tierClass = config.resolved_tier === 'creative' ? 'text-purple' :
+                        config.resolved_tier === 'precise' ? 'text-green' : 'text-blue';
+
+                    // Format: Provider · Model · Tier · Language
+                    const summaryText = `${config.provider} · ${config.model_id} · <span class="${tierClass}">${config.resolved_tier}</span> · ${config.resolved_language.toUpperCase()}`;
+
+                    runtimeSummaryHtml = `
+                        <div class="runtime-summary">
+                            <span class="runtime-indicator">●</span>
+                            <span class="runtime-text">${summaryText}</span>
+                        </div>
+                    `;
+
+                    // Tooltip content
+                    runtimeTooltip = `
+                        <div class="runtime-tooltip-content">
+                            <div><strong>Engine:</strong> ${role.type}</div>
+                            <div><strong>Rule ID:</strong> ${config.runtime_rule_id}</div>
+                            <div><strong>Provider:</strong> ${config.provider}</div>
+                            <div><strong>Model:</strong> ${config.model_id}</div>
+                            <div><strong>Tier:</strong> ${config.resolved_tier}</div>
+                            <div><strong>Temp:</strong> ${config.temperature}</div>
+                        </div>
+                    `;
+                } else {
+                    runtimeSummaryHtml = '<span class="runtime-error">Runtime resolver not loaded</span>';
+                }
+            } catch (e) {
+                console.error("Runtime resolution error:", e);
+                runtimeSummaryHtml = '<span class="runtime-error">Runtime not configured</span>';
+                runtimeTooltip = `<div class="runtime-tooltip-content">Error: ${e.message}</div>`;
+            }
+
             roleCard.innerHTML = `
                 <div class="sub-agent-header">
                     <div class="sub-agent-main">
@@ -193,6 +236,14 @@
                     </div>
                 </div>
                 
+                <div class="sub-agent-runtime-section">
+                    ${runtimeSummaryHtml}
+                    <div class="runtime-info-icon">
+                        ℹ️
+                        <div class="runtime-tooltip">${runtimeTooltip}</div>
+                    </div>
+                </div>
+
                 <div class="sub-agent-metrics">
                     <div class="metric-item" title="Total Likes">
                         <span class="metric-icon">❤️</span>
