@@ -71,11 +71,24 @@
         // Render KPI Cards
         renderKPICards();
 
-        // Render Charts
-        renderLatencyChart(mockLatencySeries);
-        renderTokenCostChart(mockUsageSeries);
-
-        console.log('[RuntimePerformance] Page initialized successfully');
+        // Wait for Chart.js to be available
+        if (typeof Chart === 'undefined') {
+            console.log('[RuntimePerformance] Waiting for Chart.js to load...');
+            setTimeout(() => {
+                if (typeof Chart !== 'undefined') {
+                    renderLatencyChart(mockLatencySeries);
+                    renderTokenCostChart(mockUsageSeries);
+                    console.log('[RuntimePerformance] Charts rendered after Chart.js loaded');
+                } else {
+                    console.error('[RuntimePerformance] Chart.js failed to load');
+                }
+            }, 500);
+        } else {
+            // Chart.js already loaded
+            renderLatencyChart(mockLatencySeries);
+            renderTokenCostChart(mockUsageSeries);
+            console.log('[RuntimePerformance] Page initialized successfully');
+        }
     };
 
     /**
