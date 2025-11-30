@@ -110,26 +110,70 @@
                         </select>
                     </div>
 
-                    <!-- v2.0 Runtime Configuration (Dynamic Resolution) -->
+                    <!-- Role Family (v2.0) -->
+                    <div class="admin-form-group">
+                        <label class="admin-form-label">Role Family</label>
+                        <select id="subagent-family" class="admin-select" style="width: 100%;" required
+                            onchange="autoFillSystemPrompt(this.value)">
+                            <option value="">Select Role Family...</option>
+                            <option value="strategy">Strategy (Planner, Manager)</option>
+                            <option value="creation">Creation (Text, Image, Video)</option>
+                            <option value="conversation">Conversation (Engagement)</option>
+                            <option value="governance">Governance (Compliance, Evaluator, SEO)</option>
+                            <option value="intelligence">Intelligence (KPI, Research)</option>
+                            <option value="memory">Memory (Knowledge Curator)</option>
+                        </select>
+                    </div>
+
+                    <!-- Brand Brain Configuration (v2.0) -->
                     <div
-                        style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 8px;">
-                        <div class="admin-form-group">
-                            <label class="admin-form-label">Role Type</label>
-                            <select id="subagent-role" class="admin-select" style="width: 100%;" required>
-                                <!-- Populated by JS -->
-                            </select>
+                        style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid rgba(255,255,255,0.1);">
+                        <label class="admin-form-label" style="margin-bottom: 10px; color: #a78bfa;">🧠 Brand Brain
+                            Integration</label>
+                        <div style="display: flex; gap: 20px; align-items: center;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" id="subagent-requires-brand-brain">
+                                Requires Brand Brain
+                            </label>
+
+                            <div style="flex: 1;">
+                                <select id="subagent-brand-context-mode" class="admin-select" style="width: 100%;">
+                                    <option value="none">Mode: None</option>
+                                    <option value="light">Mode: Light (Context Only)</option>
+                                    <option value="full">Mode: Full (RAG + Learning)</option>
+                                </select>
+                            </div>
                         </div>
-                        <div class="admin-form-group">
-                            <label class="admin-form-label">Primary Language</label>
-                            <select id="subagent-language" class="admin-select" style="width: 100%;" required>
-                                <!-- Populated by JS -->
-                            </select>
+                    </div>
+
+                    <!-- v2.0 Runtime Configuration (Preset-based) -->
+                    <div
+                        style="margin-bottom: 16px; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
+                        <label class="admin-form-label" style="margin-bottom: 12px; display: block;">
+                            ⚙️ Runtime Configuration Preset
+                        </label>
+
+                        <div id="runtime-presets" style="display: flex; flex-direction: column; gap: 10px;">
+                            <!-- Presets will be populated by JavaScript -->
                         </div>
-                        <div class="admin-form-group">
-                            <label class="admin-form-label">Preferred Tier</label>
-                            <select id="subagent-tier" class="admin-select" style="width: 100%;" required>
-                                <!-- Populated by JS -->
-                            </select>
+
+                        <!-- Custom Configuration (hidden by default) -->
+                        <div id="custom-runtime-config"
+                            style="display: none; margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1);">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+                                <div class="admin-form-group" style="margin-bottom: 0;">
+                                    <label class="admin-form-label" style="font-size: 12px;">Role Type</label>
+                                    <select id="subagent-role" class="admin-select" style="width: 100%;"></select>
+                                </div>
+                                <div class="admin-form-group" style="margin-bottom: 0;">
+                                    <label class="admin-form-label" style="font-size: 12px;">Language</label>
+                                    <select id="subagent-language" class="admin-select" style="width: 100%;"></select>
+                                </div>
+                                <div class="admin-form-group" style="margin-bottom: 0;">
+                                    <label class="admin-form-label" style="font-size: 12px;">Tier</label>
+                                    <select id="subagent-tier" class="admin-select" style="width: 100%;"></select>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -147,6 +191,31 @@
                                 <option value="draft">📝 Draft</option>
                                 <option value="deprecated">❌ Deprecated</option>
                             </select>
+                        </div>
+                    </div>
+
+                    <!-- System Prompt Template Selector (v3.0) -->
+                    <div class="admin-form-group"
+                        style="background: rgba(22, 224, 189, 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(22, 224, 189, 0.2);">
+                        <label class="admin-form-label" style="color: #16e0bd;">📝 System Prompt Source</label>
+                        <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="radio" name="prompt-source" value="template" checked
+                                    onchange="togglePromptSource()">
+                                <span>Use Template</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="radio" name="prompt-source" value="custom" onchange="togglePromptSource()">
+                                <span>Custom Prompt</span>
+                            </label>
+                        </div>
+                        <div id="template-selector-container">
+                            <select id="prompt-template-select" class="admin-select" onchange="loadPromptTemplate()">
+                                <option value="">Select a template...</option>
+                                <!-- Populated by JavaScript -->
+                            </select>
+                            <div id="template-preview"
+                                style="margin-top: 8px; font-size: 12px; color: rgba(255,255,255,0.6);"></div>
                         </div>
                     </div>
 

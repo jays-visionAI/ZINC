@@ -118,6 +118,116 @@
         return canonical ? ENGINE_TYPES[canonical] : null;
     }
 
+    // ===== Runtime Configuration Presets =====
+
+    const RUNTIME_PRESETS = [
+        {
+            id: 'standard',
+            label: 'Standard (Balanced, English)',
+            description: 'GPT-4, Temperature 0.7',
+            role: 'strategist',
+            language: 'en',
+            tier: 'balanced'
+        },
+        {
+            id: 'korean_strategic',
+            label: 'Korean Strategic (Balanced, Korean)',
+            description: 'GPT-4, 한국어 최적화',
+            role: 'strategist',
+            language: 'ko',
+            tier: 'balanced'
+        },
+        {
+            id: 'creative',
+            label: 'Creative (Creative Tier, English)',
+            description: 'GPT-4 Turbo, Temperature 0.9',
+            role: 'creator',
+            language: 'en',
+            tier: 'creative'
+        },
+        {
+            id: 'precise',
+            label: 'Precise (Precise Tier, English)',
+            description: 'GPT-4, Temperature 0.3',
+            role: 'analyst',
+            language: 'en',
+            tier: 'precise'
+        },
+        {
+            id: 'custom',
+            label: 'Custom Configuration',
+            description: 'Manually configure all settings',
+            role: null,
+            language: null,
+            tier: null
+        }
+    ];
+
+    // ===== System Prompt Templates by Role Family =====
+
+    const SYSTEM_PROMPT_TEMPLATES = {
+        strategy: `You are a strategic planning agent.
+
+Your responsibilities:
+- Analyze market trends and audience insights
+- Create data-driven content strategies
+- Optimize posting schedules and formats
+- Align content with business objectives
+
+Always provide actionable, measurable recommendations.`,
+
+        creation: `You are a creative content generation agent.
+
+Your responsibilities:
+- Generate engaging, platform-optimized content
+- Maintain consistent brand voice and style
+- Incorporate trending topics and formats
+- Balance creativity with brand guidelines
+
+Always create content that resonates with the target audience.`,
+
+        conversation: `You are a community engagement agent.
+
+Your responsibilities:
+- Respond to comments and messages professionally
+- Build authentic relationships with followers
+- Handle inquiries and feedback constructively
+- Maintain brand tone in all interactions
+
+Always prioritize genuine, helpful communication.`,
+
+        governance: `You are a content compliance and quality agent.
+
+Your responsibilities:
+- Review content for brand safety and accuracy
+- Ensure regulatory compliance
+- Verify facts and claims
+- Flag potential risks or issues
+
+Always prioritize accuracy and brand protection.`,
+
+        intelligence: `You are a data analysis and insights agent.
+
+Your responsibilities:
+- Track and analyze performance metrics
+- Identify patterns and opportunities
+- Generate actionable insights
+- Provide optimization recommendations
+
+Always base recommendations on data evidence.`,
+
+        memory: `You are a knowledge management agent.
+
+Your responsibilities:
+- Organize and maintain brand knowledge
+- Retrieve relevant context and guidelines
+- Learn from past content performance
+- Ensure consistency across all content
+
+Always prioritize accurate, up-to-date information.`
+    };
+
+
     window.initSubagents = function (user) {
         console.log("Initializing Sub-Agent Templates Page...");
 
@@ -170,7 +280,127 @@
                 `<option value="${t.value}">${t.label} - ${t.description}</option>`
             ).join('');
         }
+
+        // Render Runtime Presets
+        renderRuntimePresets();
     }
+
+    function renderRuntimePresets() {
+        const container = document.getElementById('runtime-presets');
+        if (!container) return;
+
+        container.innerHTML = RUNTIME_PRESETS.map(preset => `
+            <label style="display: flex; align-items: flex-start; gap: 12px; padding: 12px; background: rgba(255,255,255,0.02); border: 2px solid rgba(255,255,255,0.1); border-radius: 6px; cursor: pointer; transition: all 0.2s;">
+                <input type="radio" name="runtime-preset" value="${preset.id}" 
+                    style="margin-top: 2px;" 
+                    onchange="selectRuntimePreset('${preset.id}')">
+                <div style="flex: 1;">
+                    <div style="font-weight: 600; color: #fff; margin-bottom: 4px;">${preset.label}</div>
+                    <div style="font-size: 12px; color: rgba(255,255,255,0.6);">${preset.description}</div>
+                </div>
+            </label>
+        `).join('');
+
+        // Select default (standard)
+        const defaultRadio = container.querySelector('input[value="standard"]');
+        if (defaultRadio) defaultRadio.checked = true;
+    }
+
+    window.selectRuntimePreset = function (presetId) {
+        const preset = RUNTIME_PRESETS.find(p => p.id === presetId);
+        if (!preset) return;
+
+        const customConfig = document.getElementById('custom-runtime-config');
+        const roleSelect = document.getElementById('subagent-role');
+        const langSelect = document.getElementById('subagent-language');
+        const tierSelect = document.getElementById('subagent-tier');
+
+        if (presetId === 'custom') {
+            // Show custom configuration
+            customConfig.style.display = 'block';
+        } else {
+            // Hide custom configuration and apply preset values
+            customConfig.style.display = 'none';
+            if (roleSelect) roleSelect.value = preset.role;
+            if (langSelect) langSelect.value = preset.language;
+            if (tierSelect) tierSelect.value = preset.tier;
+        }
+    };
+
+    // Auto-fill System Prompt based on Role Family
+    window.autoFillSystemPrompt = function (family) {
+        const systemPromptField = document.getElementById('subagent-prompt'); // Fixed: was 'subagent-system-prompt'
+        if (!systemPromptField || !family) return;
+
+        const template = SYSTEM_PROMPT_TEMPLATES[family];
+        if (template) {
+            systemPromptField.value = template;
+            console.log(`[Auto-fill] Loaded ${family} system prompt template`);
+        }
+    };
+
+    // ===== System Prompt Template Management =====
+
+    let promptTemplates = [];
+
+    async function loadPromptTemplates() {
+        try {
+            const snapshot = await db.collection('systemPromptTemplates')
+                .where('status', '==', 'active')
+                .get();
+
+            promptTemplates = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            populateTemplateSelector();
+        } catch (error) {
+            console.error('[Prompt Templates] Failed to load:', error);
+        }
+    }
+
+    function populateTemplateSelector() {
+        const select = document.getElementById('prompt-template-select');
+        if (!select) return;
+
+        select.innerHTML = '<option value="">Select a template...</option>' +
+            promptTemplates.map(t =>
+                `<option value="${t.id}">${t.name} (v${t.version})</option>`
+            ).join('');
+    }
+
+    window.togglePromptSource = function () {
+        const source = document.querySelector('input[name="prompt-source"]:checked').value;
+        const templateContainer = document.getElementById('template-selector-container');
+        const promptField = document.getElementById('subagent-prompt');
+
+        if (source === 'template') {
+            templateContainer.style.display = 'block';
+            promptField.disabled = true;
+            promptField.style.opacity = '0.5';
+        } else {
+            templateContainer.style.display = 'none';
+            promptField.disabled = false;
+            promptField.style.opacity = '1';
+        }
+    };
+
+    window.loadPromptTemplate = function () {
+        const templateId = document.getElementById('prompt-template-select').value;
+        if (!templateId) return;
+
+        const template = promptTemplates.find(t => t.id === templateId);
+        if (!template) return;
+
+        // Load template content into prompt field
+        document.getElementById('subagent-prompt').value = template.content;
+
+        // Show preview
+        const preview = document.getElementById('template-preview');
+        preview.innerHTML = `
+            <strong>${template.name}</strong> v${template.version}<br>
+            ${template.description}<br>
+            <span style="color: rgba(255,255,255,0.4);">Used by ${template.usageCount || 0} templates</span>
+        `;
+    };
+
 
     function filterRuntimeProfiles() {
         const role = document.getElementById('subagent-role').value;
@@ -249,6 +479,18 @@
         const langSelect = document.getElementById('subagent-language');
         if (roleSelect) roleSelect.addEventListener('change', filterRuntimeProfiles);
         if (langSelect) langSelect.addEventListener('change', filterRuntimeProfiles);
+
+        // Auto-select Role Family based on Engine Type
+        const typeSelect = document.getElementById('subagent-type');
+        if (typeSelect) {
+            typeSelect.addEventListener('change', () => {
+                const type = typeSelect.value;
+                const familySelect = document.getElementById('subagent-family');
+                if (familySelect && type) {
+                    familySelect.value = autoSelectFamily(type);
+                }
+            });
+        }
 
         if (searchInput) searchInput.addEventListener("input", handleFilters);
         if (typeFilter) typeFilter.addEventListener("change", handleFilters);
@@ -423,6 +665,24 @@
         return 0;
     }
 
+    function autoSelectFamily(engineType) {
+        const map = {
+            planner: 'strategy',
+            manager: 'strategy',
+            creator_text: 'creation',
+            creator_image: 'creation',
+            creator_video: 'creation',
+            engagement: 'conversation',
+            compliance: 'governance',
+            evaluator: 'governance',
+            seo_watcher: 'governance',
+            kpi: 'intelligence',
+            research: 'intelligence',
+            knowledge_curator: 'memory'
+        };
+        return map[engineType] || '';
+    }
+
     // Modal Functions
     function openModal(isEdit = false) {
         console.log('openModal called, isEdit:', isEdit);
@@ -469,6 +729,12 @@
 
         // Populate dropdowns if needed
         populateMetadataDropdowns();
+
+        // Load System Prompt Templates
+        loadPromptTemplates();
+
+        // Load templates
+        loadTemplates();
 
         // Initialize Sliders
         setupSliders();
@@ -587,9 +853,26 @@
             document.getElementById('config-max-tokens').value = tpl.config?.maxTokens || 2000;
 
             // v2.0 Metadata
-            if (document.getElementById('subagent-role')) document.getElementById('subagent-role').value = tpl.role_type || 'strategist';
-            if (document.getElementById('subagent-language')) document.getElementById('subagent-language').value = tpl.primary_language || 'en';
-            if (document.getElementById('subagent-tier')) document.getElementById('subagent-tier').value = tpl.preferred_tier || 'balanced';
+            // v2.0 Metadata
+            if (document.getElementById('subagent-role')) document.getElementById('subagent-role').value = tpl.roleTypeForRuntime || tpl.role_type || 'strategist';
+            if (document.getElementById('subagent-language')) document.getElementById('subagent-language').value = tpl.primaryLanguage || tpl.primary_language || 'en';
+            if (document.getElementById('subagent-tier')) document.getElementById('subagent-tier').value = tpl.preferredTier || tpl.preferred_tier || 'balanced';
+
+            // v2.0 New Fields
+            if (document.getElementById('subagent-family')) document.getElementById('subagent-family').value = tpl.family || autoSelectFamily(tpl.type) || '';
+            if (document.getElementById('subagent-requires-brand-brain')) document.getElementById('subagent-requires-brand-brain').checked = tpl.requiresBrandBrain || false;
+            if (document.getElementById('subagent-brand-context-mode')) document.getElementById('subagent-brand-context-mode').value = tpl.brandContextMode || 'none';
+
+            // Set System Prompt Source
+            if (tpl.systemPromptTemplateId) {
+                document.querySelector('input[name="prompt-source"][value="template"]').checked = true;
+                document.getElementById('prompt-template-select').value = tpl.systemPromptTemplateId;
+                togglePromptSource();
+                loadPromptTemplate(); // Show preview
+            } else {
+                document.querySelector('input[name="prompt-source"][value="custom"]').checked = true;
+                togglePromptSource();
+            }
 
             // Load Adapters
             await loadAdapters(id);
@@ -720,15 +1003,37 @@
             const newVersion = document.getElementById('subagent-version').value; // Assuming this is where version comes from
 
             const subAgentData = {
+                // Core Identity
                 type: document.getElementById('subagent-type').value,
+                engineTypeId: document.getElementById('subagent-type').value, // v2 alias
                 version: newVersion,
                 status: document.getElementById('subagent-status').value,
                 system_prompt: document.getElementById('subagent-prompt').value,
+                systemPrompt: document.getElementById('subagent-prompt').value, // v2 alias
 
                 // v2.0 Metadata (for Dynamic Resolution)
+                roleTypeForRuntime: document.getElementById('subagent-role').value,
+                primaryLanguage: document.getElementById('subagent-language').value,
+
+                // v3.0 System Prompt Template Reference
+                systemPromptTemplateId: document.querySelector('input[name="prompt-source"]:checked').value === 'template'
+                    ? document.getElementById('prompt-template-select').value
+                    : null,
+                systemPromptTemplateVersion: document.querySelector('input[name="prompt-source"]:checked').value === 'template'
+                    ? (promptTemplates.find(t => t.id === document.getElementById('prompt-template-select').value)?.version || null)
+                    : null,
+                preferredTier: document.getElementById('subagent-tier').value,
+
+                // Legacy aliases for compatibility
                 role_type: document.getElementById('subagent-role').value,
                 primary_language: document.getElementById('subagent-language').value,
                 preferred_tier: document.getElementById('subagent-tier').value,
+
+                // v2.0 New Fields
+                family: document.getElementById('subagent-family').value,
+                requiresBrandBrain: document.getElementById('subagent-requires-brand-brain').checked,
+                brandContextMode: document.getElementById('subagent-brand-context-mode').value,
+
 
                 // Legacy Config (Overridable by Runtime Rule)
                 config: {
@@ -737,6 +1042,7 @@
                 },
 
                 updated_at: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp(), // v2 alias
                 updated_by: firebase.auth().currentUser?.uid || 'system',
                 channel_adapters: currentAdapters,
             };
@@ -747,10 +1053,14 @@
                 // Generate ID: tpl_{type}_v{version}
                 const version = '1.0.0';
                 const newId = `tpl_${type}_v${version.replace(/\./g, '_')}_${Date.now().toString().slice(-4)}`;
-                data.id = newId;
-                data.version = version;
-                data.created_at = firebase.firestore.FieldValue.serverTimestamp();
-                await db.collection('subAgentTemplates').doc(newId).set(data);
+
+                // For new creation, add creation metadata
+                subAgentData.id = newId;
+                subAgentData.version = version;
+                subAgentData.created_at = firebase.firestore.FieldValue.serverTimestamp();
+                subAgentData.createdAt = firebase.firestore.FieldValue.serverTimestamp(); // v2 alias
+
+                await db.collection('subAgentTemplates').doc(newId).set(subAgentData);
             }
 
             closeModal();

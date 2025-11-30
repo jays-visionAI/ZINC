@@ -25,6 +25,7 @@ The following are the main collections in the Firestore database:
 7. **`projectAgentTeamInstances`** - Deployed agent team instances
 8. **`channelProfiles`** - Social media channel configurations
 9. **`subAgentChannelAdapters`** - Channel-specific sub-agent overrides
+10. **`brandBrains`** - Project-level knowledge base configurations (v2.0)
 
 ### Subcollections
 
@@ -87,86 +88,129 @@ interface Project {
 
 **Purpose**: Defines reusable sub-agent templates with system prompts and configurations.
 
-#### TypeScript Interface
+#### TypeScript Interface (v2.0)
 
 ```typescript
-interface SubAgentTemplate {
+interface SubAgentTemplateV2 {
   id: string;                    // Template ID (e.g., "tpl_planner_v1_0_0")
-  type: string;                  // Engine type: 'planner' | 'creator_text' | 'creator_image' | 'engagement' | etc.
-  version: string;               // Semantic version (e.g., "1.0.0")
-  status: 'active' | 'draft' | 'deprecated';
-  system_prompt: string;         // System prompt template
-  runtime_profile_id?: string;   // Link to runtime profile
   
-  // Model Configuration
-  model_provider: {
-    llmText: {
-      provider: string;          // 'openai' | 'anthropic' | etc.
-      model: string;             // Model ID (e.g., "gpt-4")
-      enabled: boolean;
-    };
-    llmImage?: {
-      enabled: boolean;
-    };
-    embeddings?: {
-  
-  // Runtime Configuration
-  // v2.0 Fields (3-Axis Model)
-  role_type: string;             // e.g., 'writer_short', 'planner'
-  primary_language: string;      // e.g., 'ko', 'en'
-  preferred_tier?: 'economy' | 'balanced' | 'premium';
-  runtime_profile_id?: string;   // Link to runtime profile (e.g., "rtp_writer_short_ko_bal_v1")
+  // --- Engine & Role Definition (v2) ---
+  engineTypeId:
+    | 'planner'
+    | 'research'
+    | 'creator_text'
+    | 'creator_image'
+    | 'creator_video'
+    | 'engagement'
+    | 'compliance'
+    | 'evaluator'
+    | 'manager'
+    | 'kpi'
+    | 'seo_watcher'
+    | 'knowledge_curator';
 
-  // Existing Fields
-  config: {
+  family:
+    | 'strategy'
+    | 'creation'
+    | 'conversation'
+    | 'governance'
+    | 'intelligence'
+    | 'memory';
+
+  displayName: string;           // Human-readable name (e.g., "Instagram Strategist")
+  description: string;           // Internal description
+  
+  // --- Brand Brain Strategy ---
+  requiresBrandBrain: boolean;   // Does this agent need brand knowledge?
+  brandContextMode: 'light' | 'full' | 'none'; // Context injection strategy
+  
+  // --- Runtime Rule Metadata ---
+  roleTypeForRuntime: string;    // ex: 'strategist', 'analyst', 'creator'
+  primaryLanguage: string;       // ex: 'ko', 'en', 'ja'
+  preferredTier: 'creative' | 'balanced' | 'precise';
+
+  // --- Channel Guidelines (v3.0) ---
+  channelGuidelines?: Array<{
+    channelType: 'instagram' | 'x' | 'youtube' | 'tiktok' | 'blog' | 'linkedin' | 'facebook';
+    
+    // Content Guidelines
+    tone: 'casual' | 'professional' | 'concise' | 'detailed' | 'friendly';
+    maxLength: number;              // Character limit
+    useHashtags: boolean;
+    emojiStyle: 'none' | 'minimal' | 'moderate' | 'frequent';
+    
+    // Format Guidelines
+    preferredFormats?: string[];    // e.g., ["carousel", "reel", "story"]
+    callToAction: boolean;
+    
+    // Platform-Specific Rules
+    platformRules?: {
+      aspectRatio?: string;         // e.g., "1:1", "9:16"
+      captionStyle?: string;        // e.g., "above-fold", "detailed"
+      threadSupport?: boolean;      // For X/Twitter
+      mediaLimit?: number;          // Max images/videos
+    };
+  }>;
+  
+  // --- Version Management (v3.0) ---
+  version: string;                  // Semantic version: "MAJOR.MINOR.PATCH"
+  versionHistory?: Array<{
+    version: string;
+    changedAt: Timestamp;
+    changes: string;                // Description of changes
+    isBreaking: boolean;            // true if backward incompatible
+    changedBy?: string;             // Admin user ID
+  }>;
+  
+  // --- Core Configuration ---
+  systemPrompt?: string;            // Direct system prompt (if not using template)
+  
+  // --- System Prompt Template Reference (v3.0) ---
+  systemPromptTemplateId?: string;  // Reference to systemPromptTemplates collection
+  systemPromptTemplateVersion?: string; // Locked version of the template
+  
+  status: 'active' | 'draft' | 'deprecated';
+  
+  // --- Legacy / Compatibility Fields (Optional) ---
+  type?: string;                 // Mapped to engineTypeId
+  config?: {
     temperature: number;
     maxTokens: number;
-    topP?: number;
-    frequencyPenalty?: number;
-    presencePenalty?: number;
-  };
-  model_provider?: {             // Override provider settings (optional)
-    provider: string;
-    model: string;
   };
   
-  created_at: Timestamp;
-  updated_at: Timestamp;
-  created_by: string;
+  // --- Metadata ---
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  createdBy: string;
 }
 ```
 
-#### Example Document
+#### Example Document (v2.0)
 
 ```json
 {
   "id": "tpl_planner_v1_0_0",
-  "type": "planner",
+  "engineTypeId": "planner",
+  "family": "strategy",
+  "displayName": "Instagram Strategy Planner",
+  "description": "Analyzes trends and plans content calendar for Instagram.",
+  
+  "requiresBrandBrain": true,
+  "brandContextMode": "light",
+  
+  "roleTypeForRuntime": "strategist",
+  "primaryLanguage": "ko",
+  "preferredTier": "balanced",
+  
+  "preferredChannels": ["instagram"],
+  
+  "systemPrompt": "You are a strategic content planner...",
   "version": "1.0.0",
   "status": "active",
-  "system_prompt": "You are a strategic content planner. Analyze trends and create content calendars.",
-  "runtime_profile_id": "rtp_chat_premium_v1",
-  "model_provider": {
-    "llmText": {
-      "provider": "openai",
-      "model": "gpt-4",
-      "enabled": true
-    },
-    "llmImage": {
-      "enabled": false
-    },
-    "embeddings": {
-      "provider": "openai",
-      "model": "text-embedding-ada-002"
-    }
-  },
-  "config": {
-    "temperature": 0.7,
-    "maxTokens": 2000
-  },
-  "created_at": "2025-11-01T10:00:00Z",
-  "updated_at": "2025-11-28T15:30:00Z",
-  "created_by": "system"
+  
+  "createdAt": "2025-11-01T10:00:00Z",
+  "updatedAt": "2025-11-30T10:00:00Z",
+  "createdBy": "system"
 }
 ```
 
@@ -552,6 +596,166 @@ interface Industry {
 
 ---
 
+### Collection: `brandBrains`
+
+**Purpose**: Stores configuration for the project's central knowledge base (Brand Brain).
+
+#### TypeScript Interface
+
+```typescript
+interface BrandBrain {
+  id: string;                    // Auto-generated (usually linked to project via query)
+  projectId: string;             // Link to Project
+
+  status: 'initializing' | 'learning' | 'stable' | 'deprecated';
+
+  // Knowledge Sources
+  sources: Array<{
+    id: string;
+    type: 'website' | 'blog' | 'pdf' | 'faq' | 'manual' | 'social_feed' | 'manual_note';
+    urlOrPath: string;
+    language?: string;
+    crawlPolicy: {
+      schedule: 'manual' | 'daily' | 'weekly' | 'monthly';
+      lifespanDays?: number;
+    };
+    lastCrawledAt?: Timestamp;
+    status: 'active' | 'error' | 'pending';
+  }>;
+
+  // Vector Store Config (RAG)
+  vectorStoreConfig: {
+    provider: 'pinecone' | 'weaviate' | 'pgvector' | string;
+    indexName: string;
+    embeddingModelId: string; // e.g., "text-embedding-3-small"
+  };
+
+  // Intelligence Metrics
+  maturityScore: number;          // 0~100 (How much knowledge has been absorbed)
+  lastUpdatedAt: Timestamp;
+
+  // Governance & Style
+  guardrails?: {
+    forbiddenPhrases?: string[];
+    mustIncludePhrases?: string[];
+    toneExamples?: Array<{ good: string; bad: string }>;
+  };
+
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+```
+
+#### Example Document
+
+```json
+{
+  "id": "bb_proj_abc123",
+  "projectId": "proj_abc123",
+  "status": "stable",
+  "sources": [
+    {
+      "id": "src_website_main",
+      "type": "website",
+      "urlOrPath": "https://www.acmecorp.com",
+      "crawlPolicy": { "schedule": "weekly" },
+      "status": "active"
+    }
+  ],
+  "vectorStoreConfig": {
+    "provider": "pinecone",
+    "indexName": "acme-corp-knowledge",
+    "embeddingModelId": "text-embedding-3-small"
+  },
+  "maturityScore": 85,
+  "guardrails": {
+    "forbiddenPhrases": ["cheap", "discount"],
+    "toneExamples": [
+      { "good": "Premium quality", "bad": "Good bang for buck" }
+    ]
+  },
+  "createdAt": "2025-11-01T10:00:00Z",
+  "updatedAt": "2025-11-30T10:00:00Z"
+}
+```
+
+---
+
+### Collection: `systemPromptTemplates`
+
+**Purpose**: Centralized management of system prompt templates with version control.
+
+#### TypeScript Interface
+
+```typescript
+interface SystemPromptTemplate {
+  id: string;                    // e.g., "spt_strategy_planner_v1"
+  
+  // --- Template Identity ---
+  family: 'strategy' | 'creation' | 'conversation' | 'governance' | 'intelligence' | 'memory';
+  name: string;                  // e.g., "Strategic Planner Prompt"
+  description: string;           // Purpose and use case
+  
+  // --- Content ---
+  content: string;               // The actual system prompt
+  variables?: string[];          // Supported variables: ["brandName", "tone"]
+  
+  // --- Version Management ---
+  version: string;               // Semantic version: "MAJOR.MINOR.PATCH"
+  versionHistory: Array<{
+    version: string;
+    changedAt: Timestamp;
+    changes: string;
+    isBreaking: boolean;
+    changedBy: string;           // User ID
+  }>;
+  
+  // --- Usage Tracking ---
+  usedBy: string[];              // Array of SubAgentTemplate IDs using this
+  usageCount: number;            // Total number of templates using this
+  
+  // --- Metadata ---
+  tags?: string[];               // e.g., ["marketing", "social-media"]
+  status: 'active' | 'draft' | 'deprecated';
+  
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  createdBy: string;             // User ID
+}
+```
+
+#### Example Document
+
+```json
+{
+  "id": "spt_strategy_planner_v1",
+  "family": "strategy",
+  "name": "Strategic Planner Prompt",
+  "description": "System prompt for strategic planning agents",
+  "content": "You are a strategic planning agent.\n\nYour responsibilities:\n- Analyze market trends and audience insights\n- Create data-driven content strategies\n- Optimize posting schedules and formats\n- Align content with business objectives\n\nAlways provide actionable, measurable recommendations.",
+  "variables": ["brandName", "industry"],
+  "version": "2.1.0",
+  "versionHistory": [
+    {
+      "version": "2.1.0",
+      "changedAt": "2025-11-30T09:00:00Z",
+      "changes": "Added audience insights focus",
+      "isBreaking": false,
+      "changedBy": "admin_user_001"
+    }
+  ],
+  "usedBy": ["tpl_planner_001", "tpl_planner_002"],
+  "usageCount": 2,
+  "tags": ["strategy", "planning"],
+  "status": "active",
+  "createdAt": "2025-10-01T10:00:00Z",
+  "updatedAt": "2025-11-30T09:00:00Z",
+  "createdBy": "admin_user_001"
+}
+```
+
+---
+
 ## Subcollections
 
 ### Subcollection: `projects/{projectId}/runtimeProfiles`
@@ -643,34 +847,64 @@ export type AutonomyMode = 'autonomous' | 'assisted' | 'manual';
 interface SubAgentInstance {
   // --- Identity & Relations ---
   id: string;                    // Document ID (e.g., "sa_planner_001")
-  project_id: string;            // Same as parent team's projectId
-  team_instance_id: string;      // Parent projectAgentTeamInstances.id
-  template_id: string;           // Link to subAgentTemplates.id
+  projectId: string;             // Same as parent team's projectId
+  teamInstanceId: string;        // Parent projectAgentTeamInstances.id
+  templateId: string;            // Link to subAgentTemplates.id
   
   // --- Role Definition ---
-  role_name: string;             // Display name (e.g., "TrendHunter")
-  role_type: string;             // Engine type: 'planner' | 'creator_text' | etc.
+  roleLabel?: string;            // UI Display Label (e.g., "Instagram Planner")
+  role_name: string;             // Legacy: Display name
+  role_type: string;             // Legacy: Engine type
   display_order: number;         // Order in UI list (0-based)
   description?: string;          // Optional role description
   
-  // --- Channel Adaptation ---
-  channel_adapter_id?: string;   // Link to subAgentChannelAdapters (if applicable)
+  isActive: boolean;             // Is this instance currently active?
+
+  // --- Channel Binding ---
+  channelBindings?: string[];    // List of channelProfile IDs this agent handles
+  channel_adapter_id?: string;   // Legacy: Link to subAgentChannelAdapters
+  
+  // --- Brand Brain Scope ---
+  brandBrainScope?: 'project' | 'brandGroup' | 'global';
   
   // --- Status & Mode ---
   status: SubAgentInstanceStatus;
   autonomy_mode?: AutonomyMode;  // Current operating mode
+  
+  // --- Instance Metadata ---
+  roleLabel?: string;            // Custom label for this instance
+  isActive: boolean;             // Active/Inactive toggle
+  
+  // --- Version Locking (v3.0) ---
+  templateVersion: string;       // Locked template version (e.g., "2.1.0")
+  autoUpgrade: boolean;          // Auto-upgrade to new PATCH/MINOR versions
+  
+  // --- Effective Channel Guidelines (v3.0) ---
+  effectiveGuidelines?: {        // Cached guidelines for current channel
+    channelType: string;
+    tone: string;
+    maxLength: number;
+    useHashtags: boolean;
+    emojiStyle: string;
+    // ... other guideline fields
+  };
+  
+  // --- Runtime Overrides ---
+  runtimeRuleOverrideId?: string; // Override default runtime rule (v2)
+  
+  runtime_overrides?: {          // Legacy overrides
+    runtime_profile_id?: string;
+    temperature?: number;
+    max_tokens?: number;
+    system_prompt_append?: string;
+  };
   
   // --- Engagement (Mission Control / Admin UI) ---
   likes_count: number;           // Total likes received
   rating_avg: number;            // Average rating (0.0–5.0)
   rating_count: number;          // Number of ratings
   
-  // --- Runtime Configuration Overrides ---
-  runtime_overrides?: {
-    runtime_profile_id?: string;      // Override template's runtime_profile_id
-    temperature?: number;             // Override config.temperature
-    max_tokens?: number;              // Override config.maxTokens
-    system_prompt_append?: string;    // Additional prompt instructions
+    system_prompt_append?: string;
   };
   
   // --- Metrics (Mission Control UI) ---
@@ -680,9 +914,12 @@ interface SubAgentInstance {
     daily_actions_quota: number;        // Daily task limit
     
     // Performance
-    last_active_at?: Timestamp | null;  // Last execution time
-    success_rate: number;               // 0–100 (e.g., 98)
-    total_runs: number;                 // Total executions
+    lastActiveAt?: Timestamp | null;    // Last execution time (v2)
+    last_active_at?: Timestamp | null;  // Legacy alias
+    successRate: number;                // 0–100 (v2)
+    success_rate: number;               // Legacy alias
+    totalRuns: number;                  // Total executions (v2)
+    total_runs: number;                 // Legacy alias
     avg_latency_ms?: number;            // Average response time
     avg_tokens_per_run?: number;        // Average token usage
   };
@@ -690,6 +927,8 @@ interface SubAgentInstance {
   // --- System Metadata ---
   created_at: Timestamp;
   updated_at: Timestamp;
+  createdAt: Timestamp;          // v2 alias
+  updatedAt: Timestamp;          // v2 alias
   created_by?: string;           // User ID who created this instance
 }
 ```
@@ -941,6 +1180,11 @@ interface GeneratedContent {
     reviewed_at?: Timestamp;
     feedback?: string;
   };
+  
+  // --- Workflow Context (v2.0) ---
+  workflowTemplateId?: string;   // Link to WorkflowTemplate
+  workflowStepId?: string;       // Step ID within the workflow
+  teamInstanceId?: string;       // Link to Agent Team Instance
   
   // --- Metadata ---
   metadata?: {

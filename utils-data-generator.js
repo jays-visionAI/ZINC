@@ -112,7 +112,12 @@
             completed_at: firebase.firestore.Timestamp.now(),
             duration_ms: 2500,
             generated_content_ids: [contentId],
-            created_at: firebase.firestore.Timestamp.now()
+            created_at: firebase.firestore.Timestamp.now(),
+
+            // TODO(Phase 2): Link to Workflow Execution
+            // workflowTemplateId: 'wf_tpl_001',
+            // workflowStepId: 'step_001',
+            // teamInstanceId: teamId
         });
 
         // 2. Create GeneratedContent
@@ -131,7 +136,13 @@
             status: 'published',
             external_post_url: 'https://twitter.com/example/status/123456789',
             created_at: firebase.firestore.Timestamp.now(),
-            updated_at: firebase.firestore.Timestamp.now()
+            updated_at: firebase.firestore.Timestamp.now(),
+
+            // TODO(Phase 2): Link to Workflow Execution
+            // workflowTemplateId: 'wf_tpl_001',
+            // workflowStepId: 'step_001',
+            // teamInstanceId: teamId,
+            // channelId: 'ch_instagram_main'
         });
 
         await batch.commit();

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Fetch SubAgent Templates</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="firebase-config.js"></script>
+</head>
+
+<body>
+    <h1>Fetching Templates...</h1>
+    <pre id="output"></pre>
+    <script>
+        const output = document.getElementById('output');
+        function log(msg) {
+            output.textContent += msg + '\n';
+        }
+
+        async function fetchTemplates() {
+            try {
+                const db = firebase.firestore();
+                const snapshot = await db.collection('subAgentTemplates').get();
+                const templates = [];
+                snapshot.forEach(doc => {
+                    templates.push({ id: doc.id, ...doc.data() });
+                });
+                log(JSON.stringify(templates, null, 2));
+
+                // Signal completion
+                const done = document.createElement('div');
+                done.id = 'fetch-done';
+                document.body.appendChild(done);
+            } catch (e) {
+                log('Error: ' + e.message);
+            }
+        }
+
+        setTimeout(fetchTemplates, 1000);
+    </script>
+</body>
+
+</html>

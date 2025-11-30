@@ -8,9 +8,10 @@
     /**
      * Resolve runtime configuration for a Sub-Agent
      * @param {Object} subAgentTemplate - Sub-Agent template data
+     * @param {Object} [subAgentInstance] - Optional Sub-Agent instance data (for overrides)
      * @returns {Promise<Object>} Resolved runtime configuration
      */
-    window.resolveRuntimeConfig = async function (subAgentTemplate) {
+    window.resolveRuntimeConfig = async function (subAgentTemplate, subAgentInstance = null) {
         const {
             type,              // Engine type (e.g., "planner")
             role_type,         // Role type (e.g., "strategist")
@@ -26,19 +27,33 @@
         const tier = preferred_tier || 'balanced';
         const language = primary_language || 'en';
 
-        // 1. Fetch Runtime Profile Rule for this engine type
-        const rulesSnapshot = await db.collection('runtimeProfileRules')
-            .where('engine_type', '==', type)
-            .where('status', '==', 'active')
-            .limit(1)
-            .get();
+        let rule;
 
-        if (rulesSnapshot.empty) {
-            console.warn(`No runtime rule found for engine type: ${type}, using fallback`);
-            return getFallbackConfig(type, tier, language);
+        // 1. Check for Instance-level Override
+        if (subAgentInstance && subAgentInstance.runtimeRuleOverrideId) {
+            console.log(`[Runtime Resolver] Using instance override rule: ${subAgentInstance.runtimeRuleOverrideId}`);
+            const ruleDoc = await db.collection('runtimeProfileRules').doc(subAgentInstance.runtimeRuleOverrideId).get();
+            if (ruleDoc.exists) {
+                rule = ruleDoc.data();
+            } else {
+                console.warn(`Override rule ${subAgentInstance.runtimeRuleOverrideId} not found, falling back to engine type.`);
+            }
         }
 
-        const rule = rulesSnapshot.docs[0].data();
+        // 2. Fetch Runtime Profile Rule for this engine type (if no override or override failed)
+        if (!rule) {
+            const rulesSnapshot = await db.collection('runtimeProfileRules')
+                .where('engine_type', '==', type)
+                .where('status', '==', 'active')
+                .limit(1)
+                .get();
+
+            if (rulesSnapshot.empty) {
+                console.warn(`No runtime rule found for engine type: ${type}, using fallback`);
+                return getFallbackConfig(type, tier, language);
+            }
+            rule = rulesSnapshot.docs[0].data();
+        }
 
         // 2. Get base model configuration for the tier
         let modelConfig = rule.models?.[tier];
@@ -71,7 +86,8 @@
             engine_type: type,
 
             // Rule metadata
-            rule_id: rulesSnapshot.docs[0].id,
+            rule_id: rule.id || 'unknown',
+            resolution_source: subAgentInstance?.runtimeRuleOverrideId ? 'instance_override' : 'engine_default',
             resolved_at: new Date().toISOString()
         };
 

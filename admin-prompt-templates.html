@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Prompt Templates - ZYNK Admin</title>
+    <link rel="stylesheet" href="admin.css">
+    <link rel="stylesheet" href="admin-detail.css">
+</head>
+
+<body>
+    <div class="admin-container">
+        <!-- Header -->
+        <div class="admin-header">
+            <h1>📝 System Prompt Templates</h1>
+            <div class="header-actions">
+                <button class="btn-primary" onclick="openCreateModal()">+ Create Template</button>
+                <a href="admin.html" class="btn-secondary">← Back to Admin</a>
+            </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="filter-bar" style="margin-bottom: 24px;">
+            <select id="family-filter" class="admin-select" onchange="applyFilters()">
+                <option value="all">All Families</option>
+                <option value="strategy">Strategy</option>
+                <option value="creation">Creation</option>
+                <option value="conversation">Conversation</option>
+                <option value="governance">Governance</option>
+                <option value="intelligence">Intelligence</option>
+                <option value="memory">Memory</option>
+            </select>
+            <select id="status-filter" class="admin-select" onchange="applyFilters()">
+                <option value="all">All Status</option>
+                <option value="active">Active</option>
+                <option value="draft">Draft</option>
+                <option value="deprecated">Deprecated</option>
+            </select>
+            <input type="text" id="search-input" class="admin-form-input" placeholder="Search templates..."
+                oninput="applyFilters()" style="max-width: 300px;">
+        </div>
+
+        <!-- Templates Grid -->
+        <div id="templates-grid" class="templates-grid">
+            <!-- Populated by JavaScript -->
+        </div>
+    </div>
+
+    <!-- Create/Edit Modal -->
+    <div id="template-modal" class="admin-modal" style="display: none;">
+        <div class="admin-modal-content" style="max-width: 900px;">
+            <div class="admin-modal-header">
+                <h2 id="modal-title">Create System Prompt Template</h2>
+                <button class="admin-modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="admin-modal-body">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                    <div class="admin-form-group">
+                        <label class="admin-form-label">Template Name</label>
+                        <input type="text" id="template-name" class="admin-form-input"
+                            placeholder="e.g., Strategic Planner Prompt" required>
+                    </div>
+                    <div class="admin-form-group">
+                        <label class="admin-form-label">Role Family</label>
+                        <select id="template-family" class="admin-select" required>
+                            <option value="">Select Family...</option>
+                            <option value="strategy">Strategy</option>
+                            <option value="creation">Creation</option>
+                            <option value="conversation">Conversation</option>
+                            <option value="governance">Governance</option>
+                            <option value="intelligence">Intelligence</option>
+                            <option value="memory">Memory</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Description</label>
+                    <input type="text" id="template-description" class="admin-form-input"
+                        placeholder="Purpose and use case of this template">
+                </div>
+
+                <div class="admin-form-group">
+                    <label class="admin-form-label">System Prompt Content</label>
+                    <textarea id="template-content" class="admin-form-input" rows="12" required
+                        placeholder="You are a strategic planning agent..."></textarea>
+                    <small style="color: rgba(255,255,255,0.5);">
+                        Tip: Use variables like {{brandName}}, {{tone}}, {{industry}} for dynamic content
+                    </small>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="admin-form-group">
+                        <label class="admin-form-label">Version Update</label>
+                        <select id="version-type" class="admin-select">
+                            <option value="patch">Patch (Bug fix)</option>
+                            <option value="minor">Minor (New feature)</option>
+                            <option value="major">Major (Breaking change)</option>
+                        </select>
+                    </div>
+                    <div class="admin-form-group">
+                        <label class="admin-form-label">Status</label>
+                        <select id="template-status" class="admin-select">
+                            <option value="draft">Draft</option>
+                            <option value="active">Active</option>
+                            <option value="deprecated">Deprecated</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Change Description</label>
+                    <input type="text" id="change-description" class="admin-form-input"
+                        placeholder="Describe what changed in this version">
+                </div>
+            </div>
+            <div class="admin-modal-footer">
+                <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+                <button class="btn-primary" onclick="saveTemplate()">Save Template</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="utils-version-manager.js"></script>
+    <script src="admin-prompt-templates.js"></script>
+
+    <style>
+        .templates-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        .template-card {
+            background: #0f172a;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .template-card:hover {
+            border-color: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .template-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .template-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+
+        .template-family {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.6);
+            text-transform: uppercase;
+        }
+
+        .template-version {
+            font-size: 11px;
+            background: rgba(22, 224, 189, 0.2);
+            color: #16e0bd;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        .template-description {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 12px;
+            line-height: 1.4;
+        }
+
+        .template-content-preview {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.5);
+            font-family: monospace;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 8px;
+            border-radius: 4px;
+            margin-bottom: 12px;
+            max-height: 60px;
+            overflow: hidden;
+        }
+
+        .template-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .template-usage {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .filter-bar {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+    </style>
+</body>
+
+</html>

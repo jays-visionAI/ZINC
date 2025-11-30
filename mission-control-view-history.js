@@ -215,6 +215,16 @@
             const timeAgo = run.started_at ? formatTimeAgo(run.started_at.toDate()) : 'Unknown';
             const isSelected = run.id === selectedRunId;
 
+            // Phase 2: Workflow Info
+            const workflowBadge = run.workflowTemplateId ?
+                `<span class="workflow-badge" title="Workflow: ${run.workflowTemplateId}">
+                    🔄 ${getWorkflowLabel(run.workflowTemplateId)}
+                </span>` : '';
+            const stepBadge = run.workflowStepId ?
+                `<span class="step-badge" title="Step: ${run.workflowStepId}">
+                    ${getStepLabel(run.workflowStepId)}
+                </span>` : '';
+
             return `
                 <div class="run-card ${statusClass} ${isSelected ? 'selected' : ''}" 
                      data-id="${run.id}"
@@ -229,6 +239,7 @@
                             <span class="run-agent">${run.sub_agent_role_name || 'Unknown Agent'}</span>
                             <span class="run-duration">${durationDisplay}</span>
                         </div>
+                        ${workflowBadge || stepBadge ? `<div class="run-workflow-info">${workflowBadge} ${stepBadge}</div>` : ''}
                     </div>
                     ${run.status === 'blocked_quota' ? renderQuotaInfo(run) : ''}
                 </div>
@@ -315,6 +326,20 @@
             const platformIcon = getPlatformIcon(content.platform);
             const hasExternalLink = !!content.external_post_url;
 
+            // Phase 2: Workflow/Channel Info
+            const workflowBadge = content.workflowTemplateId ?
+                `<span class="workflow-badge-small" title="Workflow: ${content.workflowTemplateId}">
+                    🔄 ${getWorkflowLabel(content.workflowTemplateId)}
+                </span>` : '';
+            const stepBadge = content.workflowStepId ?
+                `<span class="step-badge-small" title="Step: ${content.workflowStepId}">
+                    ${getStepLabel(content.workflowStepId)}
+                </span>` : '';
+            const channelBadge = content.channelId ?
+                `<span class="channel-badge" title="Channel: ${content.channelId}">
+                    ${getChannelIcon(content.channelId)} ${getChannelLabel(content.channelId)}
+                </span>` : '';
+
             return `
                 <div class="content-card ${statusClass}" data-id="${content.id}">
                     ${content.preview_image_url ? `
@@ -329,6 +354,8 @@
                         </div>
                         ${content.title ? `<div class="content-title">${content.title}</div>` : ''}
                         ${content.preview_text ? `<div class="content-preview">${content.preview_text}</div>` : ''}
+                        ${workflowBadge || stepBadge || channelBadge ?
+                    `<div class="content-workflow-info">${workflowBadge} ${stepBadge} ${channelBadge}</div>` : ''}
                         <div class="content-footer">
                             ${hasExternalLink ? `
                                 <button class="btn-view-external" onclick="window.open('${content.external_post_url}', '_blank')">
@@ -448,6 +475,44 @@
         if (diffHours < 24) return `${diffHours} hours ago`;
         if (diffDays < 7) return `${diffDays} days ago`;
         return date.toLocaleDateString();
+    }
+
+    // ===== Phase 2: Workflow/Channel Helpers =====
+
+    function getWorkflowLabel(workflowTemplateId) {
+        // TODO: Load from Firestore or cache
+        const labels = {
+            'wf_tpl_ig_organic_post': 'IG Organic',
+            'wf_tpl_x_thread': 'X Thread',
+            'wf_tpl_blog_post': 'Blog Post'
+        };
+        return labels[workflowTemplateId] || workflowTemplateId.replace('wf_tpl_', '').replace(/_/g, ' ');
+    }
+
+    function getStepLabel(workflowStepId) {
+        // Extract step name from ID (e.g., step_001_planning -> Planning)
+        const match = workflowStepId.match(/step_\d+_(.+)/);
+        if (match) {
+            return match[1].replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+        return workflowStepId;
+    }
+
+    function getChannelIcon(channelId) {
+        // Extract platform from channelId (e.g., ch_instagram_main -> instagram)
+        if (channelId.includes('instagram')) return '📷';
+        if (channelId.includes('x') || channelId.includes('twitter')) return '🐦';
+        if (channelId.includes('youtube')) return '📺';
+        if (channelId.includes('tiktok')) return '🎵';
+        if (channelId.includes('blog')) return '📝';
+        if (channelId.includes('linkedin')) return '💼';
+        if (channelId.includes('facebook')) return '👥';
+        return '📱';
+    }
+
+    function getChannelLabel(channelId) {
+        // Extract readable label from channelId
+        return channelId.replace('ch_', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     }
 
     console.log('[View History] Module loaded');
