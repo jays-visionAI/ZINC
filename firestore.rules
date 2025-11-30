@@ -127,6 +127,12 @@ service cloud.firestore {
     match /projectAgentTeamInstances/{instanceId} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
+      
+      // Sub-Agents within Team Instances
+      match /subAgents/{agentId} {
+        allow read: if isAuthenticated();
+        allow write: if isAdmin();
+      }
     }
 
     // Channel Profiles: Admin can write, authenticated users can read
