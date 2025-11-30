@@ -107,4 +107,33 @@
         </div>
         <canvas id="token-cost-chart"></canvas>
     </div>
+
+    <!-- Engine Type & Runtime Rule Overview -->
+    <div class="rp-engine-rule-grid"
+        style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px;">
+        <!-- By Engine Type -->
+        <section id="rp-engine-type-overview"
+            style="background: rgba(255,255,255,0.03); padding: 24px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+            <div style="margin-bottom: 20px;">
+                <h3 style="margin: 0 0 8px 0; color: #fff; font-size: 18px; font-weight: 600;">🎯 By Engine Type</h3>
+                <p style="margin: 0; font-size: 13px; color: rgba(255,255,255,0.5);">Performance breakdown by engine
+                    type</p>
+            </div>
+            <canvas id="engine-type-chart" style="margin-bottom: 20px;"></canvas>
+            <div id="engine-type-table" style="overflow-x: auto;"></div>
+        </section>
+
+        <!-- By Runtime Rule (Worst 5) -->
+        <section id="rp-runtime-rule-overview"
+            style="background: rgba(255,255,255,0.03); padding: 24px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+            <div style="margin-bottom: 20px;">
+                <h3 style="margin: 0 0 8px 0; color: #fff; font-size: 18px; font-weight: 600;">⚠️ By Runtime Rule (Worst
+                    5)</h3>
+                <p style="margin: 0; font-size: 13px; color: rgba(255,255,255,0.5);">Rules with highest latency or
+                    lowest success rate</p>
+            </div>
+            <canvas id="runtime-rule-chart" style="margin-bottom: 20px;"></canvas>
+            <div id="runtime-rule-table" style="overflow-x: auto;"></div>
+        </section>
+    </div>
 </div>
