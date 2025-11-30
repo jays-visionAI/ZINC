@@ -117,6 +117,18 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Sub-Agent Templates (Root): Admin can write, authenticated users can read
+    match /subAgentTemplates/{templateId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Project Agent Team Instances: Admin can write, authenticated users can read
+    match /projectAgentTeamInstances/{instanceId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
     // Channel Profiles: Admin can write, authenticated users can read
     match /channelProfiles/{profileId} {
       allow read: if isAuthenticated();
