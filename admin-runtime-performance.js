@@ -62,14 +62,33 @@
         { timestamp: '2025-11-30T23:00:00Z', totalTokens: 6900, totalCostUsd: 0.69 }
     ];
 
+    // Table State
+    let tableState = {
+        data: [],
+        filteredData: [],
+        sortKey: 'totalCostUsd',
+        sortDirection: 'desc',
+        searchQuery: '',
+        currentPage: 1,
+        itemsPerPage: 10
+    };
+
     /**
      * Initialize Runtime Performance Page
      */
     window.initRuntimePerformance = function (user) {
         console.log('[RuntimePerformance] Initializing page...');
 
+        // Initialize Table Data
+        tableState.data = [...mockTeamSubAgentStats];
+        filterAndSortTable();
+
         // Render KPI Cards
         renderKPICards();
+
+        // Render Table
+        renderTeamSubAgentTable();
+        attachTableHandlers();
 
         // Wait for Chart.js to be available
         if (typeof Chart === 'undefined') {
@@ -722,6 +741,202 @@
         }
 
         console.log('[RuntimePerformance] Runtime Rule overview rendered');
+    }
+
+    // Mock Data for Team & Sub-Agent Performance Table
+    const mockTeamSubAgentStats = [
+        { projectName: 'Acme Korea', agentTeamName: 'Instagram Official Team', subAgentName: 'Planner (KO)', engineType: 'planner', calls: 320, successRate: 0.97, avgLatencyMs: 780, totalTokens: 42000, totalCostUsd: 0.42 },
+        { projectName: 'Acme Korea', agentTeamName: 'Instagram Official Team', subAgentName: 'Creator Text (KO)', engineType: 'creator_text', calls: 710, successRate: 0.95, avgLatencyMs: 920, totalTokens: 98000, totalCostUsd: 0.98 },
+        { projectName: 'Acme Korea', agentTeamName: 'Instagram Official Team', subAgentName: 'Creator Image (KO)', engineType: 'creator_image', calls: 150, successRate: 0.88, avgLatencyMs: 1600, totalTokens: 45000, totalCostUsd: 2.25 },
+        { projectName: 'Acme Korea', agentTeamName: 'Instagram Official Team', subAgentName: 'Engagement (KO)', engineType: 'engagement', calls: 1200, successRate: 0.92, avgLatencyMs: 650, totalTokens: 60000, totalCostUsd: 0.60 },
+        { projectName: 'Global Expansion', agentTeamName: 'Market Research Team', subAgentName: 'Research Lead', engineType: 'research', calls: 500, successRate: 0.99, avgLatencyMs: 720, totalTokens: 150000, totalCostUsd: 1.50 },
+        { projectName: 'Global Expansion', agentTeamName: 'Market Research Team', subAgentName: 'Data Analyst', engineType: 'evaluator', calls: 300, successRate: 0.98, avgLatencyMs: 820, totalTokens: 45000, totalCostUsd: 0.45 },
+        { projectName: 'Global Expansion', agentTeamName: 'Market Research Team', subAgentName: 'Report Writer', engineType: 'creator_text', calls: 200, successRate: 0.96, avgLatencyMs: 850, totalTokens: 80000, totalCostUsd: 0.80 },
+        { projectName: 'Tech Support', agentTeamName: 'Customer Service V1', subAgentName: 'Triage Bot', engineType: 'planner', calls: 2500, successRate: 0.99, avgLatencyMs: 450, totalTokens: 125000, totalCostUsd: 1.25 },
+        { projectName: 'Tech Support', agentTeamName: 'Customer Service V1', subAgentName: 'Response Generator', engineType: 'creator_text', calls: 2400, successRate: 0.97, avgLatencyMs: 680, totalTokens: 360000, totalCostUsd: 3.60 },
+        { projectName: 'Tech Support', agentTeamName: 'Customer Service V1', subAgentName: 'Policy Checker', engineType: 'compliance', calls: 2400, successRate: 0.99, avgLatencyMs: 350, totalTokens: 72000, totalCostUsd: 0.72 },
+        { projectName: 'Internal Ops', agentTeamName: 'HR Assistant', subAgentName: 'Resume Screener', engineType: 'evaluator', calls: 150, successRate: 0.94, avgLatencyMs: 1100, totalTokens: 60000, totalCostUsd: 0.60 },
+        { projectName: 'Internal Ops', agentTeamName: 'HR Assistant', subAgentName: 'Interview Scheduler', engineType: 'planner', calls: 80, successRate: 0.92, avgLatencyMs: 950, totalTokens: 12000, totalCostUsd: 0.12 },
+        { projectName: 'Product Launch', agentTeamName: 'Launch Campaign', subAgentName: 'Copywriter', engineType: 'creator_text', calls: 450, successRate: 0.95, avgLatencyMs: 880, totalTokens: 90000, totalCostUsd: 0.90 },
+        { projectName: 'Product Launch', agentTeamName: 'Launch Campaign', subAgentName: 'Visual Designer', engineType: 'creator_image', calls: 120, successRate: 0.90, avgLatencyMs: 1500, totalTokens: 36000, totalCostUsd: 1.80 },
+        { projectName: 'Product Launch', agentTeamName: 'Launch Campaign', subAgentName: 'Social Manager', engineType: 'engagement', calls: 800, successRate: 0.96, avgLatencyMs: 700, totalTokens: 40000, totalCostUsd: 0.40 }
+    ];
+
+    /**
+     * Filter and Sort Table Data
+     */
+    function filterAndSortTable() {
+        // 1. Filter
+        let filtered = tableState.data;
+        if (tableState.searchQuery) {
+            const query = tableState.searchQuery.toLowerCase();
+            filtered = filtered.filter(item =>
+                item.subAgentName.toLowerCase().includes(query) ||
+                item.agentTeamName.toLowerCase().includes(query) ||
+                item.projectName.toLowerCase().includes(query)
+            );
+        }
+
+        // 2. Sort
+        filtered.sort((a, b) => {
+            let valA = a[tableState.sortKey];
+            let valB = b[tableState.sortKey];
+
+            if (typeof valA === 'string') {
+                valA = valA.toLowerCase();
+                valB = valB.toLowerCase();
+            }
+
+            if (valA < valB) return tableState.sortDirection === 'asc' ? -1 : 1;
+            if (valA > valB) return tableState.sortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        tableState.filteredData = filtered;
+
+        // Reset to page 1 if filtered data is less than current page range
+        const maxPage = Math.ceil(filtered.length / tableState.itemsPerPage) || 1;
+        if (tableState.currentPage > maxPage) {
+            tableState.currentPage = 1;
+        }
+    }
+
+    /**
+     * Render Team & Sub-Agent Performance Table
+     */
+    function renderTeamSubAgentTable() {
+        const tbody = document.getElementById('rp-table-body');
+        if (!tbody) return;
+
+        const start = (tableState.currentPage - 1) * tableState.itemsPerPage;
+        const end = start + tableState.itemsPerPage;
+        const pageData = tableState.filteredData.slice(start, end);
+
+        if (pageData.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="9" style="padding: 24px; text-align: center; color: rgba(255,255,255,0.5);">
+                        No data found matching your search.
+                    </td>
+                </tr>
+            `;
+        } else {
+            tbody.innerHTML = pageData.map(row => `
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); hover:background: rgba(255,255,255,0.02);">
+                    <td style="padding: 12px; color: rgba(255,255,255,0.9); font-size: 13px;">${row.projectName}</td>
+                    <td style="padding: 12px; color: rgba(255,255,255,0.7); font-size: 13px;">${row.agentTeamName}</td>
+                    <td style="padding: 12px; color: #60a5fa; font-size: 13px;">${row.subAgentName}</td>
+                    <td style="padding: 12px; color: rgba(255,255,255,0.5); font-size: 12px;">${row.engineType}</td>
+                    <td style="padding: 12px; text-align: right; color: rgba(255,255,255,0.9); font-size: 13px;">${row.calls.toLocaleString()}</td>
+                    <td style="padding: 12px; text-align: right; font-weight: 600; font-size: 13px; color: ${row.successRate >= 0.95 ? '#22c55e' : row.successRate >= 0.90 ? '#fbbf24' : '#ef4444'};">
+                        ${(row.successRate * 100).toFixed(1)}%
+                    </td>
+                    <td style="padding: 12px; text-align: right; font-weight: 600; font-size: 13px; color: ${row.avgLatencyMs > 1000 ? '#ef4444' : '#fbbf24'};">
+                        ${row.avgLatencyMs}ms
+                    </td>
+                    <td style="padding: 12px; text-align: right; color: rgba(255,255,255,0.7); font-size: 13px;">${(row.totalTokens / 1000).toFixed(1)}k</td>
+                    <td style="padding: 12px; text-align: right; color: #fbbf24; font-weight: 600; font-size: 13px;">$${row.totalCostUsd.toFixed(2)}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Update Pagination UI
+        updatePaginationUI();
+
+        // Update Sort Icons
+        updateSortIcons();
+    }
+
+    /**
+     * Update Pagination UI
+     */
+    function updatePaginationUI() {
+        const total = tableState.filteredData.length;
+        const start = total === 0 ? 0 : (tableState.currentPage - 1) * tableState.itemsPerPage + 1;
+        const end = Math.min(start + tableState.itemsPerPage - 1, total);
+        const maxPage = Math.ceil(total / tableState.itemsPerPage) || 1;
+
+        document.getElementById('rp-showing-start').textContent = start;
+        document.getElementById('rp-showing-end').textContent = end;
+        document.getElementById('rp-total-count').textContent = total;
+        document.getElementById('rp-current-page').textContent = `Page ${tableState.currentPage} / ${maxPage}`;
+
+        const prevBtn = document.getElementById('rp-prev-page');
+        const nextBtn = document.getElementById('rp-next-page');
+
+        if (prevBtn) prevBtn.disabled = tableState.currentPage === 1;
+        if (nextBtn) nextBtn.disabled = tableState.currentPage === maxPage || total === 0;
+    }
+
+    /**
+     * Update Sort Icons
+     */
+    function updateSortIcons() {
+        document.querySelectorAll('.sortable').forEach(th => {
+            const key = th.dataset.sort;
+            let icon = '↕';
+            if (key === tableState.sortKey) {
+                icon = tableState.sortDirection === 'asc' ? '↑' : '↓';
+                th.style.color = '#fff';
+            } else {
+                th.style.color = 'rgba(255,255,255,0.5)';
+            }
+            th.textContent = th.textContent.slice(0, -1) + icon;
+        });
+    }
+
+    /**
+     * Attach Table Event Handlers
+     */
+    function attachTableHandlers() {
+        // Sort Handlers
+        document.querySelectorAll('.sortable').forEach(th => {
+            th.addEventListener('click', () => {
+                const key = th.dataset.sort;
+                if (tableState.sortKey === key) {
+                    tableState.sortDirection = tableState.sortDirection === 'asc' ? 'desc' : 'asc';
+                } else {
+                    tableState.sortKey = key;
+                    tableState.sortDirection = 'desc'; // Default to desc for new columns
+                }
+                filterAndSortTable();
+                renderTeamSubAgentTable();
+            });
+        });
+
+        // Search Handler
+        const searchInput = document.getElementById('rp-table-search');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                tableState.searchQuery = e.target.value;
+                tableState.currentPage = 1; // Reset to page 1 on search
+                filterAndSortTable();
+                renderTeamSubAgentTable();
+            });
+        }
+
+        // Pagination Handlers
+        const prevBtn = document.getElementById('rp-prev-page');
+        const nextBtn = document.getElementById('rp-next-page');
+
+        if (prevBtn) {
+            prevBtn.addEventListener('click', () => {
+                if (tableState.currentPage > 1) {
+                    tableState.currentPage--;
+                    renderTeamSubAgentTable();
+                }
+            });
+        }
+
+        if (nextBtn) {
+            nextBtn.addEventListener('click', () => {
+                const maxPage = Math.ceil(tableState.filteredData.length / tableState.itemsPerPage);
+                if (tableState.currentPage < maxPage) {
+                    tableState.currentPage++;
+                    renderTeamSubAgentTable();
+                }
+            });
+        }
     }
 
 })();

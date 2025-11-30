@@ -136,4 +136,78 @@
             <div id="runtime-rule-table" style="overflow-x: auto;"></div>
         </section>
     </div>
+
+    <!-- Team & Sub-Agent Performance Table -->
+    <section id="rp-team-subagent-table"
+        style="background: rgba(255,255,255,0.03); padding: 24px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); margin-top: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <div>
+                <h3 style="margin: 0 0 8px 0; color: #fff; font-size: 18px; font-weight: 600;">📊 Team & Sub-Agent
+                    Performance</h3>
+                <p style="margin: 0; font-size: 13px; color: rgba(255,255,255,0.5);">Detailed performance metrics by
+                    project and agent</p>
+            </div>
+            <div style="position: relative;">
+                <input type="text" id="rp-table-search" placeholder="Search team or sub-agent..."
+                    style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 8px 12px 8px 36px; border-radius: 6px; font-size: 13px; width: 240px; outline: none;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: rgba(255,255,255,0.4);">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+            </div>
+        </div>
+
+        <div style="overflow-x: auto;">
+            <table class="admin-table" style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <th class="sortable" data-sort="projectName"
+                            style="padding: 12px; text-align: left; cursor: pointer; user-select: none;">Project Name ↕
+                        </th>
+                        <th class="sortable" data-sort="agentTeamName"
+                            style="padding: 12px; text-align: left; cursor: pointer; user-select: none;">Agent Team ↕
+                        </th>
+                        <th class="sortable" data-sort="subAgentName"
+                            style="padding: 12px; text-align: left; cursor: pointer; user-select: none;">Sub-Agent ↕
+                        </th>
+                        <th class="sortable" data-sort="engineType"
+                            style="padding: 12px; text-align: left; cursor: pointer; user-select: none;">Engine ↕</th>
+                        <th class="sortable" data-sort="calls"
+                            style="padding: 12px; text-align: right; cursor: pointer; user-select: none;">Calls ↕</th>
+                        <th class="sortable" data-sort="successRate"
+                            style="padding: 12px; text-align: right; cursor: pointer; user-select: none;">Success % ↕
+                        </th>
+                        <th class="sortable" data-sort="avgLatencyMs"
+                            style="padding: 12px; text-align: right; cursor: pointer; user-select: none;">Latency ↕</th>
+                        <th class="sortable" data-sort="totalTokens"
+                            style="padding: 12px; text-align: right; cursor: pointer; user-select: none;">Tokens ↕</th>
+                        <th class="sortable" data-sort="totalCostUsd"
+                            style="padding: 12px; text-align: right; cursor: pointer; user-select: none;">Cost ↕</th>
+                    </tr>
+                </thead>
+                <tbody id="rp-table-body">
+                    <!-- Dynamically populated -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.05);">
+            <div style="font-size: 13px; color: rgba(255,255,255,0.5);">
+                Showing <span id="rp-showing-start">0</span> to <span id="rp-showing-end">0</span> of <span
+                    id="rp-total-count">0</span> entries
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button id="rp-prev-page" class="admin-btn-secondary" style="padding: 6px 12px; font-size: 12px;"
+                    disabled>Previous</button>
+                <span id="rp-current-page"
+                    style="display: flex; align-items: center; padding: 0 8px; font-size: 13px; color: rgba(255,255,255,0.7);">Page
+                    1</span>
+                <button id="rp-next-page" class="admin-btn-secondary" style="padding: 6px 12px; font-size: 12px;"
+                    disabled>Next</button>
+            </div>
+        </div>
+    </section>
 </div>
