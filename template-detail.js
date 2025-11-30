@@ -101,29 +101,40 @@
 
             const template = templateDoc.data();
 
+            // Helper for safe DOM update
+            const setText = (id, text) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = text;
+            };
+
             // Populate header
-            document.getElementById('template-detail-title').textContent = template.name || 'Untitled Template';
-            document.getElementById('template-detail-id').textContent = `ID: ${template.id}`;
-            document.getElementById('template-detail-status').textContent = formatStatus(template.status);
-            document.getElementById('template-detail-status').className = `badge ${getStatusBadgeClass(template.status)}`;
-            document.getElementById('template-detail-version').textContent = template.version || 'v1.0.0';
+            setText('template-detail-title', template.name || 'Untitled Template');
+            setText('template-detail-id', `ID: ${template.id}`);
+
+            const statusBadge = document.getElementById('template-detail-status');
+            if (statusBadge) {
+                statusBadge.textContent = formatStatus(template.status);
+                statusBadge.className = `badge ${getStatusBadgeClass(template.status)}`;
+            }
+
+            setText('template-detail-version', template.version || 'v1.0.0');
 
             // Populate template information
-            document.getElementById('detail-name').textContent = template.name || 'Untitled';
-            document.getElementById('detail-description').textContent = template.description || 'No description provided';
-            document.getElementById('detail-version-text').textContent = template.version || 'v1.0.0';
-            document.getElementById('detail-status-text').textContent = formatStatus(template.status);
+            setText('detail-name', template.name || 'Untitled');
+            setText('detail-description', template.description || 'No description provided');
+            setText('detail-version-text', template.version || 'v1.0.0');
+            setText('detail-status-text', formatStatus(template.status));
 
             // Update status indicator
             const statusIndicator = document.querySelector('.status-indicator');
             statusIndicator.className = `status-indicator ${getStatusClass(template.status)}`;
 
             // Format dates
-            document.getElementById('detail-created').textContent = formatDate(template.created_at);
-            document.getElementById('detail-updated').textContent = formatDate(template.updated_at);
+            setText('detail-created', formatDate(template.created_at));
+            setText('detail-updated', formatDate(template.updated_at));
 
             // Get creator name (you might need to fetch from users collection)
-            document.getElementById('detail-created-by').textContent = template.created_by || 'System';
+            setText('detail-created-by', template.created_by || 'System');
 
             // Load roles
             await loadRoles(template.roles || []);

@@ -4,9 +4,9 @@
 
 (function () {
     // Load template detail script
-    if (!document.querySelector('script[src="template-detail.js"]')) {
+    if (!document.querySelector('script[src^="template-detail.js"]')) {
         const script = document.createElement('script');
-        script.src = 'template-detail.js';
+        script.src = `template-detail.js?v=${Date.now()}`;
         document.body.appendChild(script);
     }
 
