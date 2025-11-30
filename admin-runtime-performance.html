@@ -1,0 +1,110 @@
+<!-- admin-runtime-performance.html -->
+<!-- PRD 10.0: Runtime Performance & Analytics Dashboard -->
+
+<div class="admin-actions-bar">
+    <div style="display: flex; align-items: center; gap: 16px; flex: 1;">
+        <h2 style="margin: 0; color: #fff; font-size: 20px;">⚡ Runtime Performance</h2>
+        <div style="font-size: 13px; color: rgba(255,255,255,0.5);">Monitor LLM execution metrics and costs</div>
+    </div>
+
+    <div style="display: flex; gap: 12px;">
+        <button class="admin-btn-secondary" onclick="refreshPerformanceData()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
+            </svg>
+            Refresh
+        </button>
+        <button class="admin-btn-secondary" onclick="exportPerformanceData()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+            </svg>
+            Export
+        </button>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div id="rp-filter-bar"
+    style="background: rgba(255,255,255,0.03); padding: 16px; border-radius: 12px; margin-bottom: 24px; border: 1px solid rgba(255,255,255,0.05);">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+        <!-- Time Range -->
+        <div>
+            <label
+                style="display: block; font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;">Time
+                Range</label>
+            <select id="rp-time-range" class="admin-select" onchange="applyFilters()">
+                <option value="24h">Last 24 Hours</option>
+                <option value="7d">Last 7 Days</option>
+                <option value="30d" selected>Last 30 Days</option>
+                <option value="90d">Last 90 Days</option>
+            </select>
+        </div>
+
+        <!-- Engine Type -->
+        <div>
+            <label
+                style="display: block; font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;">Engine
+                Type</label>
+            <select id="rp-engine-type" class="admin-select" onchange="applyFilters()">
+                <option value="all">All Engines</option>
+                <option value="planner">Planner</option>
+                <option value="creator_text">Creator.Text</option>
+                <option value="research">Research</option>
+                <option value="engagement">Engagement</option>
+            </select>
+        </div>
+
+        <!-- Provider -->
+        <div>
+            <label
+                style="display: block; font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;">Provider</label>
+            <select id="rp-provider" class="admin-select" onchange="applyFilters()">
+                <option value="all">All Providers</option>
+                <option value="openai">OpenAI</option>
+                <option value="anthropic">Anthropic</option>
+                <option value="google">Google</option>
+            </select>
+        </div>
+
+        <!-- Tier -->
+        <div>
+            <label
+                style="display: block; font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;">Tier</label>
+            <select id="rp-tier" class="admin-select" onchange="applyFilters()">
+                <option value="all">All Tiers</option>
+                <option value="creative">Creative</option>
+                <option value="balanced">Balanced</option>
+                <option value="precise">Precise</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<!-- KPI Cards -->
+<div id="rp-kpi-cards"
+    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 32px;">
+    <!-- Dynamically populated -->
+</div>
+
+<!-- Charts Section -->
+<div id="rp-charts" style="display: flex; flex-direction: column; gap: 24px;">
+    <!-- Latency Trend Chart -->
+    <div id="rp-latency-chart-container"
+        style="background: rgba(255,255,255,0.03); padding: 24px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+        <div style="margin-bottom: 20px;">
+            <h3 style="margin: 0 0 8px 0; color: #fff; font-size: 18px; font-weight: 600;">📈 Latency Trend</h3>
+            <p style="margin: 0; font-size: 13px; color: rgba(255,255,255,0.5);">Average response time over time</p>
+        </div>
+        <canvas id="latency-chart"></canvas>
+    </div>
+
+    <!-- Token & Cost Trend Chart -->
+    <div id="rp-token-cost-chart-container"
+        style="background: rgba(255,255,255,0.03); padding: 24px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+        <div style="margin-bottom: 20px;">
+            <h3 style="margin: 0 0 8px 0; color: #fff; font-size: 18px; font-weight: 600;">💰 Token & Cost Trend</h3>
+            <p style="margin: 0; font-size: 13px; color: rgba(255,255,255,0.5);">Token usage and associated costs</p>
+        </div>
+        <canvas id="token-cost-chart"></canvas>
+    </div>
+</div>

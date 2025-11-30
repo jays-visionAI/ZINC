@@ -147,6 +147,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             subagents: "Sub-Agent Management",
             'channel-profiles': "Channel Profile Management",
             'runtime-profiles': 'Runtime Profile Management',
+            'runtime-performance': 'Runtime Performance & Analytics',
             'kpi-management': 'KPI Management',
             performance: "Performance & KPI",
             industries: "Industry Master",
