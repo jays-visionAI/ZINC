@@ -304,56 +304,118 @@
         renderRoleSelection();
     };
 
-    function renderRuntimeProfileConnection() {
-        const list = document.getElementById('wizard-template-connection-list');
+    async function renderRuntimeAutoAssignment() {
+        const list = document.getElementById('wizard-runtime-auto-list');
         if (!list) return;
 
-        console.log("Rendering Runtime Profile Connection Step...");
-        console.log("Current Roles:", wizardData.roles.map(r => r.type));
-        console.log("Available Profiles:", runtimeProfiles.length);
+        console.log("[AgentTeamWizard] Rendering auto-assigned runtime configurations...");
+        console.log("[AgentTeamWizard] Current Roles:", wizardData.roles.map(r => r.type));
 
         if (wizardData.roles.length === 0) {
             list.innerHTML = '<div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">No roles selected. Please go back and select roles.</div>';
             return;
         }
 
-        list.innerHTML = wizardData.roles.map(role => {
-            const roleType = ROLE_TYPES.find(t => t.value === role.type);
+        // Show loading state
+        list.innerHTML = '<div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">🔄 Resolving runtime configurations...</div>';
 
-            // Filter runtime profiles using normalized role type
-            const availableProfiles = runtimeProfiles.filter(p =>
-                (p._normalized_engine_type || '').toLowerCase() === (role.type || '').toLowerCase()
+        try {
+            // Resolve runtime config for each role
+            const resolvedRoles = await Promise.all(
+                wizardData.roles.map(async (role) => {
+                    try {
+                        const config = await resolveRuntimeConfig({
+                            role_type: role.type,
+                            language: role.language || 'global',
+                            tier: role.tier || 'balanced'
+                        });
+
+                        // Store resolved config in role
+                        role.runtime_config = config;
+
+                        return { role, config, success: true };
+                    } catch (error) {
+                        console.error(`[AgentTeamWizard] Failed to resolve config for ${role.type}:`, error);
+                        return { role, error: error.message, success: false };
+                    }
+                })
             );
 
-            console.log(`Role: ${role.type}, Matching Profiles: ${availableProfiles.length}`);
+            // Render resolved configs
+            list.innerHTML = resolvedRoles.map(({ role, config, error, success }) => {
+                const roleType = ROLE_TYPES.find(t => t.value === role.type);
 
-            const options = availableProfiles.map(p =>
-                `<option value="${p.id}" ${role.defaultRuntimeProfileId === p.id ? 'selected' : ''}>${p.id} - ${p.model_name || 'Unknown Model'} (${p.tier || 'standard'})</option>`
-            ).join('');
-
-            return `
-            <div style="background: rgba(255,255,255,0.03); padding: 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
-                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
-                    <span style="font-size: 20px;">${roleType?.icon || '🤖'}</span>
-                    <div>
-                        <div style="font-weight: 600; color: #fff;">${role.name}</div>
-                        <div style="font-size: 12px; color: rgba(255,255,255,0.5);">${roleType?.label}</div>
+                if (!success) {
+                    return `
+                    <div style="background: rgba(239, 68, 68, 0.1); padding: 16px; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 20px;">${roleType?.icon || '🤖'}</span>
+                            <div style="flex: 1;">
+                                <div style="font-weight: 600; color: #fff;">${role.name}</div>
+                                <div style="font-size: 12px; color: rgba(255,255,255,0.5);">${roleType?.label}</div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 12px; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 4px;">
+                            <div style="color: #ef4444; font-size: 12px;">❌ Resolution Failed: ${error}</div>
+                        </div>
                     </div>
-                    ${role.is_required ? '<span style="font-size: 10px; background: rgba(239, 68, 68, 0.2); color: #f87171; padding: 2px 6px; border-radius: 4px; margin-left: auto;">Required</span>' : ''}
-                </div>
+                    `;
+                }
 
-                <div class="admin-form-group" style="margin-bottom: 0;">
-                    <label class="admin-form-label" style="font-size: 12px;">Runtime Profile</label>
-                    <select class="admin-select" style="width: 100%;"
-                        onchange="updateRoleData('${role.type}', 'defaultRuntimeProfileId', this.value)">
-                        <option value="">-- Select Runtime Profile --</option>
-                        ${options}
-                    </select>
-                    ${availableProfiles.length === 0 ? `<div style="font-size: 11px; color: #f87171; margin-top: 4px;">No active runtime profiles found for role type: <strong>${role.type}</strong></div>` : ''}
+                return `
+                <div style="background: rgba(255,255,255,0.03); padding: 16px; border-radius: 8px; border: 1px solid rgba(96, 165, 250, 0.2);">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                        <span style="font-size: 20px;">${roleType?.icon || '🤖'}</span>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; color: #fff;">${role.name}</div>
+                            <div style="font-size: 12px; color: rgba(255,255,255,0.5);">${roleType?.label}</div>
+                        </div>
+                        ${role.is_required ? '<span style="font-size: 10px; background: rgba(239, 68, 68, 0.2); color: #f87171; padding: 2px 6px; border-radius: 4px;">Required</span>' : ''}
+                    </div>
+
+                    <div style="background: rgba(15, 23, 42, 0.6); padding: 12px; border-radius: 6px; border: 1px solid rgba(96, 165, 250, 0.1);">
+                        <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; font-size: 13px;">
+                            <div style="color: rgba(255,255,255,0.5);">Provider:</div>
+                            <div style="color: #60a5fa; font-weight: 500;">${config.provider}</div>
+
+                            <div style="color: rgba(255,255,255,0.5);">Model:</div>
+                            <div style="color: #fbbf24; font-weight: 500;">${config.model_id}</div>
+
+                            <div style="color: rgba(255,255,255,0.5);">Tier:</div>
+                            <div style="color: #22c55e;">${config.resolved_tier}</div>
+
+                            <div style="color: rgba(255,255,255,0.5);">Language:</div>
+                            <div style="color: rgba(255,255,255,0.7);">${config.resolved_language}</div>
+
+                            <div style="color: rgba(255,255,255,0.5);">Temperature:</div>
+                            <div style="color: rgba(255,255,255,0.7);">${config.temperature}</div>
+
+                            ${config.max_tokens ? `
+                            <div style="color: rgba(255,255,255,0.5);">Max Tokens:</div>
+                            <div style="color: rgba(255,255,255,0.7);">${config.max_tokens}</div>
+                            ` : ''}
+                        </div>
+
+                        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.05);">
+                            <div style="font-size: 11px; color: rgba(255,255,255,0.4);">
+                                Rule: <code style="color: #60a5fa;">${config.runtime_rule_id}</code>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
+                `;
+            }).join('');
+
+            console.log("[AgentTeamWizard] ✅ All runtime configurations resolved successfully");
+
+        } catch (error) {
+            console.error("[AgentTeamWizard] Error resolving runtime configs:", error);
+            list.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #ef4444;">
+                    ❌ Error resolving runtime configurations: ${error.message}
+                </div>
             `;
-        }).join('');
+        }
     }
 
     function handleNextStep() {
@@ -376,13 +438,12 @@
                 alert('Please select at least one role');
                 return;
             }
-            // Ensure runtime profiles are loaded before rendering connection step
-            loadRuntimeProfiles().then(() => {
-                renderRuntimeProfileConnection();
-                currentStep++;
-                updateWizardUI();
-            });
-            return; // exit early; UI will be updated in promise callback
+            // Auto-assign runtime configurations for selected roles
+            currentStep++;
+            updateWizardUI();
+            // Render auto-assigned configs (async)
+            renderRuntimeAutoAssignment();
+            return;
         } else if (currentStep === 3) {
             renderStep4();
             currentStep++;

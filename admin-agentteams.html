@@ -293,17 +293,34 @@
                     </div>
                 </div>
 
-                <!-- Step 3: Runtime Profile Connection -->
+
+                <!-- Step 3: Runtime Configuration (Auto-Assigned) -->
                 <div id="step-3" class="wizard-step" style="display: none;">
                     <div style="margin-bottom: 16px;">
                         <p style="margin: 0 0 12px 0; color: rgba(255,255,255,0.7);">
-                            Link Runtime Profiles to the selected roles. Runtime Profiles define the model and execution
-                            parameters for each agent.
+                            Runtime configurations are automatically assigned based on each role's engine type,
+                            language, and tier preferences.
+                            <strong>No manual selection required.</strong>
                         </p>
 
-                        <div id="wizard-template-connection-list"
-                            style="display: flex; flex-direction: column; gap: 12px;">
-                            <!-- Dynamically populated -->
+                        <div
+                            style="background: rgba(96, 165, 250, 0.1); border: 1px solid rgba(96, 165, 250, 0.3); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#60a5fa"
+                                    stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                                </svg>
+                                <span style="color: #60a5fa; font-size: 13px;">
+                                    Configurations are resolved from <strong>runtimeProfileRules</strong> collection
+                                    using smart fallback logic.
+                                </span>
+                            </div>
+                        </div>
+
+                        <div id="wizard-runtime-auto-list" style="display: flex; flex-direction: column; gap: 12px;">
+                            <!-- Dynamically populated with auto-assigned configs -->
                         </div>
                     </div>
                 </div>

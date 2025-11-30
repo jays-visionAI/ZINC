@@ -106,10 +106,9 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Runtime Profile Rules: Admin can write, authenticated users can read
+    // Runtime Profile Rules: Admin only (internal tool)
     match /runtimeProfileRules/{ruleId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow read, write: if isAdmin();
     }
 
     // Agent Set Templates (Root): Admin can write, authenticated users can read
