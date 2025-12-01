@@ -161,6 +161,17 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // System Prompt Templates: Admin can write, authenticated users can read
+    match /systemPromptTemplates/{templateId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Sub-Agent Channel Adapters: Admin only
+    match /subAgentChannelAdapters/{adapterId} {
+      allow read, write: if isAdmin();
+    }
+
     // User API Credentials (PRD 11.0 Phase 2): Users can only access their own credentials
     match /userApiCredentials/{credId} {
       // Users can read and write their own credentials

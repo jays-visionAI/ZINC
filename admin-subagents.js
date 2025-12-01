@@ -315,7 +315,7 @@ Always prioritize accurate, up-to-date information.`
         `).join('');
     }
 
-    window.initSubagents = function (user) {
+    window.initSubAgents = function (user) {
         console.log("Initializing Sub-Agent Templates Page...");
 
         if (unsubscribe) {

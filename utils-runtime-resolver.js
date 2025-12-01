@@ -131,6 +131,34 @@ const RuntimeResolver = {
     }
 };
 
+// Helper functions for Admin UI dropdowns
+window.getAvailableRoleTypes = function () {
+    return [
+        { value: 'strategist', label: 'Strategist' },
+        { value: 'creator', label: 'Creator' },
+        { value: 'analyst', label: 'Analyst' },
+        { value: 'moderator', label: 'Moderator' }
+    ];
+};
+
+window.getAvailableLanguages = function () {
+    return [
+        { value: 'global', label: 'Global', flag: '🌍' },
+        { value: 'en', label: 'English', flag: '🇺🇸' },
+        { value: 'ko', label: 'Korean', flag: '🇰🇷' },
+        { value: 'ja', label: 'Japanese', flag: '🇯🇵' },
+        { value: 'zh', label: 'Chinese', flag: '🇨🇳' }
+    ];
+};
+
+window.getAvailableTiers = function () {
+    return [
+        { value: 'balanced', label: 'Balanced', description: 'Cost-effective, general purpose' },
+        { value: 'creative', label: 'Creative', description: 'Higher creativity, more tokens' },
+        { value: 'precise', label: 'Precise', description: 'Lower temperature, factual' }
+    ];
+};
+
 // Export for module usage if needed, or attach to window for vanilla JS
 if (typeof window !== 'undefined') {
     window.RuntimeResolver = RuntimeResolver;
