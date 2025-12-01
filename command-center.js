@@ -212,7 +212,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // 🔹 Step 1 Logic (PRD 11.0 - Project Brief)
     function validateStep1() {
         const businessName = document.getElementById("business-name").value.trim();
-        const description = document.getElementById("project-description").value.trim();
         const industry = document.getElementById("industry").value;
         const mainProduct = document.getElementById("main-product").value.trim();
         const targetMarkets = document.getElementById("target-markets").value.trim();
@@ -225,11 +224,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (!businessName) {
             alert("Please enter your Business / Brand Name");
-            return false;
-        }
-
-        if (!description) {
-            alert("Please provide a Brand / Project Description");
             return false;
         }
 
@@ -292,7 +286,6 @@ document.addEventListener("DOMContentLoaded", () => {
             userId: currentUser.uid,
             // PRD 11.0 Project Brief fields
             businessName: document.getElementById("business-name").value.trim(),
-            description: document.getElementById("project-description").value.trim(),
             industry: industryKey,
             mainProduct: document.getElementById("main-product").value.trim(),
             websiteUrl: document.getElementById("website-url").value.trim(),

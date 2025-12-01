@@ -511,6 +511,8 @@ body {
 
 .stat-item {
     flex: 1;
+    min-width: 120px;
+    text-align: center;
 }
 
 .stat-number {
