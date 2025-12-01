@@ -49,10 +49,28 @@
 
         unsubscribe = db.collection('channelProfiles')
             .onSnapshot((snapshot) => {
-                profiles = [];
+                let rawProfiles = [];
                 snapshot.forEach(doc => {
-                    profiles.push({ id: doc.id, ...doc.data() });
+                    rawProfiles.push({ id: doc.id, ...doc.data() });
                 });
+
+                // Deduplicate: Group by name, keep best version
+                const uniqueMap = new Map();
+
+                rawProfiles.forEach(p => {
+                    const name = p.name ? p.name.trim() : 'Unknown';
+
+                    if (!uniqueMap.has(name)) {
+                        uniqueMap.set(name, p);
+                    } else {
+                        const existing = uniqueMap.get(name);
+                        if (isBetterProfile(p, existing)) {
+                            uniqueMap.set(name, p);
+                        }
+                    }
+                });
+
+                profiles = Array.from(uniqueMap.values());
 
                 // Sort by name
                 profiles.sort((a, b) => a.name.localeCompare(b.name));
@@ -65,6 +83,30 @@
                         `<tr><td colspan="7" style="text-align: center; color: #ef4444;">Error: ${error.message}</td></tr>`;
                 }
             });
+    }
+
+    function isBetterProfile(candidate, existing) {
+        // 1. Prefer valid version format (e.g. v1.0.0 over vv1.0.0)
+        const validVersionRegex = /^v\d+\.\d+\.\d+$/;
+        const candValid = validVersionRegex.test(candidate.version);
+        const existValid = validVersionRegex.test(existing.version);
+
+        if (candValid && !existValid) return true;
+        if (!candValid && existValid) return false;
+
+        // 2. Prefer having updatedAt
+        if (candidate.updatedAt && !existing.updatedAt) return true;
+        if (!candidate.updatedAt && existing.updatedAt) return false;
+
+        // 3. Prefer newer updatedAt
+        if (candidate.updatedAt && existing.updatedAt) {
+            const candDate = candidate.updatedAt.toDate ? candidate.updatedAt.toDate() : new Date(candidate.updatedAt);
+            const existDate = existing.updatedAt.toDate ? existing.updatedAt.toDate() : new Date(existing.updatedAt);
+            return candDate > existDate;
+        }
+
+        // 4. Fallback: Prefer shorter ID (assuming 'discord' is better than 'channel_discord_123')
+        return candidate.id.length < existing.id.length;
     }
 
     function handleSearch() {
@@ -114,10 +156,26 @@
                     <button onclick="editProfile('${p.id}')" class="admin-btn-secondary" style="padding: 4px 8px; font-size: 12px;">
                         Edit
                     </button>
+                    <button onclick="deleteProfile('${p.id}')" class="admin-btn-danger" style="padding: 4px 8px; font-size: 12px; margin-left: 4px; background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3);">
+                        Delete
+                    </button>
                 </td>
             </tr>
         `).join('');
     }
+
+    window.deleteProfile = async function (id) {
+        if (!confirm('Are you sure you want to delete this channel profile? This cannot be undone.')) return;
+
+        try {
+            await db.collection('channelProfiles').doc(id).delete();
+            console.log("✅ Profile deleted:", id);
+            // UI updates automatically via onSnapshot
+        } catch (error) {
+            console.error("Error deleting profile:", error);
+            alert("Error deleting profile: " + error.message);
+        }
+    };
 
     function getChannelIcon(id) {
         const icons = {

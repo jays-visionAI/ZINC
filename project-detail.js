@@ -497,10 +497,21 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     async function renderDeployStep4() {
         const container = document.getElementById("channel-config-list");
-        container.innerHTML = '<div style="text-align: center; padding: 20px;">Loading Credentials...</div>';
+        container.innerHTML = '<div style="text-align: center; padding: 20px;">Loading Channels...</div>';
 
         try {
-            // 1. Load User Credentials
+            // 1. Load Available Channels from channelProfiles
+            const channels = await ChannelProfilesUtils.loadAvailableChannels();
+
+            if (channels.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: rgba(255,255,255,0.5); padding: 40px;">No active channels found. Please contact admin.</div>';
+                return;
+            }
+
+            // Store channels in deployData for later use
+            deployData.availableChannels = channels;
+
+            // 2. Load User Credentials
             const credsSnapshot = await db.collection("userApiCredentials")
                 .where("userId", "==", currentUser.uid)
                 .where("status", "==", "active")
@@ -509,26 +520,24 @@ document.addEventListener("DOMContentLoaded", async () => {
             const credentials = [];
             credsSnapshot.forEach(doc => credentials.push({ id: doc.id, ...doc.data() }));
 
-            // 2. Define Supported Channels
-            const channels = [
-                { id: 'instagram', name: 'Instagram', icon: '📸' },
-                { id: 'x', name: 'X (Twitter)', icon: '🐦' },
-                { id: 'youtube', name: 'YouTube', icon: '▶️' },
-                { id: 'tiktok', name: 'TikTok', icon: '🎵' },
-                { id: 'linkedin', name: 'LinkedIn', icon: '💼' }
-            ];
-
-            // 3. Render UI
+            // 3. Render UI dynamically based on channelProfiles
             container.innerHTML = channels.map(ch => {
-                const chCreds = credentials.filter(c => c.provider === ch.id);
+                // Match credentials by provider (using 'key' field from channelProfiles)
+                const channelKey = ch.key || ch.id;
+                const chCreds = credentials.filter(c => c.provider === channelKey);
                 const options = chCreds.map(c => `<option value="${c.id}">${c.label} (${c.maskedKey})</option>`).join('');
+
+                // Get icon (use emoji from channelProfiles or fallback)
+                const icon = getChannelIconById(channelKey);
 
                 return `
                 <div class="channel-config-item" style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
                     <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-                        <input type="checkbox" id="ch-enable-${ch.id}" class="admin-checkbox" onchange="toggleChannelConfig('${ch.id}')">
-                        <div style="font-size: 20px;">${ch.icon}</div>
-                        <div style="font-weight: 600;">${ch.name}</div>
+                        <input type="checkbox" id="ch-enable-${ch.id}" class="admin-checkbox" 
+                               data-channel-key="${channelKey}"
+                               onchange="toggleChannelConfig('${ch.id}')">
+                        <div style="font-size: 20px;">${icon}</div>
+                        <div style="font-weight: 600;">${ch.name || channelKey}</div>
                     </div>
                     
                     <div id="ch-config-${ch.id}" style="display: none; padding-left: 28px;">
@@ -552,26 +561,32 @@ document.addEventListener("DOMContentLoaded", async () => {
             };
 
         } catch (error) {
-            console.error("Error loading credentials:", error);
-            container.innerHTML = '<div style="text-align: center; color: #ef4444;">Error loading configuration.</div>';
+            console.error("Error loading Step 4:", error);
+            container.innerHTML = '<div style="text-align: center; color: #ef4444;">Error loading channels. Please try again.</div>';
         }
     }
 
     async function deployTeam() {
         const btn = document.getElementById("deploy-next");
 
-        // Collect Channel Config
+        // Collect Channel Config from dynamically loaded channels
         const selectedChannels = [];
-        const channels = ['instagram', 'x', 'youtube', 'tiktok', 'linkedin'];
+        const targetChannelIds = [];
+        const targetChannelKeys = [];
 
-        channels.forEach(chId => {
-            const enabled = document.getElementById(`ch-enable-${chId}`).checked;
-            if (enabled) {
-                const credId = document.getElementById(`ch-cred-${chId}`).value;
+        // Use availableChannels from deployData (loaded in Step 4)
+        const availableChannels = deployData.availableChannels || [];
 
-                // Construct channel object
+        availableChannels.forEach(ch => {
+            const checkbox = document.getElementById(`ch-enable-${ch.id}`);
+            if (checkbox && checkbox.checked) {
+                const channelKey = checkbox.dataset.channelKey || ch.key || ch.id;
+                const credSelect = document.getElementById(`ch-cred-${ch.id}`);
+                const credId = credSelect ? credSelect.value : null;
+
+                // Construct channel object for channels array
                 const channelObj = {
-                    provider: chId,
+                    provider: channelKey,
                     credentialId: credId || null,
                     enabled: true,
                     updatedAt: firebase.firestore.Timestamp.now(),
@@ -582,6 +597,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 channelObj.status = ChannelOrchestrator.computeChannelStatus(channelObj);
 
                 selectedChannels.push(channelObj);
+                targetChannelIds.push(ch.id); // channelProfiles document ID
+                targetChannelKeys.push(channelKey); // channel key (instagram, x, etc.)
             }
         });
 
@@ -605,6 +622,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 // PRD 11.0 Phase 2: Channels Array
                 channels: selectedChannels,
+
+                // PRD 11.0 Phase 3: Target Channels (channelProfiles references)
+                targetChannels: targetChannelIds,
+                targetChannelKeys: targetChannelKeys,
 
                 // Legacy Compatibility
                 channelId: selectedChannels.length > 0 ? selectedChannels[0].provider : 'none',
@@ -2172,6 +2193,12 @@ window.viewTeamDetails = async function (instanceId) {
     } catch (error) {
         console.error("Error rendering detail panel:", error);
     }
+};
+
+// Alias for onclick handler in HTML
+window.openAgentDetail = function (instanceId) {
+    console.log('[AgentSwarm] openAgentDetail called', { instanceId });
+    window.viewTeamDetails(instanceId);
 };
 
 async function renderDetailPanel(instanceId, projectId) {
