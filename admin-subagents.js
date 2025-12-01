@@ -638,10 +638,9 @@ Always prioritize accurate, up-to-date information.`
                 });
 
                 templates.sort((a, b) => {
-                    const typeA = a.type || '';
-                    const typeB = b.type || '';
-                    if (typeA !== typeB) return typeA.localeCompare(typeB);
-                    return compareVersions(b.version, a.version);
+                    const timeA = a.updated_at ? (a.updated_at.toMillis ? a.updated_at.toMillis() : new Date(a.updated_at).getTime()) : 0;
+                    const timeB = b.updated_at ? (b.updated_at.toMillis ? b.updated_at.toMillis() : new Date(b.updated_at).getTime()) : 0;
+                    return timeB - timeA;
                 });
 
                 filteredTemplates = [...templates];
