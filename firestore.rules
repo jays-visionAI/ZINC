@@ -99,6 +99,18 @@ service cloud.firestore {
         allow read: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
         allow write: if isAdmin();
       }
+
+      // Documents (Admin managed, User readable)
+      match /documents/{docId} {
+        allow read: if isAuthenticated();
+        allow write: if isAdmin();
+        
+        // Document History
+        match /history/{historyId} {
+            allow read: if isAuthenticated();
+            allow write: if isAdmin();
+        }
+      }
     }
     
     // Industries collection

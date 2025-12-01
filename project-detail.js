@@ -432,7 +432,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         loadTeamTemplates(); // Re-render
     };
 
-    function handleDeployNext() {
+    async function handleDeployNext() {
         if (deployStep === 1) {
             const name = document.getElementById("team-name").value.trim();
             const desc = document.getElementById("team-description").value.trim();
@@ -446,12 +446,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         } else if (deployStep === 2) {
             if (!deployData.templateId) { alert("Please select a template."); return; }
             deployStep++;
-            renderDeployStep3();
+            await renderDeployStep3(); // Await async function
         } else if (deployStep === 3) {
             deployStep++;
-            renderDeployStep4();
+            await renderDeployStep4(); // Also await this for consistency
         } else if (deployStep === 4) {
-            deployTeam();
+            await deployTeam(); // Also await this
+            return; // Don't call updateDeployUI after team creation
         }
         updateDeployUI();
     }
