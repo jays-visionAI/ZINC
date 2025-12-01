@@ -420,29 +420,42 @@ interface AgentSetTemplate {
 #### TypeScript Interface
 
 ```typescript
-export type AgentTeamStatus = 'active' | 'inactive' | 'paused' | 'error';
+export type AgentTeamStatus = 'active' | 'inactive' | 'paused' | 'error' | 'draft';
 
 interface ProjectAgentTeamInstance {
   // --- Identity & Relations ---
   id: string;                    // Instance ID (e.g., "team_1732345678901")
   projectId: string;             // Link to Project
-  channelId: string;             // Link to ChannelProfile
   templateId: string;            // Link to AgentSetTemplate
   name: string;                  // Instance name (e.g., "Instagram Official Team")
+  description?: string;          // Optional description
   status: AgentTeamStatus;       // Team status
   
+  // --- PRD 11.0 Phase 2: Channel & Credential Configuration ---
+  // Replaces legacy single channelId with array of channel configurations
+  channels: Array<{
+    provider: string;            // Channel type: 'instagram' | 'x' | 'youtube' | etc.
+    credentialId?: string;       // Reference to userApiCredentials/{credId}
+    enabled: boolean;            // Whether this channel is active
+    addedAt: Timestamp;          // When this channel was added
+  }>;
+  
+  // --- Legacy Fields (Deprecated in Phase 2) ---
+  channelId?: string;            // Deprecated: Use channels[] instead
+  platform?: 'x' | 'linkedin' | 'instagram' | 'tiktok' | 'youtube';
+  
   // --- Deployment Info ---
-  deployedAt: Timestamp;         // When this team was deployed
-  deployedBy: string;            // User ID who deployed
+  deployedAt?: Timestamp;        // When this team was deployed (null if draft)
+  deployedBy?: string;           // User ID who deployed
+  
+  // --- Draft State (PRD 11.0 Phase 1) ---
+  lastStepCompleted?: number;    // Wizard step (1-4) for draft resume
   
   // --- Phase 0/1 Metadata (PRD 5.0) ---
   configProfileId?: string;      // Configuration profile ID
   engineVersionSet?: string;     // Engine version set
   channel?: string;              // Deployment channel ('stable' | 'beta')
   ruleProfileId?: string | null; // Phase 1: RULE Profile ID
-  
-  // --- Platform Info (for UI rendering) ---
-  platform?: 'x' | 'linkedin' | 'instagram' | 'tiktok' | 'youtube';
   
   // --- Mission Control: Active Directive ---
   // Displayed in the "ACTIVE DIRECTIVE" section of the agent card
@@ -475,25 +488,51 @@ interface ProjectAgentTeamInstance {
 }
 ```
 
-#### Example Document
+#### Example Document (PRD 11.0 Phase 2 - Multi-Channel with Credentials)
 
 ```json
 {
   "id": "team_1732345678901",
   "projectId": "proj_abc123",
-  "channelId": "channel_instagram_official",
   "templateId": "agst_17642383884805",
-  "name": "Instagram Official Team",
+  "name": "Multi-Channel Content Team",
+  "description": "Automated content creation and distribution across Instagram and X",
   "status": "active",
+  
+  // PRD 11.0 Phase 2: Multi-channel configuration with credentials
+  "channels": [
+    {
+      "provider": "instagram",
+      "credentialId": "cred_instagram_001",
+      "enabled": true,
+      "addedAt": "2025-11-28T10:00:00Z"
+    },
+    {
+      "provider": "x",
+      "credentialId": "cred_x_001",
+      "enabled": true,
+      "addedAt": "2025-11-28T10:05:00Z"
+    },
+    {
+      "provider": "youtube",
+      "credentialId": null,  // Not yet configured
+      "enabled": false,
+      "addedAt": "2025-11-28T10:10:00Z"
+    }
+  ],
+  
+  // Legacy fields (for backward compatibility)
+  "channelId": "channel_instagram_official",
+  "platform": "instagram",
   
   "deployedAt": "2025-11-28T10:00:00Z",
   "deployedBy": "user_xyz789",
+  "lastStepCompleted": 4,
   
   "configProfileId": "default",
   "engineVersionSet": "v1.0.0",
   "channel": "stable",
   "ruleProfileId": null,
-  "platform": "instagram",
   
   "active_directive": {
     "title": "ACTIVE DIRECTIVE",
@@ -510,7 +549,7 @@ interface ProjectAgentTeamInstance {
     "total_runs": 142
   },
   
-  "tags": ["instagram", "content-creation", "autonomous"],
+  "tags": ["instagram", "x", "content-creation", "autonomous"],
   
   "created_at": "2025-11-28T10:00:00Z",
   "updated_at": "2025-11-29T04:00:00Z"
@@ -645,6 +684,201 @@ interface User {
   "lastLoginAt": "2025-11-28T09:00:00Z"
 }
 ```
+
+---
+
+### Collection: `userApiCredentials`
+
+**Purpose**: Stores user's reusable API credentials for various social media platforms and services. This collection enables centralized credential management and allows credentials to be shared across multiple projects and agent teams.
+
+**PRD Reference**: PRD 11.0 Phase 2 - API Key Management Hub
+
+#### TypeScript Interface
+
+```typescript
+interface UserApiCredential {
+  id: string;                    // Auto-generated credential ID (e.g., "cred_abc123")
+  
+  // === Identity & Ownership ===
+  userId: string;                // Firebase Auth UID of the credential owner
+  provider: 'instagram' | 'x' | 'youtube' | 'tiktok' | 'linkedin' | 'facebook' | 
+            'pinterest' | 'reddit' | 'snapchat' | 'telegram' | 'threads' | 
+            'medium' | 'discord' | 'blog' | 'openai' | 'anthropic' | 'google';
+  
+  // === Display & Organization ===
+  label: string;                 // User-defined name (e.g., "Brand A Main Instagram")
+  description?: string;          // Optional description or notes
+  
+  // === Credential Data ===
+  // Note: Actual sensitive data (API keys, tokens) should be encrypted
+  // or stored in a secure secret management service (e.g., Google Secret Manager)
+  maskedKey: string;             // Masked display value (e.g., "sk-****abcd", "EAAA****xyz")
+  
+  // For OAuth-based platforms (Instagram, X, LinkedIn, etc.)
+  oauth?: {
+    accessToken: string;         // Encrypted OAuth access token
+    refreshToken?: string;       // Encrypted OAuth refresh token
+    expiresAt?: Timestamp;       // Token expiration time
+    scope?: string[];            // OAuth scopes granted
+  };
+  
+  // For API Key-based platforms (OpenAI, Anthropic, etc.)
+  apiKey?: {
+    encryptedKey: string;        // Encrypted API key
+    keyType?: 'bearer' | 'api_key' | 'custom';
+  };
+  
+  // === Platform-Specific Metadata ===
+  platformMetadata?: {
+    accountId?: string;          // Platform account ID
+    username?: string;           // @username or handle
+    profileUrl?: string;         // Profile URL
+    accountName?: string;        // Display name on the platform
+  };
+  
+  // === Status & Validation ===
+  status: 'active' | 'expired' | 'revoked' | 'error';
+  lastValidated?: Timestamp;     // Last time the credential was validated
+  validationError?: string;      // Error message if validation failed
+  
+  // === Usage Tracking ===
+  linkedProjects?: string[];     // Project IDs using this credential
+  linkedAgentTeams?: string[];   // Agent Team Instance IDs using this credential
+  usageCount?: number;           // Total number of times used
+  lastUsedAt?: Timestamp;        // Last time this credential was used
+  
+  // === Metadata ===
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  
+  // === Security ===
+  encryptionVersion?: string;    // Version of encryption used (for key rotation)
+  secretManagerPath?: string;    // Path to secret in Google Secret Manager (if used)
+}
+```
+
+#### Example Document
+
+```json
+{
+  "id": "cred_instagram_001",
+  "userId": "user_xyz789",
+  "provider": "instagram",
+  "label": "Acme Corp Main Instagram",
+  "description": "Official Instagram account for Acme Corp marketing campaigns",
+  "maskedKey": "EAAA****xyz123",
+  
+  "oauth": {
+    "accessToken": "***ENCRYPTED***",
+    "refreshToken": "***ENCRYPTED***",
+    "expiresAt": "2025-12-28T10:00:00Z",
+    "scope": ["instagram_basic", "instagram_content_publish"]
+  },
+  
+  "platformMetadata": {
+    "accountId": "17841405793187218",
+    "username": "@acmecorp",
+    "profileUrl": "https://instagram.com/acmecorp",
+    "accountName": "Acme Corporation"
+  },
+  
+  "status": "active",
+  "lastValidated": "2025-11-29T10:00:00Z",
+  
+  "linkedProjects": ["proj_abc123", "proj_def456"],
+  "linkedAgentTeams": ["team_1732345678901"],
+  "usageCount": 142,
+  "lastUsedAt": "2025-11-29T15:30:00Z",
+  
+  "createdAt": "2025-11-01T10:00:00Z",
+  "updatedAt": "2025-11-29T10:00:00Z",
+  
+  "encryptionVersion": "v1",
+  "secretManagerPath": "projects/zynk-prod/secrets/cred_instagram_001/versions/latest"
+}
+```
+
+#### Example Document (API Key Type - OpenAI)
+
+```json
+{
+  "id": "cred_openai_001",
+  "userId": "user_xyz789",
+  "provider": "openai",
+  "label": "OpenAI Production Key",
+  "description": "Main OpenAI API key for content generation",
+  "maskedKey": "sk-****abcd",
+  
+  "apiKey": {
+    "encryptedKey": "***ENCRYPTED***",
+    "keyType": "bearer"
+  },
+  
+  "platformMetadata": {
+    "accountName": "Acme Corp OpenAI Account"
+  },
+  
+  "status": "active",
+  "lastValidated": "2025-11-29T12:00:00Z",
+  
+  "linkedProjects": ["proj_abc123"],
+  "linkedAgentTeams": ["team_1732345678901", "team_1732345678902"],
+  "usageCount": 1523,
+  "lastUsedAt": "2025-11-29T16:45:00Z",
+  
+  "createdAt": "2025-10-15T10:00:00Z",
+  "updatedAt": "2025-11-29T12:00:00Z",
+  
+  "encryptionVersion": "v1",
+  "secretManagerPath": "projects/zynk-prod/secrets/cred_openai_001/versions/latest"
+}
+```
+
+#### Security Considerations
+
+**⚠️ CRITICAL: Credential Storage Security**
+
+1. **Never store plain-text credentials in Firestore**
+   - All sensitive data (`accessToken`, `refreshToken`, `encryptedKey`) MUST be encrypted
+   - Use AES-256 encryption or Google Secret Manager
+
+2. **Recommended Architecture**:
+   ```
+   Firestore (userApiCredentials)
+   ├── Stores: metadata, masked keys, references
+   └── References: Google Secret Manager path
+   
+   Google Secret Manager
+   └── Stores: actual encrypted credentials
+   ```
+
+3. **Access Control**:
+   - Users can only read/write their own credentials (`userId == request.auth.uid`)
+   - Admin users can view (but not decrypt) credential metadata for support
+
+4. **Firestore Security Rules**:
+   ```javascript
+   match /userApiCredentials/{credId} {
+     allow read, write: if request.auth != null && 
+                          resource.data.userId == request.auth.uid;
+     allow read: if isAdmin(); // Metadata only, encrypted fields remain encrypted
+   }
+   ```
+
+#### Relationships
+- Links to: `users` via `userId`
+- Referenced by: `projectAgentTeamInstances.channels[].credentialId`
+- Referenced by: `projects` via `linkedProjects[]`
+
+#### Usage Flow
+
+1. **User adds credential** → Settings > API Settings
+2. **Credential is encrypted** → Stored in Secret Manager
+3. **Metadata saved** → Firestore `userApiCredentials`
+4. **User creates Agent Team** → Wizard Step 4
+5. **User selects channels** → For each channel, select credential
+6. **Team instance created** → `channels[].credentialId` references this credential
+7. **Agent execution** → Retrieves credential from Secret Manager using reference
 
 ---
 
@@ -930,6 +1164,20 @@ interface RuntimeProfile {
 export type SubAgentInstanceStatus = 'active' | 'paused' | 'disabled' | 'error';
 export type AutonomyMode = 'autonomous' | 'assisted' | 'manual';
 
+// Runtime Configuration Snapshot (Phase 1)
+// Stores resolved runtime config from runtimeProfileRules
+interface RuntimeSnapshot {
+  rule_id: string;              // Reference to runtimeProfileRules document
+  tier: 'balanced' | 'creative' | 'precise';
+  language: string;             // e.g., "global", "en", "ko"
+  provider: string;             // e.g., "openai", "anthropic"
+  model_id: string;             // e.g., "gpt-4o-mini"
+  max_tokens: number;
+  temperature: number;
+  top_p: number;
+  cost_hint: string;            // "low", "standard", "high"
+}
+
 interface SubAgentInstance {
   // --- Identity & Relations ---
   id: string;                    // Document ID (e.g., "sa_planner_001")
@@ -975,10 +1223,16 @@ interface SubAgentInstance {
     // ... other guideline fields
   };
   
-  // --- Runtime Overrides ---
-  runtimeRuleOverrideId?: string; // Override default runtime rule (v2)
+  // --- Runtime Configuration (Phase 1: Rule-based System) ---
+  // Replaces direct runtimeProfiles references
+  runtime_base: RuntimeSnapshot;         // Resolved from runtimeProfileRules
+  runtime_override: RuntimeSnapshot | null; // User customizations (future, currently null)
+  effective_runtime: RuntimeSnapshot;    // Merged result (currently = runtime_base)
   
-  runtime_overrides?: {          // Legacy overrides
+  // --- Legacy Runtime Overrides (Deprecated) ---
+  runtimeRuleOverrideId?: string;        // Override default runtime rule (v2)
+  
+  runtime_overrides?: {                  // Legacy overrides (deprecated)
     runtime_profile_id?: string;
     temperature?: number;
     max_tokens?: number;
@@ -1037,6 +1291,30 @@ interface SubAgentInstance {
   
   "status": "active",
   "autonomy_mode": "autonomous",
+  
+  "runtime_base": {
+    "rule_id": "rpr_planner_global_v1",
+    "tier": "balanced",
+    "language": "global",
+    "provider": "openai",
+    "model_id": "gpt-4o-mini",
+    "max_tokens": 2000,
+    "temperature": 0.6,
+    "top_p": 1.0,
+    "cost_hint": "standard"
+  },
+  "runtime_override": null,
+  "effective_runtime": {
+    "rule_id": "rpr_planner_global_v1",
+    "tier": "balanced",
+    "language": "global",
+    "provider": "openai",
+    "model_id": "gpt-4o-mini",
+    "max_tokens": 2000,
+    "temperature": 0.6,
+    "top_p": 1.0,
+    "cost_hint": "standard"
+  },
   
   "runtime_overrides": {
     "runtime_profile_id": "rtp_chat_premium_v1",

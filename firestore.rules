@@ -87,6 +87,18 @@ service cloud.firestore {
         allow read: if isAuthenticated();
         allow write: if isAuthenticated() && (get(/databases/$(database)/documents/projects/$(projectId)).data.userId == request.auth.uid || isAdmin());
       }
+
+      // Agent Runs (Mission Control History)
+      match /agentRuns/{runId} {
+        allow read: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
+        allow write: if isAdmin();
+      }
+
+      // Generated Content (Mission Control History)
+      match /generatedContents/{contentId} {
+        allow read: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
+        allow write: if isAdmin();
+      }
     }
     
     // Industries collection
@@ -100,13 +112,9 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
-    // Runtime Profiles: Admin can write, authenticated users can read
-    match /runtimeProfiles/{profileId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
 
-    // Runtime Profile Rules: Admin only (internal tool)
+    // Runtime Profile Rules: Admin only (system configuration)
+    // Users access runtime configs via snapshots in projectAgentTeamInstances/subAgents
     match /runtimeProfileRules/{ruleId} {
       allow read, write: if isAdmin();
     }
@@ -139,6 +147,18 @@ service cloud.firestore {
     match /channelProfiles/{profileId} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
+    }
+
+    // User API Credentials (PRD 11.0 Phase 2): Users can only access their own credentials
+    match /userApiCredentials/{credId} {
+      // Users can read and write their own credentials
+      allow read, write: if isAuthenticated() && 
+                            resource.data.userId == request.auth.uid;
+      // Allow creation if userId matches auth uid
+      allow create: if isAuthenticated() && 
+                       request.resource.data.userId == request.auth.uid;
+      // Admins can read metadata (but encrypted fields remain encrypted)
+      allow read: if isAdmin();
     }
   }
 }
