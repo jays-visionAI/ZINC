@@ -15,6 +15,7 @@
     let subAgentsListener = null;
     let runsListener = null;
     let contentsListener = null;
+    let teamListener = null;
 
     // ===== Public API =====
 
@@ -84,8 +85,16 @@
         // Show loading state
         container.innerHTML = '<div class="loading-state">Loading sub-agents...</div>';
 
-        // Query: projectAgentTeamInstances/{teamId}/subAgents
-        // Order by: display_order ASC
+        // 1. Listen to Team Document (for Channels)
+        teamListener = db.collection('projectAgentTeamInstances').doc(teamId)
+            .onSnapshot(doc => {
+                if (doc.exists) {
+                    const teamData = doc.data();
+                    renderChannelConnections(teamData);
+                }
+            }, err => console.error("Error loading team data:", err));
+
+        // 2. Listen to Sub-Agents
         subAgentsListener = db.collection('projectAgentTeamInstances')
             .doc(teamId)
             .collection('subAgents')
@@ -105,6 +114,78 @@
                     container.innerHTML = `<div class="error-state">Error: ${error.message}</div>`;
                 }
             );
+    }
+
+    async function renderChannelConnections(teamData) {
+        const container = document.getElementById('channel-connections-list');
+        const wrapper = document.getElementById('channel-connections-container');
+
+        if (!container || !wrapper) return;
+
+        // Use Helper to normalize
+        const channels = ChannelOrchestrator.normalizeAgentTeamChannels(teamData);
+
+        if (channels.length === 0) {
+            wrapper.style.display = 'none';
+            return;
+        }
+
+        wrapper.style.display = 'block';
+        container.innerHTML = '<div class="loading-state" style="font-size: 12px;">Loading channel status...</div>';
+
+        // Fetch Credential Labels
+        const credIds = channels.map(ch => ch.credentialId).filter(id => id);
+        const credMap = {};
+
+        if (credIds.length > 0) {
+            try {
+                // Firestore 'in' query (max 10)
+                // Assuming < 10 channels for now
+                const credsSnap = await db.collection('userApiCredentials')
+                    .where(firebase.firestore.FieldPath.documentId(), 'in', credIds)
+                    .get();
+                credsSnap.forEach(doc => {
+                    credMap[doc.id] = doc.data().label;
+                });
+            } catch (err) {
+                console.error("Error fetching credential labels:", err);
+            }
+        }
+
+        container.innerHTML = channels.map(ch => {
+            if (!ch.enabled) return '';
+
+            const icon = getChannelIcon(ch.provider);
+            const label = getChannelLabel(ch.provider);
+            const credLabel = ch.credentialId ? (credMap[ch.credentialId] || 'Unknown Key') : '—';
+
+            let statusBadge = '';
+            if (ch.status === 'ready') {
+                statusBadge = '<span style="color: #22c55e; font-size: 12px;">● Ready</span>';
+            } else if (ch.status === 'missing_key') {
+                statusBadge = '<span style="color: #eab308; font-size: 12px;">⚠️ Missing Key</span>';
+            } else {
+                statusBadge = `<span style="color: #ef4444; font-size: 12px;">⛔ Error</span>`;
+            }
+
+            const errorMsg = ch.lastErrorMessage ? `<div style="font-size: 11px; color: #ef4444; margin-top: 4px;">${ch.lastErrorMessage}</div>` : '';
+
+            return `
+                <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <div style="display: flex; align-items: center; gap: 6px; font-weight: 500;">
+                            ${icon} ${label}
+                        </div>
+                        <div>${statusBadge}</div>
+                    </div>
+                    <div style="font-size: 12px; color: rgba(255,255,255,0.5); display: flex; justify-content: space-between;">
+                        <span>Key: <span style="color: rgba(255,255,255,0.8);">${credLabel}</span></span>
+                        <span>${ch.updatedAt ? formatTimeAgo(ch.updatedAt.toDate()) : ''}</span>
+                    </div>
+                    ${errorMsg}
+                </div>
+            `;
+        }).join('');
     }
 
     function renderSubAgents(subAgents, container) {
@@ -385,6 +466,10 @@
         if (contentsListener) {
             contentsListener();
             contentsListener = null;
+        }
+        if (teamListener) {
+            teamListener();
+            teamListener = null;
         }
     }
 

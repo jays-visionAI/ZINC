@@ -178,10 +178,9 @@
             <!-- Wizard Header -->
             <div class="admin-modal-header">
                 <div>
-                    <h3 class="admin-modal-title">Deploy Agent Team</h3>
+                    <h3 class="admin-modal-title">Create Agent Team</h3>
                     <div style="font-size: 13px; color: rgba(255,255,255,0.5); margin-top: 4px;">
-                        Step <span id="deploy-step-num">1</span> of 3: <span id="deploy-step-title">Select
-                            Channel</span>
+                        Step <span id="deploy-step-num">1</span> of 4: <span id="deploy-step-title">Basic Info</span>
                     </div>
                 </div>
                 <button class="admin-modal-close" id="deploy-modal-close">&times;</button>
@@ -190,27 +189,34 @@
             <!-- Wizard Progress -->
             <div style="background: rgba(255,255,255,0.1); height: 4px; width: 100%;">
                 <div id="deploy-progress"
-                    style="background: #16e0bd; height: 100%; width: 33%; transition: width 0.3s ease;"></div>
+                    style="background: #16e0bd; height: 100%; width: 25%; transition: width 0.3s ease;"></div>
             </div>
 
             <!-- Wizard Body -->
             <div class="admin-modal-body" style="flex: 1; overflow-y: auto; padding: 24px;">
 
-                <!-- Step 1: Select Channel -->
+                <!-- Step 1: Basic Info -->
                 <div id="deploy-step-1" class="wizard-step">
-                    <p style="margin-bottom: 16px; color: rgba(255,255,255,0.7);">Select the target channel for this
-                        deployment.</p>
-                    <div id="channel-selection-grid"
-                        style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px;">
-                        <!-- Populated by JS -->
-                        <div style="text-align: center; padding: 20px;">Loading Channels...</div>
+                    <p style="margin-bottom: 24px; color: rgba(255,255,255,0.7);">
+                        Define the identity of your new Agent Team.
+                    </p>
+                    <div class="admin-form-group">
+                        <label class="admin-form-label">Team Name *</label>
+                        <input type="text" id="team-name" class="admin-form-input"
+                            placeholder="e.g. Official Brand Team">
+                    </div>
+                    <div class="admin-form-group">
+                        <label class="admin-form-label">Description</label>
+                        <textarea id="team-description" class="admin-form-input" rows="3"
+                            placeholder="Describe the team's purpose..."></textarea>
                     </div>
                 </div>
 
-                <!-- Step 2: Select Team Template -->
+                <!-- Step 2: Sub-Agent Selection (Template) -->
                 <div id="deploy-step-2" class="wizard-step" style="display: none;">
-                    <p style="margin-bottom: 16px; color: rgba(255,255,255,0.7);">Select an Agent Team Template to
-                        deploy.</p>
+                    <p style="margin-bottom: 16px; color: rgba(255,255,255,0.7);">
+                        Select a template to define the team's composition.
+                    </p>
                     <div id="template-selection-grid"
                         style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;">
                         <!-- Populated by JS -->
@@ -218,23 +224,37 @@
                     </div>
                 </div>
 
-                <!-- Step 3: Review & Deploy -->
+                <!-- Step 3: Runtime Profile Summary -->
                 <div id="deploy-step-3" class="wizard-step" style="display: none;">
-                    <div
-                        style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 8px; margin-bottom: 24px;">
-                        <h4 style="margin: 0 0 12px 0; color: #16e0bd;">Deployment Summary</h4>
-                        <div style="display: grid; grid-template-columns: 120px 1fr; gap: 8px; font-size: 14px;">
-                            <div style="color: rgba(255,255,255,0.5);">Target Channel:</div>
-                            <div id="review-channel" style="font-weight: 600;">-</div>
-
-                            <div style="color: rgba(255,255,255,0.5);">Team Template:</div>
-                            <div id="review-template" style="font-weight: 600;">-</div>
-                        </div>
-                    </div>
-
-                    <h4 style="margin: 0 0 12px 0;">Team Composition</h4>
-                    <div id="review-roles-list" style="display: flex; flex-direction: column; gap: 8px;">
+                    <p style="margin-bottom: 24px; color: rgba(255,255,255,0.7);">
+                        Review the runtime configuration for each agent.
+                    </p>
+                    <div id="runtime-summary-container">
                         <!-- Populated by JS -->
+                        <div style="text-align: center; padding: 20px;">Loading Runtime Profiles...</div>
+                    </div>
+                </div>
+
+                <!-- Step 4: Target Channels & Credentials (Phase 2) -->
+                <div id="deploy-step-4" class="wizard-step" style="display: none;">
+                    <p style="margin-bottom: 24px; color: rgba(255,255,255,0.7);">
+                        Configure channels and connect API credentials.
+                    </p>
+
+                    <div id="channel-config-list" style="display: flex; flex-direction: column; gap: 16px;">
+                        <!-- Populated by JS -->
+                        <!-- Example Structure:
+                        <div class="channel-config-item">
+                            <div class="channel-header">
+                                <input type="checkbox"> Instagram
+                            </div>
+                            <div class="credential-select">
+                                <select>...</select>
+                                <button>+ Add New</button>
+                            </div>
+                        </div>
+                        -->
+                        <div style="text-align: center; padding: 20px;">Loading Channels...</div>
                     </div>
                 </div>
 
@@ -307,6 +327,7 @@
     <!-- Mission Control View History -->
     <script src="mission-control-view-history.js"></script>
     <script src="utils-data-generator.js"></script>
+    <script src="utils-channel-orchestrator.js"></script>
 
     <!-- Page Script -->
     <script src="project-detail.js"></script>
