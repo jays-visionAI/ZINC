@@ -49,15 +49,63 @@ The following are the main collections in the Firestore database:
 ```typescript
 interface Project {
   id: string;                    // Auto-generated or custom ID
-  name: string;                  // Project name
-  description?: string;          // Project description
-  industry?: string;             // Industry category ID
-  status: 'active' | 'archived' | 'draft';
-  createdAt: Timestamp;          // Firestore Timestamp
-  updatedAt: Timestamp;
-  createdBy: string;             // User ID
+  
+  // === PRD 11.0 Project Brief Fields ===
+  businessName: string;          // Business / Brand Name (required)
+  description: string;           // Brand / Project Description (required)
+  industry: string;              // Industry category ID (required)
+  mainProduct: string;           // Main Product / Service (required)
+  websiteUrl?: string;           // Website URL (optional)
+  targetMarkets: string[];       // Target Markets (required, e.g., ["KR", "US", "SEA"])
+  primaryObjective: string;      // Primary Objective (required, e.g., "brand_awareness", "sales", "leads")
+  preferredTone: string;         // Preferred Tone (required, e.g., "friendly", "professional", "witty")
+  languages: string[];           // Main Languages (required, e.g., ["ko", "en"])
+  
+  // === Legacy Compatibility Fields ===
+  name?: string;                 // Deprecated: Use businessName instead
+  projectName?: string;          // Deprecated: Use businessName instead
+  primaryLanguage?: string;      // Deprecated: Use languages[0] instead
+  targetMarket?: string;         // Deprecated: Use targetMarkets instead
+  industryCustomLabel?: string;  // Custom industry label if "Other" selected
+  
+  // === Status & Metadata ===
+  status: 'active' | 'archived' | 'draft' | 'Normal' | 'Attention' | 'Paused' | 'Stopped';
+  isDraft: boolean;              // Whether project is in draft state
+  draftStep?: number;            // Current wizard step (1-4)
+  stepProgress?: number;         // Progress indicator
+  
+  // === User & Access Control ===
+  userId: string;                // Owner user ID (for user-level projects)
+  createdBy?: string;            // User ID who created (for admin-level projects)
   members?: string[];            // Array of user IDs with access
   admins?: string[];             // Array of admin user IDs
+  
+  // === Agent Team Configuration ===
+  selectedTemplateId?: string;   // Selected Agent Team Template ID
+  activeAgentSetId?: string;     // Currently active AgentSet ID
+  totalAgents?: number;          // Number of agents in the team
+  
+  // === Assets & Files ===
+  assetFileUrls?: string[];      // Uploaded brand assets (logos, whitepapers, etc.)
+  
+  // === KPIs & Metrics ===
+  followerGrowth30d?: number;
+  followerGrowthDelta?: number;
+  engagementRate?: number;
+  engagementRateDelta?: number;
+  pendingApprovals?: number;
+  agentHealthCurrent?: number;
+  agentHealthMax?: number;
+  avgFollowerGrowth30d?: number;
+  avgEngagementRate?: number;
+  totalContentCreated?: number;
+  totalContentApproved?: number;
+  avgApprovalRate?: number;
+  kpiLastUpdated?: Timestamp;
+  
+  // === Timestamps ===
+  createdAt: Timestamp;          // Firestore Timestamp
+  updatedAt: Timestamp;
 }
 ```
 
@@ -66,15 +114,53 @@ interface Project {
 ```json
 {
   "id": "proj_abc123",
-  "name": "Acme Corp Marketing",
-  "description": "Social media marketing campaign",
+  
+  // PRD 11.0 Project Brief
+  "businessName": "Acme Corp",
+  "description": "Leading provider of AI-powered marketing automation solutions for enterprise clients",
   "industry": "technology",
-  "status": "active",
-  "createdAt": "2025-11-01T10:00:00Z",
-  "updatedAt": "2025-11-28T15:30:00Z",
+  "mainProduct": "AI Marketing Automation Platform",
+  "websiteUrl": "https://www.acmecorp.com",
+  "targetMarkets": ["KR", "US", "SEA"],
+  "primaryObjective": "brand_awareness",
+  "preferredTone": "professional",
+  "languages": ["en", "ko"],
+  
+  // Legacy fields (for backward compatibility)
+  "projectName": "Acme Corp",
+  "name": "Acme Corp Marketing",
+  "primaryLanguage": "en",
+  
+  // Status & Metadata
+  "status": "Normal",
+  "isDraft": false,
+  "stepProgress": 4,
+  
+  // User & Access
+  "userId": "user_xyz789",
   "createdBy": "user_xyz789",
   "members": ["user_xyz789", "user_def456"],
-  "admins": ["user_xyz789"]
+  "admins": ["user_xyz789"],
+  
+  // Agent Team
+  "selectedTemplateId": "agst_17642383884805",
+  "activeAgentSetId": "set_1732345678901",
+  "totalAgents": 12,
+  
+  // Assets
+  "assetFileUrls": [
+    "https://storage.googleapis.com/zynk/projects/proj_abc123/logo.png",
+    "https://storage.googleapis.com/zynk/projects/proj_abc123/whitepaper.pdf"
+  ],
+  
+  // KPIs
+  "followerGrowth30d": 15.5,
+  "engagementRate": 4.2,
+  "pendingApprovals": 3,
+  
+  // Timestamps
+  "createdAt": "2025-11-01T10:00:00Z",
+  "updatedAt": "2025-11-28T15:30:00Z"
 }
 ```
 

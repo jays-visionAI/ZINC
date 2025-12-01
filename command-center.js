@@ -225,20 +225,63 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // 🔹 Step 1 Logic
+    // 🔹 Step 1 Logic (PRD 11.0 - Project Brief)
     function validateStep1() {
-        const name = document.getElementById("project-name").value;
+        const businessName = document.getElementById("business-name").value.trim();
+        const description = document.getElementById("project-description").value.trim();
         const industry = document.getElementById("industry").value;
-        const lang = document.getElementById("primary-language").value;
-        const customIndustry = document.getElementById("industry-custom");
+        const mainProduct = document.getElementById("main-product").value.trim();
+        const targetMarkets = document.getElementById("target-markets").value.trim();
+        const primaryObjective = document.getElementById("primary-objective").value;
+        const preferredTone = document.getElementById("preferred-tone").value;
 
-        if (!name || !industry || !lang) {
-            alert("Please fill in all required fields (*)");
+        // Check languages (at least one must be selected)
+        const selectedLanguages = Array.from(document.querySelectorAll('.language-checkbox:checked'))
+            .map(cb => cb.value);
+
+        if (!businessName) {
+            alert("Please enter your Business / Brand Name");
+            return false;
+        }
+
+        if (!description) {
+            alert("Please provide a Brand / Project Description");
+            return false;
+        }
+
+        if (!industry) {
+            alert("Please select an Industry");
+            return false;
+        }
+
+        if (!mainProduct) {
+            alert("Please enter your Main Product / Service");
+            return false;
+        }
+
+        if (!targetMarkets) {
+            alert("Please enter Target Markets");
+            return false;
+        }
+
+        if (!primaryObjective) {
+            alert("Please select a Primary Objective");
+            return false;
+        }
+
+        if (!preferredTone) {
+            alert("Please select a Preferred Tone");
+            return false;
+        }
+
+        if (selectedLanguages.length === 0) {
+            alert("Please select at least one language");
             return false;
         }
 
         // Check if custom input is required but empty
         const selectedOption = document.getElementById("industry").options[document.getElementById("industry").selectedIndex];
+        const customIndustry = document.getElementById("industry-custom");
         if (selectedOption?.dataset.allowCustomInput === 'true' && !customIndustry.value.trim()) {
             alert("Please specify your industry");
             return false;
@@ -253,13 +296,30 @@ document.addEventListener("DOMContentLoaded", () => {
         const industryKey = document.getElementById("industry").value;
         const customInput = document.getElementById("industry-custom").value.trim();
 
+        // Parse target markets (comma-separated)
+        const targetMarketsRaw = document.getElementById("target-markets").value.trim();
+        const targetMarkets = targetMarketsRaw.split(',').map(m => m.trim()).filter(m => m);
+
+        // Get selected languages
+        const languages = Array.from(document.querySelectorAll('.language-checkbox:checked'))
+            .map(cb => cb.value);
+
         const data = {
             userId: currentUser.uid,
-            projectName: document.getElementById("project-name").value,
-            websiteUrl: document.getElementById("website-url").value,
+            // PRD 11.0 Project Brief fields
+            businessName: document.getElementById("business-name").value.trim(),
+            description: document.getElementById("project-description").value.trim(),
             industry: industryKey,
-            targetMarket: document.getElementById("target-market").value,
-            primaryLanguage: document.getElementById("primary-language").value,
+            mainProduct: document.getElementById("main-product").value.trim(),
+            websiteUrl: document.getElementById("website-url").value.trim(),
+            targetMarkets: targetMarkets,
+            primaryObjective: document.getElementById("primary-objective").value,
+            preferredTone: document.getElementById("preferred-tone").value,
+            languages: languages,
+            // Legacy compatibility
+            projectName: document.getElementById("business-name").value.trim(), // Same as businessName
+            primaryLanguage: languages[0] || 'en', // First language as primary
+            // Draft state
             isDraft: true,
             draftStep: 1,
             stepProgress: 1,
@@ -285,6 +345,7 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch (error) {
             console.error("Error saving draft step 1:", error);
             alert("Failed to save draft. Please try again.");
+            throw error;
         }
     }
 
@@ -473,7 +534,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 🔹 Step 4 Logic (Summary & Finalize)
     function updateSummary() {
-        document.getElementById("summary-name").textContent = document.getElementById("project-name").value;
+        document.getElementById("summary-name").textContent = document.getElementById("business-name").value;
         document.getElementById("summary-industry").textContent = document.getElementById("industry").value;
 
         const templateId = document.getElementById("selected-template-id").value;
@@ -507,7 +568,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const agentSetId = `set_${Date.now()}`;
             const agentSetData = {
                 agent_set_id: agentSetId,
-                name: `${document.getElementById("project-name").value} Team`,
+                name: `${document.getElementById("business-name").value} Team`,
                 template_id: selectedTemplateId,
                 status: 'active',
                 version: '1.0.0',
@@ -649,11 +710,33 @@ document.addEventListener("DOMContentLoaded", () => {
     window.resumeDraft = function (id, data) {
         draftId = id;
 
-        // Pre-fill Step 1
-        document.getElementById("project-name").value = data.projectName || "";
+        // Pre-fill Step 1 (PRD 11.0 Project Brief)
+        document.getElementById("business-name").value = data.businessName || data.projectName || "";
+        document.getElementById("project-description").value = data.description || "";
+        document.getElementById("main-product").value = data.mainProduct || "";
         document.getElementById("website-url").value = data.websiteUrl || "";
-        document.getElementById("target-market").value = data.targetMarket || "";
-        document.getElementById("primary-language").value = data.primaryLanguage || "en";
+
+        // Target markets (array to comma-separated string)
+        if (data.targetMarkets && Array.isArray(data.targetMarkets)) {
+            document.getElementById("target-markets").value = data.targetMarkets.join(', ');
+        } else {
+            document.getElementById("target-markets").value = data.targetMarket || "";
+        }
+
+        document.getElementById("primary-objective").value = data.primaryObjective || "";
+        document.getElementById("preferred-tone").value = data.preferredTone || "";
+
+        // Restore languages
+        if (data.languages && Array.isArray(data.languages)) {
+            document.querySelectorAll('.language-checkbox').forEach(cb => {
+                cb.checked = data.languages.includes(cb.value);
+            });
+        } else if (data.primaryLanguage) {
+            // Fallback to legacy primaryLanguage
+            document.querySelectorAll('.language-checkbox').forEach(cb => {
+                cb.checked = cb.value === data.primaryLanguage;
+            });
+        }
 
         if (data.industry) {
             document.getElementById("industry").value = data.industry;
@@ -666,10 +749,8 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
-        // Pre-fill Step 2
-        if (data.description) {
-            document.getElementById("project-description").value = data.description;
-        }
+        // Pre-fill Step 2 (moved to Step 2 in wizard, but description is now in Step 1)
+        // Assets are handled separately
 
         // Pre-fill Step 3
         if (data.selectedTemplateId) {

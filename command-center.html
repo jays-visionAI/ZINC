@@ -182,16 +182,24 @@
             </div>
 
             <form id="create-project-form">
-                <!-- Step 1: Basic Info -->
+                <!-- Step 1: Project Brief (PRD 11.0) -->
                 <div class="wizard-step active" id="step-1">
+                    <h4 style="margin-bottom: 20px; color: var(--color-cyan);">Project Brief</h4>
+                    <p style="font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 24px;">
+                        Provide essential information about your business to help AI agents understand your brand.
+                    </p>
+
                     <div class="form-group">
-                        <label for="project-name">Project / Business Name *</label>
-                        <input type="text" id="project-name" placeholder="e.g. Alpha Protocol" required>
+                        <label for="business-name">Business / Brand Name *</label>
+                        <input type="text" id="business-name" placeholder="e.g. Alpha Protocol" required>
                     </div>
+
                     <div class="form-group">
-                        <label for="website-url">Website URL</label>
-                        <input type="url" id="website-url" placeholder="https://example.com">
+                        <label for="project-description">Brand / Project Description *</label>
+                        <textarea id="project-description" rows="3" required
+                            placeholder="Describe your brand, mission, and key value propositions..."></textarea>
                     </div>
+
                     <div class="form-row">
                         <div class="form-group half">
                             <label for="industry">Industry *</label>
@@ -199,23 +207,86 @@
                                 <option value="" disabled selected>Loading industries...</option>
                             </select>
                         </div>
+                        <div class="form-group half" id="custom-industry-container" style="display: none;">
+                            <label for="industry-custom">Custom Industry</label>
+                            <input type="text" id="industry-custom" placeholder="e.g. Legal Services">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="main-product">Main Product / Service *</label>
+                        <input type="text" id="main-product" required
+                            placeholder="e.g. AI-powered marketing automation platform">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="website-url">Website URL</label>
+                        <input type="url" id="website-url" placeholder="https://example.com">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="target-markets">Target Markets *</label>
+                        <input type="text" id="target-markets" required
+                            placeholder="e.g. KR, US, SEA (comma-separated)">
+                        <small style="color: rgba(255,255,255,0.5); font-size: 12px;">
+                            Enter market codes separated by commas (e.g., KR, US, EU, SEA, Global)
+                        </small>
+                    </div>
+
+                    <div class="form-row">
                         <div class="form-group half">
-                            <label for="primary-language">Primary Language *</label>
-                            <select id="primary-language" required>
-                                <option value="en">English</option>
-                                <option value="ko">Korean</option>
-                                <option value="jp">Japanese</option>
+                            <label for="primary-objective">Primary Objective *</label>
+                            <select id="primary-objective" required>
+                                <option value="" disabled selected>Select objective...</option>
+                                <option value="brand_awareness">Brand Awareness</option>
+                                <option value="sales">Sales & Revenue</option>
+                                <option value="leads">Lead Generation</option>
+                                <option value="community">Community Building</option>
+                                <option value="engagement">Engagement</option>
+                                <option value="education">Education & Thought Leadership</option>
+                            </select>
+                        </div>
+                        <div class="form-group half">
+                            <label for="preferred-tone">Preferred Tone *</label>
+                            <select id="preferred-tone" required>
+                                <option value="" disabled selected>Select tone...</option>
+                                <option value="friendly">Friendly & Casual</option>
+                                <option value="professional">Professional</option>
+                                <option value="witty">Witty & Humorous</option>
+                                <option value="bold">Bold & Confident</option>
+                                <option value="calm">Calm & Thoughtful</option>
+                                <option value="inspirational">Inspirational</option>
                             </select>
                         </div>
                     </div>
-                    <div class="form-group" id="custom-industry-container" style="display: none;">
-                        <label for="industry-custom">Please specify your industry</label>
-                        <input type="text" id="industry-custom" class="form-control"
-                            placeholder="e.g. Legal Services, Agriculture, etc.">
-                    </div>
+
                     <div class="form-group">
-                        <label for="target-market">Target Market</label>
-                        <input type="text" id="target-market" placeholder="e.g. Global, North America, Gen Z">
+                        <label for="main-languages">Main Languages *</label>
+                        <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px;">
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="languages" value="ko" class="language-checkbox">
+                                <span>Korean (KO)</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="languages" value="en" class="language-checkbox" checked>
+                                <span>English (EN)</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="languages" value="ja" class="language-checkbox">
+                                <span>Japanese (JA)</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="languages" value="zh" class="language-checkbox">
+                                <span>Chinese (ZH)</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="languages" value="es" class="language-checkbox">
+                                <span>Spanish (ES)</span>
+                            </label>
+                        </div>
+                        <small style="color: rgba(255,255,255,0.5); font-size: 12px; display: block; margin-top: 8px;">
+                            Select at least one language
+                        </small>
                     </div>
                 </div>
 
