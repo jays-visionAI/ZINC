@@ -203,6 +203,12 @@
                 ? formatTimeAgo(agent.metrics.last_active_at.toDate())
                 : 'No activity yet';
 
+            // Runtime info display
+            const runtime = agent.effective_runtime || agent.runtime_base;
+            const runtimeDisplay = runtime
+                ? `${runtime.provider} / ${runtime.model_id} (${runtime.tier})`
+                : 'Not configured';
+
             return `
                 <div class="sub-agent-card ${selectedSubAgentId === agent.id ? 'selected' : ''}" 
                      onclick="window.selectSubAgent('${agent.id}')" 
@@ -212,12 +218,15 @@
                         <div class="sr-badge">${successRate.toFixed(0)}% SR</div>
                     </div>
                     <div class="sub-agent-role">${agent.role_type}</div>
-                    <div class="sub-agent-meta">
+                    <div class="sub-agent-meta" style="margin-top: 4px;">
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="10"></circle>
                             <polyline points="12 6 12 12 16 14"></polyline>
                         </svg>
                         Last active ${lastActive}
+                    </div>
+                    <div class="sub-agent-meta" style="margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 10px; color: rgba(255,255,255,0.5);">
+                        🤖 ${runtimeDisplay}
                     </div>
                 </div>
             `;

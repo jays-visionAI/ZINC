@@ -463,7 +463,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    function renderDeployStep3() {
+    async function renderDeployStep3() {
         const container = document.getElementById("runtime-summary-container");
         container.innerHTML = `
             <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 8px; margin-bottom: 24px;">
@@ -478,21 +478,82 @@ document.addEventListener("DOMContentLoaded", async () => {
             </div>
 
             <h4 style="margin: 0 0 12px 0;">Runtime Configuration (Read-only)</h4>
-            <div style="display: flex; flex-direction: column; gap: 8px;">
-                ${deployData.roles.map(role => `
-                    <div style="padding: 12px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <div style="font-weight: 500;">${role.name || role.role}</div>
-                            <div style="font-size: 12px; color: rgba(255,255,255,0.5);">${role.type}</div>
-                        </div>
-                        <div style="text-align: right;">
-                            <div style="font-size: 12px; color: #16e0bd;">Default Runtime</div>
-                            <div style="font-size: 11px; color: rgba(255,255,255,0.4);">Auto-assigned</div>
-                        </div>
-                    </div>
-                `).join('')}
+            <div style="font-size: 12px; color: rgba(255,255,255,0.6); margin-bottom: 16px; padding: 12px; background: rgba(234, 179, 8, 0.1); border: 1px solid rgba(234, 179, 8, 0.3); border-radius: 6px;">
+                ℹ️ Runtime settings are automatically optimized for your current plan.<br>
+                Advanced customization (Tier, Language) will be available in premium plans.
+            </div>
+            <div id="runtime-configs-list" style="display: flex; flex-direction: column; gap: 8px;">
+                <div style="text-align: center; padding: 20px; color: rgba(255,255,255,0.5);">
+                    Resolving runtime configurations...
+                </div>
             </div>
         `;
+
+        // Resolve runtime configs for each role
+        try {
+            const runtimeConfigs = [];
+
+            for (const role of deployData.roles) {
+                const roleType = role.type || role.role_type || 'planner';
+                const runtimeConfig = await RuntimeResolver.resolveRuntimeConfig({
+                    role_type: roleType,
+                    language: 'global',
+                    tier: 'balanced'
+                });
+
+                runtimeConfigs.push({
+                    role: role,
+                    runtime: runtimeConfig
+                });
+            }
+
+            // Store resolved configs in deployData for later use
+            deployData.resolvedRuntimes = runtimeConfigs;
+
+            // Render runtime configs
+            const configsList = document.getElementById('runtime-configs-list');
+            if (configsList) {
+                configsList.innerHTML = runtimeConfigs.map(({ role, runtime }) => `
+                    <div style="padding: 16px; background: rgba(255,255,255,0.05); border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);">
+                        <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 16px;">
+                            <div>
+                                <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">${role.name || role.role}</div>
+                                <div style="font-size: 12px; color: rgba(255,255,255,0.5);">Engine: ${role.type || 'N/A'}</div>
+                            </div>
+                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; font-size: 12px;">
+                                <div>
+                                    <div style="color: rgba(255,255,255,0.5); margin-bottom: 2px;">Provider / Model</div>
+                                    <div style="font-weight: 500;">${runtime.provider} / ${runtime.model_id}</div>
+                                </div>
+                                <div>
+                                    <div style="color: rgba(255,255,255,0.5); margin-bottom: 2px;">Tier / Language</div>
+                                    <div style="font-weight: 500;">${RuntimeResolver.getTierLabel(runtime.tier)} / ${RuntimeResolver.getLanguageLabel(runtime.language)}</div>
+                                </div>
+                                <div>
+                                    <div style="color: rgba(255,255,255,0.5); margin-bottom: 2px;">Max Tokens</div>
+                                    <div style="font-weight: 500;">${runtime.max_tokens}</div>
+                                </div>
+                                <div>
+                                    <div style="color: rgba(255,255,255,0.5); margin-bottom: 2px;">Temperature</div>
+                                    <div style="font-weight: 500;">${runtime.temperature}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+        } catch (error) {
+            console.error('[Deploy Wizard] Error resolving runtime configs:', error);
+            const configsList = document.getElementById('runtime-configs-list');
+            if (configsList) {
+                configsList.innerHTML = `
+                    <div style="text-align: center; padding: 20px; color: #ef4444;">
+                        Error loading runtime configurations. Please try again.
+                    </div>
+                `;
+            }
+        }
     }
 
     async function renderDeployStep4() {
@@ -671,6 +732,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const template = templateMap[templateId] || {};
                 const runtimeProfileId = template.runtime_profile_id || null;
 
+                // Get resolved runtime config from Step 3
+                const resolvedRuntime = deployData.resolvedRuntimes?.find(r => r.role === role);
+                const runtimeBase = resolvedRuntime?.runtime || null;
+
                 batch.set(agentRef, {
                     id: agentId,
                     project_id: projectId,
@@ -678,9 +743,15 @@ document.addEventListener("DOMContentLoaded", async () => {
                     role_name: role.name,
                     role_type: role.type,
                     template_id: templateId,
-                    runtime_profile_id: runtimeProfileId,
+                    runtime_profile_id: runtimeProfileId, // Legacy field
                     display_order: index,
                     status: 'active',
+
+                    // Phase 3: Runtime Configuration Snapshots
+                    runtime_base: runtimeBase,
+                    runtime_override: null, // Reserved for future premium plan customization
+                    effective_runtime: runtimeBase, // Currently same as runtime_base
+
                     metrics: {
                         success_rate: 100,
                         total_runs: 0,
