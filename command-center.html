@@ -53,6 +53,15 @@
                     </svg>
                     Command Center
                 </a>
+                <a href="user-settings.html" class="menu-item">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path
+                            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+                        </path>
+                    </svg>
+                    Settings
+                </a>
             </div>
 
             <div class="sidebar-footer">
@@ -172,11 +181,6 @@
                 <div class="step-line"></div>
                 <div class="step-indicator" data-step="3">
                     <div class="step-number">3</div>
-                    <span class="step-label">Agent Team</span>
-                </div>
-                <div class="step-line"></div>
-                <div class="step-indicator" data-step="4">
-                    <div class="step-number">4</div>
                     <span class="step-label">Launch</span>
                 </div>
             </div>
@@ -194,11 +198,7 @@
                         <input type="text" id="business-name" placeholder="e.g. Alpha Protocol" required>
                     </div>
 
-                    <div class="form-group">
-                        <label for="project-description">Brand / Project Description *</label>
-                        <textarea id="project-description" rows="3" required
-                            placeholder="Describe your brand, mission, and key value propositions..."></textarea>
-                    </div>
+
 
                     <div class="form-row">
                         <div class="form-group half">
@@ -315,25 +315,8 @@
                     </div>
                 </div>
 
-                <!-- Step 3: Agent Team Selection -->
+                <!-- Step 3: Summary (formerly Step 4) -->
                 <div class="wizard-step" id="step-3">
-                    <div class="form-group">
-                        <label>Select Agent Team Template</label>
-                        <p style="font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 16px;">
-                            Choose a pre-configured team of agents to manage this project.
-                        </p>
-                        <div id="agent-template-grid"
-                            style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px;">
-                            <!-- Dynamically populated -->
-                            <div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">Loading
-                                Templates...</div>
-                        </div>
-                        <input type="hidden" id="selected-template-id" required>
-                    </div>
-                </div>
-
-                <!-- Step 4: Summary -->
-                <div class="wizard-step" id="step-4">
                     <div class="summary-card">
                         <h4>Ready to Initialize Hive</h4>
                         <div class="summary-item">
@@ -344,10 +327,7 @@
                             <span class="label">Industry:</span>
                             <span class="value" id="summary-industry">-</span>
                         </div>
-                        <div class="summary-item">
-                            <span class="label">Agent Team:</span>
-                            <span class="value" id="summary-team">-</span>
-                        </div>
+
                         <div class="summary-item">
                             <span class="label">Assets:</span>
                             <span class="value" id="summary-assets">0 files</span>

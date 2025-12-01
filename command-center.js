@@ -79,8 +79,8 @@ document.addEventListener("DOMContentLoaded", () => {
             try {
                 btnNext.classList.add("btn-loading");
                 await saveDraftStep2();
-                // Load templates before showing step 3
-                await loadAgentTemplates();
+                // Skip Step 3 (Agent Team), go directly to Summary
+                updateSummary();
                 goToStep(3);
             } catch (error) {
                 console.error("Error in step 2:", error);
@@ -88,18 +88,6 @@ document.addEventListener("DOMContentLoaded", () => {
             } finally {
                 btnNext.classList.remove("btn-loading");
             }
-        } else if (currentStep === 3) {
-            // Validate Step 3
-            const selectedTemplateId = document.getElementById("selected-template-id").value;
-            if (!selectedTemplateId) {
-                alert("Please select an Agent Team Template.");
-                return;
-            }
-
-            // Save draft step 3 (optional, but good for persistence)
-            await saveDraftStep3();
-            updateSummary();
-            goToStep(4);
         }
     });
 
@@ -110,7 +98,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     btnLaunch.addEventListener("click", async () => {
-        if (currentStep === 4) {
+        if (currentStep === 3) {
             const originalText = btnLaunch.textContent;
             try {
                 btnLaunch.classList.add("btn-loading");
@@ -149,10 +137,6 @@ document.addEventListener("DOMContentLoaded", () => {
             btnNext.style.display = "block";
             btnLaunch.style.display = "none";
         } else if (step === 3) {
-            btnPrev.style.display = "block";
-            btnNext.style.display = "block";
-            btnLaunch.style.display = "none";
-        } else if (step === 4) {
             btnPrev.style.display = "block";
             btnNext.style.display = "none";
             btnLaunch.style.display = "block";
@@ -536,11 +520,6 @@ document.addEventListener("DOMContentLoaded", () => {
     function updateSummary() {
         document.getElementById("summary-name").textContent = document.getElementById("business-name").value;
         document.getElementById("summary-industry").textContent = document.getElementById("industry").value;
-
-        const templateId = document.getElementById("selected-template-id").value;
-        const template = agentTemplates.find(t => t.id === templateId);
-        document.getElementById("summary-team").textContent = template ? template.name : "Not Selected";
-
         document.getElementById("summary-assets").textContent = `${uploadedFiles.length} files`;
     }
 
@@ -554,78 +533,13 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        const selectedTemplateId = document.getElementById("selected-template-id").value;
-        if (!selectedTemplateId) {
-            alert("Agent Team Template is missing. Please go back and select one.");
-            return;
-        }
-
         try {
-            // 1. Create AgentSet Instance
-            const template = agentTemplates.find(t => t.id === selectedTemplateId);
-            if (!template) throw new Error("Selected template not found.");
-
-            const agentSetId = `set_${Date.now()}`;
-            const agentSetData = {
-                agent_set_id: agentSetId,
-                name: `${document.getElementById("business-name").value} Team`,
-                template_id: selectedTemplateId,
-                status: 'active',
-                version: '1.0.0',
-                created_at: firebase.firestore.FieldValue.serverTimestamp(),
-                updated_at: firebase.firestore.FieldValue.serverTimestamp()
-            };
-
-            await db.collection(`projects/${draftId}/agentSets`).doc(agentSetId).set(agentSetData);
-
-            // 2. Create Sub-Agent Instances based on Template Roles
-            // We need to find active SubAgent Templates for each role
-            // Optimization: Fetch all active subAgentTemplates once
-            const subAgentTemplatesSnapshot = await db.collection('subAgentTemplates')
-                .where('status', '==', 'active')
-                .get();
-
-            const subAgentTemplates = [];
-            subAgentTemplatesSnapshot.forEach(doc => subAgentTemplates.push(doc.data()));
-
-            const createAgentPromises = template.roles.map(async (roleDef) => {
-                // Find matching template for this role
-                // Logic: Find template where type == roleDef.role
-                const subTemplate = subAgentTemplates.find(t => t.type === roleDef.role);
-
-                if (subTemplate) {
-                    const subAgentId = `${roleDef.role}_${Date.now()}`;
-                    const subAgentData = {
-                        sub_agent_id: subAgentId,
-                        agent_set_id: agentSetId,
-                        type: roleDef.role,
-                        version: '1.0.0', // Instance version starts at 1.0.0
-                        template_id: subTemplate.id, // Link to source template
-                        status: 'active',
-                        system_prompt: subTemplate.system_prompt, // Copy prompt
-                        model_provider: subTemplate.model_provider,
-                        config: subTemplate.config,
-                        runtime_profile_id: subTemplate.runtime_profile_id,
-                        created_at: firebase.firestore.FieldValue.serverTimestamp(),
-                        updated_at: firebase.firestore.FieldValue.serverTimestamp()
-                    };
-                    return db.collection(`projects/${draftId}/subAgents`).doc(subAgentId).set(subAgentData);
-                } else {
-                    console.warn(`No active template found for role: ${roleDef.role}`);
-                    // Optional: Create a placeholder or skip
-                    return Promise.resolve();
-                }
-            });
-
-            await Promise.all(createAgentPromises);
-
-            // 3. Finalize Project Document
+            // Finalize Project Document
             const data = {
                 isDraft: false,
                 draftStep: null,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                 status: "Normal",
-                activeAgentSetId: agentSetId, // Link active set
                 // Initialize metrics
                 followerGrowth30d: 0,
                 followerGrowthDelta: 0,
@@ -634,8 +548,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 pendingApprovals: 0,
                 agentHealthCurrent: 100,
                 agentHealthMax: 100,
-                stepProgress: 4, // Completed
-                totalAgents: template.roles.length,
+                stepProgress: 3, // Completed (3 steps now)
+                totalAgents: 0, // Will be set when agent team is deployed
                 avgFollowerGrowth30d: 0,
                 avgEngagementRate: 0,
                 totalContentCreated: 0,
