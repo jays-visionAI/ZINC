@@ -510,8 +510,8 @@ body {
 }
 
 .stat-item {
-    flex: 1;
-    min-width: 120px;
+    flex: 0 0 140px;
+    width: 140px;
     text-align: center;
 }
 
@@ -523,6 +523,10 @@ body {
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    min-height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .stat-label {
