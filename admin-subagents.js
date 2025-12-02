@@ -623,16 +623,7 @@ Always prioritize accurate, up-to-date information.`
             });
         }
 
-        console.log('Setting up modal button listeners...');
-        console.log('modalClose (subagent-modal-close):', modalClose);
-        console.log('modalCancel (subagent-modal-cancel):', modalCancel);
-        console.log('modalSave (subagent-modal-save):', modalSave);
-
-        if (modalClose) modalClose.addEventListener('click', closeModal);
-        if (modalCancel) modalCancel.addEventListener('click', closeModal);
-        if (modalSave) modalSave.addEventListener('click', saveTemplate);
-
-        console.log('Modal button listeners attached');
+        console.log('SetupEventListeners completed');
     }
 
     function loadTemplates() {
@@ -894,6 +885,14 @@ Always prioritize accurate, up-to-date information.`
     // Expose to window for direct HTML access
     window.openSubAgentModal = function () {
         openModal(false);
+    };
+
+    window.closeSubAgentModal = function () {
+        closeModal();
+    };
+
+    window.saveSubAgentTemplate = function () {
+        saveTemplate();
     };
 
     window.createSubAgent = function () {
