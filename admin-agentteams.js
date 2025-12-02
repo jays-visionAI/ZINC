@@ -64,8 +64,8 @@
         const searchInput = document.getElementById("agentteam-search");
         const statusFilter = document.getElementById("filter-status");
         const createBtn = document.getElementById("add-agentteam-btn");
-        const modalCloseBtn = document.getElementById("modal-close");
-        const modalCancelBtn = document.getElementById("modal-cancel");
+        const modalCloseBtn = document.getElementById("agentteam-modal-close");
+        const modalCancelBtn = document.getElementById("agentteam-modal-cancel");
         const wizardNextBtn = document.getElementById("wizard-next");
         const wizardPrevBtn = document.getElementById("wizard-prev");
         const addRoleBtn = document.getElementById("add-role-btn");

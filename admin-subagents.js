@@ -571,9 +571,9 @@ Always prioritize accurate, up-to-date information.`
         const typeFilter = document.getElementById("filter-type");
         const statusFilter = document.getElementById("filter-status");
         const addBtn = document.getElementById("add-subagent-btn");
-        const modalClose = document.getElementById("modal-close");
-        const modalCancel = document.getElementById("modal-cancel");
-        const modalSave = document.getElementById("modal-save");
+        const modalClose = document.getElementById("subagent-modal-close");
+        const modalCancel = document.getElementById("subagent-modal-cancel");
+        const modalSave = document.getElementById("subagent-modal-save");
         const addAdapterBtn = document.getElementById("add-adapter-btn");
 
         // v2.0 Listeners
@@ -623,9 +623,16 @@ Always prioritize accurate, up-to-date information.`
             });
         }
 
+        console.log('Setting up modal button listeners...');
+        console.log('modalClose (subagent-modal-close):', modalClose);
+        console.log('modalCancel (subagent-modal-cancel):', modalCancel);
+        console.log('modalSave (subagent-modal-save):', modalSave);
+
         if (modalClose) modalClose.addEventListener('click', closeModal);
         if (modalCancel) modalCancel.addEventListener('click', closeModal);
         if (modalSave) modalSave.addEventListener('click', saveTemplate);
+
+        console.log('Modal button listeners attached');
     }
 
     function loadTemplates() {
