@@ -20,10 +20,54 @@
     let wizardData = {
         name: '',
         description: '',
-        channel: 'multi-channel',
+        targetChannel: null, // { id, name, slug }
         roles: [],
-        status: 'active'
+        status: 'active',
+        channelCredentials: {} // { [key]: value }
     };
+
+    // PRD 11.2 - Channel API Field Definitions (Static Schema)
+    const CHANNEL_API_FIELD_DEFS = {
+        instagram: [
+            { key: "access_token", label: "Access Token", type: "password", required: true, helperText: "Meta Developer 대시보드에서 발급받은 Long-Lived Access Token" },
+            { key: "page_id", label: "Page ID", type: "text", required: true, helperText: "Facebook Page ID connected to Instagram" }
+        ],
+        youtube: [
+            { key: "api_key", label: "API Key", type: "password", required: true, helperText: "Google Cloud Console에서 발급받은 API Key" },
+            { key: "channel_id", label: "Channel ID", type: "text", required: true, helperText: "YouTube Channel ID" }
+        ],
+        tiktok: [
+            { key: "access_token", label: "Access Token", type: "password", required: true, helperText: "TikTok Developer Access Token" },
+            { key: "client_key", label: "Client Key", type: "text", required: true, helperText: "TikTok App Client Key" }
+        ],
+        linkedin: [
+            { key: "access_token", label: "Access Token", type: "password", required: true, helperText: "LinkedIn OAuth2 Access Token" },
+            { key: "urn", label: "Organization URN", type: "text", required: true, helperText: "LinkedIn Organization URN (e.g., urn:li:organization:12345)" }
+        ],
+        x: [
+            { key: "api_key", label: "API Key", type: "password", required: true, helperText: "X (Twitter) API Key" },
+            { key: "api_secret", label: "API Secret", type: "password", required: true, helperText: "X (Twitter) API Secret" },
+            { key: "access_token", label: "Access Token", type: "password", required: true, helperText: "X (Twitter) Access Token" },
+            { key: "access_token_secret", label: "Access Token Secret", type: "password", required: true, helperText: "X (Twitter) Access Token Secret" }
+        ],
+        // Default fallback for others
+        default: [
+            { key: "api_key", label: "API Key", type: "password", required: true, helperText: "API Key for this channel" }
+        ]
+    };
+
+    // Wizard Cache Logic
+    const CACHE_KEY = `agentTeamWizard:${projectId}`;
+
+    function saveWizardStateToCache() {
+        sessionStorage.setItem(CACHE_KEY, JSON.stringify(wizardData));
+    }
+
+    function loadWizardStateFromCache() {
+        const raw = sessionStorage.getItem(CACHE_KEY);
+        if (!raw) return null;
+        try { return JSON.parse(raw); } catch (e) { return null; }
+    }
 
     // Available Runtime Profiles (for default selection)
     let runtimeProfiles = [];
@@ -115,24 +159,38 @@
 
     function openWizard() {
         console.log("Opening Template Wizard...");
-        currentStep = 1;
 
-        // Initialize with ALL roles selected by default
-        const initialRoles = ROLE_TYPES.map(t => ({
-            name: t.defaultName,
-            type: t.value,
-            is_required: true,
-            default_active: true,
-            defaultRuntimeProfileId: '',
-            behaviourPackId: null
-        }));
+        // Try to load from cache
+        const cached = loadWizardStateFromCache();
+        if (cached && confirm('이전에 작성 중이던 설정이 있습니다. 이어서 진행하시겠습니까?')) {
+            wizardData = cached;
+            currentStep = wizardData.step || 1; // Restore step if saved, or default to 1
+        } else {
+            // Start fresh
+            currentStep = 1;
 
-        wizardData = {
-            name: '',
-            description: '',
-            roles: initialRoles,
-            status: 'active'
-        };
+            // Initialize with ALL roles selected by default
+            const initialRoles = ROLE_TYPES.map(t => ({
+                name: t.defaultName,
+                type: t.value,
+                is_required: true,
+                default_active: true,
+                defaultRuntimeProfileId: '',
+                behaviourPackId: null
+            }));
+
+            wizardData = {
+                name: '',
+                description: '',
+                targetChannel: null,
+                roles: initialRoles,
+                status: 'active',
+                channelCredentials: {}
+            };
+
+            // Clear cache
+            sessionStorage.removeItem(CACHE_KEY);
+        }
 
         const form = document.getElementById('agentteam-form');
         const modal = document.getElementById('agentteam-modal');
@@ -146,6 +204,7 @@
         setTimeout(() => modal.classList.add('open'), 10);
 
         renderRoleSelection();
+        loadChannels();
 
         // Pre-load runtime profiles when wizard opens
         loadRuntimeProfiles().then(() => {
@@ -214,6 +273,52 @@
             })
             .catch(err => console.error("Error loading runtime profiles:", err));
     }
+
+    function loadChannels() {
+        const container = document.getElementById('channel-selection-container');
+        if (!container) return;
+
+        db.collection('channelProfiles')
+            .where('is_active', '==', true)
+            .get()
+            .then(snapshot => {
+                const channels = [];
+                snapshot.forEach(doc => {
+                    channels.push({ id: doc.id, ...doc.data() });
+                });
+
+                channels.sort((a, b) => a.name.localeCompare(b.name));
+
+                container.innerHTML = channels.map(channel => {
+                    const isSelected = wizardData.targetChannel?.id === channel.id;
+                    const slug = channel.slug || channel.channel_type;
+                    return `
+                    <div class="channel-card ${isSelected ? 'selected' : ''}" 
+                         onclick="selectTargetChannel('${channel.id}', '${channel.name}', '${slug}')"
+                         style="cursor: pointer; padding: 12px; border: 1px solid ${isSelected ? '#16e0bd' : 'rgba(255,255,255,0.1)'}; border-radius: 6px; background: ${isSelected ? 'rgba(22, 224, 189, 0.1)' : 'rgba(255,255,255,0.05)'}; text-align: center; transition: all 0.2s;">
+                        <div style="font-size: 24px; margin-bottom: 8px;">${channel.icon || '📺'}</div>
+                        <div style="font-size: 13px; font-weight: 600;">${channel.name}</div>
+                        <div style="font-size: 11px; color: rgba(255,255,255,0.5);">${slug}</div>
+                    </div>
+                    `;
+                }).join('');
+            })
+            .catch(error => {
+                console.error("Error loading channels:", error);
+                container.innerHTML = '<div style="color: #ef4444;">Error loading channels</div>';
+            });
+    }
+
+    window.selectTargetChannel = function (id, name, slug) {
+        wizardData.targetChannel = { id, name, slug };
+        saveWizardStateToCache();
+        loadChannels(); // Re-render to update selection style
+    };
+
+    window.updateChannelCredential = function (key, value) {
+        wizardData.channelCredentials[key] = value;
+        saveWizardStateToCache();
+    };
 
     function renderRoleSelection() {
         const list = document.getElementById('wizard-roles-list');
@@ -425,11 +530,19 @@
                 alert('Please enter a template name');
                 return;
             }
+
+            if (!wizardData.targetChannel) {
+                alert('채널을 선택해 주세요.');
+                return;
+            }
+
             wizardData.name = name;
-            // wizardData.channel = document.getElementById('team-channel').value; // Removed
             wizardData.description = document.getElementById('team-description').value;
             wizardData.status = document.getElementById('team-status').value;
+
             currentStep++;
+            wizardData.step = currentStep;
+            saveWizardStateToCache();
             updateWizardUI();
         } else if (currentStep === 2) {
             // Role Selection Validation
@@ -439,6 +552,8 @@
             }
             // Auto-assign runtime configurations for selected roles
             currentStep++;
+            wizardData.step = currentStep;
+            saveWizardStateToCache();
             updateWizardUI();
             // Render auto-assigned configs (async)
             renderRuntimeAutoAssignment();
@@ -446,6 +561,8 @@
         } else if (currentStep === 3) {
             renderStep4();
             currentStep++;
+            wizardData.step = currentStep;
+            saveWizardStateToCache();
             updateWizardUI();
         } else if (currentStep === 4) {
             createTemplate();
@@ -455,6 +572,8 @@
     function handlePrevStep() {
         if (currentStep > 1) {
             currentStep--;
+            wizardData.step = currentStep;
+            saveWizardStateToCache();
             updateWizardUI();
         }
     }
@@ -462,8 +581,31 @@
     function renderStep4() {
         document.getElementById('review-name').textContent = wizardData.name;
         document.getElementById('review-desc').textContent = wizardData.description || 'No description';
-        // document.getElementById('review-channel').textContent = formatChannelType(wizardData.channel); // Removed
         document.getElementById('review-count').textContent = wizardData.roles.length;
+
+        // Render API Fields
+        const apiForm = document.getElementById('channel-api-form');
+        if (wizardData.targetChannel) {
+            const slug = wizardData.targetChannel.slug;
+            const fieldDefs = CHANNEL_API_FIELD_DEFS[slug] || CHANNEL_API_FIELD_DEFS['default'];
+
+            apiForm.innerHTML = fieldDefs.map(def => {
+                const value = wizardData.channelCredentials[def.key] || '';
+                return `
+                <div class="admin-form-group">
+                    <label class="admin-form-label">${def.label} ${def.required ? '<span style="color: #ef4444;">*</span>' : ''}</label>
+                    <input type="${def.type}" class="admin-form-input" 
+                        value="${value}"
+                        onchange="updateChannelCredential('${def.key}', this.value)"
+                        placeholder="${def.helperText}"
+                    >
+                    <small style="color: rgba(255,255,255,0.5);">${def.helperText}</small>
+                </div>
+                `;
+            }).join('');
+        } else {
+            apiForm.innerHTML = '<div style="color: #ef4444;">No channel selected.</div>';
+        }
 
         const list = document.getElementById('review-agents-list');
         list.innerHTML = wizardData.roles.map(role => {
@@ -492,10 +634,30 @@
     }
 
     async function createTemplate() {
+        // Validate API Credentials
+        if (wizardData.targetChannel) {
+            const slug = wizardData.targetChannel.slug;
+            const fieldDefs = CHANNEL_API_FIELD_DEFS[slug] || CHANNEL_API_FIELD_DEFS['default'];
+
+            for (const def of fieldDefs) {
+                if (def.required && !wizardData.channelCredentials[def.key]) {
+                    alert(`Please enter ${def.label} in Channel API Settings.`);
+                    return;
+                }
+            }
+        }
+
         const btn = document.getElementById('wizard-next');
         try {
             btn.disabled = true;
             btn.textContent = 'Saving Template...';
+
+            // Stub for saving credentials
+            console.log("[Stub] Will save channel credentials in future versions", {
+                userId: firebase.auth().currentUser?.uid,
+                slug: wizardData.targetChannel?.slug,
+                credentialsKeys: Object.keys(wizardData.channelCredentials)
+            });
 
             const timestamp = Date.now();
             const templateId = `agst_${timestamp}`; // Agent Set Template ID
@@ -506,7 +668,9 @@
                 description: wizardData.description,
                 status: wizardData.status,
                 version: '1.0.0',
-                // channel_type: wizardData.channel, // Removed
+                channelProfileId: wizardData.targetChannel?.id,
+                channelType: wizardData.targetChannel?.slug,
+                channelName: wizardData.targetChannel?.name,
                 roles: wizardData.roles,
                 created_at: firebase.firestore.FieldValue.serverTimestamp(),
                 updated_at: firebase.firestore.FieldValue.serverTimestamp(),
@@ -518,6 +682,7 @@
             await db.collection('agentSetTemplates').doc(templateId).set(templateData);
 
             alert('✅ Template created successfully!');
+            sessionStorage.removeItem(CACHE_KEY); // Clear cache on success
             closeWizard();
         } catch (error) {
             console.error('Error creating template:', error);

@@ -243,7 +243,19 @@
                     </div>
 
                     <div class="admin-form-group">
-                        <label class="admin-form-label">3. Status</label>
+                        <label class="admin-form-label">3. Target Channel <span style="color: #ef4444;">*</span></label>
+                        <div id="channel-selection-container"
+                            style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 12px; margin-top: 8px;">
+                            <!-- Channels injected by JS -->
+                            <div
+                                style="grid-column: 1/-1; color: rgba(255,255,255,0.5); font-size: 13px; padding: 10px; text-align: center; background: rgba(255,255,255,0.05); border-radius: 4px;">
+                                Loading channels...
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="admin-form-group">
+                        <label class="admin-form-label">4. Status</label>
                         <select id="team-status" class="admin-select" style="width: 100%;" required>
                             <option value="active">✅ Active</option>
                             <option value="draft">📝 Draft</option>
@@ -319,6 +331,16 @@
 
                 <!-- Step 4: Review & Create -->
                 <div id="step-4" class="wizard-step" style="display: none;">
+                    <div id="step-4-api-section" style="margin-bottom: 24px;">
+                        <h4 style="margin: 0 0 12px 0; color: #16e0bd;">Channel API Settings</h4>
+                        <div id="channel-api-form"
+                            style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 8px;">
+                            <!-- API fields injected by JS -->
+                            <div style="color: rgba(255,255,255,0.5); font-size: 13px;">Select a channel in Step 1 to
+                                configure API settings.</div>
+                        </div>
+                    </div>
+
                     <div
                         style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 8px; margin-bottom: 24px;">
                         <h4 style="margin: 0 0 12px 0; color: #16e0bd;">Template Summary</h4>

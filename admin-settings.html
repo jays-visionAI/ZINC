@@ -6,80 +6,119 @@
         </p>
     </div>
 
-    <!-- API Keys Section -->
-    <div
-        style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05);">
-        <h4 style="margin: 0 0 16px 0; color: #fff;">LLM Provider API Keys</h4>
-
-        <div class="admin-form-group">
-            <label class="admin-form-label">OpenAI API Key</label>
-            <div style="display: flex; gap: 12px;">
-                <input type="password" id="openai-api-key" class="admin-form-input" placeholder="sk-..."
-                    autocomplete="off">
-                <button id="toggle-openai-key" class="admin-btn-secondary" style="width: auto; padding: 0 12px;">
-                    👁️
-                </button>
-            </div>
-            <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 8px;">
-                Required for "openai" provider runtime profiles. Stored locally in your browser for now.
-            </p>
-        </div>
-
-        <div class="admin-form-group" style="margin-top: 20px;">
-            <label class="admin-form-label">Anthropic API Key</label>
-            <div style="display: flex; gap: 12px;">
-                <input type="password" id="anthropic-api-key" class="admin-form-input" placeholder="sk-ant-..."
-                    autocomplete="off">
-                <button id="toggle-anthropic-key" class="admin-btn-secondary" style="width: auto; padding: 0 12px;">
-                    👁️
-                </button>
-            </div>
-            <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 8px;">
-                Required for "anthropic" provider runtime profiles.
-            </p>
-        </div>
-
-        <div style="margin-top: 32px; display: flex; justify-content: flex-end;">
-            <button id="save-settings-btn" class="admin-btn-primary" style="min-width: 120px;">
-                Save Settings
-            </button>
-        </div>
+    <!-- Tabs -->
+    <div style="display: flex; gap: 24px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 24px;">
+        <div class="settings-tab active" onclick="switchSettingsTab('general')" id="tab-btn-general"
+            style="padding-bottom: 12px; cursor: pointer; border-bottom: 2px solid #16e0bd; color: #fff; font-weight: 600;">
+            General</div>
+        <div class="settings-tab" onclick="switchSettingsTab('channel-api')" id="tab-btn-channel-api"
+            style="padding-bottom: 12px; cursor: pointer; border-bottom: 2px solid transparent; color: rgba(255,255,255,0.5);">
+            Channel API Settings</div>
     </div>
 
-    <!-- Maintenance Section -->
-    <div
-        style="margin-top: 24px; background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05);">
-        <h4 style="margin: 0 0 16px 0; color: #fff;">System Maintenance</h4>
+    <!-- General Tab -->
+    <div id="tab-general" class="settings-tab-content">
+        <!-- API Keys Section -->
+        <div
+            style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05);">
+            <h4 style="margin: 0 0 16px 0; color: #fff;">LLM Provider API Keys</h4>
 
-        <div style="display: flex; align-items: center; justify-content: space-between;">
-            <div>
-                <strong style="display: block; color: #e2e8f0; margin-bottom: 4px;">Update Sub-Agent Prompts</strong>
-                <p style="margin: 0; font-size: 12px; color: rgba(255,255,255,0.4);">
-                    Injects high-quality system prompts for Planner, Creator, and Manager (Required for Real LLM
-                    Execution).
+            <div class="admin-form-group">
+                <label class="admin-form-label">OpenAI API Key</label>
+                <div style="display: flex; gap: 12px;">
+                    <input type="password" id="openai-api-key" class="admin-form-input" placeholder="sk-..."
+                        autocomplete="off">
+                    <button id="toggle-openai-key" class="admin-btn-secondary" style="width: auto; padding: 0 12px;">
+                        👁️
+                    </button>
+                </div>
+                <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 8px;">
+                    Required for "openai" provider runtime profiles. Stored locally in your browser for now.
                 </p>
             </div>
-            <button id="update-prompts-btn" class="admin-btn-secondary">
-                Update Prompts
-            </button>
+
+            <div class="admin-form-group" style="margin-top: 20px;">
+                <label class="admin-form-label">Anthropic API Key</label>
+                <div style="display: flex; gap: 12px;">
+                    <input type="password" id="anthropic-api-key" class="admin-form-input" placeholder="sk-ant-..."
+                        autocomplete="off">
+                    <button id="toggle-anthropic-key" class="admin-btn-secondary" style="width: auto; padding: 0 12px;">
+                        👁️
+                    </button>
+                </div>
+                <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 8px;">
+                    Required for "anthropic" provider runtime profiles.
+                </p>
+            </div>
+
+            <div style="margin-top: 32px; display: flex; justify-content: flex-end;">
+                <button id="save-settings-btn" class="admin-btn-primary" style="min-width: 120px;">
+                    Save Settings
+                </button>
+            </div>
         </div>
-    </div>
 
-    <!-- System Prompt Templates Section -->
-    <div style="margin-top: 24px; background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05); cursor: pointer; transition: all 0.2s;"
-        onclick="window.location.href='admin-prompt-templates.html'"
-        onmouseover="this.style.background='rgba(255,255,255,0.05)'"
-        onmouseout="this.style.background='rgba(255,255,255,0.03)'">
-        <div style="display: flex; align-items: center; gap: 16px;">
-            <div style="font-size: 24px;">📝</div>
-            <div>
-                <h4 style="margin: 0 0 4px 0; color: #fff;">System Prompt Templates</h4>
-                <p style="margin: 0; font-size: 13px; color: rgba(255,255,255,0.5);">
-                    Manage and version control system prompts for all agents.
-                </p>
+        <!-- Maintenance Section -->
+        <div
+            style="margin-top: 24px; background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05);">
+            <h4 style="margin: 0 0 16px 0; color: #fff;">System Maintenance</h4>
+
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <strong style="display: block; color: #e2e8f0; margin-bottom: 4px;">Update Sub-Agent
+                        Prompts</strong>
+                    <p style="margin: 0; font-size: 12px; color: rgba(255,255,255,0.4);">
+                        Injects high-quality system prompts for Planner, Creator, and Manager (Required for Real LLM
+                        Execution).
+                    </p>
+                </div>
+                <button id="update-prompts-btn" class="admin-btn-secondary">
+                    Update Prompts
+                </button>
             </div>
-            <div style="margin-left: auto; color: rgba(255,255,255,0.3);">
-                →
+        </div>
+
+        <!-- System Prompt Templates Section -->
+        <div style="margin-top: 24px; background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05); cursor: pointer; transition: all 0.2s;"
+            onclick="window.location.href='admin-prompt-templates.html'"
+            onmouseover="this.style.background='rgba(255,255,255,0.05)'"
+            onmouseout="this.style.background='rgba(255,255,255,0.03)'">
+            <div style="display: flex; align-items: center; gap: 16px;">
+                <div style="font-size: 24px;">📝</div>
+                <div>
+                    <h4 style="margin: 0 0 4px 0; color: #fff;">System Prompt Templates</h4>
+                    <p style="margin: 0; font-size: 13px; color: rgba(255,255,255,0.5);">
+                        Manage and version control system prompts for all agents.
+                    </p>
+                </div>
+                <div style="margin-left: auto; color: rgba(255,255,255,0.3);">
+                    →
+                </div>
+            </div>
+        </div>
+    </div> <!-- End General Tab -->
+
+    <!-- Channel API Tab -->
+    <div id="tab-channel-api" class="settings-tab-content" style="display: none;">
+        <div style="display: grid; grid-template-columns: 300px 1fr; gap: 24px; align-items: start;">
+            <!-- Left: Channel List -->
+            <div
+                style="background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); overflow: hidden;">
+                <div style="padding: 16px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                    <h4 style="margin: 0; color: #fff;">Active Channels</h4>
+                </div>
+                <div id="settings-channels-list" style="max-height: 600px; overflow-y: auto;">
+                    <div style="padding: 20px; text-align: center; color: rgba(255,255,255,0.5);">Loading...</div>
+                </div>
+            </div>
+
+            <!-- Right: Schema Detail -->
+            <div id="settings-channel-detail"
+                style="background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); padding: 24px;">
+                <div style="text-align: center; color: rgba(255,255,255,0.5); margin-top: 40px; margin-bottom: 40px;">
+                    <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.2;">👈</div>
+                    Select a channel from the list to view its API configuration.
+                </div>
             </div>
         </div>
     </div>
