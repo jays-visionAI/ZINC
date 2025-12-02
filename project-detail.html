@@ -200,11 +200,24 @@
                     <p style="margin-bottom: 24px; color: rgba(255,255,255,0.7);">
                         Define the identity of your new Agent Team.
                     </p>
+
                     <div class="admin-form-group">
-                        <label class="admin-form-label">Team Name *</label>
-                        <input type="text" id="team-name" class="admin-form-input"
-                            placeholder="e.g. Official Brand Team">
+                        <label class="admin-form-label">Select Channel <span style="color: #ef4444;">*</span></label>
+                        <select id="deploy-channel-select" class="admin-form-input" required>
+                            <option value="">-- Select a channel --</option>
+                            <!-- Channels injected by JS -->
+                        </select>
+                        <small style="color: rgba(255,255,255,0.5);">Choose the target channel for this agent
+                            team.</small>
                     </div>
+
+                    <div class="admin-form-group">
+                        <label class="admin-form-label">Team Name</label>
+                        <input type="text" id="team-name" class="admin-form-input" placeholder="e.g. Marketing Team">
+                        <small style="color: rgba(255,255,255,0.5);">Optional. Channel name will be automatically
+                            prefixed (e.g. [Instagram] Marketing Team).</small>
+                    </div>
+
                     <div class="admin-form-group">
                         <label class="admin-form-label">Description</label>
                         <textarea id="team-description" class="admin-form-input" rows="3"
@@ -237,24 +250,21 @@
 
                 <!-- Step 4: Target Channels & Credentials (Phase 2) -->
                 <div id="deploy-step-4" class="wizard-step" style="display: none;">
-                    <p style="margin-bottom: 24px; color: rgba(255,255,255,0.7);">
-                        Configure channels and connect API credentials.
-                    </p>
-
-                    <div id="channel-config-list" style="display: flex; flex-direction: column; gap: 16px;">
-                        <!-- Populated by JS -->
-                        <!-- Example Structure:
-                        <div class="channel-config-item">
-                            <div class="channel-header">
-                                <input type="checkbox"> Instagram
-                            </div>
-                            <div class="credential-select">
-                                <select>...</select>
-                                <button>+ Add New</button>
-                            </div>
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                        <div id="deploy-selected-channel-icon" style="font-size: 28px;">📺</div>
+                        <div>
+                            <h4 style="margin: 0; color: #16e0bd;" id="deploy-selected-channel-title">Channel API
+                                Settings</h4>
+                            <div id="deploy-selected-channel-name"
+                                style="font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 4px;"></div>
                         </div>
-                        -->
-                        <div style="text-align: center; padding: 20px;">Loading Channels...</div>
+                    </div>
+
+                    <div id="deploy-channel-api-form"
+                        style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 8px;">
+                        <!-- Populated by JS -->
+                        <div style="text-align: center; padding: 20px; color: rgba(255,255,255,0.5);">Select a channel
+                            in Step 1 to configure API settings.</div>
                     </div>
                 </div>
 

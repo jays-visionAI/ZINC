@@ -12,6 +12,35 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
     }
 
+    // PRD 11.2 - Channel API Field Definitions (Static Schema)
+    const CHANNEL_API_FIELD_DEFS = {
+        instagram: [
+            { key: "access_token", label: "Access Token", type: "password", required: true, helperText: "Meta Developer Long-Lived Access Token" },
+            { key: "page_id", label: "Page ID", type: "text", required: true, helperText: "Facebook Page ID connected to Instagram" }
+        ],
+        youtube: [
+            { key: "api_key", label: "API Key", type: "password", required: true, helperText: "Google Cloud API Key" },
+            { key: "channel_id", label: "Channel ID", type: "text", required: true, helperText: "YouTube Channel ID" }
+        ],
+        tiktok: [
+            { key: "access_token", label: "Access Token", type: "password", required: true, helperText: "TikTok Developer Access Token" },
+            { key: "client_key", label: "Client Key", type: "text", required: true, helperText: "TikTok App Client Key" }
+        ],
+        linkedin: [
+            { key: "access_token", label: "Access Token", type: "password", required: true, helperText: "LinkedIn OAuth2 Access Token" },
+            { key: "urn", label: "Organization URN", type: "text", required: true, helperText: "LinkedIn Organization URN" }
+        ],
+        x: [
+            { key: "api_key", label: "API Key", type: "password", required: true, helperText: "X (Twitter) API Key" },
+            { key: "api_secret", label: "API Secret", type: "password", required: true, helperText: "X (Twitter) API Secret" },
+            { key: "access_token", label: "Access Token", type: "password", required: true, helperText: "X (Twitter) Access Token" },
+            { key: "access_token_secret", label: "Access Token Secret", type: "password", required: true, helperText: "X (Twitter) Access Token Secret" }
+        ],
+        default: [
+            { key: "api_key", label: "API Key", type: "password", required: true, helperText: "API Key for this channel" }
+        ]
+    };
+
     // Deployment Wizard State
     let deployStep = 1;
     let deployData = {
@@ -233,6 +262,67 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.getElementById("team-description").value = "";
 
         updateDeployUI();
+        loadDeployChannels();
+    };
+
+    function loadDeployChannels() {
+        const selectElement = document.getElementById('deploy-channel-select');
+        if (!selectElement) return;
+
+        db.collection('channelProfiles')
+            .where('is_active', '==', true)
+            .get()
+            .then(snapshot => {
+                const channels = [];
+                snapshot.forEach(doc => {
+                    channels.push({ id: doc.id, ...doc.data() });
+                });
+
+                channels.sort((a, b) => a.name.localeCompare(b.name));
+
+                selectElement.innerHTML = '<option value="">-- Select a channel --</option>';
+
+                channels.forEach(channel => {
+                    const slug = channel.slug || channel.channel_type;
+                    const option = document.createElement('option');
+                    option.value = JSON.stringify({ id: channel.id, name: channel.name, slug: slug, icon: channel.icon || '📺' });
+                    option.textContent = `${channel.icon || '📺'} ${channel.name}`;
+                    selectElement.appendChild(option);
+                });
+
+                selectElement.onchange = function () {
+                    if (this.value) {
+                        const channelData = JSON.parse(this.value);
+                        deployData.targetChannel = channelData;
+                    } else {
+                        deployData.targetChannel = null;
+                    }
+                    updateDeployTeamNamePrefix();
+                };
+            })
+            .catch(error => {
+                console.error("Error loading channels:", error);
+                selectElement.innerHTML = '<option value="">Error loading channels</option>';
+            });
+    }
+
+    function updateDeployTeamNamePrefix() {
+        const teamNameInput = document.getElementById('team-name');
+        if (!teamNameInput) return;
+
+        const currentValue = teamNameInput.value;
+        const withoutPrefix = currentValue.replace(/^\[.*?\]\s*/, '');
+
+        if (deployData.targetChannel && deployData.targetChannel.name) {
+            teamNameInput.value = `[${deployData.targetChannel.name}] ${withoutPrefix}`.trim();
+        } else {
+            teamNameInput.value = withoutPrefix;
+        }
+    }
+
+    window.updateDeployChannelCredential = function (key, value) {
+        if (!deployData.channelCredentials) deployData.channelCredentials = {};
+        deployData.channelCredentials[key] = value;
     };
 
     window.closeDeployWizard = function () {
@@ -273,6 +363,35 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (deployStep === 4) {
             nextBtn.textContent = "Create Agent Team";
             nextBtn.classList.add("btn-success"); // Optional styling
+
+            // Update channel info
+            if (deployData.targetChannel) {
+                document.getElementById('deploy-selected-channel-icon').textContent = deployData.targetChannel.icon || '📺';
+                document.getElementById('deploy-selected-channel-title').textContent = `${deployData.targetChannel.name} API Settings`;
+                document.getElementById('deploy-selected-channel-name').textContent = `Channel: ${deployData.targetChannel.slug}`;
+            }
+
+            // Render API Fields
+            const apiForm = document.getElementById('deploy-channel-api-form');
+            if (deployData.targetChannel) {
+                const slug = deployData.targetChannel.slug;
+                const fieldDefs = CHANNEL_API_FIELD_DEFS[slug] || CHANNEL_API_FIELD_DEFS['default'];
+
+                apiForm.innerHTML = fieldDefs.map(def => {
+                    const value = deployData.channelCredentials?.[def.key] || '';
+                    return `
+                        <div class="admin-form-group">
+                            <label class="admin-form-label">${def.label} ${def.required ? '<span style="color: #ef4444;">*</span>' : ''}</label>
+                            <input type="${def.type}" class="admin-form-input" 
+                                value="${value}"
+                                onchange="window.updateDeployChannelCredential('${def.key}', this.value)"
+                                placeholder="${def.helperText}"
+                            >
+                            <small style="color: rgba(255,255,255,0.5);">${def.helperText}</small>
+                        </div>
+                        `;
+                }).join('');
+            }
         } else {
             nextBtn.textContent = "Next Step";
             nextBtn.classList.remove("btn-success");
@@ -434,15 +553,29 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     async function handleDeployNext() {
         if (deployStep === 1) {
-            const name = document.getElementById("team-name").value.trim();
-            const desc = document.getElementById("team-description").value.trim();
-            if (!name) { alert("Please enter a Team Name."); return; }
+            // Validate Step 1
+            if (!deployData.targetChannel) {
+                alert("Please select a target channel.");
+                return;
+            }
 
-            deployData.teamName = name;
-            deployData.description = desc;
+            let teamName = document.getElementById("team-name").value.trim();
+            // If team name is empty or only has the prefix, use default name
+            if (!teamName || teamName === `[${deployData.targetChannel.name}]`) {
+                teamName = `[${deployData.targetChannel.name}] Team`;
+            }
+
+            // Ensure the team name has the channel prefix
+            if (!teamName.startsWith(`[${deployData.targetChannel.name}]`)) {
+                teamName = `[${deployData.targetChannel.name}] ${teamName}`;
+            }
+
+            deployData.teamName = teamName;
+            deployData.description = document.getElementById("team-description").value;
 
             deployStep++;
-            loadTeamTemplates();
+            updateDeployUI();
+            return;
         } else if (deployStep === 2) {
             if (!deployData.templateId) { alert("Please select a template."); return; }
             deployStep++;
@@ -460,6 +593,36 @@ document.addEventListener("DOMContentLoaded", async () => {
     function handleDeployPrev() {
         if (deployStep > 1) {
             deployStep--;
+            if (deployStep === 4) {
+                // Update channel info
+                if (deployData.targetChannel) {
+                    document.getElementById('deploy-selected-channel-icon').textContent = deployData.targetChannel.icon || '📺';
+                    document.getElementById('deploy-selected-channel-title').textContent = `${deployData.targetChannel.name} API Settings`;
+                    document.getElementById('deploy-selected-channel-name').textContent = `Channel: ${deployData.targetChannel.slug}`;
+                }
+
+                // Render API Fields
+                const apiForm = document.getElementById('deploy-channel-api-form');
+                if (deployData.targetChannel) {
+                    const slug = deployData.targetChannel.slug;
+                    const fieldDefs = CHANNEL_API_FIELD_DEFS[slug] || CHANNEL_API_FIELD_DEFS['default'];
+
+                    apiForm.innerHTML = fieldDefs.map(def => {
+                        const value = deployData.channelCredentials?.[def.key] || '';
+                        return `
+                            <div class="admin-form-group">
+                                <label class="admin-form-label">${def.label} ${def.required ? '<span style="color: #ef4444;">*</span>' : ''}</label>
+                                <input type="${def.type}" class="admin-form-input" 
+                                    value="${value}"
+                                    onchange="window.updateDeployChannelCredential('${def.key}', this.value)"
+                                    placeholder="${def.helperText}"
+                                >
+                                <small style="color: rgba(255,255,255,0.5);">${def.helperText}</small>
+                            </div>
+                            `;
+                    }).join('');
+                }
+            }
             updateDeployUI();
         }
     }
