@@ -326,13 +326,15 @@ Always prioritize accurate, up-to-date information.`
         templates = [];
         filteredTemplates = [];
 
-        // Default to Canvas View
-        renderCanvasView();
-
         // Pre-load templates for Tab 2
         loadTemplates();
 
         setupEventListeners();
+
+        // Render canvas view after DOM is ready
+        setTimeout(() => {
+            renderCanvasView();
+        }, 100);
     };
 
 
@@ -444,7 +446,15 @@ Always prioritize accurate, up-to-date information.`
             promptTemplates = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             populateTemplateSelector();
         } catch (error) {
-            console.error('[Prompt Templates] Failed to load:', error);
+            if (error.code === 'permission-denied') {
+                console.warn('[Prompt Templates] Permission denied - Please deploy Firestore rules via Firebase Console');
+                console.warn('Run: firebase deploy --only firestore:rules');
+            } else {
+                console.error('[Prompt Templates] Failed to load:', error);
+            }
+            // Set empty array so UI doesn't break
+            promptTemplates = [];
+            populateTemplateSelector();
         }
     }
 
@@ -785,7 +795,7 @@ Always prioritize accurate, up-to-date information.`
             return;
         }
 
-        title.textContent = isEdit ? 'Edit Template' : 'Create Sub-Agent Template';
+        title.textContent = isEdit ? 'Edit Sub-Agent Template' : 'Create Sub-Agent Template';
         modal.style.display = 'flex';
         // Add 'open' class for opacity transition
         requestAnimationFrame(() => {
@@ -987,7 +997,14 @@ Always prioritize accurate, up-to-date information.`
             });
             renderAdapters();
         } catch (error) {
-            console.error("Error loading adapters:", error);
+            if (error.code === 'permission-denied') {
+                console.warn('[Channel Adapters] Permission denied - Please deploy Firestore rules via Firebase Console');
+                console.warn('Run: firebase deploy --only firestore:rules');
+            } else {
+                console.error("Error loading adapters:", error);
+            }
+            // Render empty state so UI doesn't break
+            renderAdapters();
         }
     }
 
