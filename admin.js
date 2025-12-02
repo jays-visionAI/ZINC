@@ -142,7 +142,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             'agentteam-detail': "Agent Team Detail",
             'agentrun-detail': "Task Execution Detail",
             users: "User Management",
-            agentteams: "Agent Team",
+            agentteams: "Agent Team Template",
             agentruns: "Agent Execution Logs",
             subagents: "Sub-Agent Management",
             'channel-profiles': "Channel Profile Management",
