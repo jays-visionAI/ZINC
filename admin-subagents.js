@@ -1183,6 +1183,10 @@ Always prioritize accurate, up-to-date information.`
 
             // Show loading message
             const tbody = document.getElementById('subagents-table-body');
+            if (!tbody) {
+                console.error('subagents-table-body not found - this function should only be called from Sub-Agents page');
+                return;
+            }
             const originalContent = tbody.innerHTML;
             tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #16e0bd;">Waiting for Google Authentication...</td></tr>';
 
