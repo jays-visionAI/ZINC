@@ -888,10 +888,12 @@ Always prioritize accurate, up-to-date information.`
     };
 
     window.closeSubAgentModal = function () {
+        console.log('window.closeSubAgentModal called');
         closeModal();
     };
 
     window.saveSubAgentTemplate = function () {
+        console.log('window.saveSubAgentTemplate called');
         saveTemplate();
     };
 
@@ -899,6 +901,8 @@ Always prioritize accurate, up-to-date information.`
         console.log('createSubAgent called');
         openModal(false);
     };
+
+    console.log('admin-subagents.js: Global functions registered (closeSubAgentModal, saveSubAgentTemplate)');
 
     window.addAdapterFromUI = function () {
         const select = document.getElementById('new-adapter-channel');

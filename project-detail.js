@@ -1006,90 +1006,118 @@ document.addEventListener("DOMContentLoaded", async () => {
         // 1. Normalize Channels
         const channels = ChannelOrchestrator.normalizeAgentTeamChannels(inst);
 
-        // 2. Compute Team Readiness
-        const readiness = ChannelOrchestrator.computeTeamReadiness(inst);
-        const readinessBadgeColor = readiness === 'Ready' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 179, 8, 0.2)';
-        const readinessTextColor = readiness === 'Ready' ? '#22c55e' : '#eab308';
+        // 2. Get primary channel for display
+        const primaryChannel = channels.find(ch => ch.enabled) || { provider: 'unknown', status: 'missing_key' };
+        const channelIcon = getChannelIconById(primaryChannel.provider);
+        const channelType = primaryChannel.provider || 'unknown';
 
-        // 3. Generate Channel Icons with Status Indicators
-        let channelIconsHtml = '';
-        if (channels.length > 0) {
-            channelIconsHtml = channels.map(ch => {
-                if (!ch.enabled) return '';
+        // 3. Status mapping
+        const statusMap = {
+            'active': 'ACTIVE',
+            'paused': 'PAUSED',
+            'cooldown': 'COOLDOWN',
+            'error': 'NEEDS SETUP'
+        };
+        const displayStatus = statusMap[inst.status] || inst.status.toUpperCase();
 
-                const icon = getChannelIconById(ch.provider);
+        // 4. Status class for styling
+        let statusClass = 'agent-card--active';
+        if (inst.status === 'cooldown') statusClass = 'agent-card--cooldown';
+        if (inst.status === 'error' || inst.status === 'paused') statusClass = 'agent-card--needs-setup';
 
-                // Status Indicator Logic
-                let statusColor = '#eab308'; // Default: missing_key (yellow)
-                let statusIcon = '⚠️';
+        // 5. Extract metrics with fallbacks
+        const dailyActionsCurrent = inst.metrics?.daily_actions_completed || inst.metrics?.dailyActions?.current || 0;
+        const dailyActionsQuota = inst.metrics?.daily_actions_quota || inst.metrics?.dailyActions?.quota || 15;
+        const totalRunsCurrent = inst.metrics?.total_runs || inst.metrics?.totalRuns?.current || 0;
+        const totalRunsQuota = inst.metrics?.totalRuns?.quota || null;
 
-                if (ch.status === 'ready') {
-                    statusColor = '#22c55e'; // Green
-                    statusIcon = '✅';
-                } else if (ch.status === 'error') {
-                    statusColor = '#ef4444'; // Red
-                    statusIcon = '⛔';
-                }
-
-                return `
-                    <div style="position: relative; display: inline-block; margin-right: 8px;" title="${ch.provider} - ${ch.status}">
-                        ${icon}
-                        <span style="position: absolute; bottom: -4px; right: -4px; width: 12px; height: 12px; background: #1A1A23; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 8px;">
-                            <span style="color: ${statusColor}; font-size: 10px;">${ch.status === 'ready' ? '●' : '●'}</span>
-                        </span>
-                    </div>
-                `;
-            }).join('');
-        } else {
-            channelIconsHtml = '<span style="color: rgba(255,255,255,0.3); font-size: 12px;">No channels</span>';
+        // 6. Calculate progress percentages
+        function getProgress(current, quota) {
+            if (!quota || quota <= 0) return 0;
+            const ratio = current / quota;
+            return Math.max(0, Math.min(100, ratio * 100));
         }
 
+        const dailyProgress = getProgress(dailyActionsCurrent, dailyActionsQuota);
+        const totalRunsProgress = totalRunsQuota ? getProgress(totalRunsCurrent, totalRunsQuota) : 0;
+
+        // 7. Format display values
+        const dailyActionsDisplay = `${dailyActionsCurrent}/${dailyActionsQuota}`;
+        const totalRunsDisplay = totalRunsQuota ? `${totalRunsCurrent}/${totalRunsQuota}` : `${totalRunsCurrent}`;
+
+        // 8. Active Directive
+        const activeDirective = inst.active_directive?.summary ||
+            inst.activeDirective ||
+            'System initialized. Waiting for task assignment.';
+
+        // 9. Alert icon (show if there's an issue)
+        const hasAlert = inst.status === 'error' || primaryChannel.status === 'error' || primaryChannel.status === 'missing_key';
+        const alertIcon = hasAlert ? '<span class="agent-card__alert-icon" title="Attention required">!</span>' : '';
+
         return `
-            <div class="agent-card" onclick="openAgentDetail('${inst.id}')">
-                <div class="agent-card-header">
-                    <div class="agent-info">
-                        <div class="agent-icon-container" style="display: flex; align-items: center;">
-                            ${channelIconsHtml}
-                        </div>
-                        <div class="agent-details">
-                            <div class="agent-name">
-                                ${inst.name}
-                                ${inst.status === 'error' ? '<span style="color: #ef4444;">!</span>' : ''}
+            <div class="agent-card ${statusClass}" data-team-id="${inst.id}" onclick="handleCardClick(event, '${inst.id}')">
+                <div class="agent-card__header">
+                    <div class="agent-card__channel">
+                        <span class="agent-card__channel-icon">${channelIcon}</span>
+                        <span class="agent-card__title">${inst.name}</span>
+                    </div>
+                    
+                    <div class="agent-card__status-area">
+                        ${alertIcon}
+                        <span class="agent-card__status-pill agent-card__status-pill--${inst.status}">${displayStatus}</span>
+                        <button class="agent-card__delete-btn" onclick="handleDeleteTeam(event, '${inst.id}')" aria-label="Delete team" title="Delete this agent team">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="agent-card__role">${inst.description || 'Autonomous Agent Team'}</div>
+                
+                <div class="agent-card__directive">
+                    <div class="agent-card__directive-label">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                        </svg>
+                        Active Directive:
+                    </div>
+                    <div class="agent-card__directive-body">${activeDirective}</div>
+                </div>
+                
+                <div class="agent-card__metrics">
+                    <!-- Daily Actions -->
+                    <div class="agent-card__metric-row">
+                        <div class="agent-card__metric-label">Daily Actions</div>
+                        <div class="agent-card__metric-progress">
+                            <div class="agent-card__metric-progress-bar agent-card__metric-progress-bar--daily">
+                                <div class="agent-card__metric-progress-fill agent-card__metric-progress-fill--daily" style="width: ${dailyProgress}%"></div>
                             </div>
-                            <div class="agent-role">${inst.description || 'Autonomous Agent Team'}</div>
+                            <div class="agent-card__metric-value">${dailyActionsDisplay}</div>
                         </div>
                     </div>
-                    <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
-                        <div class="agent-status">
-                            <span class="status-dot ${inst.status === 'active' ? 'active' : 'inactive'}"></span>
-                            ${inst.status.toUpperCase()}
-                        </div>
-                        <div style="font-size: 10px; padding: 2px 6px; border-radius: 4px; background: ${readinessBadgeColor}; color: ${readinessTextColor}; font-weight: 600;">
-                            ${readiness.toUpperCase()}
+                    
+                    <!-- Total Runs -->
+                    <div class="agent-card__metric-row">
+                        <div class="agent-card__metric-label">Total Runs</div>
+                        <div class="agent-card__metric-progress">
+                            <div class="agent-card__metric-progress-bar agent-card__metric-progress-bar--runs">
+                                <div class="agent-card__metric-progress-fill agent-card__metric-progress-fill--runs" style="width: ${totalRunsProgress}%"></div>
+                            </div>
+                            <div class="agent-card__metric-value">${totalRunsDisplay}</div>
                         </div>
                     </div>
                 </div>
                 
-                <div class="agent-metrics">
-                    <div class="metric-item">
-                        <div class="metric-label">Success Rate</div>
-                        <div class="metric-value">${inst.metrics?.success_rate || 0}%</div>
-                    </div>
-                    <div class="metric-item">
-                        <div class="metric-label">Daily Actions</div>
-                        <div class="metric-value">${inst.metrics?.daily_actions_completed || 0}/${inst.metrics?.daily_actions_quota || 0}</div>
-                    </div>
-                    <div class="metric-item">
-                        <div class="metric-label">Total Runs</div>
-                        <div class="metric-value">${inst.metrics?.total_runs || 0}</div>
-                    </div>
-                </div>
-
-                <div class="active-directive">
-                    <div class="directive-label">ACTIVE DIRECTIVE</div>
-                    <div class="directive-text">
-                        ${inst.active_directive ? inst.active_directive.summary : 'System initialized. Waiting for task assignment.'}
-                    </div>
+                <div class="agent-card__footer">
+                    <button class="agent-card__history-btn" onclick="handleViewHistory(event, '${inst.id}')">View History</button>
+                    <button class="agent-card__settings-btn" onclick="handleOpenSettings(event, '${inst.id}')" aria-label="Open settings" title="Team settings">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                        </svg>
+                    </button>
                 </div>
             </div>
         `;
@@ -1097,62 +1125,85 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     function renderPlaceholderCard(platform, name, role, status) {
         const isCooldown = status === 'cooldown';
+        const channelIcon = getChannelIcon(platform);
+
+        // Status mapping
+        const statusMap = {
+            'active': 'ACTIVE',
+            'cooldown': 'COOLDOWN',
+            'paused': 'PAUSED'
+        };
+        const displayStatus = statusMap[status] || status.toUpperCase();
+
+        // Status class
+        let statusClass = 'agent-card--active';
+        if (status === 'cooldown') statusClass = 'agent-card--cooldown';
+
+        // Metrics
+        const dailyActionsCurrent = isCooldown ? 5 : 13;
+        const dailyActionsQuota = isCooldown ? 5 : 15;
+        const totalRunsCurrent = isCooldown ? 128 : 97;
+
+        const dailyProgress = (dailyActionsCurrent / dailyActionsQuota) * 100;
+        const dailyActionsDisplay = `${dailyActionsCurrent}/${dailyActionsQuota}`;
+        const totalRunsDisplay = `${totalRunsCurrent}`;
+
+        const activeDirective = isCooldown ?
+            "Cooldown complete. Resuming autonomous operations." :
+            "Cross-referencing market data with brand matrix...";
+
         return `
-            <div class="agent-card" style="opacity: 0.8;">
-                <div class="agent-card-header">
-                    <div class="agent-info">
-                        <div class="agent-icon">
-                            ${getChannelIcon(platform)}
-                        </div>
-                        <div class="agent-details">
-                            <div class="agent-name">
-                                ${name}
-                                <span style="color: #ef4444;">!</span>
-                            </div>
-                            <div class="agent-role">${role}</div>
-                        </div>
+            <div class="agent-card ${statusClass}" style="opacity: 0.8;" data-team-id="demo-${platform}">
+                <div class="agent-card__header">
+                    <div class="agent-card__channel">
+                        <span class="agent-card__channel-icon">${channelIcon}</span>
+                        <span class="agent-card__title">${name}</span>
                     </div>
-                    <div class="agent-status status-${status}">
-                        ${status.toUpperCase()}
+                    
+                    <div class="agent-card__status-area">
+                        <span class="agent-card__status-pill agent-card__status-pill--${status}">${displayStatus}</span>
                     </div>
                 </div>
-
-                <div class="agent-directive ${isCooldown ? 'warning' : 'active'}">
-                    <div class="directive-label">
+                
+                <div class="agent-card__role">${role}</div>
+                
+                <div class="agent-card__directive">
+                    <div class="agent-card__directive-label">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
                         </svg>
                         Active Directive:
                     </div>
-                    <div class="directive-text">
-                        ${isCooldown ? "Daily quota reached. Analyzing day's performance." : "Autonomous mode active. Scanning ecosystem for engagement opportunities."}
+                    <div class="agent-card__directive-body">${activeDirective}</div>
+                </div>
+                
+                <div class="agent-card__metrics">
+                    <!-- Daily Actions -->
+                    <div class="agent-card__metric-row">
+                        <div class="agent-card__metric-label">Daily Actions</div>
+                        <div class="agent-card__metric-progress">
+                            <div class="agent-card__metric-progress-bar agent-card__metric-progress-bar--daily">
+                                <div class="agent-card__metric-progress-fill agent-card__metric-progress-fill--daily" style="width: ${dailyProgress}%"></div>
+                            </div>
+                            <div class="agent-card__metric-value">${dailyActionsDisplay}</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Total Runs -->
+                    <div class="agent-card__metric-row">
+                        <div class="agent-card__metric-label">Total Runs</div>
+                        <div class="agent-card__metric-progress">
+                            <div class="agent-card__metric-progress-bar agent-card__metric-progress-bar--runs">
+                                <div class="agent-card__metric-progress-fill agent-card__metric-progress-fill--runs" style="width: 0%"></div>
+                            </div>
+                            <div class="agent-card__metric-value">${totalRunsDisplay}</div>
+                        </div>
                     </div>
                 </div>
-
-                <div class="agent-metrics">
-                    <div class="metric-item">
-                        <div class="metric-header">
-                            <span>Daily Actions</span>
-                            <span>${isCooldown ? '0/5' : '8/15'}</span>
-                        </div>
-                        <div class="metric-bar-bg">
-                            <div class="metric-bar-fill" style="width: ${isCooldown ? '0%' : '53%'}; background: ${isCooldown ? '#3b82f6' : '#16e0bd'};"></div>
-                        </div>
-                    </div>
-                    <div class="metric-item">
-                        <div class="metric-header">
-                            <span>Neural Sync</span>
-                            <span style="color: #16e0bd;">${isCooldown ? '97%' : '91%'}</span>
-                        </div>
-                        <div class="metric-bar-bg">
-                            <div class="metric-bar-fill" style="width: ${isCooldown ? '97%' : '91%'}; background: linear-gradient(90deg, #16e0bd, #3b82f6);"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="agent-actions">
-                    <button class="btn-view-history" onclick="viewTeamDetails('demo-${platform}')">View History</button>
-                    <button class="btn-settings" onclick="alert('This is a demo agent.')">
+                
+                <div class="agent-card__footer">
+                    <button class="agent-card__history-btn" onclick="alert('This is a demo agent.')">View History</button>
+                    <button class="agent-card__settings-btn" onclick="alert('This is a demo agent.')" aria-label="Open settings" title="Team settings">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="3"></circle>
                             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>

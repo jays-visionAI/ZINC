@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZYNK - User Settings</title>
+    <meta name="description" content="ZYNK User Settings">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="admin.css"> <!-- Reusing admin styles for consistency -->
+
+    <style>
+        /* Local overrides for settings page */
+        .settings-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .settings-header {
+            margin-bottom: 32px;
+        }
+
+        .settings-tabs {
+            display: flex;
+            gap: 24px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 32px;
+        }
+
+        .settings-tab {
+            padding: 12px 0;
+            color: rgba(255, 255, 255, 0.6);
+            cursor: pointer;
+            font-weight: 500;
+            position: relative;
+            transition: color 0.2s;
+        }
+
+        .settings-tab:hover {
+            color: white;
+        }
+
+        .settings-tab.active {
+            color: var(--color-cyan);
+        }
+
+        .settings-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--color-cyan);
+        }
+
+        .credential-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .credential-info h4 {
+            margin: 0 0 4px 0;
+            color: white;
+            font-size: 16px;
+        }
+
+        .credential-meta {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.5);
+            display: flex;
+            gap: 12px;
+        }
+
+        .channel-section {
+            margin-bottom: 40px;
+        }
+
+        .channel-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .channel-icon {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal.open {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #1A1A23;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            width: 100%;
+            max-width: 500px;
+            padding: 32px;
+            position: relative;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+
+<body class="dashboard-body">
+    <div class="dashboard-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <a href="/" class="logo">
+                    <svg class="logo-icon" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M20 0L40 10V30L20 40L0 30V10L20 0Z" fill="url(#logo-gradient)" />
+                        <text x="20" y="29" font-size="22" font-weight="800" fill="white" text-anchor="middle"
+                            font-family="Inter, sans-serif">Z</text>
+                        <defs>
+                            <linearGradient id="logo-gradient" x1="0" y1="0" x2="40" y2="40">
+                                <stop offset="0%" stop-color="#8B5CF6" />
+                                <stop offset="100%" stop-color="#3B82F6" />
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    <span class="logo-text">ZYNK</span>
+                </a>
+            </div>
+
+            <div class="sidebar-menu">
+                <div class="menu-label">WORKSPACE</div>
+                <a href="command-center.html" class="menu-item">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                    </svg>
+                    Command Center
+                </a>
+                <a href="user-settings.html" class="menu-item active">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path
+                            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+                        </path>
+                    </svg>
+                    Settings
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="dashboard-main">
+            <header class="dashboard-header">
+                <div>
+                    <h1>Settings</h1>
+                    <div class="header-subtitle">Manage your account and API credentials.</div>
+                </div>
+                <div class="header-controls">
+                    <div id="user-profile-container"></div>
+                </div>
+            </header>
+
+            <div class="dashboard-content">
+                <div class="settings-container">
+
+                    <!-- Tabs -->
+                    <div class="settings-tabs">
+                        <div class="settings-tab" data-tab="general" onclick="switchTab('general')">General</div>
+                        <div class="settings-tab active" data-tab="api" onclick="switchTab('api')">API Settings</div>
+                    </div>
+
+                    <!-- General Tab Content -->
+                    <div id="tab-general" class="tab-content" style="display: none;">
+                        <div class="admin-card">
+                            <h3>Profile Settings</h3>
+                            <p style="color: rgba(255,255,255,0.5);">Manage your personal information.</p>
+
+                            <div class="admin-form-group" style="margin-top: 24px;">
+                                <label class="admin-form-label">Display Name</label>
+                                <input type="text" id="display-name" class="admin-form-input" disabled>
+                            </div>
+
+                            <div class="admin-form-group">
+                                <label class="admin-form-label">Email</label>
+                                <input type="email" id="email" class="admin-form-input" disabled>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- API Settings Tab Content -->
+                    <div id="tab-api" class="tab-content">
+                        <div style="margin-bottom: 32px;">
+                            <h3 style="margin: 0 0 8px 0; color: white;">API Key Management Hub</h3>
+                            <p style="margin: 0; color: rgba(255,255,255,0.5); font-size: 14px;">
+                                Connect and manage your channel API keys. These can be reused across projects and agent
+                                teams.
+                            </p>
+                        </div>
+
+                        <div id="api-channels-container">
+                            <!-- Dynamic Content Loaded via JS -->
+                            <div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">
+                                Loading credentials...
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add Credential Modal -->
+    <div id="add-credential-modal" class="modal">
+        <div class="modal-content">
+            <h3 style="margin: 0 0 24px 0; color: white;">Add Credential</h3>
+
+            <form id="add-credential-form">
+                <input type="hidden" id="modal-provider">
+
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Provider</label>
+                    <input type="text" id="modal-provider-display" class="admin-form-input" disabled
+                        style="opacity: 0.7;">
+                </div>
+
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Label *</label>
+                    <input type="text" id="cred-label" class="admin-form-input"
+                        placeholder="e.g. Official Brand Account" required>
+                    <small style="color: rgba(255,255,255,0.4);">A friendly name to identify this key later.</small>
+                </div>
+
+                <div class="admin-form-group">
+                    <label class="admin-form-label">API Key / Access Token *</label>
+                    <input type="password" id="cred-key" class="admin-form-input" placeholder="Paste your key here"
+                        required>
+                    <small style="color: var(--color-warning);">Note: In production, this will be encrypted via
+                        KMS.</small>
+                </div>
+
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Description (Optional)</label>
+                    <textarea id="cred-desc" class="admin-form-input" rows="2"
+                        placeholder="Notes about this key..."></textarea>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 32px;">
+                    <button type="button" class="admin-btn-secondary" onclick="closeAddModal()">Cancel</button>
+                    <button type="submit" class="admin-btn-primary">Save Credential</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
+
+    <!-- App Scripts -->
+    <script src="firebase-config.js"></script>
+    <script src="user-settings.js"></script>
+</body>
+
+</html>

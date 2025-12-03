@@ -1,30 +1,36 @@
-<!-- Runtime Profiles Management Page -->
+<!-- Runtime Profile Rules Management Page (Read-only) -->
 <div id="runtime-profiles-container">
     <div class="admin-header">
-        <h2 class="admin-title">Runtime Profiles</h2>
+        <h2 class="admin-title">Runtime Profile Rules</h2>
         <div class="admin-actions">
             <div class="admin-search-box">
-                <input type="text" id="profile-search" class="admin-search-input" placeholder="Search profiles...">
+                <input type="text" id="profile-search" class="admin-search-input" placeholder="Search rules...">
             </div>
-            <select id="filter-capability" class="admin-select">
+            <select id="filter-capability" class="admin-select" style="display: none;">
                 <option value="all">All Capabilities</option>
-                <option value="chat">Chat</option>
-                <option value="vision">Vision</option>
-                <option value="embedding">Embedding</option>
-                <option value="image_generation">Image Gen</option>
             </select>
-            <button type="button" class="admin-btn-primary" id="add-profile-btn">+ Create Profile</button>
+            <button type="button" class="admin-btn-primary" id="add-profile-btn">+ Create Rule</button>
         </div>
     </div>
 
     <div class="admin-card">
+        <div
+            style="background: rgba(234, 179, 8, 0.1); border: 1px solid rgba(234, 179, 8, 0.3); padding: 12px; border-radius: 6px; margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; gap: 8px; color: #eab308;">
+                <span style="font-size: 20px;">⚠️</span>
+                <div style="font-size: 13px;">
+                    <strong>Read-only Mode:</strong> This page displays runtime profile rules for reference only.
+                    To create or modify rules, use Firestore Console or Seeder tools.
+                </div>
+            </div>
+        </div>
+
         <table class="admin-table">
             <thead>
                 <tr>
-                    <th>Profile ID / Name</th>
-                    <th>Provider / Model</th>
-                    <th>Capabilities</th>
-                    <th>Cost Tier</th>
+                    <th>Rule ID / Engine Type</th>
+                    <th>Language</th>
+                    <th>Tiers Configuration</th>
                     <th>Status</th>
                     <th>Updated</th>
                     <th>Actions</th>

@@ -1,0 +1,317 @@
+/* ========================================
+   PRD 11.3 - Agent Swarm Card UI Styles
+   ======================================== */
+
+/* Card Container */
+.agent-card {
+    background: linear-gradient(135deg, rgba(30, 35, 48, 0.95) 0%, rgba(20, 25, 38, 0.98) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.agent-card:hover {
+    border-color: rgba(22, 224, 189, 0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(22, 224, 189, 0.15);
+}
+
+/* Selected State */
+.agent-card--selected {
+    border-color: rgba(22, 224, 189, 0.6);
+    box-shadow: 0 0 0 2px rgba(22, 224, 189, 0.2), 0 8px 24px rgba(22, 224, 189, 0.25);
+}
+
+/* Status Variants */
+.agent-card--active {
+    border-left: 3px solid #22c55e;
+}
+
+.agent-card--cooldown {
+    border-left: 3px solid #f59e0b;
+}
+
+.agent-card--needs-setup {
+    border-left: 3px solid #eab308;
+}
+
+/* Header */
+.agent-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.agent-card__channel {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.agent-card__channel-icon {
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.agent-card__title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #ffffff;
+    letter-spacing: -0.02em;
+}
+
+.agent-card__status-area {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.agent-card__alert-icon {
+    width: 20px;
+    height: 20px;
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+/* Status Pill */
+.agent-card__status-pill {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.agent-card__status-pill--active {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.agent-card__status-pill--cooldown {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.agent-card__status-pill--paused,
+.agent-card__status-pill--error {
+    background: rgba(234, 179, 8, 0.15);
+    color: #eab308;
+    border: 1px solid rgba(234, 179, 8, 0.3);
+}
+
+/* Delete Button */
+.agent-card__delete-btn {
+    display: none;
+    background: transparent;
+    border: none;
+    color: #7a7f8c;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.agent-card--selected .agent-card__delete-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.agent-card__delete-btn:hover {
+    color: #ff4d4d;
+    background: rgba(255, 77, 77, 0.1);
+}
+
+/* Role */
+.agent-card__role {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.6);
+    margin-bottom: 14px;
+    font-weight: 500;
+}
+
+/* Directive */
+.agent-card__directive {
+    background: linear-gradient(135deg, rgba(234, 179, 8, 0.08) 0%, rgba(234, 179, 8, 0.04) 100%);
+    border: 1px solid rgba(234, 179, 8, 0.2);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
+}
+
+.agent-card__directive-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #eab308;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+}
+
+.agent-card__directive-label svg {
+    color: #eab308;
+}
+
+.agent-card__directive-body {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.8);
+    line-height: 1.5;
+}
+
+/* Metrics */
+.agent-card__metrics {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.agent-card__metric-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.agent-card__metric-label {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+    font-weight: 500;
+}
+
+.agent-card__metric-progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.agent-card__metric-progress-bar {
+    flex: 1;
+    height: 8px;
+    background: #1e2330;
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+
+.agent-card__metric-progress-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+
+/* Daily Actions - Mint/Lime gradient */
+.agent-card__metric-progress-fill--daily {
+    background: linear-gradient(90deg, #16e0bd 0%, #10b981 100%);
+    box-shadow: 0 0 8px rgba(22, 224, 189, 0.4);
+}
+
+/* Total Runs - Blue/Purple gradient */
+.agent-card__metric-progress-fill--runs {
+    background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%);
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
+}
+
+.agent-card__metric-value {
+    font-size: 13px;
+    font-weight: 700;
+    color: #ffffff;
+    min-width: 50px;
+    text-align: right;
+}
+
+/* Footer */
+.agent-card__footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.agent-card__history-btn {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.9);
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.agent-card__history-btn:hover {
+    background: rgba(22, 224, 189, 0.1);
+    border-color: rgba(22, 224, 189, 0.3);
+    color: #16e0bd;
+}
+
+.agent-card__settings-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.7);
+    padding: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.agent-card__settings-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .agent-card {
+        padding: 16px;
+    }
+
+    .agent-card__title {
+        font-size: 14px;
+    }
+
+    .agent-card__footer {
+        flex-direction: column;
+    }
+
+    .agent-card__history-btn {
+        width: 100%;
+    }
+}
+
+/* Animation for progress bars */
+@keyframes fillProgress {
+    from {
+        width: 0;
+    }
+}
+
+.agent-card__metric-progress-fill {
+    animation: fillProgress 1s cubic-bezier(0.4, 0, 0.2, 1);
+}

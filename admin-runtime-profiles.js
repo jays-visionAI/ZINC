@@ -119,41 +119,30 @@
         const searchInput = document.getElementById("profile-search");
         const capFilter = document.getElementById("filter-capability");
         const addBtn = document.getElementById("add-profile-btn");
-        const modalClose = document.getElementById("modal-close");
-        const modalCancel = document.getElementById("modal-cancel");
-        const modalSave = document.getElementById("modal-save");
-        const modalSaveAsNew = document.getElementById('modal-save-as-new');
 
-        // Form Change Listeners for ID generation
-        const roleSelect = document.getElementById('profile-role');
-        const langSelect = document.getElementById('profile-language');
-        const tierSelect = document.getElementById('profile-tier');
-
-        if (roleSelect) roleSelect.addEventListener('change', updateProfileIdPreview);
-        if (langSelect) langSelect.addEventListener('change', updateProfileIdPreview);
-        if (tierSelect) tierSelect.addEventListener('change', updateProfileIdPreview);
+        // Disable Create Profile button (Read-only mode)
+        if (addBtn) {
+            addBtn.disabled = true;
+            addBtn.title = "Rule creation is disabled. Use Firestore Console or Seeder tool.";
+            addBtn.style.opacity = "0.5";
+            addBtn.style.cursor = "not-allowed";
+            addBtn.addEventListener("click", (e) => {
+                e.preventDefault();
+                alert("⚠️ Runtime Profile Rules are Read-only\n\nTo create or modify rules, please use:\n• Firestore Console\n• Seed Runtime Profile Rules tool\n• Migration scripts");
+            });
+        }
 
         if (searchInput) searchInput.addEventListener("input", handleFilters);
         if (capFilter) capFilter.addEventListener("change", handleFilters);
-        if (addBtn) {
-            addBtn.addEventListener("click", () => {
-                console.log("Create Profile Button Clicked");
-                openModal();
-            });
-        }
-        if (modalClose) modalClose.addEventListener("click", closeModal);
-        if (modalCancel) modalCancel.addEventListener("click", closeModal);
-        if (modalSave) modalSave.addEventListener("click", saveProfile);
-        if (modalSaveAsNew) modalSaveAsNew.addEventListener("click", saveAsNewVersion);
     }
 
     function loadProfiles() {
         const tbody = document.getElementById("profiles-table-body");
         if (!tbody) return;
 
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">Loading profiles...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">Loading runtime profile rules...</td></tr>';
 
-        // v2.0: Use root `runtimeProfiles` collection
+        // Phase 2: Use runtimeProfileRules collection (Admin-only, Read-only)
         unsubscribe = db.collection('runtimeProfiles')
             .onSnapshot((snapshot) => {
                 if (!document.getElementById("profiles-table-body")) {
@@ -167,18 +156,18 @@
                 });
 
                 profiles.sort((a, b) => {
-                    if (!a.updated_at) return 1;
-                    if (!b.updated_at) return -1;
-                    return b.updated_at.seconds - a.updated_at.seconds;
+                    if (!a.updatedAt) return 1;
+                    if (!b.updatedAt) return -1;
+                    return b.updatedAt.seconds - a.updatedAt.seconds;
                 });
 
                 filteredProfiles = [...profiles];
                 handleFilters();
             }, (error) => {
-                console.error("Error loading profiles:", error);
+                console.error("Error loading runtime profile rules:", error);
                 if (document.getElementById("profiles-table-body")) {
                     document.getElementById("profiles-table-body").innerHTML =
-                        `<tr><td colspan="7" style="text-align: center; color: #ef4444;">Error: ${error.message}</td></tr>`;
+                        `<tr><td colspan="7" style="text-align: center; color: #ef4444;">Error: ${error.message}<br><small>Make sure you're logged in as Admin.</small></td></tr>`;
                 }
             });
     }
@@ -211,33 +200,42 @@
         if (!tbody) return;
 
         if (filteredProfiles.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">No profiles found</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">No runtime profile rules found</td></tr>';
             return;
         }
 
-        tbody.innerHTML = filteredProfiles.map(p => `
-            <tr style="cursor: pointer;" onclick="editProfile('${p.docId}')">
+        tbody.innerHTML = filteredProfiles.map(rule => {
+            // Build tiers summary
+            const tiers = rule.tiers || {};
+            const tiersSummary = ['balanced', 'creative', 'precise']
+                .filter(tier => tiers[tier])
+                .map(tier => {
+                    const config = tiers[tier];
+                    return `<div style="font-size: 11px; margin-bottom: 4px;">
+                        <strong>${capitalize(tier)}:</strong> ${config.model_id || 'N/A'} 
+                        (${config.max_tokens || 0} tokens, temp: ${config.temperature || 0})
+                    </div>`;
+                }).join('');
+
+            return `
+            <tr style="cursor: pointer;" onclick="viewRuleDetails('${rule.docId}')">
                 <td>
-                    <strong style="font-size: 14px; color: #16e0bd;">${p.id || p.runtime_profile_id}</strong>
-                    <div style="font-size: 13px; margin-top: 2px;">${p.name}</div>
+                    <strong style="font-size: 14px; color: #16e0bd;">${rule.id}</strong>
+                    <div style="font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px;">Engine: ${rule.engine_type || 'N/A'}</div>
                 </td>
                 <td>
-                    <div style="font-size: 13px;">${capitalize(p.provider)}</div>
-                    <div style="font-size: 11px; color: rgba(255,255,255,0.5);">${p.model_id}</div>
+                    <div style="font-size: 13px;">${capitalize(rule.language || 'global')}</div>
                 </td>
+                <td style="font-size: 12px;">
+                    ${tiersSummary || '<span style="color: rgba(255,255,255,0.3);">No tiers defined</span>'}
+                </td>
+                <td>${getStatusBadge(rule.status || 'active')}</td>
+                <td style="font-size: 12px; color: rgba(255,255,255,0.5);">${formatDate(rule.updatedAt)}</td>
                 <td>
-                    <div style="display: flex; gap: 4px; flex-wrap: wrap;">
-                        ${renderCapabilities(p.capabilities)}
-                    </div>
-                </td>
-                <td>${getCostBadge(p.cost_hint?.tier || p.tier)}</td>
-                <td>${getStatusBadge(p.status)}</td>
-                <td style="font-size: 12px; color: rgba(255,255,255,0.5);">${formatDate(p.updated_at)}</td>
-                <td onclick="event.stopPropagation();">
-                    <button onclick="editProfile('${p.docId}')" class="admin-btn-secondary" style="padding: 4px 8px; font-size: 12px;">Edit</button>
+                    <span style="font-size: 11px; color: rgba(255,255,255,0.4);">Read-only</span>
                 </td>
             </tr>
-    `).join('');
+        `}).join('');
     }
 
     function renderCapabilities(caps) {
@@ -621,10 +619,29 @@
     }
 
     window.editProfile = function (docId) {
-        const profile = profiles.find(p => p.docId === docId);
-        if (profile) {
-            openModal(profile);
-        }
+        alert("⚠️ Runtime Profile Rules are Read-only\n\nThis screen is for viewing rules only.\nTo modify rules, please use Firestore Console or Seeder tools.");
+    };
+
+    window.viewRuleDetails = function (docId) {
+        const rule = profiles.find(p => p.docId === docId);
+        if (!rule) return;
+
+        const tiers = rule.tiers || {};
+        let tiersDetail = '';
+
+        ['balanced', 'creative', 'precise'].forEach(tier => {
+            if (tiers[tier]) {
+                const config = tiers[tier];
+                tiersDetail += `\n\n${tier.toUpperCase()}:\n`;
+                tiersDetail += `  Model: ${config.model_id || 'N/A'}\n`;
+                tiersDetail += `  Max Tokens: ${config.max_tokens || 0}\n`;
+                tiersDetail += `  Temperature: ${config.temperature || 0}\n`;
+                tiersDetail += `  Top P: ${config.top_p || 1.0}\n`;
+                tiersDetail += `  Cost Hint: ${config.cost_hint || 'N/A'}`;
+            }
+        });
+
+        alert(`📋 Runtime Profile Rule Details\n\nRule ID: ${rule.id}\nEngine Type: ${rule.engine_type || 'N/A'}\nLanguage: ${rule.language || 'global'}\nStatus: ${rule.status || 'active'}${tiersDetail}\n\n⚠️ This is a read-only view.`);
     };
 
 })();

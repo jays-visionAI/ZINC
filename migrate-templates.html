@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Migrate Agent Templates</title>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <!-- Firebase Config -->
+    <script src="firebase-config.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 40px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .log {
+            background: #333;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: monospace;
+            height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background: #16e0bd;
+            color: black;
+            border: none;
+            border-radius: 4px;
+        }
+
+        button:hover {
+            background: #12bca0;
+        }
+
+        .summary {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🛠️ Migrate Agent Templates</h1>
+        <p>This tool will add <code>status: 'active'</code> to all agent templates that are missing this field.</p>
+
+        <div class="summary" id="summary">
+            Loading data...
+        </div>
+
+        <div style="margin-top: 20px;">
+            <button id="btn-migrate" onclick="runMigration()" disabled>Add 'status: active'</button>
+        </div>
+
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+
+        // Ensure db is available
+        if (typeof db === 'undefined') {
+            window.db = firebase.firestore();
+        }
+
+        const logDiv = document.getElementById('log');
+        const summaryDiv = document.getElementById('summary');
+        const btnMigrate = document.getElementById('btn-migrate');
+
+        let missingStatusDocs = [];
+
+        function log(msg) {
+            const p = document.createElement('div');
+            p.textContent = `> ${msg}`;
+            logDiv.appendChild(p);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        async function analyze() {
+            log("Analyzing agentSetTemplates collection...");
+            const snapshot = await db.collection('agentSetTemplates').get();
+            const allDocs = [];
+            missingStatusDocs = [];
+
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                allDocs.push({ id: doc.id, ...data });
+                if (!data.status) {
+                    missingStatusDocs.push(doc);
+                }
+            });
+
+            log(`Total templates found: ${allDocs.length}`);
+            log(`Templates missing 'status': ${missingStatusDocs.length}`);
+
+            missingStatusDocs.forEach(doc => {
+                log(`Found incomplete doc: ${doc.id} (${doc.data().name || 'Unnamed'})`);
+            });
+
+            summaryDiv.innerHTML = `
+                <strong>Analysis Result:</strong><br>
+                Total Templates: ${allDocs.length}<br>
+                Missing Status: ${missingStatusDocs.length}
+            `;
+
+            if (missingStatusDocs.length > 0) {
+                btnMigrate.disabled = false;
+            } else {
+                btnMigrate.textContent = "No Migration Needed";
+                log("✅ All templates have status field.");
+            }
+        }
+
+        async function runMigration() {
+            if (!confirm(`Update ${missingStatusDocs.length} templates with status: 'active'?`)) return;
+
+            btnMigrate.disabled = true;
+            btnMigrate.textContent = "Migrating...";
+
+            const batch = db.batch();
+            let count = 0;
+
+            missingStatusDocs.forEach(doc => {
+                const ref = db.collection('agentSetTemplates').doc(doc.id);
+                batch.update(ref, { status: 'active' });
+                count++;
+            });
+
+            try {
+                await batch.commit();
+                log(`✅ Successfully updated ${count} templates.`);
+                alert("Migration complete!");
+                location.reload();
+            } catch (error) {
+                console.error(error);
+                log(`❌ Error: ${error.message}`);
+                alert("Error during migration. Check console.");
+            }
+        }
+
+        // Start analysis on load
+        analyze();
+    </script>
+</body>
+
+</html>
