@@ -227,6 +227,7 @@
 <div class="page-tabs">
     <button class="page-tab active" onclick="switchPageView('canvas')" id="tab-btn-canvas">Sub-Agent List</button>
     <button class="page-tab" onclick="switchPageView('templates')" id="tab-btn-templates">Sub-Agent Templates</button>
+    <button class="page-tab" onclick="switchPageView('runs')" id="tab-btn-runs">Execution Logs</button>
 </div>
 
 <!-- View 1: Canvas (Default) -->
@@ -319,6 +320,68 @@
                 </tr>
             </tbody>
         </table>
+    </div>
+</div>
+
+<!-- View 3: Execution Logs (Agent Runs Integration) -->
+<div id="view-runs" class="page-view" style="display: none;">
+    <div class="admin-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+            <div>
+                <h3 style="margin: 0;">Agent Execution Logs</h3>
+                <p style="margin: 4px 0 0 0; color: rgba(255,255,255,0.5); font-size: 14px;">View and debug agent task
+                    executions</p>
+            </div>
+            <button onclick="refreshRuns()" class="admin-btn-secondary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M23 4v6h-6"></path>
+                    <path d="M1 20v-6h6"></path>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                </svg>
+                Refresh
+            </button>
+        </div>
+
+        <!-- Filters -->
+        <div style="display: flex; gap: 16px; margin-bottom: 24px;">
+            <div class="admin-search-box" style="flex: 1;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input type="text" id="run-search" placeholder="Search by Task ID or Prompt..." onkeyup="filterRuns()">
+            </div>
+            <select id="run-status-filter" class="admin-select" style="width: 150px;" onchange="filterRuns()">
+                <option value="all">All Status</option>
+                <option value="success">Success</option>
+                <option value="running">Running</option>
+                <option value="failed">Failed</option>
+            </select>
+        </div>
+
+        <!-- Runs Table -->
+        <div class="admin-table-container">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Task ID</th>
+                        <th>Status</th>
+                        <th>Agent Team</th>
+                        <th>Prompt</th>
+                        <th>Created At</th>
+                        <th>Duration</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="runs-table-body">
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.3);">
+                            Loading runs...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 

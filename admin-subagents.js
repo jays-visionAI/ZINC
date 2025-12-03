@@ -277,8 +277,40 @@ Always prioritize accurate, up-to-date information.`
                 // Ensure table is rendered if not already
                 if (templates.length === 0) loadTemplates();
             }
+            if (viewName === 'runs') {
+                // Load agent runs script if not already loaded
+                loadAgentRunsScript(() => {
+                    // Load agent runs data
+                    if (typeof loadRuns === 'function') {
+                        loadRuns();
+                    } else if (typeof window.initAgentruns === 'function') {
+                        window.initAgentruns();
+                    }
+                });
+            }
         }
     };
+
+    // PRD 11.4: Dynamically load admin-agentruns.js
+    let agentRunsScriptLoaded = false;
+    function loadAgentRunsScript(callback) {
+        if (agentRunsScriptLoaded) {
+            if (callback) callback();
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = `admin-agentruns.js?v=${Date.now()}`;
+        script.onload = () => {
+            console.log('admin-agentruns.js loaded successfully');
+            agentRunsScriptLoaded = true;
+            if (callback) callback();
+        };
+        script.onerror = () => {
+            console.error('Failed to load admin-agentruns.js');
+        };
+        document.body.appendChild(script);
+    }
 
     function renderCanvasView() {
         const grid = document.getElementById('engine-canvas-grid');
@@ -1255,5 +1287,24 @@ Always prioritize accurate, up-to-date information.`
             loadTemplates();
         }
     };
+
+    // PRD 11.4: Handle URL query parameters for tab switching
+    function handleTabFromURL() {
+        const hash = window.location.hash;
+        const tabMatch = hash.match(/\?tab=(\w+)/);
+        if (tabMatch) {
+            const tabName = tabMatch[1];
+            // Switch to the specified tab
+            if (typeof window.switchPageView === 'function') {
+                window.switchPageView(tabName);
+            }
+        }
+    }
+
+    // Listen for hash changes to handle tab switching
+    window.addEventListener('hashchange', handleTabFromURL);
+
+    // Check on initial load
+    setTimeout(handleTabFromURL, 100);
 
 })();

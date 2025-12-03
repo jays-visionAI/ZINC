@@ -111,6 +111,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function navigateToPage(page) {
+        // PRD 11.4: Redirect deprecated pages
+        if (page === 'agentruns') {
+            // Redirect Agent Runs to Sub-Agents Execution Logs tab
+            window.location.hash = 'subagents?tab=runs';
+            return;
+        }
+        if (page === 'kpi-management') {
+            // Redirect KPI Management to Overview
+            window.location.hash = 'overview';
+            return;
+        }
+
         // Handle detail pages pattern
         let actualPage = page;
         if (page.startsWith('agentteam-detail/')) {
