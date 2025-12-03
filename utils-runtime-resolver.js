@@ -20,7 +20,7 @@ const RuntimeResolver = {
             const rulesSnapshot = await db.collection('runtimeProfileRules')
                 .where('engine_type', '==', role_type)
                 .where('language', '==', language)
-                .where('status', '==', 'active')
+                .where('is_active', '==', true)
                 .limit(1)
                 .get();
 
