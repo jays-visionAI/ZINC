@@ -131,6 +131,12 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    // Runtime Profiles: Admin can write, authenticated users can read
+    match /runtimeProfiles/{profileId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
     // Agent Set Templates (Root): Admin can write, authenticated users can read
     match /agentSetTemplates/{templateId} {
       allow read: if isAuthenticated();
@@ -146,12 +152,17 @@ service cloud.firestore {
     // Project Agent Team Instances: Admin can write, authenticated users can read
     match /projectAgentTeamInstances/{instanceId} {
       allow read: if isAuthenticated();
+      // Allow create if user owns the project specified in the data
+      allow create: if isAuthenticated() && isProjectOwner(request.resource.data.projectId);
+      // Allow update if user owns the project
+      allow update: if isAuthenticated() && isProjectOwner(resource.data.projectId);
+      // Admin has full access
       allow write: if isAdmin();
       
       // Sub-Agents within Team Instances
       match /subAgents/{agentId} {
         allow read: if isAuthenticated();
-        allow write: if isAdmin();
+        allow write: if isAdmin() || isProjectOwner(get(/databases/$(database)/documents/projectAgentTeamInstances/$(instanceId)).data.projectId);
       }
     }
 
@@ -161,15 +172,14 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // System Prompt Templates: Admin can write, authenticated users can read
+    // System Prompt Templates: Authenticated users can read/write (Dev Mode)
     match /systemPromptTemplates/{templateId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow read, write: if request.auth != null;
     }
 
-    // Sub-Agent Channel Adapters: Admin only
+    // Sub-Agent Channel Adapters: Authenticated users can read/write (Dev Mode)
     match /subAgentChannelAdapters/{adapterId} {
-      allow read, write: if isAdmin();
+      allow read, write: if request.auth != null;
     }
 
     // User API Credentials (PRD 11.0 Phase 2): Users can only access their own credentials

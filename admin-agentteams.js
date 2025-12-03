@@ -352,19 +352,20 @@
         saveWizardStateToCache();
     };
 
-    const list = document.getElementById('wizard-roles-list');
-    if (!list) return;
+    function renderRoleSelection() {
+        const list = document.getElementById('wizard-roles-list');
+        if (!list) return;
 
-    list.innerHTML = ROLE_TYPES.map((roleType, index) => {
-        const roleData = wizardData.roles.find(r => r.type === roleType.value);
-        const isSelected = !!roleData;
+        list.innerHTML = ROLE_TYPES.map((roleType, index) => {
+            const roleData = wizardData.roles.find(r => r.type === roleType.value);
+            const isSelected = !!roleData;
 
-        // If selected, use stored values, otherwise use defaults
-        const roleName = roleData ? roleData.name : roleType.defaultName;
-        const isRequired = roleData ? roleData.is_required : true;
-        const isActive = roleData ? roleData.default_active : true;
+            // If selected, use stored values, otherwise use defaults
+            const roleName = roleData ? roleData.name : roleType.defaultName;
+            const isRequired = roleData ? roleData.is_required : true;
+            const isActive = roleData ? roleData.default_active : true;
 
-        return `
+            return `
             <div class="role-item-row" style="display: grid; grid-template-columns: 40px 1.5fr 1.5fr 80px 80px; gap: 12px; align-items: center; padding: 10px 12px; background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.05);">
                 <div style="text-align: center;">
                     <input type="checkbox" ${isSelected ? 'checked' : ''}
@@ -395,93 +396,93 @@
                 </div>
             </div>
         `}).join('');
-}
+    }
 
     window.toggleRole = function (type, checked) {
-    if (checked) {
-        const roleType = ROLE_TYPES.find(t => t.value === type);
-        if (roleType && !wizardData.roles.some(r => r.type === type)) {
-            wizardData.roles.push({
-                name: roleType.defaultName,
-                type: roleType.value,
+        if (checked) {
+            const roleType = ROLE_TYPES.find(t => t.value === type);
+            if (roleType && !wizardData.roles.some(r => r.type === type)) {
+                wizardData.roles.push({
+                    name: roleType.defaultName,
+                    type: roleType.value,
+                    is_required: true,
+                    default_active: true,
+                    defaultRuntimeProfileId: '',
+                    behaviourPackId: null
+                });
+            }
+        } else {
+            wizardData.roles = wizardData.roles.filter(r => r.type !== type);
+        }
+        renderRoleSelection(); // Re-render to update disabled states
+    };
+
+    window.updateRoleData = function (type, field, value) {
+        const roleIndex = wizardData.roles.findIndex(r => r.type === type);
+        if (roleIndex !== -1) {
+            wizardData.roles[roleIndex][field] = value;
+        }
+    };
+
+    window.toggleAllRoles = function (checked) {
+        if (checked) {
+            wizardData.roles = ROLE_TYPES.map(t => ({
+                name: t.defaultName,
+                type: t.value,
                 is_required: true,
                 default_active: true,
                 defaultRuntimeProfileId: '',
                 behaviourPackId: null
-            });
+            }));
+        } else {
+            wizardData.roles = [];
         }
-    } else {
-        wizardData.roles = wizardData.roles.filter(r => r.type !== type);
-    }
-    renderRoleSelection(); // Re-render to update disabled states
-};
+        renderRoleSelection();
+    };
 
-window.updateRoleData = function (type, field, value) {
-    const roleIndex = wizardData.roles.findIndex(r => r.type === type);
-    if (roleIndex !== -1) {
-        wizardData.roles[roleIndex][field] = value;
-    }
-};
+    async function renderRuntimeAutoAssignment() {
+        const list = document.getElementById('wizard-runtime-auto-list');
+        if (!list) return;
 
-window.toggleAllRoles = function (checked) {
-    if (checked) {
-        wizardData.roles = ROLE_TYPES.map(t => ({
-            name: t.defaultName,
-            type: t.value,
-            is_required: true,
-            default_active: true,
-            defaultRuntimeProfileId: '',
-            behaviourPackId: null
-        }));
-    } else {
-        wizardData.roles = [];
-    }
-    renderRoleSelection();
-};
+        console.log("[AgentTeamWizard] Rendering auto-assigned runtime configurations...");
+        console.log("[AgentTeamWizard] Current Roles:", wizardData.roles.map(r => r.type));
 
-async function renderRuntimeAutoAssignment() {
-    const list = document.getElementById('wizard-runtime-auto-list');
-    if (!list) return;
+        if (wizardData.roles.length === 0) {
+            list.innerHTML = '<div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">No roles selected. Please go back and select roles.</div>';
+            return;
+        }
 
-    console.log("[AgentTeamWizard] Rendering auto-assigned runtime configurations...");
-    console.log("[AgentTeamWizard] Current Roles:", wizardData.roles.map(r => r.type));
+        // Show loading state
+        list.innerHTML = '<div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">🔄 Resolving runtime configurations...</div>';
 
-    if (wizardData.roles.length === 0) {
-        list.innerHTML = '<div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">No roles selected. Please go back and select roles.</div>';
-        return;
-    }
+        try {
+            // Resolve runtime config for each role
+            const resolvedRoles = await Promise.all(
+                wizardData.roles.map(async (role) => {
+                    try {
+                        const config = await resolveRuntimeConfig({
+                            role_type: role.type,
+                            language: role.language || 'global',
+                            tier: role.tier || 'balanced'
+                        });
 
-    // Show loading state
-    list.innerHTML = '<div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">🔄 Resolving runtime configurations...</div>';
+                        // Store resolved config in role
+                        role.runtime_config = config;
 
-    try {
-        // Resolve runtime config for each role
-        const resolvedRoles = await Promise.all(
-            wizardData.roles.map(async (role) => {
-                try {
-                    const config = await resolveRuntimeConfig({
-                        role_type: role.type,
-                        language: role.language || 'global',
-                        tier: role.tier || 'balanced'
-                    });
+                        return { role, config, success: true };
+                    } catch (error) {
+                        console.error(`[AgentTeamWizard] Failed to resolve config for ${role.type}:`, error);
+                        return { role, error: error.message, success: false };
+                    }
+                })
+            );
 
-                    // Store resolved config in role
-                    role.runtime_config = config;
+            // Render resolved configs
+            list.innerHTML = resolvedRoles.map(({ role, config, error, success }) => {
+                const roleType = ROLE_TYPES.find(t => t.value === role.type);
 
-                    return { role, config, success: true };
-                } catch (error) {
-                    console.error(`[AgentTeamWizard] Failed to resolve config for ${role.type}:`, error);
-                    return { role, error: error.message, success: false };
-                }
-            })
-        );
-
-        // Render resolved configs
-        list.innerHTML = resolvedRoles.map(({ role, config, error, success }) => {
-            const roleType = ROLE_TYPES.find(t => t.value === role.type);
-
-            if (!success) {
-                return `
+                if (!success) {
+                    return `
                     <div style="background: rgba(239, 68, 68, 0.1); padding: 16px; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <span style="font-size: 20px;">${roleType?.icon || '🤖'}</span>
@@ -495,9 +496,9 @@ async function renderRuntimeAutoAssignment() {
                         </div>
                     </div>
                     `;
-            }
+                }
 
-            return `
+                return `
                 <div style="background: rgba(255,255,255,0.03); padding: 16px; border-radius: 8px; border: 1px solid rgba(96, 165, 250, 0.2);">
                     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
                         <span style="font-size: 20px;">${roleType?.icon || '🤖'}</span>
@@ -539,103 +540,103 @@ async function renderRuntimeAutoAssignment() {
                     </div>
                 </div>
                 `;
-        }).join('');
+            }).join('');
 
-        console.log("[AgentTeamWizard] ✅ All runtime configurations resolved successfully");
+            console.log("[AgentTeamWizard] ✅ All runtime configurations resolved successfully");
 
-    } catch (error) {
-        console.error("[AgentTeamWizard] Error resolving runtime configs:", error);
-        list.innerHTML = `
+        } catch (error) {
+            console.error("[AgentTeamWizard] Error resolving runtime configs:", error);
+            list.innerHTML = `
                 <div style="text-align: center; padding: 40px; color: #ef4444;">
                     ❌ Error resolving runtime configurations: ${error.message}
                 </div>
             `;
+        }
     }
-}
 
-function handleNextStep() {
-    if (currentStep === 1) {
-        // Basic Info Validation
-        if (!wizardData.targetChannel) {
-            alert('채널을 선택해 주세요.');
+    function handleNextStep() {
+        if (currentStep === 1) {
+            // Basic Info Validation
+            if (!wizardData.targetChannel) {
+                alert('채널을 선택해 주세요.');
+                return;
+            }
+
+            let teamName = document.getElementById('team-name').value.trim();
+
+            // If team name is empty or only has the prefix, use default name
+            if (!teamName || teamName === `[${wizardData.targetChannel.name}]`) {
+                teamName = `[${wizardData.targetChannel.name}] Team`;
+            }
+
+            // Ensure the team name has the channel prefix
+            if (!teamName.startsWith(`[${wizardData.targetChannel.name}]`)) {
+                teamName = `[${wizardData.targetChannel.name}] ${teamName}`;
+            }
+
+            wizardData.name = teamName;
+            wizardData.description = document.getElementById('team-description').value;
+            wizardData.status = document.getElementById('team-status').value;
+
+            currentStep++;
+            wizardData.step = currentStep;
+            saveWizardStateToCache();
+            updateWizardUI();
+        } else if (currentStep === 2) {
+            // Role Selection Validation
+            if (wizardData.roles.length === 0) {
+                alert('Please select at least one role');
+                return;
+            }
+            // Auto-assign runtime configurations for selected roles
+            currentStep++;
+            wizardData.step = currentStep;
+            saveWizardStateToCache();
+            updateWizardUI();
+            // Render auto-assigned configs (async)
+            renderRuntimeAutoAssignment();
             return;
+        } else if (currentStep === 3) {
+            renderStep4();
+            currentStep++;
+            wizardData.step = currentStep;
+            saveWizardStateToCache();
+            updateWizardUI();
+        } else if (currentStep === 4) {
+            createTemplate();
         }
-
-        let teamName = document.getElementById('team-name').value.trim();
-
-        // If team name is empty or only has the prefix, use default name
-        if (!teamName || teamName === `[${wizardData.targetChannel.name}]`) {
-            teamName = `[${wizardData.targetChannel.name}] Team`;
-        }
-
-        // Ensure the team name has the channel prefix
-        if (!teamName.startsWith(`[${wizardData.targetChannel.name}]`)) {
-            teamName = `[${wizardData.targetChannel.name}] ${teamName}`;
-        }
-
-        wizardData.name = teamName;
-        wizardData.description = document.getElementById('team-description').value;
-        wizardData.status = document.getElementById('team-status').value;
-
-        currentStep++;
-        wizardData.step = currentStep;
-        saveWizardStateToCache();
-        updateWizardUI();
-    } else if (currentStep === 2) {
-        // Role Selection Validation
-        if (wizardData.roles.length === 0) {
-            alert('Please select at least one role');
-            return;
-        }
-        // Auto-assign runtime configurations for selected roles
-        currentStep++;
-        wizardData.step = currentStep;
-        saveWizardStateToCache();
-        updateWizardUI();
-        // Render auto-assigned configs (async)
-        renderRuntimeAutoAssignment();
-        return;
-    } else if (currentStep === 3) {
-        renderStep4();
-        currentStep++;
-        wizardData.step = currentStep;
-        saveWizardStateToCache();
-        updateWizardUI();
-    } else if (currentStep === 4) {
-        createTemplate();
-    }
-}
-
-function handlePrevStep() {
-    if (currentStep > 1) {
-        currentStep--;
-        wizardData.step = currentStep;
-        saveWizardStateToCache();
-        updateWizardUI();
-    }
-}
-
-function renderStep4() {
-    document.getElementById('review-name').textContent = wizardData.name;
-    document.getElementById('review-desc').textContent = wizardData.description || 'No description';
-    document.getElementById('review-count').textContent = wizardData.roles.length;
-
-    // Update channel info display
-    if (wizardData.targetChannel) {
-        document.getElementById('selected-channel-icon').textContent = wizardData.targetChannel.icon || '📺';
-        document.getElementById('selected-channel-title').textContent = `${wizardData.targetChannel.name} API Settings`;
-        document.getElementById('selected-channel-name').textContent = `Channel: ${wizardData.targetChannel.slug}`;
     }
 
-    // Render API Fields
-    const apiForm = document.getElementById('channel-api-form');
-    if (wizardData.targetChannel) {
-        const slug = wizardData.targetChannel.slug;
-        const fieldDefs = CHANNEL_API_FIELD_DEFS[slug] || CHANNEL_API_FIELD_DEFS['default'];
+    function handlePrevStep() {
+        if (currentStep > 1) {
+            currentStep--;
+            wizardData.step = currentStep;
+            saveWizardStateToCache();
+            updateWizardUI();
+        }
+    }
 
-        apiForm.innerHTML = fieldDefs.map(def => {
-            const value = wizardData.channelCredentials[def.key] || '';
-            return `
+    function renderStep4() {
+        document.getElementById('review-name').textContent = wizardData.name;
+        document.getElementById('review-desc').textContent = wizardData.description || 'No description';
+        document.getElementById('review-count').textContent = wizardData.roles.length;
+
+        // Update channel info display
+        if (wizardData.targetChannel) {
+            document.getElementById('selected-channel-icon').textContent = wizardData.targetChannel.icon || '📺';
+            document.getElementById('selected-channel-title').textContent = `${wizardData.targetChannel.name} API Settings`;
+            document.getElementById('selected-channel-name').textContent = `Channel: ${wizardData.targetChannel.slug}`;
+        }
+
+        // Render API Fields
+        const apiForm = document.getElementById('channel-api-form');
+        if (wizardData.targetChannel) {
+            const slug = wizardData.targetChannel.slug;
+            const fieldDefs = CHANNEL_API_FIELD_DEFS[slug] || CHANNEL_API_FIELD_DEFS['default'];
+
+            apiForm.innerHTML = fieldDefs.map(def => {
+                const value = wizardData.channelCredentials[def.key] || '';
+                return `
                 <div class="admin-form-group">
                     <label class="admin-form-label">${def.label} ${def.required ? '<span style="color: #ef4444;">*</span>' : ''}</label>
                     <input type="${def.type}" class="admin-form-input" 
@@ -646,15 +647,15 @@ function renderStep4() {
                     <small style="color: rgba(255,255,255,0.5);">${def.helperText}</small>
                 </div>
                 `;
-        }).join('');
-    } else {
-        apiForm.innerHTML = '<div style="color: #ef4444;">No channel selected.</div>';
-    }
+            }).join('');
+        } else {
+            apiForm.innerHTML = '<div style="color: #ef4444;">No channel selected.</div>';
+        }
 
-    const list = document.getElementById('review-agents-list');
-    list.innerHTML = wizardData.roles.map(role => {
-        const typeObj = ROLE_TYPES.find(t => t.value === role.type);
-        return `
+        const list = document.getElementById('review-agents-list');
+        list.innerHTML = wizardData.roles.map(role => {
+            const typeObj = ROLE_TYPES.find(t => t.value === role.type);
+            return `
             <div style="display: flex; justify-content: space-between; padding: 12px; background: rgba(255,255,255,0.03); border-radius: 4px; align-items: center;">
                 <div style="display: flex; align-items: center; gap: 12px;">
                     <span style="font-size: 20px;">${typeObj?.icon || '🤖'}</span>
@@ -675,140 +676,140 @@ function renderStep4() {
                 </div>
             </div>
         `}).join('');
-}
+    }
 
-async function createTemplate() {
-    // Validate API Credentials
-    if (wizardData.targetChannel) {
-        const slug = wizardData.targetChannel.slug;
-        const fieldDefs = CHANNEL_API_FIELD_DEFS[slug] || CHANNEL_API_FIELD_DEFS['default'];
+    async function createTemplate() {
+        // Validate API Credentials
+        if (wizardData.targetChannel) {
+            const slug = wizardData.targetChannel.slug;
+            const fieldDefs = CHANNEL_API_FIELD_DEFS[slug] || CHANNEL_API_FIELD_DEFS['default'];
 
-        for (const def of fieldDefs) {
-            if (def.required && !wizardData.channelCredentials[def.key]) {
-                alert(`Please enter ${def.label} in Channel API Settings.`);
-                return;
+            for (const def of fieldDefs) {
+                if (def.required && !wizardData.channelCredentials[def.key]) {
+                    alert(`Please enter ${def.label} in Channel API Settings.`);
+                    return;
+                }
             }
+        }
+
+        const btn = document.getElementById('wizard-next');
+        try {
+            btn.disabled = true;
+            btn.textContent = 'Saving Template...';
+
+            // Stub for saving credentials
+            console.log("[Stub] Will save channel credentials in future versions", {
+                userId: firebase.auth().currentUser?.uid,
+                slug: wizardData.targetChannel?.slug,
+                credentialsKeys: Object.keys(wizardData.channelCredentials)
+            });
+
+            const timestamp = Date.now();
+            const templateId = `agst_${timestamp}`; // Agent Set Template ID
+
+            const templateData = {
+                id: templateId,
+                name: wizardData.name,
+                description: wizardData.description,
+                status: wizardData.status,
+                version: '1.0.0',
+                channelProfileId: wizardData.targetChannel?.id,
+                channelType: wizardData.targetChannel?.slug,
+                channelName: wizardData.targetChannel?.name,
+                roles: wizardData.roles,
+                created_at: firebase.firestore.FieldValue.serverTimestamp(),
+                updated_at: firebase.firestore.FieldValue.serverTimestamp(),
+                created_by: firebase.auth().currentUser?.uid || 'system'
+            };
+
+            // Save to agentSetTemplates collection (Root Level or Project Level)
+            // Using root level `agentSetTemplates` as these are reusable definitions
+            await db.collection('agentSetTemplates').doc(templateId).set(templateData);
+
+            alert('✅ Template created successfully!');
+            sessionStorage.removeItem(CACHE_KEY); // Clear cache on success
+            closeWizard();
+        } catch (error) {
+            console.error('Error creating template:', error);
+            alert(`Error: ${error.message}`);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Create Template';
         }
     }
 
-    const btn = document.getElementById('wizard-next');
-    try {
-        btn.disabled = true;
-        btn.textContent = 'Saving Template...';
 
-        // Stub for saving credentials
-        console.log("[Stub] Will save channel credentials in future versions", {
-            userId: firebase.auth().currentUser?.uid,
-            slug: wizardData.targetChannel?.slug,
-            credentialsKeys: Object.keys(wizardData.channelCredentials)
-        });
+    // --- List Logic (Templates) ---
 
-        const timestamp = Date.now();
-        const templateId = `agst_${timestamp}`; // Agent Set Template ID
+    function loadTemplates() {
+        const tbody = document.getElementById("agentteams-table-body");
+        if (!tbody) return;
 
-        const templateData = {
-            id: templateId,
-            name: wizardData.name,
-            description: wizardData.description,
-            status: wizardData.status,
-            version: '1.0.0',
-            channelProfileId: wizardData.targetChannel?.id,
-            channelType: wizardData.targetChannel?.slug,
-            channelName: wizardData.targetChannel?.name,
-            roles: wizardData.roles,
-            created_at: firebase.firestore.FieldValue.serverTimestamp(),
-            updated_at: firebase.firestore.FieldValue.serverTimestamp(),
-            created_by: firebase.auth().currentUser?.uid || 'system'
-        };
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">Loading templates...</td></tr>';
 
-        // Save to agentSetTemplates collection (Root Level or Project Level)
-        // Using root level `agentSetTemplates` as these are reusable definitions
-        await db.collection('agentSetTemplates').doc(templateId).set(templateData);
+        // Listen to agentSetTemplates collection
+        unsubscribe = db.collection('agentSetTemplates')
+            .onSnapshot((snapshot) => {
+                if (!document.getElementById("agentteams-table-body")) {
+                    if (unsubscribe) unsubscribe();
+                    return;
+                }
 
-        alert('✅ Template created successfully!');
-        sessionStorage.removeItem(CACHE_KEY); // Clear cache on success
-        closeWizard();
-    } catch (error) {
-        console.error('Error creating template:', error);
-        alert(`Error: ${error.message}`);
-    } finally {
-        btn.disabled = false;
-        btn.textContent = 'Create Template';
-    }
-}
+                templates = [];
+                snapshot.forEach(doc => {
+                    templates.push({ id: doc.id, ...doc.data() });
+                });
 
+                templates.sort((a, b) => {
+                    if (!a.updated_at) return 1;
+                    if (!b.updated_at) return -1;
+                    return b.updated_at.seconds - a.updated_at.seconds;
+                });
 
-// --- List Logic (Templates) ---
-
-function loadTemplates() {
-    const tbody = document.getElementById("agentteams-table-body");
-    if (!tbody) return;
-
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">Loading templates...</td></tr>';
-
-    // Listen to agentSetTemplates collection
-    unsubscribe = db.collection('agentSetTemplates')
-        .onSnapshot((snapshot) => {
-            if (!document.getElementById("agentteams-table-body")) {
-                if (unsubscribe) unsubscribe();
-                return;
-            }
-
-            templates = [];
-            snapshot.forEach(doc => {
-                templates.push({ id: doc.id, ...doc.data() });
+                filteredTemplates = [...templates];
+                handleFilters();
+            }, (error) => {
+                console.error("Error loading templates:", error);
+                if (document.getElementById("agentteams-table-body")) {
+                    document.getElementById("agentteams-table-body").innerHTML =
+                        `<tr><td colspan="7" style="text-align: center; color: #ef4444;">Error: ${error.message}</td></tr>`;
+                }
             });
-
-            templates.sort((a, b) => {
-                if (!a.updated_at) return 1;
-                if (!b.updated_at) return -1;
-                return b.updated_at.seconds - a.updated_at.seconds;
-            });
-
-            filteredTemplates = [...templates];
-            handleFilters();
-        }, (error) => {
-            console.error("Error loading templates:", error);
-            if (document.getElementById("agentteams-table-body")) {
-                document.getElementById("agentteams-table-body").innerHTML =
-                    `<tr><td colspan="7" style="text-align: center; color: #ef4444;">Error: ${error.message}</td></tr>`;
-            }
-        });
-}
-
-function handleFilters() {
-    const searchInput = document.getElementById("agentteam-search");
-    const statusFilter = document.getElementById("filter-status");
-
-    if (!searchInput || !statusFilter) return;
-
-    const searchTerm = searchInput.value.toLowerCase();
-    const selectedStatus = statusFilter.value;
-
-    filteredTemplates = templates.filter(tpl => {
-        const matchesSearch = tpl.id?.toLowerCase().includes(searchTerm) ||
-            tpl.name?.toLowerCase().includes(searchTerm);
-        const matchesStatus = selectedStatus === 'all' || tpl.status === selectedStatus;
-
-        return matchesSearch && matchesStatus;
-    });
-
-    renderTable();
-}
-
-function renderTable() {
-    const tbody = document.getElementById("agentteams-table-body");
-    if (!tbody) return;
-
-    if (filteredTemplates.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">No templates found</td></tr>';
-        return;
     }
 
-    tbody.innerHTML = filteredTemplates.map(tpl => {
-        const roleCount = tpl.roles ? tpl.roles.length : 0;
+    function handleFilters() {
+        const searchInput = document.getElementById("agentteam-search");
+        const statusFilter = document.getElementById("filter-status");
 
-        return `
+        if (!searchInput || !statusFilter) return;
+
+        const searchTerm = searchInput.value.toLowerCase();
+        const selectedStatus = statusFilter.value;
+
+        filteredTemplates = templates.filter(tpl => {
+            const matchesSearch = tpl.id?.toLowerCase().includes(searchTerm) ||
+                tpl.name?.toLowerCase().includes(searchTerm);
+            const matchesStatus = selectedStatus === 'all' || tpl.status === selectedStatus;
+
+            return matchesSearch && matchesStatus;
+        });
+
+        renderTable();
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById("agentteams-table-body");
+        if (!tbody) return;
+
+        if (filteredTemplates.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">No templates found</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = filteredTemplates.map(tpl => {
+            const roleCount = tpl.roles ? tpl.roles.length : 0;
+
+            return `
             <tr style="cursor: pointer;" onclick="window.viewTemplateDetail('${tpl.id}')">
                 <td>
                     <strong style="font-size: 14px;">${tpl.name}</strong>
@@ -843,46 +844,46 @@ function renderTable() {
                 </td>
             </tr>
         `}).join('');
-}
+    }
 
-function getStatusBadge(status) {
-    const badges = {
-        active: '<span style="background: rgba(34, 197, 94, 0.2); color: #22c55e; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">✅ Active</span>',
-        draft: '<span style="background: rgba(251, 191, 36, 0.2); color: #fbbf24; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">📝 Draft</span>',
-        deprecated: '<span style="background: rgba(239, 68, 68, 0.2); color: #ef4444; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">❌ Deprecated</span>'
+    function getStatusBadge(status) {
+        const badges = {
+            active: '<span style="background: rgba(34, 197, 94, 0.2); color: #22c55e; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">✅ Active</span>',
+            draft: '<span style="background: rgba(251, 191, 36, 0.2); color: #fbbf24; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">📝 Draft</span>',
+            deprecated: '<span style="background: rgba(239, 68, 68, 0.2); color: #ef4444; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">❌ Deprecated</span>'
+        };
+        return badges[status] || status;
+    }
+
+    function formatDate(timestamp) {
+        if (!timestamp) return 'N/A';
+        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function formatChannelType(channelType) {
+        if (!channelType) return 'General';
+        return channelType.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    }
+
+    window.viewTemplateDetail = function (id) {
+        // Call the template detail view function from template-detail.js
+        if (typeof openTemplateDetail === 'function') {
+            openTemplateDetail(id);
+        } else {
+            console.error('openTemplateDetail function not found. Make sure template-detail.js is loaded.');
+            alert('Template detail view is not available.');
+        }
     };
-    return badges[status] || status;
-}
 
-function formatDate(timestamp) {
-    if (!timestamp) return 'N/A';
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
+    window.deleteTemplate = async function (id) {
+        if (!confirm('Are you sure you want to delete this template?')) return;
+        try {
+            await db.collection('agentSetTemplates').doc(id).delete();
+            alert('✅ Template deleted');
+        } catch (error) {
+            alert(`Error: ${error.message}`);
+        }
+    };
 
-function formatChannelType(channelType) {
-    if (!channelType) return 'General';
-    return channelType.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-}
-
-window.viewTemplateDetail = function (id) {
-    // Call the template detail view function from template-detail.js
-    if (typeof openTemplateDetail === 'function') {
-        openTemplateDetail(id);
-    } else {
-        console.error('openTemplateDetail function not found. Make sure template-detail.js is loaded.');
-        alert('Template detail view is not available.');
-    }
-};
-
-window.deleteTemplate = async function (id) {
-    if (!confirm('Are you sure you want to delete this template?')) return;
-    try {
-        await db.collection('agentSetTemplates').doc(id).delete();
-        alert('✅ Template deleted');
-    } catch (error) {
-        alert(`Error: ${error.message}`);
-    }
-};
-
-}) ();
+})();
