@@ -395,6 +395,17 @@ document.addEventListener("DOMContentLoaded", async () => {
             nextBtn.textContent = "Next Step";
             nextBtn.classList.remove("btn-success");
         }
+
+        // Load data for specific steps
+        if (deployStep === 2) {
+            loadTeamTemplates();
+        } else if (deployStep === 4) {
+            // If we are on step 4 and targetChannel is not set, reset button
+            if (!deployData.targetChannel) {
+                nextBtn.textContent = "Next Step";
+                nextBtn.classList.remove("btn-success");
+            }
+        }
     }
 
     async function loadChannels() {
