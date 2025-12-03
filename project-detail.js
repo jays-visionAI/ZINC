@@ -838,7 +838,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
 
         if (selectedChannels.length === 0) {
-            if (!confirm("No channels selected. Create team without active channels?")) return;
+            if (!confirm("Are you sure you want to create the agent team instance without configuring any API keys?")) return;
         }
 
         try {
