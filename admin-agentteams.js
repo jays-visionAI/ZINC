@@ -459,7 +459,7 @@
             const resolvedRoles = await Promise.all(
                 wizardData.roles.map(async (role) => {
                     try {
-                        const config = await resolveRuntimeConfig({
+                        const config = await RuntimeResolver.resolveRuntimeConfig({
                             role_type: role.type,
                             language: role.language || 'global',
                             tier: role.tier || 'balanced'

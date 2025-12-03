@@ -188,9 +188,9 @@
             let runtimeTooltip = '';
 
             try {
-                if (typeof resolveRuntimeConfig === 'function') {
+                if (typeof RuntimeResolver !== 'undefined' && typeof RuntimeResolver.resolveRuntimeConfig === 'function') {
                     // Use role properties or defaults
-                    const config = await resolveRuntimeConfig({
+                    const config = await RuntimeResolver.resolveRuntimeConfig({
                         role_type: role.type,
                         language: role.language || 'global',
                         tier: role.tier || 'balanced'
