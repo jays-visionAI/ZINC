@@ -809,35 +809,37 @@ document.addEventListener("DOMContentLoaded", async () => {
         const targetChannelIds = [];
         const targetChannelKeys = [];
 
-        // Use availableChannels from deployData (loaded in Step 4)
-        const availableChannels = deployData.availableChannels || [];
+        // Use the target channel selected in Step 1
+        if (deployData.targetChannel) {
+            const ch = deployData.targetChannel;
+            const channelKey = ch.slug || ch.channel_type || ch.id;
 
-        availableChannels.forEach(ch => {
-            const checkbox = document.getElementById(`ch-enable-${ch.id}`);
-            if (checkbox && checkbox.checked) {
-                const channelKey = checkbox.dataset.channelKey || ch.key || ch.id;
-                const credSelect = document.getElementById(`ch-cred-${ch.id}`);
-                const credId = credSelect ? credSelect.value : null;
+            // In a real implementation, we would save the credentials to a secure storage 
+            // and get a credentialId. For now, we'll store the raw credentials in a temporary field
+            // or assume they are managed elsewhere if not provided.
 
-                // Construct channel object for channels array
-                const channelObj = {
-                    provider: channelKey,
-                    credentialId: credId || null,
-                    enabled: true,
-                    updatedAt: firebase.firestore.Timestamp.now(),
-                    lastErrorMessage: null
-                };
+            // Construct channel object
+            const channelObj = {
+                provider: channelKey,
+                credentialId: null, // Will be updated if we implement credential saving
+                enabled: true,
+                updatedAt: firebase.firestore.Timestamp.now(),
+                lastErrorMessage: null,
+                // Store config temporarily if needed, or rely on Settings page later
+                config: deployData.channelCredentials || {}
+            };
 
-                // Compute status using Helper
-                channelObj.status = ChannelOrchestrator.computeChannelStatus(channelObj);
+            // Compute status
+            channelObj.status = 'active'; // Default to active for now
 
-                selectedChannels.push(channelObj);
-                targetChannelIds.push(ch.id); // channelProfiles document ID
-                targetChannelKeys.push(channelKey); // channel key (instagram, x, etc.)
-            }
-        });
+            selectedChannels.push(channelObj);
+            targetChannelIds.push(ch.id);
+            targetChannelKeys.push(channelKey);
+        }
 
-        if (selectedChannels.length === 0) {
+        const hasApiKeys = Object.keys(deployData.channelCredentials || {}).length > 0;
+
+        if (!hasApiKeys) {
             if (!confirm("Are you sure you want to create the agent team instance without configuring any API keys?")) return;
         }
 
