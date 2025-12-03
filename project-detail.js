@@ -592,7 +592,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             await renderDeployStep3(); // Await async function
         } else if (deployStep === 3) {
             deployStep++;
-            await renderDeployStep4(); // Also await this for consistency
+            // Step 4 UI is handled by updateDeployUI()
         } else if (deployStep === 4) {
             await deployTeam(); // Also await this
             return; // Don't call updateDeployUI after team creation
