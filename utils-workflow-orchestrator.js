@@ -189,9 +189,13 @@
         }
 
         // Runtime Configuration
-        if (template && typeof window.resolveRuntimeConfig === 'function') {
+        if (template && typeof RuntimeResolver !== 'undefined' && typeof RuntimeResolver.resolveRuntimeConfig === 'function') {
             console.log('[Orchestrator] Resolving runtime config...');
-            context.runtimeConfig = await window.resolveRuntimeConfig(template, subAgent);
+            context.runtimeConfig = await RuntimeResolver.resolveRuntimeConfig({
+                role_type: subAgent.role_type || subAgent.engine_type,
+                language: subAgent.language || 'global',
+                tier: subAgent.tier || 'balanced'
+            });
         }
 
         return context;
