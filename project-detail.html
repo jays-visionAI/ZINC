@@ -177,11 +177,12 @@
 
             <!-- Wizard Header -->
             <div class="admin-modal-header">
-                <div>
-                    <h3 class="admin-modal-title">Create Agent Team</h3>
-                    <div style="font-size: 13px; color: rgba(255,255,255,0.5); margin-top: 4px;">
-                        Step <span id="deploy-step-num">1</span> of 4: <span id="deploy-step-title">Basic Info</span>
-                    </div>
+                <div class="modal-header">
+                    <h3 class="modal-title">Create Agent Team Instance</h3>
+                    <button class="modal-close" onclick="closeDeployWizard()">×</button>
+                </div>
+                <div style="font-size: 13px; color: rgba(255,255,255,0.5); margin-top: 4px;">
+                    Step <span id="deploy-step-num">1</span> of 4: <span id="deploy-step-title">Basic Info</span>
                 </div>
                 <button class="admin-modal-close" id="deploy-modal-close">&times;</button>
             </div>
