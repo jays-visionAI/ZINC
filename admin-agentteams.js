@@ -279,7 +279,6 @@
         if (!selectElement) return;
 
         db.collection('channelProfiles')
-            .where('is_active', '==', true)
             .get()
             .then(snapshot => {
                 const channels = [];

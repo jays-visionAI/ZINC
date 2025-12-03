@@ -497,7 +497,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         grid.innerHTML = '<div style="text-align: center; padding: 20px;">Loading Templates...</div>';
 
         try {
-            const snapshot = await db.collection("agentSetTemplates").where("status", "==", "active").get();
+            const snapshot = await db.collection("agentSetTemplates").get();
             teamTemplates = [];
             snapshot.forEach(doc => teamTemplates.push({ id: doc.id, ...doc.data() }));
 
