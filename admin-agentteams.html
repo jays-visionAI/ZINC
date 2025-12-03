@@ -230,30 +230,22 @@
                 <!-- Step 1: Basic Info -->
                 <div id="step-1" class="wizard-step">
                     <div class="admin-form-group">
-                        <label class="admin-form-label">1. Select Channel <span style="color: #ef4444;">*</span></label>
-                        <select id="channel-select" class="admin-form-input" required>
-                            <option value="">-- Select a channel --</option>
-                            <!-- Channels injected by JS -->
-                        </select>
-                        <small style="color: rgba(255,255,255,0.5);">Choose the target channel for this agent
-                            team.</small>
+                        <label class="admin-form-label">1. Agent Team Name <span
+                                style="color: #ef4444;">*</span></label>
+                        <input type="text" id="team-name" class="admin-form-input" placeholder="e.g. Marketing Team"
+                            required>
+                        <small style="color: rgba(255,255,255,0.5);">Enter a descriptive name for this agent team
+                            template.</small>
                     </div>
 
                     <div class="admin-form-group">
-                        <label class="admin-form-label">2. Agent Team Name</label>
-                        <input type="text" id="team-name" class="admin-form-input" placeholder="e.g. Marketing Team">
-                        <small style="color: rgba(255,255,255,0.5);">Optional. Channel name will be automatically
-                            prefixed (e.g. [Instagram] Marketing Team).</small>
-                    </div>
-
-                    <div class="admin-form-group">
-                        <label class="admin-form-label">3. Description</label>
+                        <label class="admin-form-label">2. Description</label>
                         <textarea id="team-description" class="admin-form-input" rows="3"
                             placeholder="Describe the purpose and capabilities of this team..."></textarea>
                     </div>
 
                     <div class="admin-form-group">
-                        <label class="admin-form-label">4. Status</label>>
+                        <label class="admin-form-label">3. Status</label>
                         <select id="team-status" class="admin-select" style="width: 100%;" required>
                             <option value="active">✅ Active</option>
                             <option value="draft">📝 Draft</option>
@@ -329,24 +321,6 @@
 
                 <!-- Step 4: Review & Create -->
                 <div id="step-4" class="wizard-step" style="display: none;">
-                    <div id="step-4-api-section" style="margin-bottom: 24px;">
-                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
-                            <div id="selected-channel-icon" style="font-size: 28px;">📺</div>
-                            <div>
-                                <h4 style="margin: 0; color: #16e0bd;" id="selected-channel-title">Channel API Settings
-                                </h4>
-                                <div id="selected-channel-name"
-                                    style="font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 4px;"></div>
-                            </div>
-                        </div>
-                        <div id="channel-api-form"
-                            style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 8px;">
-                            <!-- API fields injected by JS -->
-                            <div style="color: rgba(255,255,255,0.5); font-size: 13px;">Select a channel in Step 1 to
-                                configure API settings.</div>
-                        </div>
-                    </div>
-
                     <div
                         style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 8px; margin-bottom: 24px;">
                         <h4 style="margin: 0 0 12px 0; color: #16e0bd;">Template Summary</h4>
