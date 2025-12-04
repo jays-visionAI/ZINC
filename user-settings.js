@@ -658,6 +658,7 @@ window.switchTab = function (tabName) {
     }
 }
 
+
 // Load user's projects for credential binding
 window.loadUserProjects = async function () {
     const projectSelect = document.getElementById('credential-project');
@@ -667,20 +668,38 @@ window.loadUserProjects = async function () {
         const db = firebase.firestore();
         const snapshot = await db.collection('projects')
             .where('userId', '==', currentUser.uid)
-            .orderBy('createdAt', 'desc')
+            .where('isDraft', '==', false)  // Only non-draft projects
             .get();
 
         projectSelect.innerHTML = '<option value="">Select project...</option>';
 
+        // Collect projects and sort client-side
+        const projects = [];
         snapshot.forEach(doc => {
             const project = doc.data();
+            projects.push({
+                id: doc.id,
+                name: project.name || 'Unnamed Project',
+                createdAt: project.createdAt
+            });
+        });
+
+        // Client-side sort by createdAt (newest first)
+        projects.sort((a, b) => {
+            const tA = a.createdAt ? a.createdAt.seconds : 0;
+            const tB = b.createdAt ? b.createdAt.seconds : 0;
+            return tB - tA;
+        });
+
+        // Populate dropdown
+        projects.forEach(project => {
             const option = document.createElement('option');
-            option.value = doc.id;
-            option.textContent = project.name || 'Unnamed Project';
+            option.value = project.id;
+            option.textContent = project.name;
             projectSelect.appendChild(option);
         });
 
-        if (snapshot.empty) {
+        if (projects.length === 0) {
             projectSelect.innerHTML = '<option value="">No projects found</option>';
         }
 
