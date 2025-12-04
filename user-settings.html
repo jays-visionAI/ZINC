@@ -240,8 +240,9 @@
                             <table class="admin-table" style="width: 100%;">
                                 <thead>
                                     <tr>
-                                        <th>Provider</th>
+                                        <th>Channel</th>
                                         <th>Account</th>
+                                        <th>Agent Team</th>
                                         <th>Status</th>
                                         <th>Last Tested</th>
                                         <th>Actions</th>
@@ -292,20 +293,46 @@
 
                 <div class="form-group" style="margin-bottom: 20px;">
                     <label
-                        style="display: block; margin-bottom: 8px; color: rgba(255,255,255,0.8); font-size: 14px;">Provider</label>
+                        style="display: block; margin-bottom: 8px; color: rgba(255,255,255,0.8); font-size: 14px;">Channel
+                        *</label>
                     <select id="credential-provider" class="admin-form-input" required
                         onchange="updateCredentialFields()">
                         <option value="">Loading...</option>
                     </select>
                 </div>
 
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label
+                        style="display: block; margin-bottom: 8px; color: rgba(255,255,255,0.8); font-size: 14px;">Project
+                        *</label>
+                    <select id="credential-project" class="admin-form-input" required
+                        onchange="loadAgentTeamsForBinding()">
+                        <option value="">Select project...</option>
+                    </select>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label
+                        style="display: block; margin-bottom: 8px; color: rgba(255,255,255,0.8); font-size: 14px;">Agent
+                        Team (Optional)</label>
+                    <select id="credential-agent-team" class="admin-form-input">
+                        <option value="">-- None (add later) --</option>
+                    </select>
+                    <small style="color: rgba(255,255,255,0.5); font-size: 12px; display: block; margin-top: 4px;">
+                        Select an agent team to automatically connect this credential
+                    </small>
+                </div>
+
                 <!-- Account Identifier (always shown) -->
                 <div class="form-group" style="margin-bottom: 20px;">
                     <label
-                        style="display: block; margin-bottom: 8px; color: rgba(255,255,255,0.8); font-size: 14px;">Account
+                        style="display: block; margin-bottom: 8px; color: rgba(255,255,255,0.8); font-size: 14px;">Detailed
                         Name *</label>
                     <input type="text" id="credential-account-name" class="admin-form-input"
-                        placeholder="e.g., My Business Account" required>
+                        placeholder="e.g., VisionChain Official X Account" required>
+                    <small style="color: rgba(255,255,255,0.5); font-size: 12px; display: block; margin-top: 4px;">
+                        A name to help you identify this credential
+                    </small>
                 </div>
 
                 <!-- Dynamic credential fields based on provider -->
@@ -341,7 +368,7 @@
     <script src="firebase-config.js"></script>
     <script src="services/channel-credential-service.js?v=20241204"></script>
     <script src="scripts/sidebar-loader.js?v=20241204"></script>
-    <script src="user-settings.js?v=20241204-4"></script>
+    <script src="user-settings.js?v=20241204-5"></script>
 </body>
 
 </html>

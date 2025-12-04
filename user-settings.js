@@ -40,10 +40,52 @@ async function loadCredentials() {
 
     try {
         credentials = await window.ChannelCredentialService.getCredentials(currentUser.uid);
+
+        // Load connected agent teams for each credential
+        await loadConnectedTeamsForCredentials();
+
         renderCredentialsTable();
     } catch (error) {
         console.error('Error loading credentials:', error);
         alert('Error loading credentials: ' + error.message);
+    }
+}
+
+// Helper: Load connected agent teams for all credentials
+async function loadConnectedTeamsForCredentials() {
+    const db = firebase.firestore();
+
+    for (const cred of credentials) {
+        try {
+            if (!cred.projectId || !cred.provider) {
+                cred.connectedTeams = [];
+                continue;
+            }
+
+            const teamsSnapshot = await db.collection('projectAgentTeamInstances')
+                .where('projectId', '==', cred.projectId)
+                .get();
+
+            const connectedTeams = [];
+
+            teamsSnapshot.forEach(doc => {
+                const teamData = doc.data();
+                const channelBindings = teamData.channelBindings || {};
+
+                if (channelBindings[cred.provider] === cred.id) {
+                    connectedTeams.push({
+                        id: doc.id,
+                        name: teamData.name
+                    });
+                }
+            });
+
+            cred.connectedTeams = connectedTeams;
+
+        } catch (error) {
+            console.error(`Error loading teams for credential ${cred.id}:`, error);
+            cred.connectedTeams = [];
+        }
     }
 }
 
@@ -54,7 +96,7 @@ function renderCredentialsTable() {
     if (credentials.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="5" style="text-align: center; padding: 60px; color: rgba(255,255,255,0.5);">
+                <td colspan="6" style="text-align: center; padding: 60px; color: rgba(255,255,255,0.5);">
                     No channel connections yet. Click "Add Channel" to get started.
                 </td>
             </tr>
@@ -62,34 +104,67 @@ function renderCredentialsTable() {
         return;
     }
 
-    tbody.innerHTML = credentials.map(cred => `
-        <tr>
-            <td>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    ${getProviderIcon(cred.provider)}
-                    <strong>${getProviderName(cred.provider)}</strong>
+    tbody.innerHTML = credentials.map(cred => {
+        const connectedTeams = cred.connectedTeams || [];
+
+        let agentTeamDisplay = '';
+        if (connectedTeams.length === 0) {
+            agentTeamDisplay = `
+                <div style="display: flex; align-items: center; gap: 6px; color: rgba(255,255,255,0.4);">
+                    <span style="width: 8px; height: 8px; border-radius: 50%; background: #6b7280;"></span>
+                    Not connected
                 </div>
-            </td>
-            <td>
-                <div>${cred.accountName}</div>
-                <div style="font-size: 12px; color: rgba(255,255,255,0.5);">${cred.accountHandle}</div>
-            </td>
-            <td>${getStatusBadge(cred.status)}</td>
-            <td style="font-size: 12px; color: rgba(255,255,255,0.5);">
-                ${cred.lastTested ? formatDate(cred.lastTested) : 'Never'}
-            </td>
-            <td>
-                <div style="display: flex; gap: 8px;">
-                    <button class="admin-btn-secondary" style="padding: 6px 12px; font-size: 12px;" onclick="editCredential('${cred.id}')">
-                        Edit
-                    </button>
-                    <button class="admin-btn-danger" style="padding: 6px 12px; font-size: 12px;" onclick="deleteCredential('${cred.id}')">
-                        Delete
-                    </button>
+            `;
+        } else if (connectedTeams.length === 1) {
+            agentTeamDisplay = `
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="width: 8px; height: 8px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 4px #22c55e;"></span>
+                    <span>${connectedTeams[0].name}</span>
                 </div>
-            </td>
-        </tr>
-    `).join('');
+            `;
+        } else {
+            agentTeamDisplay = `
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                    ${connectedTeams.map(team => `
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span style="width: 8px; height: 8px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 4px #22c55e;"></span>
+                            <span style="font-size: 13px;">${team.name}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        return `
+            <tr>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        ${getProviderIcon(cred.provider)}
+                        <strong>${getProviderName(cred.provider)}</strong>
+                    </div>
+                </td>
+                <td>
+                    <div>${cred.detailedName || cred.accountName || 'Unnamed'}</div>
+                    <div style="font-size: 12px; color: rgba(255,255,255,0.5);">${cred.accountHandle || ''}</div>
+                </td>
+                <td>${agentTeamDisplay}</td>
+                <td>${getStatusBadge(cred.status)}</td>
+                <td style="font-size: 12px; color: rgba(255,255,255,0.5);">
+                    ${cred.lastTested ? formatDate(cred.lastTested) : 'Never'}
+                </td>
+                <td>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="admin-btn-secondary" style="padding: 6px 12px; font-size: 12px;" onclick="editCredential('${cred.id}')">
+                            Edit
+                        </button>
+                        <button class="admin-btn-danger" style="padding: 6px 12px; font-size: 12px;" onclick="deleteCredential('${cred.id}')">
+                            Delete
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
 }
 
 function getProviderIcon(provider) {
@@ -258,6 +333,9 @@ window.openCredentialModal = async function (credentialId = null) {
         console.log(`Added channel: ${data.key} - ${option.textContent}`);
     });
 
+    // Load user's projects
+    await loadUserProjects();
+
     updateCredentialFields();
 
     if (credentialId) {
@@ -266,8 +344,13 @@ window.openCredentialModal = async function (credentialId = null) {
             title.textContent = 'Edit Channel Connection';
             document.getElementById('credential-id').value = cred.id;
             document.getElementById('credential-provider').value = cred.provider;
-            document.getElementById('credential-account-name').value = cred.accountName;
-            document.getElementById('credential-account-handle').value = cred.accountHandle;
+            document.getElementById('credential-account-name').value = cred.detailedName || cred.accountName || '';
+
+            // Set project if available
+            if (cred.projectId) {
+                document.getElementById('credential-project').value = cred.projectId;
+                await loadAgentTeamsForBinding();
+            }
 
             updateCredentialFields();
             populateCredentialFields(cred.credentials);
@@ -477,6 +560,15 @@ async function saveCredential(e) {
         // Dynamic fields + validation
         const credentials = getCredentialFieldValues(provider, { validate: true });
 
+        // Get project and agent team
+        const projectId = document.getElementById('credential-project')?.value;
+        const selectedTeamId = document.getElementById('credential-agent-team')?.value;
+
+        if (!projectId) {
+            alert('Please select a project');
+            return;
+        }
+
         // Determine status based on last test result
         let status = 'active';
         if (lastTestResult && lastTestResult.success === true) {
@@ -487,24 +579,40 @@ async function saveCredential(e) {
 
         const data = {
             provider,
-            accountName,
+            projectId,  // ✨ Add projectId
+            detailedName: accountName,  // ✨ Use detailedName instead of accountName
+            accountName,  // Keep for backward compatibility
             credentials,
             status,
             lastTestedAt: lastTestResult ? new Date() : null
         };
 
-        await window.ChannelCredentialService.saveCredential(
+        const savedCredId = await window.ChannelCredentialService.saveCredential(
             currentUser.uid,
             credentialId || null,
             data
         );
+
+        // Bind to agent team if selected
+        if (selectedTeamId && selectedTeamId !== '') {
+            try {
+                await bindCredentialToTeam(selectedTeamId, provider, savedCredId);
+
+                const teamName = document.querySelector(`#credential-agent-team option[value="${selectedTeamId}"]`)?.textContent || 'agent team';
+                alert(`✅ Connection saved and linked to ${teamName}!`);
+            } catch (bindError) {
+                console.error('Error binding to agent team:', bindError);
+                alert(`✅ Connection saved, but failed to link to agent team: ${bindError.message}`);
+            }
+        } else {
+            alert('✅ Connection saved successfully');
+        }
 
         // Reset state
         lastTestResult = null;
 
         closeCredentialModal();
         await loadCredentials();
-        alert('✅ Connection saved successfully');
     } catch (error) {
         console.error('Error saving credential:', error);
         alert(error.message || ('Error saving connection: ' + error.message));
@@ -547,5 +655,148 @@ window.switchTab = function (tabName) {
     const targetTab = document.getElementById(`tab-${tabName}`);
     if (targetTab) {
         targetTab.style.display = 'block';
+    }
+}
+
+// Load user's projects for credential binding
+window.loadUserProjects = async function () {
+    const projectSelect = document.getElementById('credential-project');
+    if (!projectSelect || !currentUser) return;
+
+    try {
+        const db = firebase.firestore();
+        const snapshot = await db.collection('projects')
+            .where('userId', '==', currentUser.uid)
+            .orderBy('createdAt', 'desc')
+            .get();
+
+        projectSelect.innerHTML = '<option value="">Select project...</option>';
+
+        snapshot.forEach(doc => {
+            const project = doc.data();
+            const option = document.createElement('option');
+            option.value = doc.id;
+            option.textContent = project.name || 'Unnamed Project';
+            projectSelect.appendChild(option);
+        });
+
+        if (snapshot.empty) {
+            projectSelect.innerHTML = '<option value="">No projects found</option>';
+        }
+
+    } catch (error) {
+        console.error('Error loading projects:', error);
+        projectSelect.innerHTML = '<option value="">Error loading projects</option>';
+    }
+};
+
+// Load agent teams for binding when project and channel are selected
+window.loadAgentTeamsForBinding = async function () {
+    const projectId = document.getElementById('credential-project')?.value;
+    const provider = document.getElementById('credential-provider')?.value;
+    const teamSelect = document.getElementById('credential-agent-team');
+
+    if (!teamSelect) return;
+
+    if (!projectId || !provider) {
+        teamSelect.innerHTML = '<option value="">-- Select project and channel first --</option>';
+        teamSelect.disabled = true;
+        return;
+    }
+
+    try {
+        const db = firebase.firestore();
+        const teamsSnapshot = await db.collection('projectAgentTeamInstances')
+            .where('projectId', '==', projectId)
+            .get();
+
+        const matchingTeams = [];
+
+        teamsSnapshot.forEach(doc => {
+            const teamData = doc.data();
+            const channels = teamData.channels || [];
+
+            // Check if this team uses the selected provider
+            const hasChannel = channels.some(ch => ch.provider === provider);
+
+            if (hasChannel) {
+                const channelBindings = teamData.channelBindings || {};
+                const hasCredential = channelBindings[provider];
+
+                matchingTeams.push({
+                    id: doc.id,
+                    name: teamData.name,
+                    hasCredential: !!hasCredential
+                });
+            }
+        });
+
+        teamSelect.innerHTML = '<option value="">-- None (add later) --</option>';
+        teamSelect.disabled = false;
+
+        matchingTeams.forEach(team => {
+            const option = document.createElement('option');
+            option.value = team.id;
+
+            if (team.hasCredential) {
+                option.textContent = `${team.name} (⚠️ Already has credential)`;
+                option.style.color = '#eab308';
+            } else {
+                option.textContent = team.name;
+            }
+
+            teamSelect.appendChild(option);
+        });
+
+        if (matchingTeams.length === 0) {
+            teamSelect.innerHTML = '<option value="">-- No agent teams found --</option>';
+        }
+
+    } catch (error) {
+        console.error('Error loading agent teams:', error);
+        teamSelect.innerHTML = '<option value="">-- Error loading teams --</option>';
+    }
+};
+
+// Bind credential to agent team
+async function bindCredentialToTeam(teamId, provider, credentialId) {
+    const db = firebase.firestore();
+    const teamRef = db.collection('projectAgentTeamInstances').doc(teamId);
+
+    try {
+        const teamDoc = await teamRef.get();
+
+        if (!teamDoc.exists) {
+            throw new Error('Agent team not found');
+        }
+
+        const teamData = teamDoc.data();
+        const channelBindings = teamData.channelBindings || {};
+        const channels = teamData.channels || [];
+
+        // Update channelBindings
+        channelBindings[provider] = credentialId;
+
+        // Update channels array
+        const channelIndex = channels.findIndex(ch => ch.provider === provider);
+        if (channelIndex !== -1) {
+            channels[channelIndex].credentialId = credentialId;
+            channels[channelIndex].status = 'ready';
+            channels[channelIndex].lastErrorMessage = null;
+            channels[channelIndex].updatedAt = firebase.firestore.Timestamp.now();
+        }
+
+        // Save
+        await teamRef.update({
+            channelBindings,
+            channels,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        console.log(`Credential ${credentialId} bound to team ${teamId}`);
+
+    } catch (error) {
+        console.error('Error binding credential to team:', error);
+        throw error;
     }
 }

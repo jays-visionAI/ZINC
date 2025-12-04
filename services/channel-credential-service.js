@@ -45,7 +45,9 @@ window.ChannelCredentialService = {
         const credentialData = {
             userId,
             provider: data.provider,
-            accountName: data.accountName,
+            projectId: data.projectId || null,  // ✨ Add projectId
+            detailedName: data.detailedName || data.accountName,  // ✨ Add detailedName
+            accountName: data.accountName,  // Keep for backward compatibility
             credentials: data.credentials,
             status: data.status || 'active',
             updatedAt: timestamp
