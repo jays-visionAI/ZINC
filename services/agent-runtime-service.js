@@ -183,18 +183,21 @@ class AgentRuntimeService {
 
     /**
      * Extract enabled channels from instance
-     * @param {Object} instance - Agent team instance document
-     * @returns {Array} Array of enabled channel configs
+     * @param {Object} instance 
+     * @returns {Array} List of enabled channel configurations
      */
     static getEnabledChannels(instance) {
-        const bindings = instance.channelBindings || {};
+        // Use ChannelOrchestrator to handle legacy data structure if available
+        let channels = [];
 
-        return Object.entries(bindings)
-            .filter(([_, config]) => config && config.enabled)
-            .map(([provider, config]) => ({
-                provider,
-                ...config
-            }));
+        if (typeof ChannelOrchestrator !== 'undefined') {
+            channels = ChannelOrchestrator.normalizeAgentTeamChannels(instance);
+        } else {
+            // Fallback if orchestrator not loaded
+            channels = instance.channels || [];
+        }
+
+        return channels.filter(ch => ch.enabled !== false);
     }
 
     /**
