@@ -190,34 +190,58 @@ window.openCredentialModal = async function (credentialId = null) {
     // Reset provider select
     providerSelect.innerHTML = '<option value="">Loading channels...</option>';
 
+    // Fallback channel list (used if Firestore fails)
+    const FALLBACK_CHANNELS = [
+        { key: 'instagram', displayName: 'Instagram', order: 1 },
+        { key: 'x', displayName: 'X (Twitter)', order: 2 },
+        { key: 'facebook', displayName: 'Facebook', order: 3 },
+        { key: 'linkedin', displayName: 'LinkedIn', order: 4 },
+        { key: 'youtube', displayName: 'YouTube', order: 5 },
+        { key: 'tiktok', displayName: 'TikTok', order: 6 },
+        { key: 'discord', displayName: 'Discord', order: 7 },
+        { key: 'naver_blog', displayName: 'Naver Blog', order: 8 },
+        { key: 'reddit', displayName: 'Reddit', order: 9 },
+        { key: 'kakaotalk', displayName: 'KakaoTalk', order: 10 },
+        { key: 'line', displayName: 'Line', order: 11 },
+        { key: 'telegram', displayName: 'Telegram', order: 12 },
+        { key: 'whatsapp', displayName: 'WhatsApp', order: 13 },
+        { key: 'naver_smartstore', displayName: 'Naver Smart Store', order: 14 },
+        { key: 'coupang', displayName: 'Coupang', order: 15 }
+    ];
+
+    let channels = [];
+
     try {
-        // Fetch active channels from Firestore (Phase 3)
-        const snapshot = await db.collection('channelProfiles')
-            .where('supportsApiConnection', '==', true)
-            .where('status', '==', 'active')
-            .get();
+        // Try to fetch from Firestore first
+        const snapshot = await db.collection('channelProfiles').get();
 
-        providerSelect.innerHTML = '<option value="">Select a provider...</option>';
-
-        // Sort in-memory to avoid Firestore index requirement
-        const channels = [];
         snapshot.forEach(doc => {
-            channels.push({ id: doc.id, ...doc.data() });
+            const data = { id: doc.id, ...doc.data() };
+            if (data.supportsApiConnection !== false && data.status !== 'inactive') {
+                channels.push(data);
+            }
         });
 
-        channels.sort((a, b) => (a.order || 0) - (b.order || 0));
-
-        channels.forEach(data => {
-            const option = document.createElement('option');
-            option.value = data.key; // Use 'key' as provider value
-            option.textContent = data.displayName;
-            providerSelect.appendChild(option);
-        });
-
+        if (channels.length > 0) {
+            channels.sort((a, b) => (a.order || 0) - (b.order || 0));
+            console.log(`Loaded ${channels.length} channels from Firestore`);
+        } else {
+            console.log('Firestore returned empty, using fallback channels');
+            channels = FALLBACK_CHANNELS;
+        }
     } catch (error) {
-        console.error("Error loading channel options:", error);
-        providerSelect.innerHTML = '<option value="">Error loading channels</option>';
+        console.warn("Firestore error, using fallback channels:", error.message);
+        channels = FALLBACK_CHANNELS;
     }
+
+    // Populate dropdown
+    providerSelect.innerHTML = '<option value="">Select a provider...</option>';
+    channels.forEach(data => {
+        const option = document.createElement('option');
+        option.value = data.key;
+        option.textContent = data.displayName;
+        providerSelect.appendChild(option);
+    });
 
     updateCredentialFields();
 
