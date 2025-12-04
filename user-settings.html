@@ -208,15 +208,45 @@
                     <!-- Connections Tab Content -->
                     <div id="tab-connections" class="tab-content">
                         <div
-                            style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 20px; text-align: center; background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
-                            <div style="font-size: 48px; margin-bottom: 24px;">🔌</div>
-                            <h3 style="margin: 0 0 8px 0; color: white; font-size: 24px;">Connections</h3>
-                            <div
-                                style="color: var(--color-cyan); font-weight: 600; margin-bottom: 16px; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">
-                                Coming soon</div>
-                            <p style="margin: 0; color: rgba(255,255,255,0.5); max-width: 400px; line-height: 1.6;">
-                                Configure API keys and integrations for your channels here.
-                            </p>
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                            <div>
+                                <h3 style="margin: 0 0 4px 0;">Channel Connections</h3>
+                                <p style="margin: 0; color: rgba(255,255,255,0.5); font-size: 14px;">
+                                    Manage API keys and credentials for your social media channels.
+                                </p>
+                            </div>
+                            <button id="btn-add-credential" class="admin-btn-primary" style="padding: 10px 20px;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" style="vertical-align: middle; margin-right: 6px;">
+                                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                </svg>
+                                Add Channel
+                            </button>
+                        </div>
+
+                        <!-- Credentials Table -->
+                        <div
+                            style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; overflow: hidden;">
+                            <table class="admin-table" style="width: 100%;">
+                                <thead>
+                                    <tr>
+                                        <th>Provider</th>
+                                        <th>Account</th>
+                                        <th>Status</th>
+                                        <th>Last Tested</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="credentials-table-body">
+                                    <tr>
+                                        <td colspan="5"
+                                            style="text-align: center; padding: 60px; color: rgba(255,255,255,0.5);">
+                                            No channel connections yet. Click "Add Channel" to get started.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
 
@@ -239,6 +269,69 @@
         </main>
     </div>
 
+    <!-- Add/Edit Channel Credential Modal -->
+    <div id="credential-modal" class="modal">
+        <div class="modal-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                <h3 id="credential-modal-title" style="margin: 0;">Add Channel Connection</h3>
+                <button onclick="closeCredentialModal()"
+                    style="background: none; border: none; color: rgba(255,255,255,0.5); font-size: 24px; cursor: pointer;">×</button>
+            </div>
+
+            <form id="credential-form">
+                <input type="hidden" id="credential-id">
+
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label
+                        style="display: block; margin-bottom: 8px; color: rgba(255,255,255,0.8); font-size: 14px;">Provider</label>
+                    <select id="credential-provider" class="admin-form-input" required
+                        onchange="updateCredentialFields()">
+                        <option value="">Select a provider...</option>
+                        <option value="x">X (Twitter)</option>
+                        <option value="instagram">Instagram</option>
+                        <option value="youtube">YouTube</option>
+                        <option value="linkedin">LinkedIn</option>
+                        <option value="tiktok">TikTok</option>
+                    </select>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label
+                        style="display: block; margin-bottom: 8px; color: rgba(255,255,255,0.8); font-size: 14px;">Account
+                        Name</label>
+                    <input type="text" id="credential-account-name" class="admin-form-input"
+                        placeholder="e.g., My Business Account" required>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label
+                        style="display: block; margin-bottom: 8px; color: rgba(255,255,255,0.8); font-size: 14px;">Account
+                        Handle</label>
+                    <input type="text" id="credential-account-handle" class="admin-form-input"
+                        placeholder="e.g., @myaccount" required>
+                </div>
+
+                <!-- Dynamic credential fields based on provider -->
+                <div id="credential-fields-container"></div>
+
+                <div id="test-connection-result" style="margin: 16px 0; font-size: 13px;"></div>
+
+                <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
+                    <button type="button" id="btn-test-credential" class="admin-btn-secondary"
+                        style="padding: 10px 20px;">
+                        Test Connection
+                    </button>
+                    <button type="button" onclick="closeCredentialModal()" class="admin-btn-secondary"
+                        style="padding: 10px 20px;">
+                        Cancel
+                    </button>
+                    <button type="submit" class="admin-btn-primary" style="padding: 10px 20px;">
+                        Save Connection
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 
 
     <!-- Firebase SDKs -->
@@ -249,6 +342,7 @@
 
     <!-- App Scripts -->
     <script src="firebase-config.js"></script>
+    <script src="services/channel-credential-service.js"></script>
     <script src="user-settings.js"></script>
 </body>
 
