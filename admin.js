@@ -165,8 +165,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             industries: "Industry Master",
             documents: "Documentation",
             subscriptions: "Subscription Management",
-            settings: "Settings",
-            'llm-providers': "LLM Providers"
+            settings: "Settings"
         };
         document.getElementById("admin-page-title").textContent = titles[actualPage] || "Admin";
 

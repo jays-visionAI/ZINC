@@ -33,53 +33,203 @@ const CHANNEL_API_FIELD_DEFS = {
 window.initSettings = function (currentUser) {
     console.log("⚙️ Initializing Settings Page...");
 
-    const openaiInput = document.getElementById('openai-api-key');
-    const anthropicInput = document.getElementById('anthropic-api-key');
-    const saveBtn = document.getElementById('save-settings-btn');
+    // Provider Management State
+    let providers = [];
+    const tableBody = document.getElementById('providers-table-body-settings');
+    const modal = document.getElementById('provider-modal-settings');
+    const form = document.getElementById('provider-form-settings');
+    const testResultDiv = document.getElementById('connection-test-result-settings');
 
-    const toggleOpenaiBtn = document.getElementById('toggle-openai-key');
-    const toggleAnthropicBtn = document.getElementById('toggle-anthropic-key');
-
-    // 1. Load existing keys
-    const savedOpenaiKey = localStorage.getItem('openai_api_key');
-    const savedAnthropicKey = localStorage.getItem('anthropic_api_key');
-
-    if (savedOpenaiKey) openaiInput.value = savedOpenaiKey;
-    if (savedAnthropicKey) anthropicInput.value = savedAnthropicKey;
-
-    // 2. Save Handler
-    saveBtn.addEventListener('click', () => {
-        const newOpenaiKey = openaiInput.value.trim();
-        const newAnthropicKey = anthropicInput.value.trim();
-
-        if (newOpenaiKey) {
-            localStorage.setItem('openai_api_key', newOpenaiKey);
-        } else {
-            localStorage.removeItem('openai_api_key');
+    // Initialize Provider Management
+    async function initProviderManagement() {
+        if (!window.LLMProviderService) {
+            console.error("LLMProviderService not found!");
+            if (tableBody) {
+                tableBody.innerHTML = '<tr><td colspan="5" style="color: red; text-align: center;">Error: Service not loaded</td></tr>';
+            }
+            return;
         }
 
-        if (newAnthropicKey) {
-            localStorage.setItem('anthropic_api_key', newAnthropicKey);
-        } else {
-            localStorage.removeItem('anthropic_api_key');
+        setupProviderEventListeners();
+        await loadProviders();
+    }
+
+    function setupProviderEventListeners() {
+        const addBtn = document.getElementById('btn-add-provider-settings');
+        const saveBtn = document.getElementById('btn-save-provider-settings');
+        const testBtn = document.getElementById('btn-test-connection-settings');
+
+        if (addBtn) addBtn.addEventListener('click', () => openProviderModal());
+        if (saveBtn) saveBtn.addEventListener('click', saveProvider);
+        if (testBtn) testBtn.addEventListener('click', testConnection);
+    }
+
+    async function loadProviders() {
+        if (!tableBody) return;
+
+        try {
+            tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">Loading providers...</td></tr>';
+
+            providers = await window.LLMProviderService.getProviders();
+            renderProvidersTable();
+        } catch (error) {
+            console.error("Error loading providers:", error);
+            tableBody.innerHTML = `<tr><td colspan="5" style="color: red; text-align: center;">Error: ${error.message}</td></tr>`;
+        }
+    }
+
+    function renderProvidersTable() {
+        if (!tableBody) return;
+
+        if (providers.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">No LLM providers configured yet.</td></tr>';
+            return;
         }
 
-        alert('✅ Settings saved successfully!');
-        console.log("Keys updated in localStorage");
-    });
+        tableBody.innerHTML = providers.map(p => `
+            <tr>
+                <td><strong style="color: #16e0bd;">${p.name}</strong></td>
+                <td>${capitalize(p.provider)}</td>
+                <td>${getStatusBadge(p.status)}</td>
+                <td style="font-size: 12px; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${p.models?.join(', ')}">${p.models?.join(', ') || '-'}</td>
+                <td>
+                    <button class="admin-btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="editProviderSettings('${p.id}')">Edit</button>
+                </td>
+            </tr>
+        `).join('');
+    }
 
-    // 3. Toggle Visibility Handlers
-    toggleOpenaiBtn.addEventListener('click', () => {
-        const type = openaiInput.getAttribute('type') === 'password' ? 'text' : 'password';
-        openaiInput.setAttribute('type', type);
-    });
+    window.openProviderModal = function (providerId = null) {
+        if (!modal || !form) return;
 
-    toggleAnthropicBtn.addEventListener('click', () => {
-        const type = anthropicInput.getAttribute('type') === 'password' ? 'text' : 'password';
-        anthropicInput.setAttribute('type', type);
-    });
+        form.reset();
+        document.getElementById('provider-doc-id-settings').value = '';
+        testResultDiv.innerHTML = '';
 
-    // 4. Update Prompts Handler
+        if (providerId) {
+            const p = providers.find(item => item.id === providerId);
+            if (p) {
+                document.getElementById('provider-modal-title-settings').textContent = 'Edit LLM Provider';
+                document.getElementById('provider-doc-id-settings').value = p.id;
+                document.getElementById('provider-type-settings').value = p.provider;
+                document.getElementById('provider-name-settings').value = p.name;
+                document.getElementById('provider-models-settings').value = p.models?.join(', ') || '';
+                document.getElementById('provider-status-settings').value = p.status;
+
+                document.getElementById('provider-api-key-settings').placeholder = "Leave blank to keep existing key";
+                document.getElementById('provider-api-key-settings').required = false;
+            }
+        } else {
+            document.getElementById('provider-modal-title-settings').textContent = 'Add LLM Provider';
+            document.getElementById('provider-api-key-settings').placeholder = "sk-...";
+            document.getElementById('provider-api-key-settings').required = true;
+            document.getElementById('provider-status-settings').value = 'active';
+        }
+
+        modal.style.display = 'flex';
+    };
+
+    window.closeProviderModalSettings = function () {
+        if (modal) modal.style.display = 'none';
+    };
+
+    window.editProviderSettings = function (id) {
+        openProviderModal(id);
+    };
+
+    async function saveProvider(e) {
+        e.preventDefault();
+        const btn = document.getElementById('btn-save-provider-settings');
+        if (!btn) return;
+
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+
+        try {
+            const id = document.getElementById('provider-doc-id-settings').value;
+            const apiKeyInput = document.getElementById('provider-api-key-settings');
+
+            const data = {
+                provider: document.getElementById('provider-type-settings').value,
+                name: document.getElementById('provider-name-settings').value,
+                models: document.getElementById('provider-models-settings').value.split(',').map(s => s.trim()).filter(s => s),
+                status: document.getElementById('provider-status-settings').value
+            };
+
+            if (apiKeyInput.value) {
+                data.credentialRef = {
+                    storageType: 'direct',
+                    apiKeyMasked: maskApiKey(apiKeyInput.value),
+                    apiKeyEncrypted: apiKeyInput.value
+                };
+            } else if (!id) {
+                throw new Error("API Key is required for new provider");
+            }
+
+            await window.LLMProviderService.saveProvider(id || null, data);
+
+            closeProviderModalSettings();
+            await loadProviders();
+            alert('✅ Provider saved successfully');
+
+        } catch (error) {
+            console.error("Save failed:", error);
+            alert(`Error: ${error.message}`);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Save Provider';
+        }
+    }
+
+    async function testConnection() {
+        const apiKey = document.getElementById('provider-api-key-settings').value;
+        const provider = document.getElementById('provider-type-settings').value;
+        const modelsStr = document.getElementById('provider-models-settings').value;
+        const model = modelsStr.split(',')[0]?.trim() || 'gpt-4o-mini';
+
+        if (!apiKey) {
+            testResultDiv.innerHTML = '<span style="color: #fbbf24;">⚠️ Please enter API Key to test connection</span>';
+            return;
+        }
+
+        testResultDiv.innerHTML = '<span style="color: #888;">Testing connection...</span>';
+
+        const result = await window.LLMProviderService.testConnection({
+            provider,
+            apiKey,
+            model
+        });
+
+        if (result.success) {
+            testResultDiv.innerHTML = `<span style="color: #22c55e;">✅ ${result.message} (${result.latency}ms)</span>`;
+        } else {
+            testResultDiv.innerHTML = `<span style="color: #ef4444;">❌ ${result.message}</span>`;
+        }
+    }
+
+    function maskApiKey(key) {
+        if (!key || key.length < 8) return '****';
+        return key.substring(0, 3) + '...' + key.substring(key.length - 4);
+    }
+
+    function capitalize(str) {
+        return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
+    }
+
+    function getStatusBadge(status) {
+        const colors = {
+            active: '#22c55e',
+            disabled: '#94a3b8',
+            error: '#ef4444'
+        };
+        const color = colors[status] || '#94a3b8';
+        return `<span style="border: 1px solid ${color}; color: ${color}; padding: 2px 8px; border-radius: 12px; font-size: 11px;">${capitalize(status)}</span>`;
+    }
+
+    // Initialize Provider Management
+    initProviderManagement();
+
+    // Update Prompts Handler
     const updatePromptsBtn = document.getElementById('update-prompts-btn');
     if (updatePromptsBtn) {
         updatePromptsBtn.addEventListener('click', () => {
