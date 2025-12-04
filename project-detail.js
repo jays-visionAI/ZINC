@@ -53,6 +53,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     let channelProfiles = [];
     let teamTemplates = [];
 
+    // Credential listener (for real-time updates)
+    let credentialListener = null;
+
     // 🔹 Auth Check
     firebase.auth().onAuthStateChanged(async (user) => {
         if (!user) {
@@ -61,6 +64,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         currentUser = user;
         loadProjectData(projectId);
+
+        // Setup real-time credential listener
+        setupCredentialListener(user.uid);
     });
 
     async function loadProjectData(id) {
@@ -88,6 +94,37 @@ document.addEventListener("DOMContentLoaded", async () => {
             alert("Error loading project data.");
         }
     }
+
+    /**
+     * Setup real-time listener for user credentials
+     * Automatically refreshes agent cards when credentials are updated
+     */
+    function setupCredentialListener(userId) {
+        // Clean up existing listener
+        if (credentialListener) {
+            credentialListener();
+        }
+
+        credentialListener = db.collection('userApiCredentials')
+            .where('userId', '==', userId)
+            .onSnapshot((snapshot) => {
+                console.log('Credentials updated, refreshing agent cards...');
+
+                // Reload agent swarm to reflect credential changes
+                if (projectId) {
+                    loadAgentSwarm(projectId);
+                }
+            }, (error) => {
+                console.error('Error listening to credentials:', error);
+            });
+    }
+
+    // Cleanup listener on page unload
+    window.addEventListener('beforeunload', () => {
+        if (credentialListener) {
+            credentialListener();
+        }
+    });
 
     function renderProjectInfo(project) {
         document.getElementById("project-title").textContent = project.projectName || "Untitled Project";
@@ -962,8 +999,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    // --- Agent Swarm Logic ---
-
     async function loadAgentSwarm(projectId) {
         const grid = document.getElementById("agent-swarm-grid");
         if (!grid) return;
@@ -979,9 +1014,19 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             let html = '';
 
-            // Render Instances
+            // Render Instances with Runtime Context
             if (instances.length > 0) {
-                html += instances.map(inst => renderAgentCard(inst)).join('');
+                // Use batch prepare for performance
+                const instanceIds = instances.map(inst => inst.id);
+                const contextMap = await AgentRuntimeService.batchPrepareContexts(
+                    instanceIds,
+                    currentUser.uid
+                );
+
+                html += instances.map(inst => {
+                    const context = contextMap.get(inst.id);
+                    return renderAgentCard(inst, context);
+                }).join('');
             } else {
                 // Render Dummy/Placeholder Cards if no instances
                 html += renderPlaceholderCard('x', 'Vanguard (X)', 'Trend Setter', 'active');
@@ -1009,7 +1054,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    function renderAgentCard(inst) {
+    function renderAgentCard(inst, runtimeContext) {
         // 1. Normalize Channels
         const channels = ChannelOrchestrator.normalizeAgentTeamChannels(inst);
 
@@ -1057,9 +1102,26 @@ document.addEventListener("DOMContentLoaded", async () => {
             inst.activeDirective ||
             'System initialized. Waiting for task assignment.';
 
-        // 9. Alert icon (show if there's an issue)
-        const hasAlert = inst.status === 'error' || primaryChannel.status === 'error' || primaryChannel.status === 'missing_key';
-        const alertIcon = hasAlert ? '<span class="agent-card__alert-icon" title="Attention required">!</span>' : '';
+        // 9. Alert icon using Runtime Context
+        const isReady = runtimeContext?.isReady || false;
+        const hasAlert = !isReady || inst.status === 'error';
+
+        // Build detailed alert message
+        let alertMessage = 'All systems operational';
+        if (!isReady && runtimeContext?.errors) {
+            const errorMessages = runtimeContext.errors.map(err => {
+                const providerName = err.provider ? err.provider.toUpperCase() : 'Unknown';
+                return `${providerName}: ${err.error}`;
+            });
+            alertMessage = errorMessages.join('\n');
+        } else if (inst.status === 'error') {
+            alertMessage = 'Agent team error - check configuration';
+        }
+
+        // Icon and styling
+        const alertIcon = hasAlert
+            ? `<span class="agent-card__alert-icon agent-card__alert-icon--error" title="${alertMessage}">!</span>`
+            : `<span class="agent-card__alert-icon agent-card__alert-icon--success" title="${alertMessage}">✓</span>`;
 
         return `
             <div class="agent-card ${statusClass}" data-team-id="${inst.id}" onclick="handleCardClick(event, '${inst.id}')">
