@@ -287,23 +287,15 @@
                     <select id="credential-provider" class="admin-form-input" required
                         onchange="updateCredentialFields()">
                         <option value="">Loading...</option>
-                    </select>
                 </div>
 
+                <!-- Account Identifier (always shown) -->
                 <div class="form-group" style="margin-bottom: 20px;">
                     <label
                         style="display: block; margin-bottom: 8px; color: rgba(255,255,255,0.8); font-size: 14px;">Account
-                        Name</label>
+                        Name *</label>
                     <input type="text" id="credential-account-name" class="admin-form-input"
                         placeholder="e.g., My Business Account" required>
-                </div>
-
-                <div class="form-group" style="margin-bottom: 20px;">
-                    <label
-                        style="display: block; margin-bottom: 8px; color: rgba(255,255,255,0.8); font-size: 14px;">Account
-                        Handle</label>
-                    <input type="text" id="credential-account-handle" class="admin-form-input"
-                        placeholder="e.g., @myaccount" required>
                 </div>
 
                 <!-- Dynamic credential fields based on provider -->
