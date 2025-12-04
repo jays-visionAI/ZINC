@@ -33,6 +33,12 @@
             category: "social",
             contentTypes: ["image", "short_video", "carousel", "story"],
             interactionStyle: { tone: "Visual & Trendy" },
+            apiCredentialConfig: {
+                fields: [
+                    { key: 'accessToken', label: 'Access Token', type: 'password', placeholder: 'Enter Access Token', required: true },
+                    { key: 'pageId', label: 'Page ID', type: 'text', placeholder: 'Enter Facebook Page ID', required: true, help: 'Facebook Page ID connected to Instagram' }
+                ]
+            },
             version: "1.0.0"
         },
         {
@@ -47,6 +53,14 @@
             category: "social",
             contentTypes: ["short_text", "thread", "image", "video"],
             interactionStyle: { tone: "Concise & Real-time" },
+            apiCredentialConfig: {
+                fields: [
+                    { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Enter API Key', required: true },
+                    { key: 'apiSecret', label: 'API Secret', type: 'password', placeholder: 'Enter API Secret', required: false },
+                    { key: 'accessToken', label: 'Access Token', type: 'password', placeholder: 'Enter Access Token', required: true },
+                    { key: 'accessTokenSecret', label: 'Access Token Secret', type: 'password', placeholder: 'Enter Token Secret', required: false }
+                ]
+            },
             version: "1.0.0"
         },
         {
@@ -61,6 +75,11 @@
             category: "social",
             contentTypes: ["text", "image", "video", "link"],
             interactionStyle: { tone: "Community & Informative" },
+            apiCredentialConfig: {
+                fields: [
+                    { key: 'accessToken', label: 'Access Token', type: 'password', required: true }
+                ]
+            },
             version: "1.0.0"
         },
         {
@@ -75,6 +94,12 @@
             category: "social",
             contentTypes: ["short_text", "long_text", "image", "document"],
             interactionStyle: { tone: "Professional & Corporate" },
+            apiCredentialConfig: {
+                fields: [
+                    { key: 'accessToken', label: 'Access Token', type: 'password', placeholder: 'Enter Access Token', required: true },
+                    { key: 'urn', label: 'Organization URN', type: 'text', placeholder: 'urn:li:organization:12345', required: false }
+                ]
+            },
             version: "1.0.0"
         },
         {
@@ -89,6 +114,11 @@
             category: "social",
             contentTypes: ["long_video", "short_video"],
             interactionStyle: { tone: "Educational & Entertaining" },
+            apiCredentialConfig: {
+                fields: [
+                    { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Enter YouTube API Key', required: true, help: 'From Google Cloud Console' }
+                ]
+            },
             version: "1.0.0"
         },
         {
@@ -103,6 +133,12 @@
             category: "social",
             contentTypes: ["short_video"],
             interactionStyle: { tone: "Creative & Viral" },
+            apiCredentialConfig: {
+                fields: [
+                    { key: 'accessToken', label: 'Access Token', type: 'password', placeholder: 'Enter Access Token', required: true },
+                    { key: 'clientKey', label: 'Client Key', type: 'text', placeholder: 'Enter Client Key', required: true }
+                ]
+            },
             version: "1.0.0"
         },
         {
@@ -117,6 +153,11 @@
             category: "community",
             contentTypes: ["text", "image", "video", "link"],
             interactionStyle: { tone: "Conversational & Community" },
+            apiCredentialConfig: {
+                fields: [
+                    { key: 'botToken', label: 'Bot Token', type: 'password', required: true }
+                ]
+            },
             version: "1.0.0"
         },
         {
@@ -139,6 +180,12 @@
                 hashtags: { max: 30, recommended: true },
                 keywords: { required: true }
             },
+            apiCredentialConfig: {
+                fields: [
+                    { key: 'clientId', label: 'Client ID', type: 'text', required: true },
+                    { key: 'clientSecret', label: 'Client Secret', type: 'password', required: true }
+                ]
+            },
             version: "1.0.0"
         },
         {
@@ -153,6 +200,12 @@
             category: "community",
             contentTypes: ["text", "link", "image", "video"],
             interactionStyle: { tone: "Discussion & Niche" },
+            apiCredentialConfig: {
+                fields: [
+                    { key: 'clientId', label: 'Client ID', type: 'text', required: true },
+                    { key: 'clientSecret', label: 'Client Secret', type: 'password', required: true }
+                ]
+            },
             version: "1.0.0"
         },
         {
@@ -172,6 +225,11 @@
             },
             seoRules: {
                 hashtags: { max: 0, recommended: false }
+            },
+            apiCredentialConfig: {
+                fields: [
+                    { key: 'apiKey', label: 'REST API Key', type: 'password', required: true }
+                ]
             },
             version: "1.0.0"
         },
@@ -193,6 +251,11 @@
             seoRules: {
                 hashtags: { max: 0, recommended: false }
             },
+            apiCredentialConfig: {
+                fields: [
+                    { key: 'channelAccessToken', label: 'Channel Access Token', type: 'password', required: true }
+                ]
+            },
             version: "1.0.0"
         },
         {
@@ -207,6 +270,11 @@
             category: "messenger",
             contentTypes: ["text", "image", "video", "document"],
             interactionStyle: { tone: "Secure & Direct" },
+            apiCredentialConfig: {
+                fields: [
+                    { key: 'botToken', label: 'Bot Token', type: 'password', required: true }
+                ]
+            },
             version: "1.0.0"
         },
         {
@@ -221,6 +289,11 @@
             category: "messenger",
             contentTypes: ["text", "image", "video"],
             interactionStyle: { tone: "Direct & Personal" },
+            apiCredentialConfig: {
+                fields: [
+                    { key: 'accessToken', label: 'Access Token', type: 'password', required: true }
+                ]
+            },
             version: "1.0.0"
         },
         {
@@ -235,6 +308,11 @@
             category: "commerce",
             contentTypes: ["product", "image", "description"],
             interactionStyle: { tone: "Commercial & Persuasive" },
+            apiCredentialConfig: {
+                fields: [
+                    { key: 'apiKey', label: 'API Key', type: 'password', required: true }
+                ]
+            },
             version: "1.0.0"
         },
         {
@@ -249,6 +327,12 @@
             category: "commerce",
             contentTypes: ["product", "image", "description"],
             interactionStyle: { tone: "Commercial & Persuasive" },
+            apiCredentialConfig: {
+                fields: [
+                    { key: 'accessKey', label: 'Access Key', type: 'text', required: true },
+                    { key: 'secretKey', label: 'Secret Key', type: 'password', required: true }
+                ]
+            },
             version: "1.0.0"
         }
     ];

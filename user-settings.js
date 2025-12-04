@@ -130,6 +130,9 @@ function formatDate(timestamp) {
     return date.toLocaleDateString();
 }
 
+// Channel Profile Cache (PRD 12.x)
+let channelProfileMap = {};
+
 // Provider Configuration (Field Specs only)
 const PROVIDER_CONFIG = {
     x: {
@@ -217,6 +220,9 @@ window.openCredentialModal = async function (credentialId = null) {
 
         snapshot.forEach(doc => {
             const data = { id: doc.id, ...doc.data() };
+            // Cache in channelProfileMap (PRD 12.x)
+            channelProfileMap[data.key] = data;
+
             if (data.supportsApiConnection !== false && data.status !== 'inactive') {
                 channels.push(data);
             }
@@ -228,10 +234,18 @@ window.openCredentialModal = async function (credentialId = null) {
         } else {
             console.log('Firestore returned empty, using fallback channels');
             channels = FALLBACK_CHANNELS;
+            // Cache fallback channels too
+            FALLBACK_CHANNELS.forEach(ch => {
+                channelProfileMap[ch.key] = { ...ch, apiCredentialConfig: null };
+            });
         }
     } catch (error) {
         console.warn("Firestore error, using fallback channels:", error.message);
         channels = FALLBACK_CHANNELS;
+        // Cache fallback channels
+        FALLBACK_CHANNELS.forEach(ch => {
+            channelProfileMap[ch.key] = { ...ch, apiCredentialConfig: null };
+        });
     }
 
     // Populate dropdown
@@ -323,6 +337,15 @@ window.updateCredentialFields = function () {
 };
 
 function getProviderFields(provider) {
+    // PRD 12.x: Check Channel Profile first
+    const profile = channelProfileMap[provider];
+    if (profile && profile.apiCredentialConfig && Array.isArray(profile.apiCredentialConfig.fields)) {
+        console.log(`Using apiCredentialConfig from Channel Profile for: ${provider}`);
+        return profile.apiCredentialConfig.fields;
+    }
+
+    // Fallback: Use PROVIDER_CONFIG
+    console.log(`Using PROVIDER_CONFIG fallback for: ${provider}`);
     return PROVIDER_CONFIG[provider]?.fields || [];
 }
 
