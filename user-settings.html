@@ -75,6 +75,15 @@
             align-items: center;
         }
 
+        .admin-form-input:focus {
+            border-color: #10B981;
+            outline: none;
+        }
+
+        .input-error {
+            border-color: #ef4444 !important;
+        }
+
         .credential-info h4 {
             margin: 0 0 4px 0;
             color: white;
@@ -287,6 +296,7 @@
                     <select id="credential-provider" class="admin-form-input" required
                         onchange="updateCredentialFields()">
                         <option value="">Loading...</option>
+                    </select>
                 </div>
 
                 <!-- Account Identifier (always shown) -->
@@ -331,7 +341,7 @@
     <script src="firebase-config.js"></script>
     <script src="services/channel-credential-service.js"></script>
     <script src="scripts/sidebar-loader.js?v=20241204"></script>
-    <script src="user-settings.js?v=20241204-2"></script>
+    <script src="user-settings.js?v=20241204-3"></script>
 </body>
 
 </html>

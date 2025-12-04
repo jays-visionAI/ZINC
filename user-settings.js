@@ -349,6 +349,44 @@ function getProviderFields(provider) {
     return PROVIDER_CONFIG[provider]?.fields || [];
 }
 
+let lastTestResult = null; // Store last test result
+
+// Helper: Get values from dynamic fields with validation
+function getCredentialFieldValues(provider, options = { validate: false }) {
+    const fields = getProviderFields(provider);
+    const values = {};
+    let hasError = false;
+
+    fields.forEach(field => {
+        const input = document.getElementById(`cred-${field.key}`);
+
+        if (!input) {
+            console.warn('Missing input element for field:', field.key);
+            return;
+        }
+
+        const value = (input.value || '').trim();
+
+        // Reset error style
+        input.classList.remove('input-error');
+
+        if (options.validate && field.required && !value) {
+            hasError = true;
+            input.classList.add('input-error');
+        }
+
+        if (value) {
+            values[field.key] = value;
+        }
+    });
+
+    if (options.validate && hasError) {
+        throw new Error('Please fill in all required credential fields.');
+    }
+
+    return values;
+}
+
 function populateCredentialFields(credentials) {
     if (!credentials) return;
 
@@ -360,39 +398,42 @@ function populateCredentialFields(credentials) {
     });
 }
 
-function getCredentialFieldValues(provider) {
-    const fields = getProviderFields(provider);
-    const values = {};
-
-    fields.forEach(field => {
-        const input = document.getElementById(`cred-${field.key}`);
-        if (input && input.value) {
-            values[field.key] = input.value;
-        }
-    });
-
-    return values;
-}
-
-// Test Connection
+// Test Credential
 async function testCredential() {
-    const provider = document.getElementById('credential-provider').value;
+    const providerEl = document.getElementById('credential-provider');
     const resultDiv = document.getElementById('test-connection-result');
     const btn = document.getElementById('btn-test-credential');
 
-    if (!provider) {
-        resultDiv.innerHTML = '<span style="color: #fbbf24;">⚠️ Please select a provider first</span>';
+    if (!providerEl) {
+        console.error('Provider select not found');
+        resultDiv.innerHTML = '<span style="color: #ef4444;">Internal Error: Provider element not found.</span>';
         return;
     }
 
-    const credentials = getCredentialFieldValues(provider);
+    const provider = providerEl.value;
+
+    if (!provider) {
+        resultDiv.innerHTML = '<span style="color: #fbbf24;">⚠️ Please select a provider first.</span>';
+        return;
+    }
+
+    let credentialValues;
+    try {
+        // Validate fields
+        credentialValues = getCredentialFieldValues(provider, { validate: true });
+    } catch (validationError) {
+        resultDiv.innerHTML = `<span style="color: #fbbf24;">⚠️ ${validationError.message}</span>`;
+        return;
+    }
 
     btn.disabled = true;
     btn.textContent = 'Testing...';
     resultDiv.innerHTML = '<span style="color: #888;">Testing connection...</span>';
 
     try {
-        const result = await window.ChannelCredentialService.testConnection(provider, credentials);
+        const result = await window.ChannelCredentialService.testConnection(provider, credentialValues);
+
+        lastTestResult = result; // Save result for saveCredential
 
         if (result.success) {
             resultDiv.innerHTML = `<span style="color: #22c55e;">✅ ${result.message}</span>`;
@@ -400,6 +441,7 @@ async function testCredential() {
             resultDiv.innerHTML = `<span style="color: #ef4444;">❌ ${result.message}</span>`;
         }
     } catch (error) {
+        lastTestResult = { success: false, message: error.message };
         resultDiv.innerHTML = `<span style="color: #ef4444;">❌ ${error.message}</span>`;
     } finally {
         btn.disabled = false;
@@ -408,37 +450,85 @@ async function testCredential() {
 }
 
 // Save Credential
+// Save Credential
 async function saveCredential(e) {
     e.preventDefault();
 
-    const credentialId = document.getElementById('credential-id').value;
-    const provider = document.getElementById('credential-provider').value;
-    const accountName = document.getElementById('credential-account-name').value;
-    const accountHandle = document.getElementById('credential-account-handle').value;
-    const credentials = getCredentialFieldValues(provider);
-
-    const data = {
-        provider,
-        accountName,
-        accountHandle,
-        credentials,
-        status: 'active'
-    };
-
     try {
+        const idEl = document.getElementById('credential-id');
+        const providerEl = document.getElementById('credential-provider');
+        const nameEl = document.getElementById('credential-account-name');
+
+        if (!providerEl || !nameEl) {
+            throw new Error('Internal Error: Form elements not found.');
+        }
+
+        const credentialId = idEl ? idEl.value : '';
+        const provider = providerEl.value.trim();
+        const accountName = nameEl.value.trim();
+
+        if (!provider) {
+            throw new Error('Please select a provider.');
+        }
+        if (!accountName) {
+            throw new Error('Please enter an Account Name.');
+        }
+
+        // Dynamic fields + validation
+        const credentials = getCredentialFieldValues(provider, { validate: true });
+
+        // Determine status based on last test result
+        let status = 'active';
+        if (lastTestResult && lastTestResult.success === true) {
+            status = 'connected';
+        } else if (lastTestResult && lastTestResult.success === false) {
+            status = 'error';
+        }
+
+        const data = {
+            provider,
+            accountName,
+            credentials,
+            status,
+            lastTestedAt: lastTestResult ? new Date() : null
+        };
+
         await window.ChannelCredentialService.saveCredential(
             currentUser.uid,
             credentialId || null,
             data
         );
 
+        // Reset state
+        lastTestResult = null;
+
         closeCredentialModal();
         await loadCredentials();
         alert('✅ Connection saved successfully');
     } catch (error) {
         console.error('Error saving credential:', error);
-        alert('Error saving connection: ' + error.message);
+        alert(error.message || ('Error saving connection: ' + error.message));
     }
+}
+
+function getStatusBadge(status) {
+    const map = {
+        connected: { color: '#22c55e', label: 'Connected' },
+        active: { color: '#22c55e', label: 'Active' },
+        error: { color: '#ef4444', label: 'Error' },
+        disabled: { color: '#94a3b8', label: 'Disabled' }
+    };
+
+    const fallback = { color: '#94a3b8', label: status || 'Unknown' };
+    const { color, label } = map[status] || fallback;
+
+    return `<span style="
+        border: 1px solid ${color};
+        color: ${color};
+        padding: 3px 8px;
+        border-radius: 999px;
+        font-size: 11px;
+    ">${label}</span>`;
 }
 
 // Tab Switching
