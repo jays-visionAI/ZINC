@@ -239,8 +239,9 @@ window.openCredentialModal = async function (credentialId = null) {
     channels.forEach(data => {
         const option = document.createElement('option');
         option.value = data.key;
-        option.textContent = data.displayName;
+        option.textContent = data.displayName || data.name || data.key; // Fallback chain
         providerSelect.appendChild(option);
+        console.log(`Added channel: ${data.key} - ${option.textContent}`);
     });
 
     updateCredentialFields();
