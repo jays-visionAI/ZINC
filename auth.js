@@ -144,8 +144,14 @@ function updateUI(user) {
 
         // Add to Nav
         const navLinks = document.querySelector('.nav-links');
+        const langToggle = document.getElementById('lang-toggle');
+
         if (navLinks) {
-            navLinks.appendChild(profileDiv);
+            if (langToggle) {
+                navLinks.insertBefore(profileDiv, langToggle);
+            } else {
+                navLinks.appendChild(profileDiv);
+            }
         }
     }
 }
