@@ -805,10 +805,11 @@ async function bindCredentialToTeam(teamId, provider, credentialId) {
             channels[channelIndex].updatedAt = firebase.firestore.Timestamp.now();
         }
 
-        // Save
+        // Save and update team status to active
         await teamRef.update({
             channelBindings,
             channels,
+            status: 'active', // ✨ Auto-activate team when credential is bound
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
