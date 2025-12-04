@@ -364,20 +364,23 @@
 
         targetChannels.forEach(channel => {
             const docRef = db.collection('channelProfiles').doc(channel.id);
-            // Use set with merge: true to preserve other fields if they exist, 
-            // but ensure core fields are set.
-            // Actually, for a clean sync, we might want to overwrite or ensure defaults.
-            // Let's use set({ ... }, { merge: true })
 
             batch.set(docRef, {
+                key: channel.key,
                 name: channel.name,
+                displayName: channel.displayName,
+                icon: channel.icon,
+                order: channel.order,
+                supportsApiConnection: channel.supportsApiConnection,
+                status: channel.status,
+                category: channel.category,
                 contentTypes: channel.contentTypes,
                 interactionStyle: channel.interactionStyle,
+                apiCredentialConfig: channel.apiCredentialConfig,
+                lengthRules: channel.lengthRules || {},
+                seoRules: channel.seoRules || {},
                 version: channel.version,
                 updatedAt: timestamp,
-                // Ensure these exist if creating new
-                lengthRules: {},
-                seoRules: {},
                 kpiWeights: {}
             }, { merge: true });
 
