@@ -10,6 +10,7 @@
     let selectedRunId = null;
     let selectedSubAgentId = null;
     let currentProjectId = null;
+    let currentTeamData = null; // Cache team data for connection checks
 
     // Firestore listeners
     let subAgentsListener = null;
@@ -66,10 +67,10 @@
         }
     };
 
-    // ===== Panel 1: Assigned Agent Team (Left) =====
+    // ===== Panel 1: Assigned Sub-Agents (Left) =====
 
     function loadAssignedAgentTeam(projectId, teamId) {
-        console.log('[View History] Loading Assigned Agent Team...');
+        console.log('[View History] Loading Assigned Sub-Agents...');
 
         // Try both possible container IDs
         let container = document.getElementById('sub-agent-list');
@@ -121,6 +122,9 @@
         const wrapper = document.getElementById('channel-connections-container');
 
         if (!container || !wrapper) return;
+
+        // Cache team data for connection checks
+        currentTeamData = teamData;
 
         // Use Helper to normalize
         const channels = ChannelOrchestrator.normalizeAgentTeamChannels(teamData);
@@ -178,11 +182,11 @@
                         </div>
                         <div style="display: flex; align-items: center; gap: 8px;">
                             ${statusBadge}
-                            <button onclick="window.handleChangeChannelKey('${ch.provider}')" 
+                            <button onclick="window.handleCheckConnection('${ch.provider}', '${ch.credentialId || ''}')" 
                                 style="background: none; border: 1px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.6); padding: 2px 8px; border-radius: 4px; font-size: 10px; cursor: pointer; transition: all 0.2s;"
                                 onmouseover="this.style.background='rgba(255,255,255,0.1)'; this.style.color='white';"
                                 onmouseout="this.style.background='none'; this.style.color='rgba(255,255,255,0.6)';">
-                                Change Key
+                                Check Connection
                             </button>
                         </div>
                     </div>
@@ -617,11 +621,84 @@
         return channelId.replace('ch_', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     }
 
-    // ===== Phase 2: Channel Binding Logic =====
+    // ===== Phase 2: Channel Connection Check Logic =====
 
+    window.handleCheckConnection = async function (provider, credentialId) {
+        if (!selectedTeamId) return;
+
+        if (!credentialId) {
+            alert('No credential configured for this channel.\n\nPlease add a credential in Settings → Connections first.');
+            return;
+        }
+
+        const button = event.target;
+        const originalText = button.textContent;
+
+        try {
+            button.disabled = true;
+            button.textContent = 'Checking...';
+            button.style.opacity = '0.6';
+
+            // Get credential from Firestore
+            const credDoc = await db.collection('userApiCredentials').doc(credentialId).get();
+
+            if (!credDoc.exists) {
+                throw new Error('Credential not found');
+            }
+
+            const credData = credDoc.data();
+
+            // Use AgentRuntimeService to check connection
+            const context = await AgentRuntimeService.prepareExecutionContext(selectedTeamId, firebase.auth().currentUser.uid);
+
+            const channelContext = context.channels.find(ch => ch.provider === provider);
+
+            if (!channelContext) {
+                throw new Error('Channel not found in agent team');
+            }
+
+            if (channelContext.status === 'ready') {
+                button.textContent = '✓ Connected';
+                button.style.color = '#22c55e';
+
+                // Update UI to show success
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.color = '';
+                    button.disabled = false;
+                    button.style.opacity = '1';
+
+                    // Reload channel connections to show updated status
+                    if (currentTeamData) {
+                        renderChannelConnections(currentTeamData);
+                    }
+                }, 2000);
+
+                alert('✅ Connection successful!\n\nThe API credential is working properly.');
+            } else {
+                throw new Error(channelContext.error || 'Connection failed');
+            }
+
+        } catch (error) {
+            console.error('Connection check failed:', error);
+            button.textContent = '✗ Failed';
+            button.style.color = '#ef4444';
+
+            setTimeout(() => {
+                button.textContent = originalText;
+                button.style.color = '';
+                button.disabled = false;
+                button.style.opacity = '1';
+            }, 2000);
+
+            alert(`❌ Connection failed:\n\n${error.message}\n\nPlease check your credential in Settings → Connections.`);
+        }
+    };
+
+    // Keep old function for backward compatibility
     window.handleChangeChannelKey = function (provider) {
         if (!selectedTeamId) return;
-        openCredentialSelector(provider);
+        alert('To change the API credential, please go to:\n\nSettings → Connections\n\nThen select or add a new credential for this channel.');
     };
 
     window.closeCredentialSelector = function () {

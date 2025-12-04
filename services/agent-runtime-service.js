@@ -59,10 +59,26 @@ class AgentRuntimeService {
      * @returns {Promise<Object>} Channel context with status
      */
     static async buildChannelContext(channelConfig, userId) {
-        const { provider } = channelConfig;
+        const { provider, credentialId } = channelConfig;
 
-        // Get credential for this provider
-        const credential = await this.getCredentialForProvider(userId, provider);
+        // If channelConfig has a specific credentialId, use it
+        let credential = null;
+
+        if (credentialId) {
+            // Get the specific credential by ID
+            credential = await this.getCredentialById(credentialId);
+
+            // Verify it belongs to the user and matches the provider
+            if (credential && (credential.userId !== userId || credential.provider !== provider)) {
+                console.warn(`Credential ${credentialId} mismatch: expected userId=${userId}, provider=${provider}`);
+                credential = null;
+            }
+        }
+
+        // Fallback: find any credential for this provider
+        if (!credential) {
+            credential = await this.getCredentialForProvider(userId, provider);
+        }
 
         if (!credential) {
             return {
@@ -94,6 +110,29 @@ class AgentRuntimeService {
             lastTested: credential.lastTestedAt,
             severity: 'success'
         };
+    }
+
+    /**
+     * Get credential by ID
+     * @param {string} credentialId - Credential document ID
+     * @returns {Promise<Object|null>} Credential document or null
+     */
+    static async getCredentialById(credentialId) {
+        const db = firebase.firestore();
+
+        try {
+            const doc = await db.collection('userApiCredentials').doc(credentialId).get();
+
+            if (!doc.exists) return null;
+
+            return {
+                id: doc.id,
+                ...doc.data()
+            };
+        } catch (error) {
+            console.error(`Error fetching credential ${credentialId}:`, error);
+            return null;
+        }
     }
 
     /**
@@ -202,10 +241,13 @@ class AgentRuntimeService {
         // Get all user credentials once (optimization)
         const allCredentials = await this.getAllUserCredentials(userId);
 
-        // Create a map for quick lookup
-        const credentialMap = new Map();
+        // Create maps for quick lookup (by ID and by provider)
+        const credentialByIdMap = new Map();
+        const credentialByProviderMap = new Map();
+
         allCredentials.forEach(cred => {
-            credentialMap.set(cred.provider, cred);
+            credentialByIdMap.set(cred.id, cred);
+            credentialByProviderMap.set(cred.provider, cred);
         });
 
         // Prepare contexts for all instances
@@ -216,7 +258,23 @@ class AgentRuntimeService {
                     const enabledChannels = this.getEnabledChannels(instance);
 
                     const channelContexts = enabledChannels.map(ch => {
-                        const credential = credentialMap.get(ch.provider);
+                        // Try to get credential by ID first, then by provider
+                        let credential = null;
+
+                        if (ch.credentialId) {
+                            credential = credentialByIdMap.get(ch.credentialId);
+
+                            // Verify it matches the provider
+                            if (credential && credential.provider !== ch.provider) {
+                                console.warn(`Credential ${ch.credentialId} provider mismatch`);
+                                credential = null;
+                            }
+                        }
+
+                        // Fallback to provider lookup
+                        if (!credential) {
+                            credential = credentialByProviderMap.get(ch.provider);
+                        }
 
                         if (!credential) {
                             return {

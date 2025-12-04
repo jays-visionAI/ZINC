@@ -867,7 +867,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const hasApiKeys = Object.keys(channelBindings).length > 0;
 
         if (!hasApiKeys) {
-            if (!confirm("Are you sure you want to create the agent team instance without configuring any API keys?")) return;
+            if (!confirm("For the agent team to operate properly, you must configure the API key information in the Settings menu.\n\nDo you want to continue creating the team without API credentials?")) return;
         }
 
         try {
@@ -2564,7 +2564,7 @@ async function renderDetailPanel(instanceId, projectId) {
     panel.innerHTML = `
         <div id="col-sub-agents" class="detail-column">
             <div class="column-header">
-                <div class="column-title">Assigned Agent Team</div>
+                <div class="column-title">Assigned Sub-Agents</div>
             </div>
             <div class="column-content">
                 <!-- Channel Connections Section -->
@@ -2619,7 +2619,7 @@ function renderSubAgentsColumn(data) {
     if (col) {
         col.innerHTML = `
             <div class="column-header">
-                <div class="column-title">Assigned Agent Team</div>
+                <div class="column-title">Assigned Sub-Agents</div>
             </div>
             <div class="column-content">
                 <div class="team-info-card">
