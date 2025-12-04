@@ -191,9 +191,29 @@
         console.log(`  🤖 Executing: ${subAgent.type} (${subAgent.version})`);
 
         // 1. Prepare Context & Prompt
-        // In Phase 3, we will resolve runtime_profile_id from overrides or defaults
-        // For now, use the mock profile we created
-        const runtimeProfileId = subAgent.runtime_profile_id || 'rtp_mock_test';
+        // v2.0: Resolve Runtime Config dynamically
+        let runtimeConfig;
+
+        // Check if we have v2 metadata
+        if (subAgent.roleTypeForRuntime || subAgent.role_type) {
+            try {
+                if (typeof RuntimeResolver !== 'undefined') {
+                    runtimeConfig = await RuntimeResolver.resolveRuntimeConfig({
+                        role_type: subAgent.roleTypeForRuntime || subAgent.role_type || subAgent.type,
+                        language: subAgent.primaryLanguage || subAgent.primary_language || 'en',
+                        tier: subAgent.preferredTier || subAgent.preferred_tier || 'balanced'
+                    });
+                    console.log(`     ✅ Resolved Config: ${runtimeConfig.provider}/${runtimeConfig.model_id}`);
+                } else {
+                    console.warn("     ⚠️ RuntimeResolver not found, falling back to legacy/mock");
+                }
+            } catch (e) {
+                console.error("     ❌ Error resolving runtime config:", e);
+            }
+        }
+
+        // Fallback to legacy ID or Mock if resolution failed
+        const profileOrConfig = runtimeConfig || subAgent.runtime_profile_id || { provider: 'mock', model_id: 'mock-fallback' };
 
         // Construct User Prompt based on task and upstream artifacts
         let userPrompt = `Task: ${task.input.user_prompt}\n\n`;
@@ -210,7 +230,7 @@
 
         try {
             // 2. Call LLM Router
-            const llmResult = await window.callLLM(runtimeProfileId, {
+            const llmResult = await window.callLLM(profileOrConfig, {
                 systemPrompt: subAgent.system_prompt,
                 userPrompt: userPrompt,
                 jsonMode: true // Force JSON for structured output
@@ -227,7 +247,7 @@
                 agent_set_id: agentSet.agent_set_id,
                 sub_agent_id: subAgent.sub_agent_id,
                 task_id: task.id,
-                runtime_profile_id: runtimeProfileId,
+                runtime_profile_id: (profileOrConfig.id || profileOrConfig.rule_id || 'dynamic'),
                 provider: llmResult.provider,
                 model: llmResult.model,
                 input: {
@@ -274,7 +294,7 @@
                 agent_set_id: agentSet.agent_set_id,
                 sub_agent_id: subAgent.sub_agent_id,
                 task_id: task.id,
-                runtime_profile_id: runtimeProfileId,
+                runtime_profile_id: (profileOrConfig.id || profileOrConfig.rule_id || 'dynamic'),
                 status: 'failed',
                 error: error.message,
                 created_at: firebase.firestore.FieldValue.serverTimestamp()

@@ -38,8 +38,8 @@
         try { return JSON.parse(raw); } catch (e) { return null; }
     }
 
-    // Available Runtime Profiles (for default selection)
-    let runtimeProfiles = [];
+    // Available Runtime Profiles (Legacy removed)
+    // let runtimeProfiles = [];
 
     // Role Types (PRD 5.0 - Canonical snake_case values)
     const ROLE_TYPES = [
@@ -69,7 +69,7 @@
         filteredTemplates = [];
 
         loadTemplates();
-        loadRuntimeProfiles();
+        // loadRuntimeProfiles(); // Removed in favor of Dynamic Resolution
         setupEventListeners();
     };
 
@@ -173,10 +173,8 @@
         renderRoleSelection();
         // loadChannels(); // Removed: Templates are channel-agnostic
 
-        // Pre-load runtime profiles when wizard opens
-        loadRuntimeProfiles().then(() => {
-            console.log("Runtime Profiles pre-loaded:", runtimeProfiles.length);
-        });
+        // Pre-load runtime profiles when wizard opens (Removed)
+        // loadRuntimeProfiles().then(() => { ... });
     }
 
     function closeWizard() {
@@ -211,35 +209,7 @@
         nextBtn.textContent = currentStep === 4 ? 'Create Template' : 'Next Step';
     }
 
-    function loadRuntimeProfiles() {
-        console.log("Loading Runtime Profiles...");
-        return db.collection('runtimeProfiles').where('status', '==', 'active').get()
-            .then(snapshot => {
-                runtimeProfiles = [];
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    // Map role_type to normalized engine type for compatibility
-                    // The new schema uses 'role_type', legacy used 'engine_type'
-                    const engineType = data.role_type || data.engine_type || data.engine || data.type || 'unknown';
-
-                    runtimeProfiles.push({
-                        id: doc.id,
-                        ...data,
-                        _normalized_engine_type: engineType
-                    });
-                });
-
-                if (runtimeProfiles.length > 0) {
-                    console.log("First Profile Data Sample:", runtimeProfiles[0]);
-                }
-
-                console.log(`Loaded ${runtimeProfiles.length} active runtime profiles.`);
-                // Log unique engine types found
-                const engineTypes = [...new Set(runtimeProfiles.map(p => p._normalized_engine_type))];
-                console.log("Available Role Types (Normalized):", engineTypes);
-            })
-            .catch(err => console.error("Error loading runtime profiles:", err));
-    }
+    // function loadRuntimeProfiles() { ... } // Removed
 
     // Removed unused channel functions
 

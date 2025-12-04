@@ -147,48 +147,8 @@
 
     // ===== Runtime Configuration Presets =====
 
-    const RUNTIME_PRESETS = [
-        {
-            id: 'standard',
-            label: 'Standard (Balanced, English)',
-            description: 'GPT-4, Temperature 0.7',
-            role: 'strategist',
-            language: 'en',
-            tier: 'balanced'
-        },
-        {
-            id: 'korean_strategic',
-            label: 'Korean Strategic (Balanced, Korean)',
-            description: 'GPT-4, 한국어 최적화',
-            role: 'strategist',
-            language: 'ko',
-            tier: 'balanced'
-        },
-        {
-            id: 'creative',
-            label: 'Creative (Creative Tier, English)',
-            description: 'GPT-4 Turbo, Temperature 0.9',
-            role: 'creator',
-            language: 'en',
-            tier: 'creative'
-        },
-        {
-            id: 'precise',
-            label: 'Precise (Precise Tier, English)',
-            description: 'GPT-4, Temperature 0.3',
-            role: 'analyst',
-            language: 'en',
-            tier: 'precise'
-        },
-        {
-            id: 'custom',
-            label: 'Custom Configuration',
-            description: 'Manually configure all settings',
-            role: null,
-            language: null,
-            tier: null
-        }
-    ];
+    // ===== Runtime Configuration (Dynamic) =====
+    // Removed legacy RUNTIME_PRESETS
 
     // ===== System Prompt Templates by Role Family =====
 
@@ -372,6 +332,51 @@ Always prioritize accurate, up-to-date information.`
 
     // --- v2.0 Helpers ---
 
+    // v2.0: Update Runtime Preview based on selections
+    window.updateRuntimePreview = async function () {
+        const roleSelect = document.getElementById('subagent-role');
+        const langSelect = document.getElementById('subagent-language');
+        const tierSelect = document.getElementById('subagent-tier');
+
+        if (!roleSelect || !langSelect || !tierSelect) return;
+
+        const role = roleSelect.value;
+        const lang = langSelect.value;
+        const tier = tierSelect.value;
+
+        if (!role || !lang || !tier) return;
+
+        // UI Elements
+        const pProvider = document.getElementById('preview-provider');
+        const pModel = document.getElementById('preview-model');
+        const pParams = document.getElementById('preview-params');
+        const pRuleId = document.getElementById('preview-rule-id');
+
+        // Show loading state
+        if (pModel) pModel.textContent = 'Resolving...';
+
+        try {
+            if (typeof RuntimeResolver === 'undefined') {
+                throw new Error('RuntimeResolver not loaded');
+            }
+
+            const config = await RuntimeResolver.resolveRuntimeConfig({
+                role_type: role,
+                language: lang,
+                tier: tier
+            });
+
+            if (pProvider) pProvider.textContent = config.provider || '-';
+            if (pModel) pModel.textContent = config.model_id || '-';
+            if (pParams) pParams.textContent = `Temp: ${config.temperature}, Tokens: ${config.max_tokens}`;
+            if (pRuleId) pRuleId.textContent = config.rule_id || 'default';
+
+        } catch (error) {
+            console.error('Error resolving runtime config:', error);
+            if (pModel) pModel.textContent = 'Error resolving config';
+        }
+    };
+
     function populateMetadataDropdowns() {
         const roleSelect = document.getElementById('subagent-role');
         const langSelect = document.getElementById('subagent-language');
@@ -389,6 +394,7 @@ Always prioritize accurate, up-to-date information.`
             roleSelect.innerHTML = roles.map(r =>
                 `<option value="${r.value}">${r.label}</option>`
             ).join('');
+            roleSelect.onchange = updateRuntimePreview;
         }
 
         // Populate Languages
@@ -397,6 +403,7 @@ Always prioritize accurate, up-to-date information.`
             langSelect.innerHTML = langs.map(l =>
                 `<option value="${l.value}">${l.flag} ${l.label}</option>`
             ).join('');
+            langSelect.onchange = updateRuntimePreview;
         }
 
         // Populate Tiers
@@ -405,53 +412,12 @@ Always prioritize accurate, up-to-date information.`
             tierSelect.innerHTML = tiers.map(t =>
                 `<option value="${t.value}">${t.label} - ${t.description}</option>`
             ).join('');
+            tierSelect.onchange = updateRuntimePreview;
         }
 
-        // Render Runtime Presets
-        renderRuntimePresets();
+        // Initial Preview
+        setTimeout(updateRuntimePreview, 100);
     }
-
-    function renderRuntimePresets() {
-        const container = document.getElementById('runtime-presets');
-        if (!container) return;
-
-        container.innerHTML = RUNTIME_PRESETS.map(preset => `
-            <label style="display: flex; align-items: flex-start; gap: 12px; padding: 12px; background: rgba(255,255,255,0.02); border: 2px solid rgba(255,255,255,0.1); border-radius: 6px; cursor: pointer; transition: all 0.2s;">
-                <input type="radio" name="runtime-preset" value="${preset.id}" 
-                    style="margin-top: 2px;" 
-                    onchange="selectRuntimePreset('${preset.id}')">
-                <div style="flex: 1;">
-                    <div style="font-weight: 600; color: #fff; margin-bottom: 4px;">${preset.label}</div>
-                    <div style="font-size: 12px; color: rgba(255,255,255,0.6);">${preset.description}</div>
-                </div>
-            </label>
-        `).join('');
-
-        // Select default (standard)
-        const defaultRadio = container.querySelector('input[value="standard"]');
-        if (defaultRadio) defaultRadio.checked = true;
-    }
-
-    window.selectRuntimePreset = function (presetId) {
-        const preset = RUNTIME_PRESETS.find(p => p.id === presetId);
-        if (!preset) return;
-
-        const customConfig = document.getElementById('custom-runtime-config');
-        const roleSelect = document.getElementById('subagent-role');
-        const langSelect = document.getElementById('subagent-language');
-        const tierSelect = document.getElementById('subagent-tier');
-
-        if (presetId === 'custom') {
-            // Show custom configuration
-            customConfig.style.display = 'block';
-        } else {
-            // Hide custom configuration and apply preset values
-            customConfig.style.display = 'none';
-            if (roleSelect) roleSelect.value = preset.role;
-            if (langSelect) langSelect.value = preset.language;
-            if (tierSelect) tierSelect.value = preset.tier;
-        }
-    };
 
     // Auto-fill System Prompt based on Role Family
     window.autoFillSystemPrompt = function (family) {
@@ -536,67 +502,8 @@ Always prioritize accurate, up-to-date information.`
     };
 
 
-    function filterRuntimeProfiles() {
-        const role = document.getElementById('subagent-role').value;
-        const lang = document.getElementById('subagent-language').value;
-        const profileSelect = document.getElementById('subagent-profile');
-
-        if (!profileSelect) return;
-
-        // Re-populate options based on all loaded profiles
-        // We need to store all profiles first. 
-        // Let's modify loadRuntimeProfiles to store them in a variable.
-        if (!window.allRuntimeProfiles) return;
-
-        let filtered = window.allRuntimeProfiles;
-
-        // Filter logic:
-        // If role/lang selected, prioritize matching profiles
-        // But for now, let's just show all but sort them? 
-        // Or filter strictly? PRD says "prioritize".
-        // Let's sort: exact match first, then others.
-
-        if (role && lang) {
-            filtered.sort((a, b) => {
-                const aMatch = (a.role_type === role && a.language === lang) ? 2 : (a.role_type === role ? 1 : 0);
-                const bMatch = (b.role_type === role && b.language === lang) ? 2 : (b.role_type === role ? 1 : 0);
-                return bMatch - aMatch;
-            });
-        }
-
-        let options = '<option value="">Select a Profile...</option>';
-        filtered.forEach(data => {
-            const isMatch = (role && lang && data.role_type === role && data.language === lang);
-            const style = isMatch ? 'font-weight: bold; color: #16e0bd;' : '';
-            const matchBadge = isMatch ? ' [RECOMMENDED]' : '';
-
-            options += `<option value="${data.id}" style="${style}">
-                ${data.name} (${data.provider})${matchBadge}
-            </option>`;
-        });
-        profileSelect.innerHTML = options;
-
-        // Auto-select if exact match found and nothing selected
-        if (role && lang && !profileSelect.value) {
-            const exactMatch = filtered.find(p => p.role_type === role && p.language === lang && p.tier === 'balanced');
-            if (exactMatch) profileSelect.value = exactMatch.id;
-        }
-    }
-
-    function loadRuntimeProfiles() {
-        // v2.0: Use root `runtimeProfiles` collection
-        db.collection('runtimeProfiles')
-            .where('status', '==', 'active')
-            .get()
-            .then(snapshot => {
-                window.allRuntimeProfiles = [];
-                snapshot.forEach(doc => {
-                    window.allRuntimeProfiles.push({ id: doc.id, ...doc.data() });
-                });
-                filterRuntimeProfiles(); // Initial render
-            })
-            .catch(err => console.error("Error loading profiles:", err));
-    }
+    // Removed loadRuntimeProfiles and filterRuntimeProfiles as they are no longer needed.
+    // Configuration is resolved dynamically via RuntimeResolver.
 
     function setupEventListeners() {
         const searchInput = document.getElementById("subagent-search");
@@ -609,10 +516,14 @@ Always prioritize accurate, up-to-date information.`
         const addAdapterBtn = document.getElementById("add-adapter-btn");
 
         // v2.0 Listeners
+        // v2.0 Listeners
         const roleSelect = document.getElementById('subagent-role');
         const langSelect = document.getElementById('subagent-language');
-        if (roleSelect) roleSelect.addEventListener('change', filterRuntimeProfiles);
-        if (langSelect) langSelect.addEventListener('change', filterRuntimeProfiles);
+        const tierSelect = document.getElementById('subagent-tier');
+
+        if (roleSelect) roleSelect.addEventListener('change', updateRuntimePreview);
+        if (langSelect) langSelect.addEventListener('change', updateRuntimePreview);
+        if (tierSelect) tierSelect.addEventListener('change', updateRuntimePreview);
 
         // Auto-select Role Family based on Engine Type
         const typeSelect = document.getElementById('subagent-type');
@@ -743,7 +654,9 @@ Always prioritize accurate, up-to-date information.`
                 <td>${getStatusBadge(tpl.status)}</td>
                 <td>
                     <span style="font-size: 12px;">
-                        ${tpl.runtime_profile_id || 'Default'}
+                        ${tpl.roleTypeForRuntime || tpl.role_type || '-'} / 
+                        ${tpl.primaryLanguage || tpl.primary_language || '-'} / 
+                        ${tpl.preferredTier || tpl.preferred_tier || '-'}
                     </span>
                 </td>
                 <td>${formatDate(tpl.updated_at)}</td>

@@ -7,18 +7,27 @@
 
     /**
      * Main Router Function
-     * @param {string} runtimeProfileId - RuntimeProfile ID (e.g., "rtp_chat_balanced_v1")
+     * @param {string|object} profileOrId - RuntimeProfile ID OR Resolved Config Object
      * @param {object} payload - { systemPrompt, userPrompt, temperature, maxTokens, jsonMode }
      * @returns {Promise<object>} - { text, parsedJson, usage, latencyMs, provider, model }
      */
-    window.callLLM = async function (runtimeProfileId, payload) {
+    window.callLLM = async function (profileOrId, payload) {
         const startTime = Date.now();
 
         try {
-            // 1. Load RuntimeProfile
-            const profile = await loadRuntimeProfile(runtimeProfileId);
-            if (!profile) {
-                throw new Error(`RuntimeProfile not found: ${runtimeProfileId}`);
+            // 1. Load or Use RuntimeProfile
+            let profile;
+            if (typeof profileOrId === 'object' && profileOrId !== null) {
+                // Direct config object passed (v2.0 Rule-based)
+                profile = profileOrId;
+            } else {
+                // Legacy: Load by ID
+                profile = await loadRuntimeProfile(profileOrId);
+                if (!profile) {
+                    // Fallback for deleted collection: Use mock if not found
+                    console.warn(`RuntimeProfile not found: ${profileOrId}. Using fallback mock.`);
+                    profile = { provider: 'mock', model_id: 'mock-fallback' };
+                }
             }
 
             // 2. Route to appropriate provider

@@ -461,33 +461,49 @@
                         </div>
                     </div>
 
-                    <!-- v2.0 Runtime Configuration (Preset-based) -->
+                    <!-- v2.0 Dynamic Runtime Configuration -->
                     <div
                         style="margin-bottom: 16px; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
-                        <label class="admin-form-label" style="margin-bottom: 12px; display: block;">
-                            ⚙️ Runtime Configuration Preset
+                        <label class="admin-form-label" style="margin-bottom: 12px; display: block; color: #16e0bd;">
+                            ⚙️ Dynamic Runtime Configuration
                         </label>
 
-                        <div id="runtime-presets" style="display: flex; flex-direction: column; gap: 10px;">
-                            <!-- Presets will be populated by JavaScript -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+                            <div class="admin-form-group" style="margin-bottom: 0;">
+                                <label class="admin-form-label" style="font-size: 12px;">Role Type</label>
+                                <select id="subagent-role" class="admin-select" style="width: 100%;"></select>
+                            </div>
+                            <div class="admin-form-group" style="margin-bottom: 0;">
+                                <label class="admin-form-label" style="font-size: 12px;">Language</label>
+                                <select id="subagent-language" class="admin-select" style="width: 100%;"></select>
+                            </div>
+                            <div class="admin-form-group" style="margin-bottom: 0;">
+                                <label class="admin-form-label" style="font-size: 12px;">Tier</label>
+                                <select id="subagent-tier" class="admin-select" style="width: 100%;"></select>
+                            </div>
                         </div>
 
-                        <!-- Custom Configuration (hidden by default) -->
-                        <div id="custom-runtime-config"
-                            style="display: none; margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1);">
-                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
-                                <div class="admin-form-group" style="margin-bottom: 0;">
-                                    <label class="admin-form-label" style="font-size: 12px;">Role Type</label>
-                                    <select id="subagent-role" class="admin-select" style="width: 100%;"></select>
-                                </div>
-                                <div class="admin-form-group" style="margin-bottom: 0;">
-                                    <label class="admin-form-label" style="font-size: 12px;">Language</label>
-                                    <select id="subagent-language" class="admin-select" style="width: 100%;"></select>
-                                </div>
-                                <div class="admin-form-group" style="margin-bottom: 0;">
-                                    <label class="admin-form-label" style="font-size: 12px;">Tier</label>
-                                    <select id="subagent-tier" class="admin-select" style="width: 100%;"></select>
-                                </div>
+                        <!-- Resolved Config Preview -->
+                        <div id="runtime-config-preview"
+                            style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+                            <div
+                                style="font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
+                                Resolved Configuration (Preview)
+                            </div>
+                            <div
+                                style="display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 13px;">
+                                <div style="color: rgba(255,255,255,0.5);">Provider:</div>
+                                <div id="preview-provider" style="color: #60a5fa; font-weight: 500;">-</div>
+
+                                <div style="color: rgba(255,255,255,0.5);">Model:</div>
+                                <div id="preview-model" style="color: #fbbf24; font-weight: 500;">-</div>
+
+                                <div style="color: rgba(255,255,255,0.5);">Params:</div>
+                                <div id="preview-params" style="color: rgba(255,255,255,0.7);">-</div>
+
+                                <div style="color: rgba(255,255,255,0.5);">Rule ID:</div>
+                                <div id="preview-rule-id" style="color: rgba(255,255,255,0.3); font-family: monospace;">
+                                    -</div>
                             </div>
                         </div>
                     </div>

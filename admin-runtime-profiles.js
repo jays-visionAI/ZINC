@@ -143,7 +143,7 @@
         tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">Loading runtime profile rules...</td></tr>';
 
         // Phase 2: Use runtimeProfileRules collection (Admin-only, Read-only)
-        unsubscribe = db.collection('runtimeProfiles')
+        unsubscribe = db.collection('runtimeProfileRules')
             .onSnapshot((snapshot) => {
                 if (!document.getElementById("profiles-table-body")) {
                     if (unsubscribe) unsubscribe();
@@ -166,8 +166,7 @@
             }, (error) => {
                 console.error("Error loading runtime profile rules:", error);
                 if (document.getElementById("profiles-table-body")) {
-                    document.getElementById("profiles-table-body").innerHTML =
-                        `<tr><td colspan="7" style="text-align: center; color: #ef4444;">Error: ${error.message}<br><small>Make sure you're logged in as Admin.</small></td></tr>`;
+                    `<tr><td colspan="7" style="text-align: center; color: #ef4444;">Error: ${error.message}<br><small>Make sure you're logged in as Admin and 'runtimeProfileRules' collection exists.</small></td></tr>`;
                 }
             });
     }
@@ -205,12 +204,12 @@
         }
 
         tbody.innerHTML = filteredProfiles.map(rule => {
-            // Build tiers summary
-            const tiers = rule.tiers || {};
+            // Build tiers summary (using 'models' from Rule schema)
+            const models = rule.models || rule.tiers || {};
             const tiersSummary = ['balanced', 'creative', 'precise']
-                .filter(tier => tiers[tier])
+                .filter(tier => models[tier])
                 .map(tier => {
-                    const config = tiers[tier];
+                    const config = models[tier];
                     return `<div style="font-size: 11px; margin-bottom: 4px;">
                         <strong>${capitalize(tier)}:</strong> ${config.model_id || 'N/A'} 
                         (${config.max_tokens || 0} tokens, temp: ${config.temperature || 0})
@@ -224,7 +223,8 @@
                     <div style="font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px;">Engine: ${rule.engine_type || 'N/A'}</div>
                 </td>
                 <td>
-                    <div style="font-size: 13px;">${capitalize(rule.language || 'global')}</div>
+                    <div style="font-size: 13px;">Global</div>
+                    ${rule.language_overrides ? `<div style="font-size: 10px; color: rgba(255,255,255,0.4);">+ ${Object.keys(rule.language_overrides).length} overrides</div>` : ''}
                 </td>
                 <td style="font-size: 12px;">
                     ${tiersSummary || '<span style="color: rgba(255,255,255,0.3);">No tiers defined</span>'}
@@ -414,7 +414,7 @@
 
             // Get current profile data to find version
             console.log("[VersionControl] Fetching old profile data...");
-            const oldProfileDoc = await db.collection('runtimeProfiles').doc(oldDocId).get();
+            const oldProfileDoc = await db.collection('runtimeProfileRules').doc(oldDocId).get();
 
             if (!oldProfileDoc.exists) {
                 throw new Error(`Original profile document not found: ${oldDocId} `);
@@ -472,7 +472,7 @@
 
             // 1. Check for existing Active profile with same Role/Lang/Tier
             if (data.status === 'active') {
-                const activeSnapshot = await db.collection('runtimeProfiles')
+                const activeSnapshot = await db.collection('runtimeProfileRules')
                     .where('role_type', '==', data.role_type)
                     .where('language', '==', data.language)
                     .where('tier', '==', data.tier)
@@ -494,10 +494,10 @@
             }
 
             // 2. Create New Profile
-            await db.collection('runtimeProfiles').doc(newProfileId).set(data);
+            await db.collection('runtimeProfileRules').doc(newProfileId).set(data);
 
             // 3. Update Old Profile to point to new one
-            await db.collection('runtimeProfiles').doc(oldDocId).update({
+            await db.collection('runtimeProfileRules').doc(oldDocId).update({
                 superseded_by_profile_id: newProfileId,
                 updated_at: firebase.firestore.FieldValue.serverTimestamp()
             });
@@ -540,7 +540,7 @@
                 // UPDATE MODE (Limited fields)
                 // Core fields are read-only in UI, so we don't include them in update
                 // to prevent tampering via console.
-                await db.collection('runtimeProfiles').doc(docId).update(data);
+                await db.collection('runtimeProfileRules').doc(docId).update(data);
             } else {
                 // CREATE MODE (All fields)
                 data.id = profileId;
@@ -568,7 +568,7 @@
 
                 // Check for Active conflict
                 if (data.status === 'active') {
-                    const activeSnapshot = await db.collection('runtimeProfiles')
+                    const activeSnapshot = await db.collection('runtimeProfileRules')
                         .where('role_type', '==', data.role_type)
                         .where('language', '==', data.language)
                         .where('tier', '==', data.tier)
@@ -592,7 +592,7 @@
                     }
                 }
 
-                await db.collection('runtimeProfiles').doc(profileId).set(data);
+                await db.collection('runtimeProfileRules').doc(profileId).set(data);
             }
 
             closeModal();
@@ -626,20 +626,23 @@
         const rule = profiles.find(p => p.docId === docId);
         if (!rule) return;
 
-        const tiers = rule.tiers || {};
+        const models = rule.models || rule.tiers || {};
         let tiersDetail = '';
 
         ['balanced', 'creative', 'precise'].forEach(tier => {
-            if (tiers[tier]) {
-                const config = tiers[tier];
+            if (models[tier]) {
+                const config = models[tier];
                 tiersDetail += `\n\n${tier.toUpperCase()}:\n`;
                 tiersDetail += `  Model: ${config.model_id || 'N/A'}\n`;
                 tiersDetail += `  Max Tokens: ${config.max_tokens || 0}\n`;
                 tiersDetail += `  Temperature: ${config.temperature || 0}\n`;
-                tiersDetail += `  Top P: ${config.top_p || 1.0}\n`;
-                tiersDetail += `  Cost Hint: ${config.cost_hint || 'N/A'}`;
+                tiersDetail += `  Provider: ${config.provider || 'N/A'}`;
             }
         });
+
+        if (rule.language_overrides) {
+            tiersDetail += `\n\nLANGUAGE OVERRIDES:\n${JSON.stringify(rule.language_overrides, null, 2)}`;
+        }
 
         alert(`📋 Runtime Profile Rule Details\n\nRule ID: ${rule.id}\nEngine Type: ${rule.engine_type || 'N/A'}\nLanguage: ${rule.language || 'global'}\nStatus: ${rule.status || 'active'}${tiersDetail}\n\n⚠️ This is a read-only view.`);
     };

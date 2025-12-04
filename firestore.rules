@@ -131,11 +131,11 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    // Runtime Profiles: Admin can write, authenticated users can read
-    match /runtimeProfiles/{profileId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
+    // Runtime Profiles: REMOVED (Migrated to Runtime Profile Rules)
+    // match /runtimeProfiles/{profileId} {
+    //   allow read: if isAuthenticated();
+    //   allow write: if isAdmin();
+    // }
 
     // Agent Set Templates (Root): Admin can write, authenticated users can read
     match /agentSetTemplates/{templateId} {
