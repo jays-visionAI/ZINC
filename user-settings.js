@@ -679,7 +679,7 @@ window.loadUserProjects = async function () {
             const project = doc.data();
             projects.push({
                 id: doc.id,
-                name: project.name || 'Unnamed Project',
+                name: project.projectName || 'Unnamed Project',  // ✨ Use projectName field
                 createdAt: project.createdAt
             });
         });
