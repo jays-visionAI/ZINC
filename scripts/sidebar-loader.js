@@ -4,6 +4,16 @@
  */
 
 document.addEventListener("DOMContentLoaded", async () => {
+    // Only run on Command Center and User Settings pages
+    const currentPage = window.location.pathname;
+    const isCommandCenter = currentPage.includes('command-center') || currentPage === '/' || currentPage === '/index.html';
+    const isUserSettings = currentPage.includes('user-settings');
+
+    if (!isCommandCenter && !isUserSettings) {
+        console.log('Sidebar loader: Skipping on this page');
+        return;
+    }
+
     const sidebarMenu = document.querySelector('.sidebar-menu');
     if (!sidebarMenu) return;
 

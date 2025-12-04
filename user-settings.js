@@ -194,13 +194,19 @@ window.openCredentialModal = async function (credentialId = null) {
         const snapshot = await db.collection('channelProfiles')
             .where('supportsApiConnection', '==', true)
             .where('status', '==', 'active')
-            .orderBy('order', 'asc')
             .get();
 
         providerSelect.innerHTML = '<option value="">Select a provider...</option>';
 
+        // Sort in-memory to avoid Firestore index requirement
+        const channels = [];
         snapshot.forEach(doc => {
-            const data = doc.data();
+            channels.push({ id: doc.id, ...doc.data() });
+        });
+
+        channels.sort((a, b) => (a.order || 0) - (b.order || 0));
+
+        channels.forEach(data => {
             const option = document.createElement('option');
             option.value = data.key; // Use 'key' as provider value
             option.textContent = data.displayName;
