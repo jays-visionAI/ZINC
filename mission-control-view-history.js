@@ -176,7 +176,15 @@
                         <div style="display: flex; align-items: center; gap: 6px; font-weight: 500;">
                             ${icon} ${label}
                         </div>
-                        <div>${statusBadge}</div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            ${statusBadge}
+                            <button onclick="window.handleChangeChannelKey('${ch.provider}')" 
+                                style="background: none; border: 1px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.6); padding: 2px 8px; border-radius: 4px; font-size: 10px; cursor: pointer; transition: all 0.2s;"
+                                onmouseover="this.style.background='rgba(255,255,255,0.1)'; this.style.color='white';"
+                                onmouseout="this.style.background='none'; this.style.color='rgba(255,255,255,0.6)';">
+                                Change Key
+                            </button>
+                        </div>
                     </div>
                     <div style="font-size: 12px; color: rgba(255,255,255,0.5); display: flex; justify-content: space-between;">
                         <span>Key: <span style="color: rgba(255,255,255,0.8);">${credLabel}</span></span>
@@ -607,6 +615,173 @@
     function getChannelLabel(channelId) {
         // Extract readable label from channelId
         return channelId.replace('ch_', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    // ===== Phase 2: Channel Binding Logic =====
+
+    window.handleChangeChannelKey = function (provider) {
+        if (!selectedTeamId) return;
+        openCredentialSelector(provider);
+    };
+
+    window.closeCredentialSelector = function () {
+        const modal = document.getElementById('credential-selector-modal');
+        if (modal) modal.style.display = 'none';
+    };
+
+    async function openCredentialSelector(provider) {
+        const modal = createCredentialSelectorModal();
+        const listContainer = document.getElementById('cred-selector-list');
+
+        modal.style.display = 'flex';
+        listContainer.innerHTML = '<div class="loading-state">Loading credentials...</div>';
+
+        try {
+            const user = firebase.auth().currentUser;
+            if (!user) throw new Error("User not authenticated");
+
+            const snapshot = await db.collection('userApiCredentials')
+                .where('userId', '==', user.uid)
+                .where('provider', '==', provider)
+                .where('status', '==', 'active')
+                .get();
+
+            if (snapshot.empty) {
+                listContainer.innerHTML = `
+                    <div style="text-align: center; padding: 20px; color: rgba(255,255,255,0.5);">
+                        No active credentials found for ${getChannelLabel(provider)}.<br>
+                        <a href="user-settings.html#connections" style="color: #3b82f6; text-decoration: none; margin-top: 8px; display: inline-block;">Manage Credentials</a>
+                    </div>
+                `;
+                return;
+            }
+
+            listContainer.innerHTML = '';
+
+            const docs = [];
+            snapshot.forEach(doc => docs.push(doc));
+
+            // Sort in memory
+            docs.sort((a, b) => {
+                const timeA = a.data().createdAt?.toMillis() || 0;
+                const timeB = b.data().createdAt?.toMillis() || 0;
+                return timeB - timeA;
+            });
+
+            docs.forEach(doc => {
+                const cred = doc.data();
+                const el = document.createElement('div');
+                el.style.cssText = `
+                    background: rgba(255,255,255,0.05); 
+                    padding: 12px; 
+                    border-radius: 6px; 
+                    cursor: pointer; 
+                    border: 1px solid transparent;
+                    transition: all 0.2s;
+                `;
+                el.innerHTML = `
+                    <div style="font-weight: 500;">${cred.accountName || 'Unnamed Account'}</div>
+                    <div style="font-size: 12px; color: rgba(255,255,255,0.5);">@${cred.accountHandle || 'unknown'}</div>
+                `;
+                el.onmouseover = () => el.style.borderColor = 'rgba(255,255,255,0.2)';
+                el.onmouseout = () => el.style.borderColor = 'transparent';
+                el.onclick = () => updateAgentTeamChannelBinding(selectedTeamId, provider, doc.id);
+
+                listContainer.appendChild(el);
+            });
+
+        } catch (error) {
+            console.error("Error loading credentials:", error);
+            listContainer.innerHTML = `<div class="error-state">Error: ${error.message}</div>`;
+        }
+    }
+
+    function createCredentialSelectorModal() {
+        let modal = document.getElementById('credential-selector-modal');
+        if (modal) return modal;
+
+        modal = document.createElement('div');
+        modal.id = 'credential-selector-modal';
+        modal.className = 'admin-modal';
+        modal.style.zIndex = '2000'; // Ensure it's on top
+        modal.innerHTML = `
+            <div class="admin-modal-content" style="max-width: 400px; width: 100%;">
+                <div class="admin-modal-header">
+                    <h3 class="modal-title">Select API Credential</h3>
+                    <button class="admin-modal-close" onclick="closeCredentialSelector()">×</button>
+                </div>
+                <div class="admin-modal-body" style="padding: 16px;">
+                    <div id="cred-selector-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                </div>
+                <div class="admin-modal-footer">
+                    <button class="admin-btn-secondary" onclick="closeCredentialSelector()">Cancel</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        return modal;
+    }
+
+    async function updateAgentTeamChannelBinding(teamId, provider, credentialId) {
+        const listContainer = document.getElementById('cred-selector-list');
+        listContainer.innerHTML = '<div class="loading-state">Updating binding...</div>';
+
+        const teamRef = db.collection('projectAgentTeamInstances').doc(teamId);
+
+        try {
+            await db.runTransaction(async (transaction) => {
+                const doc = await transaction.get(teamRef);
+                if (!doc.exists) throw "Team not found";
+
+                const data = doc.data();
+                const channels = data.channels || [];
+                const channelBindings = data.channelBindings || {};
+
+                // Update bindings
+                channelBindings[provider] = credentialId;
+
+                // Update channels array
+                let channelFound = false;
+                const updatedChannels = channels.map(ch => {
+                    if (ch.provider === provider) {
+                        channelFound = true;
+                        return {
+                            ...ch,
+                            credentialId: credentialId,
+                            status: credentialId ? 'ready' : 'missing_key',
+                            updatedAt: firebase.firestore.Timestamp.now()
+                        };
+                    }
+                    return ch;
+                });
+
+                // If channel not in array but we are binding it (edge case), add it
+                if (!channelFound) {
+                    updatedChannels.push({
+                        provider: provider,
+                        credentialId: credentialId,
+                        status: 'ready',
+                        enabled: true,
+                        updatedAt: firebase.firestore.Timestamp.now(),
+                        lastErrorMessage: null
+                    });
+                }
+
+                transaction.update(teamRef, {
+                    channelBindings: channelBindings,
+                    channels: updatedChannels,
+                    updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            });
+
+            window.closeCredentialSelector();
+            // Listener will auto-update UI
+
+        } catch (e) {
+            console.error("Error updating binding:", e);
+            alert("Failed to update credential binding: " + e.message);
+            window.closeCredentialSelector();
+        }
     }
 
     console.log('[View History] Module loaded');

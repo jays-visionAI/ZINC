@@ -11,7 +11,6 @@ window.ChannelCredentialService = {
         try {
             const snapshot = await db.collection('userApiCredentials')
                 .where('userId', '==', userId)
-                .orderBy('createdAt', 'desc')
                 .get();
 
             const credentials = [];
@@ -20,6 +19,13 @@ window.ChannelCredentialService = {
                     id: doc.id,
                     ...doc.data()
                 });
+            });
+
+            // Sort in memory to avoid composite index requirement
+            credentials.sort((a, b) => {
+                const timeA = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
+                const timeB = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+                return timeB - timeA; // Descending
             });
 
             return credentials;

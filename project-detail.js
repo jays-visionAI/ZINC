@@ -808,36 +808,40 @@ document.addEventListener("DOMContentLoaded", async () => {
         const selectedChannels = [];
         const targetChannelIds = [];
         const targetChannelKeys = [];
+        const channelBindings = {};
 
         // Use the target channel selected in Step 1
         if (deployData.targetChannel) {
             const ch = deployData.targetChannel;
             const channelKey = ch.slug || ch.channel_type || ch.id;
 
-            // In a real implementation, we would save the credentials to a secure storage 
-            // and get a credentialId. For now, we'll store the raw credentials in a temporary field
-            // or assume they are managed elsewhere if not provided.
+            // Capture selected credential ID from DOM
+            const credSelect = document.getElementById(`ch-cred-${ch.id}`);
+            const selectedCredId = credSelect ? credSelect.value : null;
 
             // Construct channel object
             const channelObj = {
                 provider: channelKey,
-                credentialId: null, // Will be updated if we implement credential saving
+                credentialId: selectedCredId, // Phase 2: Link to userApiCredentials
                 enabled: true,
                 updatedAt: firebase.firestore.Timestamp.now(),
                 lastErrorMessage: null,
-                // Store config temporarily if needed, or rely on Settings page later
                 config: deployData.channelCredentials || {}
             };
 
             // Compute status
-            channelObj.status = 'active'; // Default to active for now
+            channelObj.status = selectedCredId ? 'ready' : 'missing_key';
 
             selectedChannels.push(channelObj);
             targetChannelIds.push(ch.id);
             targetChannelKeys.push(channelKey);
+
+            if (selectedCredId) {
+                channelBindings[channelKey] = selectedCredId;
+            }
         }
 
-        const hasApiKeys = Object.keys(deployData.channelCredentials || {}).length > 0;
+        const hasApiKeys = Object.keys(channelBindings).length > 0;
 
         if (!hasApiKeys) {
             if (!confirm("Are you sure you want to create the agent team instance without configuring any API keys?")) return;
@@ -856,6 +860,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 name: deployData.teamName,
                 description: deployData.description,
                 status: 'active',
+
+                // PRD 12.0 Phase 2: Channel Bindings
+                channelBindings: channelBindings,
 
                 // PRD 11.0 Phase 2: Channels Array
                 channels: selectedChannels,
