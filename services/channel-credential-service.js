@@ -46,7 +46,6 @@ window.ChannelCredentialService = {
             userId,
             provider: data.provider,
             accountName: data.accountName,
-            accountHandle: data.accountHandle,
             credentials: data.credentials,
             status: data.status || 'active',
             updatedAt: timestamp
