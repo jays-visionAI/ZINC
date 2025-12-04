@@ -292,12 +292,17 @@ window.updateCredentialFields = function () {
     const provider = document.getElementById('credential-provider').value;
     const container = document.getElementById('credential-fields-container');
 
+    console.log('updateCredentialFields called, provider:', provider);
+    console.log('Container element:', container);
+
     if (!provider) {
         container.innerHTML = '';
         return;
     }
 
     const fields = getProviderFields(provider);
+    console.log('Fields for provider:', fields);
+
     container.innerHTML = fields.map(field => `
         <div class="form-group" style="margin-bottom: 20px;">
             <label style="display: block; margin-bottom: 8px; color: rgba(255,255,255,0.8); font-size: 14px;">
@@ -313,6 +318,8 @@ window.updateCredentialFields = function () {
             ${field.help ? `<small style="color: rgba(255,255,255,0.5); font-size: 12px;">${field.help}</small>` : ''}
         </div>
     `).join('');
+
+    console.log('Fields rendered:', fields.length);
 };
 
 function getProviderFields(provider) {
