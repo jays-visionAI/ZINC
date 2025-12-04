@@ -1,0 +1,180 @@
+<div class="admin-page-header">
+    <div class="admin-page-title-group">
+        <h2>LLM Providers</h2>
+        <p class="admin-page-subtitle">Manage LLM engines and API keys used by ZYNK.</p>
+    </div>
+    <div class="admin-page-actions">
+        <button id="btn-add-provider" class="admin-btn-primary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Add Provider
+        </button>
+    </div>
+</div>
+
+<div class="admin-card">
+    <div class="admin-table-container">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Provider</th>
+                    <th>Status</th>
+                    <th>Models</th>
+                    <th>Updated At</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="llm-providers-table-body">
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">
+                        Loading providers...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add/Edit Provider Modal -->
+<div id="llm-provider-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-container" style="max-width: 600px;">
+        <div class="modal-header">
+            <h3 id="modal-title">Add LLM Provider</h3>
+            <button class="modal-close" onclick="closeProviderModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <form id="llm-provider-form">
+                <input type="hidden" id="provider-doc-id">
+
+                <div class="form-group">
+                    <label>Provider Type</label>
+                    <select id="provider-type" class="admin-input" required>
+                        <option value="openai">OpenAI</option>
+                        <option value="anthropic">Anthropic</option>
+                        <option value="gemini">Google Gemini</option>
+                        <option value="custom">Custom / Other</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" id="provider-name" class="admin-input" placeholder="e.g. ZYNK OpenAI #1"
+                        required>
+                </div>
+
+                <div class="form-group">
+                    <label>API Key</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="password" id="provider-api-key" class="admin-input" placeholder="sk-..." required>
+                        <button type="button" id="btn-test-connection" class="admin-btn-secondary"
+                            style="white-space: nowrap;">
+                            Test Connection
+                        </button>
+                    </div>
+                    <div id="connection-test-result" style="margin-top: 5px; font-size: 12px;"></div>
+                </div>
+
+                <div class="form-group">
+                    <label>Models (comma separated)</label>
+                    <input type="text" id="provider-models" class="admin-input" placeholder="gpt-4o, gpt-4o-mini"
+                        required>
+                    <small style="color: rgba(255,255,255,0.5);">List the models this key has access to.</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Status</label>
+                    <select id="provider-status" class="admin-input">
+                        <option value="active">Active</option>
+                        <option value="disabled">Disabled</option>
+                    </select>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="admin-btn-secondary" onclick="closeProviderModal()">Cancel</button>
+            <button class="admin-btn-primary" id="btn-save-provider">Save Provider</button>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Modal Styles (Reuse existing if possible, but defining here for safety) */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        backdrop-filter: blur(4px);
+    }
+
+    .modal-container {
+        background: #1e1e24;
+        border: 1px solid #333;
+        border-radius: 8px;
+        width: 90%;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid #333;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-body {
+        padding: 20px;
+    }
+
+    .modal-footer {
+        padding: 16px 20px;
+        border-top: 1px solid #333;
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        color: #888;
+        font-size: 24px;
+        cursor: pointer;
+    }
+
+    .form-group {
+        margin-bottom: 16px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 13px;
+        color: #ccc;
+    }
+
+    .admin-input {
+        width: 100%;
+        padding: 8px 12px;
+        background: #2a2a30;
+        border: 1px solid #444;
+        border-radius: 4px;
+        color: white;
+        font-size: 14px;
+    }
+
+    .admin-input:focus {
+        border-color: #16e0bd;
+        outline: none;
+    }
+</style>

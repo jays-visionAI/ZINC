@@ -172,6 +172,11 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // System LLM Providers: Admin only (Secure storage for API Keys)
+    match /systemLLMProviders/{providerId} {
+      allow read, write: if isAdmin();
+    }
+
     // System Prompt Templates: Authenticated users can read/write (Dev Mode)
     match /systemPromptTemplates/{templateId} {
       allow read, write: if request.auth != null;
