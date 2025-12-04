@@ -222,6 +222,34 @@
             contentTypes: ["text", "image", "video"],
             interactionStyle: { tone: "Direct & Personal" },
             version: "1.0.0"
+        },
+        {
+            id: "naver_smartstore",
+            key: "naver_smartstore",
+            name: "Naver Smart Store",
+            displayName: "Naver Smart Store",
+            icon: "🛒",
+            order: 14,
+            supportsApiConnection: true,
+            status: "active",
+            category: "commerce",
+            contentTypes: ["product", "image", "description"],
+            interactionStyle: { tone: "Commercial & Persuasive" },
+            version: "1.0.0"
+        },
+        {
+            id: "coupang",
+            key: "coupang",
+            name: "Coupang",
+            displayName: "Coupang",
+            icon: "🛍️",
+            order: 15,
+            supportsApiConnection: true,
+            status: "active",
+            category: "commerce",
+            contentTypes: ["product", "image", "description"],
+            interactionStyle: { tone: "Commercial & Persuasive" },
+            version: "1.0.0"
         }
     ];
 

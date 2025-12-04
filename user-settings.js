@@ -167,6 +167,7 @@ const PROVIDER_CONFIG = {
     discord: { fields: [{ key: 'botToken', label: 'Bot Token', type: 'password', required: true }] },
     naver_blog: { fields: [{ key: 'clientId', label: 'Client ID', type: 'text', required: true }, { key: 'clientSecret', label: 'Client Secret', type: 'password', required: true }] },
     naver_smartstore: { fields: [{ key: 'apiKey', label: 'API Key', type: 'password', required: true }] },
+    coupang: { fields: [{ key: 'accessKey', label: 'Access Key', type: 'text', required: true }, { key: 'secretKey', label: 'Secret Key', type: 'password', required: true }] },
     reddit: { fields: [{ key: 'clientId', label: 'Client ID', type: 'text', required: true }, { key: 'clientSecret', label: 'Client Secret', type: 'password', required: true }] },
     kakaotalk: { fields: [{ key: 'apiKey', label: 'REST API Key', type: 'password', required: true }] },
     line: { fields: [{ key: 'channelAccessToken', label: 'Channel Access Token', type: 'password', required: true }] },
