@@ -28,7 +28,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         // Fetch Channel Profiles
         const snapshot = await db.collection('channelProfiles')
             .where('status', '==', 'active')
-            .orderBy('order', 'asc')
             .get();
 
         const container = document.getElementById('sidebar-platforms-list');
@@ -39,8 +38,15 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
+        // Sort in-memory to avoid Firestore index requirement
+        const channels = [];
         snapshot.forEach(doc => {
-            const data = doc.data();
+            channels.push({ id: doc.id, ...doc.data() });
+        });
+
+        channels.sort((a, b) => (a.order || 0) - (b.order || 0));
+
+        channels.forEach(data => {
             const link = document.createElement('a');
             link.href = `#platform-${data.key}`; // Placeholder link
             link.className = 'menu-item';
