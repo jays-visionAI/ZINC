@@ -651,10 +651,16 @@
             // Use AgentRuntimeService to check connection
             const context = await AgentRuntimeService.prepareExecutionContext(selectedTeamId, firebase.auth().currentUser.uid);
 
-            const channelContext = context.channels.find(ch => ch.provider === provider);
+            console.log('[CheckConnection] Provider:', provider);
+            console.log('[CheckConnection] Context Channels:', context.channels.map(c => c.provider));
+
+            // Case-insensitive lookup
+            const channelContext = context.channels.find(ch =>
+                ch.provider.toLowerCase() === provider.toLowerCase()
+            );
 
             if (!channelContext) {
-                throw new Error('Channel not found in agent team');
+                throw new Error(`Channel '${provider}' not found in agent team`);
             }
 
             if (channelContext.status === 'ready') {

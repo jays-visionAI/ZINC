@@ -28,7 +28,8 @@ class AgentRuntimeService {
             );
 
             // 4. Determine overall readiness
-            const isReady = channelContexts.length > 0 && channelContexts.every(ctx => ctx.status === 'ready');
+            // Relaxed check: At least one channel must be ready
+            const isReady = channelContexts.some(ctx => ctx.status === 'ready');
             const errors = channelContexts.filter(ctx => ctx.status !== 'ready');
 
             return {
@@ -68,8 +69,8 @@ class AgentRuntimeService {
             // Get the specific credential by ID
             credential = await this.getCredentialById(credentialId);
 
-            // Verify it belongs to the user and matches the provider
-            if (credential && (credential.userId !== userId || credential.provider !== provider)) {
+            // Verify it belongs to the user and matches the provider (case-insensitive)
+            if (credential && (credential.userId !== userId || credential.provider.toLowerCase() !== provider.toLowerCase())) {
                 console.warn(`Credential ${credentialId} mismatch: expected userId=${userId}, provider=${provider}`);
                 credential = null;
             }
@@ -77,7 +78,11 @@ class AgentRuntimeService {
 
         // Fallback: find any credential for this provider
         if (!credential) {
+            // Try exact match first, then lowercase
             credential = await this.getCredentialForProvider(userId, provider);
+            if (!credential && provider !== provider.toLowerCase()) {
+                credential = await this.getCredentialForProvider(userId, provider.toLowerCase());
+            }
         }
 
         if (!credential) {
@@ -304,7 +309,9 @@ class AgentRuntimeService {
                         };
                     });
 
-                    const isReady = channelContexts.length > 0 && channelContexts.every(ctx => ctx.status === 'ready');
+                    // Relaxed readiness check: If AT LEAST ONE channel is ready, the agent is ready.
+                    // This handles cases where multiple channels are defined but only one is used.
+                    const isReady = channelContexts.some(ctx => ctx.status === 'ready');
 
                     return [id, {
                         instance,
