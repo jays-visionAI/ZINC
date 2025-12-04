@@ -194,7 +194,7 @@
                     <button class="modal-close" onclick="closeDeployWizard()">×</button>
                 </div>
                 <div style="font-size: 13px; color: rgba(255,255,255,0.5); margin-top: 4px;">
-                    Step <span id="deploy-step-num">1</span> of 4: <span id="deploy-step-title">Basic Info</span>
+                    Step <span id="deploy-step-num">1</span> of 3: <span id="deploy-step-title">Basic Info</span>
                 </div>
                 <button class="admin-modal-close" id="deploy-modal-close">&times;</button>
             </div>
@@ -202,16 +202,16 @@
             <!-- Wizard Progress -->
             <div style="background: rgba(255,255,255,0.1); height: 4px; width: 100%;">
                 <div id="deploy-progress"
-                    style="background: #16e0bd; height: 100%; width: 25%; transition: width 0.3s ease;"></div>
+                    style="background: #16e0bd; height: 100%; width: 33.33%; transition: width 0.3s ease;"></div>
             </div>
 
             <!-- Wizard Body -->
             <div class="admin-modal-body" style="flex: 1; overflow-y: auto; padding: 24px;">
 
-                <!-- Step 1: Basic Info -->
+                <!-- Step 1: Basic Info & Credential Selection -->
                 <div id="deploy-step-1" class="wizard-step">
                     <p style="margin-bottom: 24px; color: rgba(255,255,255,0.7);">
-                        Define the identity of your new Agent Team.
+                        Define the identity of your new Agent Team and select API credentials.
                     </p>
 
                     <div class="admin-form-group">
@@ -222,6 +222,19 @@
                         </select>
                         <small style="color: rgba(255,255,255,0.5);">Choose the target channel for this agent
                             team.</small>
+                    </div>
+
+                    <!-- Credential Selection (shown after channel is selected) -->
+                    <div id="deploy-credential-group" class="admin-form-group" style="display: none;">
+                        <label class="admin-form-label">API Credential</label>
+                        <select id="deploy-credential-select" class="admin-form-input">
+                            <option value="">-- No credential (configure later) --</option>
+                            <!-- Credentials injected by JS -->
+                        </select>
+                        <small style="color: rgba(255,255,255,0.5);">
+                            Select an existing API credential or configure it later in <strong>Settings →
+                                Connections</strong>.
+                        </small>
                     </div>
 
                     <div class="admin-form-group">
@@ -258,34 +271,6 @@
                     <div id="runtime-summary-container">
                         <!-- Populated by JS -->
                         <div style="text-align: center; padding: 20px;">Loading Runtime Profiles...</div>
-                    </div>
-                </div>
-
-                <!-- Step 4: Target Channels & Credentials (Phase 2) -->
-                <div id="deploy-step-4" class="wizard-step" style="display: none;">
-                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
-                        <div id="deploy-selected-channel-icon" style="font-size: 28px;">📺</div>
-                        <div>
-                            <h4 style="margin: 0; color: #16e0bd;" id="deploy-selected-channel-title">Channel API
-                                Settings</h4>
-                            <div id="deploy-selected-channel-name"
-                                style="font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 4px;"></div>
-                        </div>
-                    </div>
-
-                    <div
-                        style="background: rgba(22, 224, 189, 0.1); border-left: 3px solid #16e0bd; padding: 12px 16px; margin-bottom: 16px; border-radius: 4px;">
-                        <div style="font-size: 13px; color: rgba(255,255,255,0.8); line-height: 1.5;">
-                            <strong>💡 Note:</strong> API keys are optional. You can create the agent team instance now
-                            and configure API keys later in <strong>Settings → Connections</strong>.
-                        </div>
-                    </div>
-
-                    <div id="deploy-channel-api-form"
-                        style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 8px;">
-                        <!-- Populated by JS -->
-                        <div style="text-align: center; padding: 20px; color: rgba(255,255,255,0.5);">Select a channel
-                            in Step 1 to configure API settings.</div>
                     </div>
                 </div>
 

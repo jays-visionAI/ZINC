@@ -326,12 +326,19 @@ document.addEventListener("DOMContentLoaded", async () => {
                     selectElement.appendChild(option);
                 });
 
-                selectElement.onchange = function () {
+                selectElement.onchange = async function () {
                     if (this.value) {
                         const channelData = JSON.parse(this.value);
                         deployData.targetChannel = channelData;
+
+                        // Load credentials for selected channel
+                        await loadCredentialsForChannel(channelData.slug);
                     } else {
                         deployData.targetChannel = null;
+
+                        // Hide credential group
+                        const credGroup = document.getElementById('deploy-credential-group');
+                        if (credGroup) credGroup.style.display = 'none';
                     }
                     updateDeployTeamNamePrefix();
                 };
@@ -340,6 +347,53 @@ document.addEventListener("DOMContentLoaded", async () => {
                 console.error("Error loading channels:", error);
                 selectElement.innerHTML = '<option value="">Error loading channels</option>';
             });
+    }
+
+    /**
+     * Load user credentials for selected channel
+     */
+    async function loadCredentialsForChannel(channelKey) {
+        const credGroup = document.getElementById('deploy-credential-group');
+        const credSelect = document.getElementById('deploy-credential-select');
+
+        if (!credGroup || !credSelect || !currentUser) return;
+
+        try {
+            // Get all user credentials
+            const credentials = await AgentRuntimeService.getAllUserCredentials(currentUser.uid);
+
+            // Filter credentials for this channel
+            const matchingCreds = credentials.filter(c => c.provider === channelKey);
+
+            // Clear and populate dropdown
+            credSelect.innerHTML = '<option value="">-- No credential (configure later) --</option>';
+
+            matchingCreds.forEach(cred => {
+                const option = document.createElement('option');
+                option.value = cred.id;
+
+                // Show status indicator
+                const statusIcon = cred.status === 'connected' ? '✓' : '⚠';
+                const statusText = cred.status === 'connected' ? 'Connected' : 'Not tested';
+
+                option.textContent = `${statusIcon} ${cred.accountName || 'Unnamed'} (${statusText})`;
+                credSelect.appendChild(option);
+            });
+
+            // Show credential group
+            credGroup.style.display = 'block';
+
+            // Auto-select first connected credential if available
+            const connectedCred = matchingCreds.find(c => c.status === 'connected');
+            if (connectedCred) {
+                credSelect.value = connectedCred.id;
+            }
+
+        } catch (error) {
+            console.error('Error loading credentials:', error);
+            credSelect.innerHTML = '<option value="">Error loading credentials</option>';
+            credGroup.style.display = 'block';
+        }
     }
 
     function updateDeployTeamNamePrefix() {
@@ -372,18 +426,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     function updateDeployUI() {
         document.getElementById("deploy-step-num").textContent = deployStep;
         const titles = {
-            1: "Basic Info",
+            1: "Basic Info & Credentials",
             2: "Select Template",
-            3: "Runtime Summary",
-            4: "Channels & Credentials"
+            3: "Runtime Summary"
         };
         document.getElementById("deploy-step-title").textContent = titles[deployStep];
 
-        const progress = (deployStep / 4) * 100;
+        const progress = (deployStep / 3) * 100;
         document.getElementById("deploy-progress").style.width = `${progress}%`;
 
         // Hide all steps
-        for (let i = 1; i <= 4; i++) {
+        for (let i = 1; i <= 3; i++) {
             const stepEl = document.getElementById(`deploy-step-${i}`);
             if (stepEl) stepEl.style.display = "none";
         }
@@ -394,54 +447,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         // Buttons
         document.getElementById("deploy-prev").style.visibility = deployStep === 1 ? "hidden" : "visible";
+
         const nextBtn = document.getElementById("deploy-next");
-
-        if (deployStep === 4) {
+        if (deployStep === 3) {
             nextBtn.textContent = "Create Agent Team";
-            nextBtn.classList.add("btn-success"); // Optional styling
-
-            // Update channel info
-            if (deployData.targetChannel) {
-                document.getElementById('deploy-selected-channel-icon').textContent = deployData.targetChannel.icon || '📺';
-                document.getElementById('deploy-selected-channel-title').textContent = `${deployData.targetChannel.name} API Settings`;
-                document.getElementById('deploy-selected-channel-name').textContent = `Channel: ${deployData.targetChannel.slug}`;
-            }
-
-            // Render API Fields
-            const apiForm = document.getElementById('deploy-channel-api-form');
-            if (deployData.targetChannel) {
-                const slug = deployData.targetChannel.slug;
-                const fieldDefs = CHANNEL_API_FIELD_DEFS[slug] || CHANNEL_API_FIELD_DEFS['default'];
-
-                apiForm.innerHTML = fieldDefs.map(def => {
-                    const value = deployData.channelCredentials?.[def.key] || '';
-                    return `
-                        <div class="admin-form-group">
-                            <label class="admin-form-label">${def.label} ${def.required ? '<span style="color: #ef4444;">*</span>' : ''}</label>
-                            <input type="${def.type}" class="admin-form-input" 
-                                value="${value}"
-                                onchange="window.updateDeployChannelCredential('${def.key}', this.value)"
-                                placeholder="${def.helperText}"
-                            >
-                            <small style="color: rgba(255,255,255,0.5);">${def.helperText}</small>
-                        </div>
-                        `;
-                }).join('');
-            }
         } else {
             nextBtn.textContent = "Next Step";
-            nextBtn.classList.remove("btn-success");
         }
 
         // Load data for specific steps
         if (deployStep === 2) {
             loadTeamTemplates();
-        } else if (deployStep === 4) {
-            // If we are on step 4 and targetChannel is not set, reset button
-            if (!deployData.targetChannel) {
-                nextBtn.textContent = "Next Step";
-                nextBtn.classList.remove("btn-success");
-            }
         }
     }
 
@@ -620,18 +636,19 @@ document.addEventListener("DOMContentLoaded", async () => {
             deployData.teamName = teamName;
             deployData.description = document.getElementById("team-description").value;
 
+            // Capture selected credential ID
+            const credSelect = document.getElementById("deploy-credential-select");
+            deployData.selectedCredentialId = credSelect ? credSelect.value : null;
+
             deployStep++;
             updateDeployUI();
             return;
         } else if (deployStep === 2) {
             if (!deployData.templateId) { alert("Please select a template."); return; }
             deployStep++;
-            await renderDeployStep3(); // Await async function
+            await renderDeployStep3();
         } else if (deployStep === 3) {
-            deployStep++;
-            // Step 4 UI is handled by updateDeployUI()
-        } else if (deployStep === 4) {
-            await deployTeam(); // Also await this
+            await deployTeam();
             return; // Don't call updateDeployUI after team creation
         }
         updateDeployUI();
@@ -640,36 +657,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     function handleDeployPrev() {
         if (deployStep > 1) {
             deployStep--;
-            if (deployStep === 4) {
-                // Update channel info
-                if (deployData.targetChannel) {
-                    document.getElementById('deploy-selected-channel-icon').textContent = deployData.targetChannel.icon || '📺';
-                    document.getElementById('deploy-selected-channel-title').textContent = `${deployData.targetChannel.name} API Settings`;
-                    document.getElementById('deploy-selected-channel-name').textContent = `Channel: ${deployData.targetChannel.slug}`;
-                }
-
-                // Render API Fields
-                const apiForm = document.getElementById('deploy-channel-api-form');
-                if (deployData.targetChannel) {
-                    const slug = deployData.targetChannel.slug;
-                    const fieldDefs = CHANNEL_API_FIELD_DEFS[slug] || CHANNEL_API_FIELD_DEFS['default'];
-
-                    apiForm.innerHTML = fieldDefs.map(def => {
-                        const value = deployData.channelCredentials?.[def.key] || '';
-                        return `
-                            <div class="admin-form-group">
-                                <label class="admin-form-label">${def.label} ${def.required ? '<span style="color: #ef4444;">*</span>' : ''}</label>
-                                <input type="${def.type}" class="admin-form-input" 
-                                    value="${value}"
-                                    onchange="window.updateDeployChannelCredential('${def.key}', this.value)"
-                                    placeholder="${def.helperText}"
-                                >
-                                <small style="color: rgba(255,255,255,0.5);">${def.helperText}</small>
-                            </div>
-                            `;
-                    }).join('');
-                }
-            }
             updateDeployUI();
         }
     }
@@ -841,7 +828,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function deployTeam() {
         const btn = document.getElementById("deploy-next");
 
-        // Collect Channel Config from dynamically loaded channels
+        // Collect Channel Config from deployData
         const selectedChannels = [];
         const targetChannelIds = [];
         const targetChannelKeys = [];
@@ -852,9 +839,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             const ch = deployData.targetChannel;
             const channelKey = ch.slug || ch.channel_type || ch.id;
 
-            // Capture selected credential ID from DOM
-            const credSelect = document.getElementById(`ch-cred-${ch.id}`);
-            const selectedCredId = credSelect ? credSelect.value : null;
+            // Use credential ID from Step 1
+            const selectedCredId = deployData.selectedCredentialId || null;
 
             // Construct channel object
             const channelObj = {
@@ -1053,6 +1039,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             grid.innerHTML = '<div style="text-align: center; color: #ef4444;">Error loading agent swarm.</div>';
         }
     }
+
+    // Expose to global scope for card handlers
+    window.loadAgentSwarm = loadAgentSwarm;
 
     function renderAgentCard(inst, runtimeContext) {
         // 1. Normalize Channels
