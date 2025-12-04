@@ -131,7 +131,7 @@
             <tr>
                 <td>
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        ${getChannelIcon(p.id)}
+                        ${getChannelIcon(p.id, p)}
                         <strong>${p.name}</strong>
                     </div>
                 </td>
@@ -177,7 +177,9 @@
         }
     };
 
-    function getChannelIcon(id) {
+    function getChannelIcon(id, profile) {
+        if (profile && profile.icon) return profile.icon;
+
         const icons = {
             instagram: '📸',
             x: '🐦',

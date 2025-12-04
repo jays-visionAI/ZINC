@@ -130,16 +130,88 @@ function formatDate(timestamp) {
     return date.toLocaleDateString();
 }
 
+// Provider Configuration (Field Specs only)
+const PROVIDER_CONFIG = {
+    x: {
+        fields: [
+            { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Enter API Key', required: true },
+            { key: 'apiSecret', label: 'API Secret', type: 'password', placeholder: 'Enter API Secret', required: false },
+            { key: 'accessToken', label: 'Access Token', type: 'password', placeholder: 'Enter Access Token', required: true },
+            { key: 'accessTokenSecret', label: 'Access Token Secret', type: 'password', placeholder: 'Enter Token Secret', required: false }
+        ]
+    },
+    instagram: {
+        fields: [
+            { key: 'accessToken', label: 'Access Token', type: 'password', placeholder: 'Enter Access Token', required: true },
+            { key: 'pageId', label: 'Page ID', type: 'text', placeholder: 'Enter Facebook Page ID', required: true, help: 'Facebook Page ID connected to Instagram' }
+        ]
+    },
+    youtube: {
+        fields: [
+            { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Enter YouTube API Key', required: true, help: 'From Google Cloud Console' }
+        ]
+    },
+    linkedin: {
+        fields: [
+            { key: 'accessToken', label: 'Access Token', type: 'password', placeholder: 'Enter Access Token', required: true },
+            { key: 'urn', label: 'Organization URN', type: 'text', placeholder: 'urn:li:organization:12345', required: false }
+        ]
+    },
+    tiktok: {
+        fields: [
+            { key: 'accessToken', label: 'Access Token', type: 'password', placeholder: 'Enter Access Token', required: true },
+            { key: 'clientKey', label: 'Client Key', type: 'text', placeholder: 'Enter Client Key', required: true }
+        ]
+    },
+    facebook: { fields: [{ key: 'accessToken', label: 'Access Token', type: 'password', required: true }] },
+    discord: { fields: [{ key: 'botToken', label: 'Bot Token', type: 'password', required: true }] },
+    naver_blog: { fields: [{ key: 'clientId', label: 'Client ID', type: 'text', required: true }, { key: 'clientSecret', label: 'Client Secret', type: 'password', required: true }] },
+    naver_smartstore: { fields: [{ key: 'apiKey', label: 'API Key', type: 'password', required: true }] },
+    reddit: { fields: [{ key: 'clientId', label: 'Client ID', type: 'text', required: true }, { key: 'clientSecret', label: 'Client Secret', type: 'password', required: true }] },
+    kakaotalk: { fields: [{ key: 'apiKey', label: 'REST API Key', type: 'password', required: true }] },
+    line: { fields: [{ key: 'channelAccessToken', label: 'Channel Access Token', type: 'password', required: true }] },
+    telegram: { fields: [{ key: 'botToken', label: 'Bot Token', type: 'password', required: true }] },
+    whatsapp: { fields: [{ key: 'accessToken', label: 'Access Token', type: 'password', required: true }] }
+};
+
 // Modal Management
-window.openCredentialModal = function (credentialId = null) {
+window.openCredentialModal = async function (credentialId = null) {
     const modal = document.getElementById('credential-modal');
     const form = document.getElementById('credential-form');
     const title = document.getElementById('credential-modal-title');
     const testResult = document.getElementById('test-connection-result');
+    const providerSelect = document.getElementById('credential-provider');
 
     form.reset();
     document.getElementById('credential-id').value = '';
     testResult.innerHTML = '';
+
+    // Reset provider select
+    providerSelect.innerHTML = '<option value="">Loading channels...</option>';
+
+    try {
+        // Fetch active channels from Firestore (Phase 3)
+        const snapshot = await db.collection('channelProfiles')
+            .where('supportsApiConnection', '==', true)
+            .where('status', '==', 'active')
+            .orderBy('order', 'asc')
+            .get();
+
+        providerSelect.innerHTML = '<option value="">Select a provider...</option>';
+
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const option = document.createElement('option');
+            option.value = data.key; // Use 'key' as provider value
+            option.textContent = data.displayName;
+            providerSelect.appendChild(option);
+        });
+
+    } catch (error) {
+        console.error("Error loading channel options:", error);
+        providerSelect.innerHTML = '<option value="">Error loading channels</option>';
+    }
+
     updateCredentialFields();
 
     if (credentialId) {
@@ -203,7 +275,7 @@ window.updateCredentialFields = function () {
                 type="${field.type}" 
                 id="cred-${field.key}" 
                 class="admin-form-input" 
-                placeholder="${field.placeholder}"
+                placeholder="${field.placeholder || ''}"
                 ${field.required ? 'required' : ''}
             >
             ${field.help ? `<small style="color: rgba(255,255,255,0.5); font-size: 12px;">${field.help}</small>` : ''}
@@ -212,31 +284,7 @@ window.updateCredentialFields = function () {
 };
 
 function getProviderFields(provider) {
-    const fieldSets = {
-        x: [
-            { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Enter API Key', required: true },
-            { key: 'apiSecret', label: 'API Secret', type: 'password', placeholder: 'Enter API Secret', required: false },
-            { key: 'accessToken', label: 'Access Token', type: 'password', placeholder: 'Enter Access Token', required: true },
-            { key: 'accessTokenSecret', label: 'Access Token Secret', type: 'password', placeholder: 'Enter Token Secret', required: false }
-        ],
-        instagram: [
-            { key: 'accessToken', label: 'Access Token', type: 'password', placeholder: 'Enter Access Token', required: true },
-            { key: 'pageId', label: 'Page ID', type: 'text', placeholder: 'Enter Facebook Page ID', required: true, help: 'Facebook Page ID connected to Instagram' }
-        ],
-        youtube: [
-            { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Enter YouTube API Key', required: true, help: 'From Google Cloud Console' }
-        ],
-        linkedin: [
-            { key: 'accessToken', label: 'Access Token', type: 'password', placeholder: 'Enter Access Token', required: true },
-            { key: 'urn', label: 'Organization URN', type: 'text', placeholder: 'urn:li:organization:12345', required: false }
-        ],
-        tiktok: [
-            { key: 'accessToken', label: 'Access Token', type: 'password', placeholder: 'Enter Access Token', required: true },
-            { key: 'clientKey', label: 'Client Key', type: 'text', placeholder: 'Enter Client Key', required: true }
-        ]
-    };
-
-    return fieldSets[provider] || [];
+    return PROVIDER_CONFIG[provider]?.fields || [];
 }
 
 function populateCredentialFields(credentials) {
