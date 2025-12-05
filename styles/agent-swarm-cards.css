@@ -186,6 +186,12 @@
     font-size: 13px;
     color: rgba(255, 255, 255, 0.8);
     line-height: 1.5;
+    /* Multi-line truncation */
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* Metrics */
