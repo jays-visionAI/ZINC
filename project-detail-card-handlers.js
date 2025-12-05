@@ -170,19 +170,55 @@ function renderSettingsSubAgents(subAgents) {
         return;
     }
 
-    list.innerHTML = subAgents.map(agent => `
-        <div class="sub-agent-setting-card" style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
-                <div style="font-weight: 600; color: #fff;">${agent.role_name || agent.role}</div>
-                <div style="font-size: 12px; color: rgba(255,255,255,0.5);">${agent.model_id || 'Default Model'}</div>
+    // Role-based placeholders for better UX
+    const placeholders = {
+        'researcher': 'e.g., Search for latest tech news from reliable sources like TechCrunch and The Verge. Focus on AI developments...',
+        'writer': 'e.g., Write in a professional yet engaging tone. Use emojis sparingly. Avoid jargon...',
+        'planner': 'e.g., Create a content plan that balances educational posts with promotional content. Schedule posts for optimal times...',
+        'reviewer': 'e.g., Check for grammatical errors and ensure the tone matches our brand voice. Verify all facts...',
+        'default': 'e.g., define the specific tasks and behavioral guidelines for this agent...'
+    };
+
+    list.innerHTML = subAgents.map(agent => {
+        const roleKey = (agent.role || '').toLowerCase();
+        // Find best matching placeholder
+        let placeholder = placeholders['default'];
+        if (roleKey.includes('research') || roleKey.includes('search')) placeholder = placeholders['researcher'];
+        else if (roleKey.includes('writ') || roleKey.includes('copy')) placeholder = placeholders['writer'];
+        else if (roleKey.includes('plan') || roleKey.includes('strateg')) placeholder = placeholders['planner'];
+        else if (roleKey.includes('review') || roleKey.includes('compliance')) placeholder = placeholders['reviewer'];
+
+        return `
+        <div class="sub-agent-setting-card" style="background: rgba(255,255,255,0.03); padding: 20px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
+                <div>
+                    <div style="font-weight: 600; color: #fff; font-size: 16px; margin-bottom: 4px;">${agent.role_name || agent.role}</div>
+                    <div style="font-size: 12px; color: rgba(255,255,255,0.4); display: flex; align-items: center; gap: 6px;">
+                        <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #3B82F6;"></span>
+                        ${agent.model_id || 'Default Model'}
+                    </div>
+                </div>
+                <div style="background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; font-size: 11px; color: rgba(255,255,255,0.7);">
+                    ${agent.role || 'Agent'}
+                </div>
             </div>
             
             <div class="form-group">
-                <label class="form-label" style="font-size: 12px;">System Prompt (Persona & Instructions)</label>
-                <textarea class="form-input sub-agent-prompt" data-id="${agent.id}" rows="4" style="font-size: 13px; font-family: monospace;">${agent.system_prompt || ''}</textarea>
+                <label class="form-label" style="font-size: 13px; color: rgba(255,255,255,0.9);">
+                    📝 Behavior Instructions (System Prompt)
+                </label>
+                <div style="font-size: 11px; color: rgba(255,255,255,0.5); margin-bottom: 8px;">
+                    Define how this agent should act, its personality, and specific rules to follow.
+                </div>
+                <textarea class="form-input sub-agent-prompt" 
+                    data-id="${agent.id}" 
+                    rows="5" 
+                    style="font-size: 13px; font-family: 'Menlo', 'Monaco', 'Courier New', monospace; line-height: 1.5; background: rgba(0,0,0,0.3);"
+                    placeholder="${placeholder}">${agent.system_prompt || ''}</textarea>
             </div>
         </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 window.saveAgentSettings = async function () {
