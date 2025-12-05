@@ -108,6 +108,11 @@ window.handleOpenSettings = async function (event, teamId) {
 
     // Show modal with loading state
     modal.style.display = 'flex';
+    // Small delay to allow display:flex to apply before adding opacity class for transition
+    requestAnimationFrame(() => {
+        modal.classList.add('open');
+    });
+
     directiveInput.value = 'Loading...';
     subAgentsList.innerHTML = '<div class="loading-state">Loading configuration...</div>';
 
@@ -137,7 +142,23 @@ window.handleOpenSettings = async function (event, teamId) {
     } catch (error) {
         console.error('Error loading settings:', error);
         alert('Failed to load settings: ' + error.message);
-        modal.style.display = 'none';
+        modal.classList.remove('open');
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 200);
+    }
+};
+
+/**
+ * Close Settings Modal
+ */
+window.closeAgentSettingsModal = function () {
+    const modal = document.getElementById('agent-settings-modal');
+    if (modal) {
+        modal.classList.remove('open');
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 200); // Match transition duration
     }
 };
 
