@@ -118,11 +118,10 @@ async function initProjectSelector() {
         console.log('[Studio] User authenticated:', user.uid);
 
         try {
-            // Load projects
+            // Load projects (no orderBy to avoid index requirement)
             console.log('[Studio] Loading projects for user:', user.uid);
             const projectsSnapshot = await db.collection('projects')
                 .where('userId', '==', user.uid)
-                .orderBy('createdAt', 'desc')
                 .get();
 
             console.log('[Studio] Found', projectsSnapshot.size, 'projects');
@@ -134,13 +133,25 @@ async function initProjectSelector() {
                 return;
             }
 
+            // Collect and sort projects client-side
+            const projects = [];
             projectsSnapshot.forEach(doc => {
-                const project = doc.data();
+                projects.push({ id: doc.id, ...doc.data() });
+            });
+
+            // Sort by createdAt descending (newest first)
+            projects.sort((a, b) => {
+                const dateA = a.createdAt?.toDate?.() || new Date(0);
+                const dateB = b.createdAt?.toDate?.() || new Date(0);
+                return dateB - dateA;
+            });
+
+            projects.forEach(project => {
                 const option = document.createElement('option');
-                option.value = doc.id;
-                option.textContent = project.name || project.businessName || doc.id;
+                option.value = project.id;
+                option.textContent = project.name || project.businessName || project.id;
                 projectSelect.appendChild(option);
-                console.log('[Studio] Added project:', doc.id, project.name || project.businessName);
+                console.log('[Studio] Added project:', project.id, project.name || project.businessName);
             });
 
             // If URL has project param, auto-select
