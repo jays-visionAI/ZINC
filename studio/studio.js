@@ -334,6 +334,9 @@ async function loadSubAgents(teamId) {
         // Update Agent Roster UI
         updateAgentRosterUI(subAgents);
 
+        // Update preview channel based on team configuration
+        await updatePreviewChannel(teamId);
+
     } catch (error) {
         console.error('Error loading sub-agents:', error);
         // Fallback to default template
@@ -342,6 +345,120 @@ async function loadSubAgents(teamId) {
             applyTemplate(template);
         }
     }
+}
+
+/**
+ * Update Live Preview channel info based on Agent Team configuration
+ * @param {string} teamId - The selected Agent Team ID
+ */
+async function updatePreviewChannel(teamId) {
+    const channelIcon = document.getElementById('preview-channel-icon');
+    const channelName = document.getElementById('preview-channel-name');
+    const channelInfo = document.getElementById('preview-channel-info');
+
+    if (!channelIcon || !channelName) return;
+
+    try {
+        // Fetch the Agent Team document to get channel config
+        const teamDoc = await db.collection('projectAgentTeamInstances').doc(teamId).get();
+
+        if (!teamDoc.exists) {
+            channelName.textContent = 'Team not found';
+            return;
+        }
+
+        const team = teamDoc.data();
+        const channels = team.channels || [];
+
+        // Channel icon mapping
+        const channelIcons = {
+            'x': '𝕏',
+            'twitter': '𝕏',
+            'instagram': '📷',
+            'facebook': '📘',
+            'linkedin': '💼',
+            'youtube': '▶️',
+            'tiktok': '🎵'
+        };
+
+        const channelDisplayNames = {
+            'x': 'X (Twitter)',
+            'twitter': 'X (Twitter)',
+            'instagram': 'Instagram',
+            'facebook': 'Facebook',
+            'linkedin': 'LinkedIn',
+            'youtube': 'YouTube',
+            'tiktok': 'TikTok'
+        };
+
+        if (channels.length > 0) {
+            // Get the first/primary channel
+            const primaryChannel = channels[0];
+            const provider = primaryChannel.provider || primaryChannel.key;
+
+            channelIcon.textContent = channelIcons[provider] || '📺';
+            channelName.textContent = channelDisplayNames[provider] || provider;
+            channelInfo?.classList.add('ready');
+
+            // Store in state for later use
+            state.activeChannel = provider;
+
+            // Show the appropriate preview panel
+            showPreviewForChannel(provider);
+
+            addLogEntry(`📺 Channel: ${channelDisplayNames[provider] || provider}`, 'info');
+        } else {
+            channelIcon.textContent = '📺';
+            channelName.textContent = 'No channel configured';
+            channelInfo?.classList.remove('ready');
+        }
+
+    } catch (error) {
+        console.error('Error loading team channels:', error);
+        channelName.textContent = 'Error loading channel';
+    }
+}
+
+/**
+ * Show the preview panel for the specified channel
+ * @param {string} provider - Channel provider (x, instagram, etc.)
+ */
+function showPreviewForChannel(provider) {
+    // Map provider to preview panel ID
+    const panelMap = {
+        'x': 'preview-twitter',
+        'twitter': 'preview-twitter',
+        'instagram': 'preview-instagram',
+        'facebook': 'preview-facebook',
+        'linkedin': 'preview-linkedin'
+    };
+
+    const panelId = panelMap[provider] || 'preview-twitter';
+
+    // Hide all preview panels
+    document.querySelectorAll('.preview-panel').forEach(panel => {
+        panel.classList.remove('active');
+    });
+
+    // Show the target panel
+    const targetPanel = document.getElementById(panelId);
+    if (targetPanel) {
+        targetPanel.classList.add('active');
+    }
+}
+
+/**
+ * Reset preview channel info when no team is selected
+ */
+function resetPreviewChannel() {
+    const channelIcon = document.getElementById('preview-channel-icon');
+    const channelName = document.getElementById('preview-channel-name');
+    const channelInfo = document.getElementById('preview-channel-info');
+
+    if (channelIcon) channelIcon.textContent = '📺';
+    if (channelName) channelName.textContent = 'Select Agent Team to see channel';
+    channelInfo?.classList.remove('ready');
+    state.activeChannel = null;
 }
 
 /**

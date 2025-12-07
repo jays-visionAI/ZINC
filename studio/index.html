@@ -447,11 +447,10 @@
         <aside class="studio-panel studio-panel-right">
             <div class="panel-section">
                 <h3 class="panel-title">Live Preview</h3>
-                <div class="preview-tabs">
-                    <button class="preview-tab active" data-tab="twitter">𝕏</button>
-                    <button class="preview-tab" data-tab="instagram">📷</button>
-                    <button class="preview-tab" data-tab="facebook">📘</button>
-                    <button class="preview-tab" data-tab="linkedin">💼</button>
+                <!-- Dynamic channel indicator - populated based on selected Agent Team -->
+                <div id="preview-channel-info" class="preview-channel-info">
+                    <span class="channel-icon" id="preview-channel-icon">📺</span>
+                    <span class="channel-name" id="preview-channel-name">Select Agent Team to see channel</span>
                 </div>
             </div>
 

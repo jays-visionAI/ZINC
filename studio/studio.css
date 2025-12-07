@@ -1011,34 +1011,45 @@
    LIVE PREVIEW
    ============================================ */
 
-.preview-tabs {
+/* Dynamic channel indicator (based on selected Agent Team) */
+.preview-channel-info {
     display: flex;
-    gap: 4px;
-    background: rgba(255, 255, 255, 0.03);
-    padding: 4px;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 12px 16px;
+    border-radius: 10px;
+    border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.preview-channel-info .channel-icon {
+    font-size: 20px;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(139, 92, 246, 0.2);
     border-radius: 8px;
 }
 
-.preview-tab {
-    flex: 1;
-    padding: 8px 12px;
-    background: transparent;
-    border: none;
-    border-radius: 6px;
-    color: var(--color-text-tertiary);
-    font-size: 13px;
+.preview-channel-info .channel-name {
+    font-size: 14px;
     font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.preview-tab:hover {
     color: var(--color-text-secondary);
 }
 
-.preview-tab.active {
-    background: var(--color-purple-500);
-    color: white;
+.preview-channel-info.ready .channel-name {
+    color: var(--color-text-primary);
+}
+
+/* Keep for backward compatibility but hide */
+.preview-tabs {
+    display: none;
+}
+
+.preview-tab {
+    display: none;
 }
 
 .preview-content {
