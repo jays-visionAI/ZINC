@@ -13,7 +13,7 @@
     margin: 0;
     padding: 0;
     background: var(--color-bg-primary);
-    min-height: 100vh;
+    height: 100vh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -172,8 +172,11 @@
 .studio-panel {
     background: var(--color-bg-secondary);
     overflow-y: auto;
+    overflow-x: hidden;
     display: flex;
     flex-direction: column;
+    min-height: 0;
+    /* Important for flex children to scroll */
 }
 
 .studio-panel-left {
@@ -702,10 +705,13 @@
    ============================================ */
 
 .dag-section {
-    flex: 1;
-    min-height: 400px;
+    flex: 0 1 auto;
+    min-height: 300px;
+    max-height: calc(100% - 200px);
+    /* Reserve space for Activity Log */
     display: flex;
     flex-direction: column;
+    overflow: hidden;
 }
 
 .dag-header {
