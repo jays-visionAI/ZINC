@@ -11,6 +11,7 @@
     let selectedSubAgentId = null;
     let currentProjectId = null;
     let currentTeamData = null; // Cache team data for connection checks
+    let channelProfileCache = {}; // Cache for channel credentials (handle, profile image)
 
     // Firestore listeners
     let subAgentsListener = null;
@@ -237,10 +238,12 @@
 
         // 1. Listen to Team Document (for Channels)
         teamListener = db.collection('projectAgentTeamInstances').doc(teamId)
-            .onSnapshot(doc => {
+            .onSnapshot(async doc => {
                 if (doc.exists) {
                     const teamData = doc.data();
                     renderChannelConnections(teamData);
+                    // Load channel profiles for content preview
+                    await loadChannelProfiles(teamData);
                 }
             }, err => console.error("Error loading team data:", err));
 
@@ -347,6 +350,48 @@
                 </div>
             `;
         }).join('');
+    }
+
+    /**
+     * Load channel credential profiles for content preview
+     * Fetches handle, name, profile image from userApiCredentials
+     */
+    async function loadChannelProfiles(teamData) {
+        if (!teamData) return;
+
+        const db = firebase.firestore();
+        const channelBindings = teamData.channelBindings || {};
+
+        // Reset cache
+        channelProfileCache = {};
+
+        // Get all credential IDs from channel bindings
+        const credentialIds = Object.values(channelBindings).filter(id => id);
+
+        if (credentialIds.length === 0) return;
+
+        try {
+            // Fetch credentials
+            const credsSnap = await db.collection('userApiCredentials')
+                .where(firebase.firestore.FieldPath.documentId(), 'in', credentialIds)
+                .get();
+
+            credsSnap.forEach(doc => {
+                const data = doc.data();
+                const provider = data.provider;
+
+                channelProfileCache[provider] = {
+                    handle: data.accountHandle || null,
+                    username: data.accountUsername || null,
+                    name: data.detailedName || data.accountName || null,
+                    profileImageUrl: data.profileImageUrl || null
+                };
+            });
+
+            console.log('[View History] Loaded channel profiles:', channelProfileCache);
+        } catch (error) {
+            console.error('[View History] Error loading channel profiles:', error);
+        }
     }
 
     function renderSubAgents(subAgents, container) {
@@ -832,9 +877,12 @@
     function renderXFrame(content) {
         const text = content.preview_text || content.content?.text || content.body || '';
         const imageUrl = content.preview_image_url || content.content?.media?.[0]?.url || '';
-        const authorName = content.author_profile?.display_name || 'Vision Chain';
-        const authorUsername = content.author_profile?.username || 'visionchain';
-        const avatarUrl = content.author_profile?.avatar_url || '';
+
+        // Use cached channel profile or fallback to content data
+        const xProfile = channelProfileCache['x'] || {};
+        const authorName = content.author_profile?.display_name || xProfile.name || 'Vision Chain';
+        const authorUsername = content.author_profile?.username || xProfile.username || xProfile.handle?.replace('@', '') || 'visionchain';
+        const avatarUrl = content.author_profile?.avatar_url || xProfile.profileImageUrl || '';
 
         return `
             <div class="platform-frame x-frame">
@@ -895,8 +943,11 @@
     function renderInstagramFrame(content) {
         const text = content.preview_text || content.content?.text || content.body || '';
         const imageUrl = content.preview_image_url || content.content?.media?.[0]?.url || '';
-        const authorUsername = content.author_profile?.username || 'visionchain_official';
-        const avatarUrl = content.author_profile?.avatar_url || '';
+
+        // Use cached channel profile
+        const igProfile = channelProfileCache['instagram'] || {};
+        const authorUsername = content.author_profile?.username || igProfile.username || igProfile.handle?.replace('@', '') || 'visionchain_official';
+        const avatarUrl = content.author_profile?.avatar_url || igProfile.profileImageUrl || '';
 
         return `
             <div class="platform-frame instagram-frame">
@@ -935,8 +986,11 @@
     function renderFacebookFrame(content) {
         const text = content.preview_text || content.content?.text || content.body || '';
         const imageUrl = content.preview_image_url || content.content?.media?.[0]?.url || '';
-        const authorName = content.author_profile?.display_name || 'Vision Chain';
-        const avatarUrl = content.author_profile?.avatar_url || '';
+
+        // Use cached channel profile
+        const fbProfile = channelProfileCache['facebook'] || {};
+        const authorName = content.author_profile?.display_name || fbProfile.name || 'Vision Chain';
+        const avatarUrl = content.author_profile?.avatar_url || fbProfile.profileImageUrl || '';
 
         return `
             <div class="platform-frame facebook-frame">
@@ -976,8 +1030,11 @@
     function renderLinkedInFrame(content) {
         const text = content.preview_text || content.content?.text || content.body || '';
         const imageUrl = content.preview_image_url || content.content?.media?.[0]?.url || '';
-        const authorName = content.author_profile?.display_name || 'Vision Chain';
-        const avatarUrl = content.author_profile?.avatar_url || '';
+
+        // Use cached channel profile
+        const liProfile = channelProfileCache['linkedin'] || {};
+        const authorName = content.author_profile?.display_name || liProfile.name || 'Vision Chain';
+        const avatarUrl = content.author_profile?.avatar_url || liProfile.profileImageUrl || '';
 
         return `
             <div class="platform-frame linkedin-frame">
