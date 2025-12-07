@@ -237,7 +237,8 @@ class DAGExecutor {
                 content: "🚀 Exciting news! We're thrilled to announce our latest innovation that's changing the game.\n\nStay tuned for more updates. The future is here, and we're leading the way!\n\n#Innovation #Technology #Future #AI"
             },
             creator_image: {
-                imageUrl: 'https://placehold.co/600x400/1a1a2e/16e0bd?text=Generated+Image'
+                // Use Pollinations.ai for real-time AI image generation based on context
+                imageUrl: `https://image.pollinations.ai/prompt/futuristic%20technology%20ai%20innovation%20cyberpunk?width=800&height=600&seed=${Math.floor(Math.random() * 1000)}&nologo=true`
             }
         };
 
