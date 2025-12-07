@@ -818,12 +818,12 @@ function startExecution() {
                 }
             }
         })
-        .on('onExecutionComplete', ({ success }) => {
+        .on('onExecutionComplete', ({ success, results }) => {
             state.isExecuting = false;
             stopTimer();
 
             if (success) {
-                updateContentStats();
+                updateContentStats(results);
                 document.getElementById('complete-btn').disabled = false;
             }
 
@@ -1262,15 +1262,15 @@ function updateOtherPlatforms(contentText) {
 }
 
 // Update Agent Insights circular progress
-function updateContentStats() {
-    // SEO Score: 92%
-    const seoScore = 92;
+function updateContentStats(results) {
+    // SEO Score
+    const seoScore = results?.seo_optimizer?.score || 92;
     updateCircularProgress('seo', seoScore);
     document.getElementById('seo-value').textContent = seoScore;
     document.getElementById('seo-sublabel').textContent = `${seoScore}/100 - Excellent`;
 
-    // Compliance: 100%
-    const complianceScore = 100;
+    // Compliance
+    const complianceScore = results?.compliance?.score || 100;
     updateCircularProgress('compliance', complianceScore);
     document.getElementById('compliance-value').textContent = complianceScore;
     document.getElementById('compliance-sublabel').textContent = 'Status: Passed -';

@@ -116,7 +116,9 @@ class DAGExecutor {
             totalCost: 0,
             projectId,
             teamId,
-            selectedAgents
+            teamId,
+            selectedAgents,
+            executionResults: {}
         };
 
         this.emit('onLog', { message: '🚀 Starting workflow execution...', type: 'info' });
@@ -133,7 +135,9 @@ class DAGExecutor {
                 success: true,
                 duration: Date.now() - this.state.startTime,
                 totalTokens: this.state.totalTokens,
-                totalCost: this.state.totalCost
+                totalTokens: this.state.totalTokens,
+                totalCost: this.state.totalCost,
+                results: this.state.executionResults
             });
 
             this.emit('onLog', { message: '✅ Workflow completed successfully!', type: 'success' });
@@ -198,6 +202,7 @@ class DAGExecutor {
             this.state.totalTokens += meta.avgTokens;
             this.state.totalCost += meta.avgCost;
             this.state.completedNodes.push(agentId);
+            this.state.executionResults[agentId] = result;
 
             this.emit('onNodeComplete', { nodeId, agentId, result });
             this.emit('onLog', { message: `   ✓ ${agentId} completed`, type: 'success' });
@@ -237,69 +242,79 @@ class DAGExecutor {
                 content: "🚀 Exciting news! We're thrilled to announce our latest innovation that's changing the game.\n\nStay tuned for more updates. The future is here, and we're leading the way!\n\n#Innovation #Technology #Future #AI"
             },
             creator_image: {
-                // Use Pollinations.ai for real-time AI image generation based on context
-                imageUrl: `https://image.pollinations.ai/prompt/futuristic%20technology%20ai%20innovation%20cyberpunk?width=800&height=600&seed=${Math.floor(Math.random() * 1000)}&nologo=true`
-            }
-        };
+                creator_image: {
+                    // Use Pollinations.ai for real-time AI image generation based on context
+                    imageUrl: `https://image.pollinations.ai/prompt/futuristic%20technology%20ai%20innovation%20cyberpunk?width=800&height=600&seed=${Math.floor(Math.random() * 1000)}&nologo=true`
+                },
+                seo_optimizer: {
+                    score: Math.floor(Math.random() * (98 - 85 + 1)) + 85, // Random 85-98
+                    details: "Keywords valid, H1 present"
+                },
+                compliance: {
+                    score: 100,
+                    status: 'Passed',
+                    checks: ['Copyright OK', 'Brand Voice Match', 'Safety Pass']
+                }
+            };
 
-        return mockResponses[agentId] || { success: true };
-    }
+            return mockResponses[agentId] || { success: true };
+        }
 
     /**
      * Determine if agent should be retried
      */
     async shouldRetry(agentId, error) {
-        const retryCount = this.state.failedNodes.filter(id => id === agentId).length;
-        return retryCount < 3 && error.retryable !== false;
-    }
+            const retryCount = this.state.failedNodes.filter(id => id === agentId).length;
+            return retryCount < 3 && error.retryable !== false;
+        }
 
-    /**
-     * Pause execution
-     */
-    pause() {
-        this.state.isPaused = true;
-        this.emit('onLog', { message: '⏸ Execution paused', type: 'warning' });
-    }
+        /**
+         * Pause execution
+         */
+        pause() {
+            this.state.isPaused = true;
+            this.emit('onLog', { message: '⏸ Execution paused', type: 'warning' });
+        }
 
-    /**
-     * Resume execution
-     */
-    resume() {
-        this.state.isPaused = false;
-        this.emit('onLog', { message: '▶ Execution resumed', type: 'info' });
-    }
+        /**
+         * Resume execution
+         */
+        resume() {
+            this.state.isPaused = false;
+            this.emit('onLog', { message: '▶ Execution resumed', type: 'info' });
+        }
 
-    /**
-     * Stop execution
-     */
-    stop() {
-        this.state.isRunning = false;
-        this.state.isPaused = false;
-        this.emit('onLog', { message: '⏹ Execution stopped', type: 'warning' });
-    }
+        /**
+         * Stop execution
+         */
+        stop() {
+            this.state.isRunning = false;
+            this.state.isPaused = false;
+            this.emit('onLog', { message: '⏹ Execution stopped', type: 'warning' });
+        }
 
-    /**
-     * Get current execution stats
-     */
-    getStats() {
-        return {
-            phase: this.state.currentPhase + 1,
-            totalPhases: this.phases.length,
-            completedAgents: this.state.completedNodes.length,
-            failedAgents: this.state.failedNodes.length,
-            duration: this.state.startTime ? Date.now() - this.state.startTime : 0,
-            totalTokens: this.state.totalTokens,
-            totalCost: this.state.totalCost.toFixed(4)
-        };
-    }
+        /**
+         * Get current execution stats
+         */
+        getStats() {
+            return {
+                phase: this.state.currentPhase + 1,
+                totalPhases: this.phases.length,
+                completedAgents: this.state.completedNodes.length,
+                failedAgents: this.state.failedNodes.length,
+                duration: this.state.startTime ? Date.now() - this.state.startTime : 0,
+                totalTokens: this.state.totalTokens,
+                totalCost: this.state.totalCost.toFixed(4)
+            };
+        }
 
-    /**
-     * Sleep helper
-     */
-    sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
+        /**
+         * Sleep helper
+         */
+        sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
     }
-}
 
 // Export for use in studio.js
 window.DAGExecutor = DAGExecutor;
