@@ -5,6 +5,7 @@
 
 const functions = require('firebase-functions');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
+const { onRequest } = require('firebase-functions/v2/https');
 const admin = require('firebase-admin');
 const cors = require('cors')({ origin: true });
 
@@ -255,20 +256,9 @@ exports.healthCheck = functions.https.onRequest((req, res) => {
 /**
  * Test X (Twitter) API connection and fetch account info
  * Returns username/handle if successful
- * Using onRequest instead of onCall to handle CORS manually for Gen 2 functions
+ * Using v2 onRequest with cors option for automatic CORS handling
  */
-exports.testXConnection = functions.https.onRequest(async (req, res) => {
-    // Handle CORS
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
-
-    // Handle preflight
-    if (req.method === 'OPTIONS') {
-        res.status(204).send('');
-        return;
-    }
-
+exports.testXConnection = onRequest({ cors: true }, async (req, res) => {
     try {
         const payload = req.body.data || req.body;
         const { apiKey, apiSecret, accessToken, accessTokenSecret } = payload;
