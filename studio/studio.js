@@ -96,6 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initAgentRoster();
     initPreviewTabs();
     initFooterButtons();
+    initSidebarToggle();
     updateStats();
 });
 
@@ -326,7 +327,34 @@ function initFooterButtons() {
     stopBtn.addEventListener('click', stopExecution);
     retryBtn.addEventListener('click', retryExecution);
     completeBtn.addEventListener('click', completeExecution);
+    completeBtn.addEventListener('click', completeExecution);
 }
+
+// ============================================
+// SIDEBAR TOGGLE
+// ============================================
+function initSidebarToggle() {
+    const toggleBtn = document.getElementById('sidebar-toggle');
+    const mainContent = document.querySelector('.studio-main');
+
+    if (toggleBtn && mainContent) {
+        toggleBtn.addEventListener('click', () => {
+            mainContent.classList.toggle('collapsed');
+
+            // Optional: Adjust zoom on resize if needed (usually automatic via CSS grid)
+            // But if we're using canvas, we might need to handle resize events
+            /* 
+            if (window.dagCanvas) {
+                setTimeout(() => {
+                    // Trigger resize event to update canvas sizing if needed
+                    window.dispatchEvent(new Event('resize'));
+                }, 300); // 300ms matches CSS transition
+            }
+            */
+        });
+    }
+}
+
 
 function enableStartButton() {
     document.getElementById('start-execution-btn').disabled = false;
