@@ -137,9 +137,15 @@ async function initProjectSelector() {
             const projects = [];
             projectsSnapshot.forEach(doc => {
                 const data = doc.data();
-                // Only include projects with a proper name
-                if (data.name || data.businessName) {
+
+                // Log userId for debugging
+                console.log('[Studio] Project:', doc.id, 'name:', data.name, 'userId:', data.userId);
+
+                // Double-check: Only include projects that belong to current user AND have a name
+                if (data.userId === user.uid && (data.name || data.businessName)) {
                     projects.push({ id: doc.id, ...data });
+                } else if (data.userId !== user.uid) {
+                    console.warn('[Studio] Skipping project with wrong userId:', doc.id, 'owner:', data.userId);
                 } else {
                     console.log('[Studio] Skipping project without name:', doc.id);
                 }
