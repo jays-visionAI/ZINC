@@ -2796,7 +2796,7 @@ window.selectSubAgent = function (subAgentId) {
 
     // Select first run if available
     if (runs.length > 0) {
-        selectRun(runs[0].id);
+        window._legacySelectRun(runs[0].id);
     } else {
         renderGeneratedContentColumn([]);
     }
@@ -2825,7 +2825,7 @@ function renderRecentRunsColumn(runs) {
 function renderRunCard(run) {
     return `
             <div class="run-card ${selectedRunId === run.id ? 'selected' : ''}" 
-                 onclick="selectRun('${run.id}')" id="run-card-${run.id}">
+                 onclick="window._legacySelectRun('${run.id}')" id="run-card-${run.id}">
                 <div class="run-header">
                     <div class="run-status status-${run.status.toLowerCase()}">${run.status}</div>
                     <div class="run-id">#${run.id}</div>
@@ -2842,7 +2842,9 @@ function renderRunCard(run) {
         `;
 }
 
-window.selectRun = function (runId) {
+// NOTE: This is the legacy mock-data version, renamed to avoid conflict
+// The real selectRun is defined in mission-control-view-history.js
+window._legacySelectRun = function (runId) {
     selectedRunId = runId;
 
     // Update UI selection
@@ -2850,11 +2852,12 @@ window.selectRun = function (runId) {
     const card = document.getElementById(`run-card-${runId}`);
     if (card) card.classList.add('selected');
 
-    // Filter Content
+    // Filter Content (only if mock data exists)
     const data = window.currentMockData;
-    const content = data.content.filter(c => c.runId === runId);
-
-    renderGeneratedContentColumn(content);
+    if (data && data.content) {
+        const content = data.content.filter(c => c.runId === runId);
+        renderGeneratedContentColumn(content);
+    }
 };
 
 function renderGeneratedContentColumn(content) {

@@ -58,12 +58,41 @@
      * @param {string} runId - AgentRun ID
      */
     window.selectRun = function (runId) {
-        console.log(`[View History] Selecting run: ${runId}`);
-        selectedRunId = runId;
+        // Toggle selection - clicking the same run deselects it
+        if (selectedRunId === runId) {
+            selectedRunId = null;
+        } else {
+            selectedRunId = runId;
+        }
+
+        // Update UI: Remove '.selected' from all run cards
+        document.querySelectorAll('.run-card').forEach(el => el.classList.remove('selected'));
+
+        // Add '.selected' to the newly selected card
+        if (selectedRunId) {
+            const selectedCard = document.querySelector(`.run-card[data-id="${selectedRunId}"]`);
+            if (selectedCard) {
+                selectedCard.classList.add('selected');
+            }
+        }
+
+        // Update filter indicator in Generated Content header
+        const contentFilterIndicator = document.getElementById('content-filter-indicator');
+        if (contentFilterIndicator) {
+            if (selectedRunId) {
+                const selectedCard = document.querySelector(`.run-card[data-id="${selectedRunId}"]`);
+                const runPrompt = selectedCard?.querySelector('.run-prompt')?.textContent || 'Selected Run';
+                const shortPrompt = runPrompt.length > 25 ? runPrompt.substring(0, 25) + '...' : runPrompt;
+                contentFilterIndicator.innerHTML = `${shortPrompt} ✕`;
+                contentFilterIndicator.style.display = 'block';
+            } else {
+                contentFilterIndicator.style.display = 'none';
+            }
+        }
 
         // Reload Generated Content panel with run filter
         if (currentProjectId && selectedTeamId) {
-            loadGeneratedContent(currentProjectId, selectedTeamId, runId);
+            loadGeneratedContent(currentProjectId, selectedTeamId, selectedRunId);
         }
     };
 
@@ -72,25 +101,36 @@
         console.log(`[View History] Running sub-agent: ${subAgentId}`);
 
         if (!currentProjectId || !selectedTeamId) {
-            if (window.safeAlert) {
-                await window.safeAlert('Error: Project or Team context not found.');
-            } else {
-                alert('Error: Project or Team context not found.');
-            }
+            alert('Error: Project or Team context not found.');
             return;
         }
 
-        // Confirm run using safe confirm
-        let confirmed = false;
-        if (window.safeConfirm) {
-            confirmed = await window.safeConfirm(`Run "${agentName}" now?\n\nThis will execute the sub-agent and generate content.`);
-        } else {
-            confirmed = confirm(`Run "${agentName}" now?\n\nThis will execute the sub-agent and generate content.`);
-        }
+        // Custom confirmation using showConfirmModal if available, else native confirm
+        const message = `Run "${agentName}" now?\n\nThis will execute the sub-agent and generate content.`;
+
+        // Wrap in Promise to use async/await pattern
+        const confirmed = await new Promise(resolve => {
+            if (typeof showConfirmModal === 'function') {
+                // showConfirmModal uses callback: showConfirmModal(title, message, onConfirm, options)
+                showConfirmModal('Run Sub-Agent', message, () => {
+                    resolve(true);
+                }, {
+                    onCancel: () => resolve(false)
+                });
+            } else {
+                // Fallback to native confirm with setTimeout
+                setTimeout(() => {
+                    resolve(window.confirm(message));
+                }, 100);
+            }
+        });
 
         if (!confirmed) {
+            console.log('[View History] Run cancelled by user');
             return;
         }
+
+        console.log(`[View History] Executing ${agentName}...`);
 
         try {
             // Show loading state on button
@@ -319,7 +359,7 @@
                         🤖 ${runtimeDisplay}
                     </div>
                     <div class="sub-agent-actions" style="margin-top: 10px; display: flex; gap: 8px;">
-                        <button class="sub-agent-run-btn" onclick="event.stopPropagation(); window.runSubAgent('${agent.id}', '${agent.role_name || 'Agent'}')">
+                        <button type="button" class="sub-agent-run-btn" onclick="event.stopPropagation(); event.preventDefault(); window.runSubAgent('${agent.id}', '${(agent.role_name || 'Agent').replace(/'/g, "\\'")}')">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                                 <polygon points="5 3 19 12 5 21 5 3"></polygon>
                             </svg>
@@ -457,12 +497,13 @@
             return `
                 <div class="run-card ${statusClass} ${isSelected ? 'selected' : ''}" 
                      data-id="${run.id}"
-                     onclick="selectRun('${run.id}')">
-                    <div class="run-header">
+                     data-run-id="${run.id}"
+                     style="cursor: pointer;">
+                    <div class="run-header" style="pointer-events: none;">
                         <div class="run-status ${statusClass}">${statusLabel}</div>
                         <div class="run-time">${timeAgo}</div>
                     </div>
-                    <div class="run-content">
+                    <div class="run-content" style="pointer-events: none;">
                         <div class="run-prompt">${run.task_prompt || 'No description'}</div>
                         <div class="run-meta">
                             <span class="run-agent">${run.sub_agent_role_name || 'Unknown Agent'}</span>
@@ -474,6 +515,43 @@
                 </div>
             `;
         }).join('');
+
+        // Add click event listeners using event delegation
+        // Only add once per container
+        if (!container.dataset.runClickListenerAdded) {
+            container.dataset.runClickListenerAdded = 'true';
+            container.addEventListener('click', function (e) {
+                const runCard = e.target.closest('.run-card');
+                if (runCard) {
+                    const runId = runCard.dataset.id || runCard.dataset.runId;
+                    if (runId && typeof window.selectRun === 'function') {
+                        window.selectRun(runId);
+                    }
+                }
+            });
+        }
+    }
+
+    // Fallback handler for run card clicks
+    function handleRunCardClick(runId) {
+        // Toggle selection
+        if (selectedRunId === runId) {
+            selectedRunId = null;
+        } else {
+            selectedRunId = runId;
+        }
+
+        // Update UI
+        document.querySelectorAll('.run-card').forEach(el => el.classList.remove('selected'));
+        if (selectedRunId) {
+            const card = document.querySelector(`.run-card[data-id="${selectedRunId}"]`);
+            if (card) card.classList.add('selected');
+        }
+
+        // Reload content
+        if (currentProjectId && selectedTeamId) {
+            loadGeneratedContent(currentProjectId, selectedTeamId, selectedRunId);
+        }
     }
 
     function renderQuotaInfo(run) {
@@ -494,7 +572,6 @@
     // ===== Panel 3: Generated Content (Right) =====
 
     function loadGeneratedContent(projectId, teamId, runId = null) {
-        console.log('[View History] Loading Generated Content...', { teamId, runId });
 
         // Try both possible container IDs
         let container = document.getElementById('content-list');
@@ -510,6 +587,12 @@
         // Show loading state
         container.innerHTML = '<div class="loading-state">Loading content...</div>';
 
+        // Cleanup previous listener before creating new one
+        if (contentsListener) {
+            contentsListener();
+            contentsListener = null;
+        }
+
         // Build query
         let query = db.collection('projects')
             .doc(projectId)
@@ -519,11 +602,10 @@
             // Filter by specific run
             query = query.where('run_id', '==', runId);
         } else {
-            // Filter by team
+            // Filter by team (show all)
             query = query.where('team_instance_id', '==', teamId);
+            query = query.orderBy('created_at', 'desc').limit(20);
         }
-
-        query = query.orderBy('created_at', 'desc').limit(20);
 
         // Execute query
         contentsListener = query.onSnapshot(
@@ -533,7 +615,6 @@
                     contents.push({ id: doc.id, ...doc.data() });
                 });
 
-                console.log(`[View History] Loaded ${contents.length} contents`);
                 renderContents(contents, container);
             },
             (error) => {
@@ -550,55 +631,352 @@
         }
 
         container.innerHTML = contents.map(content => {
-            const statusClass = getContentStatusClass(content.status);
-            const statusLabel = getContentStatusLabel(content.status);
-            const platformIcon = getPlatformIcon(content.platform);
-            const hasExternalLink = !!content.external_post_url;
+            // Determine if this content should use platform preview
+            if (shouldUsePlatformPreview(content)) {
+                return renderPlatformPreview(content);
+            } else {
+                return renderLegacyContent(content);
+            }
+        }).join('');
+    }
 
-            // Phase 2: Workflow/Channel Info
-            const workflowBadge = content.workflowTemplateId ?
-                `<span class="workflow-badge-small" title="Workflow: ${content.workflowTemplateId}">
-                    🔄 ${getWorkflowLabel(content.workflowTemplateId)}
-                </span>` : '';
-            const stepBadge = content.workflowStepId ?
-                `<span class="step-badge-small" title="Step: ${content.workflowStepId}">
-                    ${getStepLabel(content.workflowStepId)}
-                </span>` : '';
-            const channelBadge = content.channelId ?
-                `<span class="channel-badge" title="Channel: ${content.channelId}">
-                    ${getChannelIcon(content.channelId)} ${getChannelLabel(content.channelId)}
-                </span>` : '';
+    /**
+     * Check if content should use platform-specific preview
+     */
+    function shouldUsePlatformPreview(content) {
+        const socialPlatforms = ['x', 'twitter', 'instagram', 'facebook', 'linkedin'];
 
-            return `
-                <div class="content-card ${statusClass}" data-id="${content.id}">
-                    ${content.preview_image_url ? `
-                        <div class="content-image">
-                            <img src="${content.preview_image_url}" alt="${content.title || 'Content'}" />
+        // Meta/Internal content uses legacy format
+        if (content.is_meta || content.content_type === 'meta') {
+            return false;
+        }
+
+        // Strategy/Research/Evaluator content uses legacy format
+        const nonSocialRoles = ['planner', 'research', 'evaluator', 'compliance'];
+        if (nonSocialRoles.includes(content.sub_agent_role_type)) {
+            return false;
+        }
+
+        return socialPlatforms.includes(content.platform?.toLowerCase());
+    }
+
+    /**
+     * Render platform-specific preview (X, Instagram, Facebook, LinkedIn)
+     */
+    function renderPlatformPreview(content) {
+        const platform = content.platform?.toLowerCase();
+        const statusClass = getContentStatusClass(content.status);
+        const statusLabel = getContentStatusLabel(content.status);
+
+        let platformFrame = '';
+        switch (platform) {
+            case 'x':
+            case 'twitter':
+                platformFrame = renderXFrame(content);
+                break;
+            case 'instagram':
+                platformFrame = renderInstagramFrame(content);
+                break;
+            case 'facebook':
+                platformFrame = renderFacebookFrame(content);
+                break;
+            case 'linkedin':
+                platformFrame = renderLinkedInFrame(content);
+                break;
+            default:
+                platformFrame = renderBlogFrame(content);
+        }
+
+        return `
+            <div class="content-preview-card" data-id="${content.id}">
+                <div class="preview-status-bar">
+                    <span class="content-status ${statusClass}">${statusLabel}</span>
+                </div>
+                ${platformFrame}
+                ${renderActionPanel(content)}
+            </div>
+        `;
+    }
+
+    /**
+     * X (Twitter) Frame
+     */
+    function renderXFrame(content) {
+        const text = content.preview_text || content.content?.text || content.body || '';
+        const imageUrl = content.preview_image_url || content.content?.media?.[0]?.url || '';
+        const authorName = content.author_profile?.display_name || 'Vision Chain';
+        const authorUsername = content.author_profile?.username || 'visionchain';
+        const avatarUrl = content.author_profile?.avatar_url || '';
+
+        return `
+            <div class="platform-frame x-frame">
+                <div class="x-post">
+                    <div class="x-author">
+                        <div class="x-avatar">
+                            ${avatarUrl ? `<img src="${avatarUrl}" alt="">` : '<div class="avatar-placeholder">V</div>'}
+                        </div>
+                        <div class="x-author-info">
+                            <div class="x-name">${authorName}</div>
+                            <div class="x-username">@${authorUsername}</div>
+                        </div>
+                        <span class="x-time">now</span>
+                    </div>
+                    <div class="x-text">${escapeHtml(text)}</div>
+                    ${imageUrl ? `
+                        <div class="x-image">
+                            <img src="${imageUrl}" alt="Post image">
                         </div>
                     ` : ''}
-                    <div class="content-body">
-                        <div class="content-header">
-                            <div class="content-platform">${platformIcon} ${content.platform}</div>
-                            <div class="content-status ${statusClass}">${statusLabel}</div>
-                        </div>
-                        ${content.title ? `<div class="content-title">${content.title}</div>` : ''}
-                        ${content.preview_text ? `<div class="content-preview">${content.preview_text}</div>` : ''}
-                        ${workflowBadge || stepBadge || channelBadge ?
-                    `<div class="content-workflow-info">${workflowBadge} ${stepBadge} ${channelBadge}</div>` : ''}
-                        <div class="content-footer" style="display: flex; gap: 8px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 12px;">
-                            <button onclick="event.stopPropagation(); window.viewContentDetails('${content.id}')" title="View Details" style="padding: 8px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); color: #8b5cf6; border-radius: 6px; cursor: pointer;">🔍</button>
-                            <button onclick="event.stopPropagation(); window.copyContent('${content.id}')" style="flex: 1; padding: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 6px; cursor: pointer; font-size: 12px;">📋 Copy</button>
-                            ${content.status === 'pending' ? `
-                                <button onclick="event.stopPropagation(); window.scheduleContent('${content.id}')" style="flex: 1; padding: 8px; background: rgba(22, 224, 189, 0.1); border: 1px solid rgba(22, 224, 189, 0.3); color: #16e0bd; border-radius: 6px; cursor: pointer; font-size: 12px;">📅 Schedule</button>
-                                <button onclick="event.stopPropagation(); window.approveContent('${content.id}')" style="flex: 1; padding: 8px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; color: #fff; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">✓ Approve</button>
-                            ` : content.status === 'published' ? `
-                                <button onclick="event.stopPropagation(); window.viewOnPlatform('${content.external_post_url || content.tweet_url || '#'}')" style="flex: 1.5; padding: 8px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); color: #3b82f6; border-radius: 6px; cursor: pointer; font-size: 12px;">🔗 View Post</button>
-                            ` : ''}
-                        </div>
+                    <div class="x-interactions">
+                        <span>💬 0</span>
+                        <span>🔄 0</span>
+                        <span>❤️ 0</span>
+                        <span>📊 0</span>
+                        <span>📤</span>
                     </div>
                 </div>
-            `;
-        }).join('');
+            </div>
+        `;
+    }
+
+    /**
+     * Instagram Frame
+     */
+    function renderInstagramFrame(content) {
+        const text = content.preview_text || content.content?.text || content.body || '';
+        const imageUrl = content.preview_image_url || content.content?.media?.[0]?.url || '';
+        const authorUsername = content.author_profile?.username || 'visionchain_official';
+        const avatarUrl = content.author_profile?.avatar_url || '';
+
+        return `
+            <div class="platform-frame instagram-frame">
+                <div class="ig-post">
+                    <div class="ig-header">
+                        <div class="ig-avatar">
+                            ${avatarUrl ? `<img src="${avatarUrl}" alt="">` : '<div class="avatar-placeholder">V</div>'}
+                        </div>
+                        <div class="ig-username">${authorUsername}</div>
+                        <span class="ig-menu">•••</span>
+                    </div>
+                    <div class="ig-image">
+                        ${imageUrl ? `<img src="${imageUrl}" alt="Post">` : '<div class="ig-placeholder">📷</div>'}
+                    </div>
+                    <div class="ig-actions">
+                        <div class="ig-left">
+                            <span>❤️</span>
+                            <span>💬</span>
+                            <span>📤</span>
+                        </div>
+                        <span class="ig-save">🔖</span>
+                    </div>
+                    <div class="ig-likes">123 likes</div>
+                    <div class="ig-caption">
+                        <span class="ig-cap-user">${authorUsername}</span> 
+                        ${escapeHtml(text.substring(0, 100))}${text.length > 100 ? '...' : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Facebook Frame
+     */
+    function renderFacebookFrame(content) {
+        const text = content.preview_text || content.content?.text || content.body || '';
+        const imageUrl = content.preview_image_url || content.content?.media?.[0]?.url || '';
+        const authorName = content.author_profile?.display_name || 'Vision Chain';
+        const avatarUrl = content.author_profile?.avatar_url || '';
+
+        return `
+            <div class="platform-frame facebook-frame">
+                <div class="fb-post">
+                    <div class="fb-header">
+                        <div class="fb-avatar">
+                            ${avatarUrl ? `<img src="${avatarUrl}" alt="">` : '<div class="avatar-placeholder">V</div>'}
+                        </div>
+                        <div class="fb-author-info">
+                            <div class="fb-name">${authorName}</div>
+                            <div class="fb-time">2h · 🌐</div>
+                        </div>
+                    </div>
+                    <div class="fb-text">${escapeHtml(text)}</div>
+                    ${imageUrl ? `
+                        <div class="fb-image">
+                            <img src="${imageUrl}" alt="Post">
+                        </div>
+                    ` : ''}
+                    <div class="fb-stats">
+                        <span>👍❤️ 12</span>
+                        <span>3 comments · 5 shares</span>
+                    </div>
+                    <div class="fb-actions">
+                        <span>👍 Like</span>
+                        <span>💬 Comment</span>
+                        <span>↗️ Share</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * LinkedIn Frame
+     */
+    function renderLinkedInFrame(content) {
+        const text = content.preview_text || content.content?.text || content.body || '';
+        const imageUrl = content.preview_image_url || content.content?.media?.[0]?.url || '';
+        const authorName = content.author_profile?.display_name || 'Vision Chain';
+        const avatarUrl = content.author_profile?.avatar_url || '';
+
+        return `
+            <div class="platform-frame linkedin-frame">
+                <div class="li-post">
+                    <div class="li-header">
+                        <div class="li-avatar">
+                            ${avatarUrl ? `<img src="${avatarUrl}" alt="">` : '<div class="avatar-placeholder">V</div>'}
+                        </div>
+                        <div class="li-author-info">
+                            <div class="li-name">${authorName}</div>
+                            <div class="li-headline">Blockchain Technology Company</div>
+                            <div class="li-time">2h • 🌐</div>
+                        </div>
+                    </div>
+                    <div class="li-text">${escapeHtml(text)}</div>
+                    ${imageUrl ? `
+                        <div class="li-image">
+                            <img src="${imageUrl}" alt="Post">
+                        </div>
+                    ` : ''}
+                    <div class="li-stats">👍❤️💡 847 · 42 comments · 15 reposts</div>
+                    <div class="li-actions">
+                        <span>👍 Like</span>
+                        <span>💬 Comment</span>
+                        <span>🔄 Repost</span>
+                        <span>📤 Send</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Blog/Fallback Frame
+     */
+    function renderBlogFrame(content) {
+        const text = content.preview_text || content.content?.text || content.body || '';
+        const title = content.title || 'Generated Content';
+        const imageUrl = content.preview_image_url || content.content?.media?.[0]?.url || '';
+
+        return `
+            <div class="platform-frame blog-frame">
+                <div class="blog-post">
+                    ${imageUrl ? `
+                        <div class="blog-image">
+                            <img src="${imageUrl}" alt="Featured">
+                        </div>
+                    ` : ''}
+                    <div class="blog-title">${escapeHtml(title)}</div>
+                    <div class="blog-text">${escapeHtml(text)}</div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Action Panel for all platform previews
+     */
+    function renderActionPanel(content) {
+        const isApproved = content.status === 'approved';
+        const isPending = content.status === 'pending';
+
+        return `
+            <div class="content-action-panel">
+                <button class="action-btn action-copy" onclick="event.stopPropagation(); window.copyContent('${content.id}')">
+                    📋 Copy
+                </button>
+                ${isPending ? `
+                    <button class="action-btn action-schedule" onclick="event.stopPropagation(); window.scheduleContent('${content.id}')">
+                        📅 Schedule
+                    </button>
+                    <button class="action-btn action-approve" onclick="event.stopPropagation(); window.approveContent('${content.id}')">
+                        ✓ Approve
+                    </button>
+                ` : isApproved ? `
+                    <button class="action-btn action-approve approved" disabled>
+                        ✓ Approved
+                    </button>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    /**
+     * Legacy content rendering (for non-social content)
+     */
+    function renderLegacyContent(content) {
+        const statusClass = getContentStatusClass(content.status);
+        const statusLabel = getContentStatusLabel(content.status);
+        const platformIcon = getPlatformIcon(content.platform);
+        const isMeta = content.is_meta || content.content_type === 'meta';
+
+        // Workflow/Channel Info
+        const workflowBadge = content.workflowTemplateId ?
+            `<span class="workflow-badge-small" title="Workflow: ${content.workflowTemplateId}">
+                🔄 ${getWorkflowLabel(content.workflowTemplateId)}
+            </span>` : '';
+        const stepBadge = content.workflowStepId ?
+            `<span class="step-badge-small" title="Step: ${content.workflowStepId}">
+                ${getStepLabel(content.workflowStepId)}
+            </span>` : '';
+        const channelBadge = content.channelId ?
+            `<span class="channel-badge" title="Channel: ${content.channelId}">
+                ${getChannelIcon(content.channelId)} ${getChannelLabel(content.channelId)}
+            </span>` : '';
+
+        // Meta badge for internal content
+        const metaBadge = isMeta ?
+            `<span style="background: rgba(99, 102, 241, 0.2); color: #a78bfa; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-left: 6px;">Internal</span>` : '';
+
+        return `
+            <div class="content-card ${statusClass}" data-id="${content.id}" data-meta="${isMeta}">
+                ${content.preview_image_url ? `
+                    <div class="content-image">
+                        <img src="${content.preview_image_url}" alt="${content.title || 'Content'}" />
+                    </div>
+                ` : ''}
+                <div class="content-body">
+                    <div class="content-header">
+                        <div class="content-platform ${isMeta ? 'internal' : ''}">${platformIcon} ${content.platform}${metaBadge}</div>
+                        <div class="content-status ${statusClass}">${statusLabel}</div>
+                    </div>
+                    ${content.title ? `<div class="content-title">${content.title}</div>` : ''}
+                    ${content.preview_text ? `<div class="content-preview">${content.preview_text}</div>` : ''}
+                    ${workflowBadge || stepBadge || channelBadge ?
+                `<div class="content-workflow-info">${workflowBadge} ${stepBadge} ${channelBadge}</div>` : ''}
+                    <div class="content-footer" style="display: flex; gap: 8px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 12px;">
+                        <button onclick="event.stopPropagation(); window.viewContentDetails('${content.id}')" title="View Details" style="padding: 8px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); color: #8b5cf6; border-radius: 6px; cursor: pointer;">🔍</button>
+                        <button onclick="event.stopPropagation(); window.copyContent('${content.id}')" style="flex: 1; padding: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 6px; cursor: pointer; font-size: 12px;">📋 Copy</button>
+                        ${content.status === 'pending' ? `
+                            <button onclick="event.stopPropagation(); window.scheduleContent('${content.id}')" style="flex: 1; padding: 8px; background: rgba(22, 224, 189, 0.1); border: 1px solid rgba(22, 224, 189, 0.3); color: #16e0bd; border-radius: 6px; cursor: pointer; font-size: 12px;">📅 Schedule</button>
+                            <button onclick="event.stopPropagation(); window.approveContent('${content.id}')" style="flex: 1; padding: 8px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; color: #fff; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">✓ Approve</button>
+                        ` : content.status === 'published' ? `
+                            <button onclick="event.stopPropagation(); window.viewOnPlatform('${content.external_post_url || content.tweet_url || '#'}')" style="flex: 1.5; padding: 8px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); color: #3b82f6; border-radius: 6px; cursor: pointer; font-size: 12px;">🔗 View Post</button>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Escape HTML to prevent XSS
+     */
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     // ===== Helper Functions =====

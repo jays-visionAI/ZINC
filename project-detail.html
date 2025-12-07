@@ -193,8 +193,7 @@
                         </div>
 
                         <!-- Agent Detail Panel (3-column layout) -->
-                        <div id="agent-detail-panel" class="agent-detail-panel"
-                            style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
+                        <div id="agent-detail-panel" class="agent-detail-panel">
 
                             <!-- Panel 1: Assigned Sub-Agents -->
                             <div class="studio-panel">
@@ -414,19 +413,21 @@
     <script src="firebase-config.js"></script>
     <script src="auth.js"></script>
 
-    <!-- Mission Control View History -->
+    <!-- Services (must load before view scripts that use them) -->
+    <script src="services/channel-credential-service.js"></script>
+    <script src="services/llm-provider-service.js"></script>
+    <script src="services/agent-runtime-service.js"></script>
+    <script src="services/agent-execution-service.js?v=3"></script>
+
+    <!-- Utils -->
     <script src="utils-modal.js"></script>
-    <script src="mission-control-view-history.js"></script>
     <script src="utils-data-generator.js"></script>
     <script src="utils-channel-orchestrator.js"></script>
     <script src="utils-channel-profiles.js"></script>
     <script src="utils-runtime-resolver.js"></script>
 
-    <!-- Services -->
-    <script src="services/channel-credential-service.js"></script>
-    <script src="services/llm-provider-service.js"></script>
-    <script src="services/agent-runtime-service.js"></script>
-    <script src="services/agent-execution-service.js?v=2"></script>
+    <!-- Mission Control View History (depends on AgentExecutionService) -->
+    <script src="mission-control-view-history.js"></script>
 
     <!-- Page Script -->
     <script src="project-detail.js"></script>
