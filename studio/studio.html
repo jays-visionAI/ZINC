@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZYNK - Studio V2.0</title>
+    <meta name="description" content="ZYNK Studio - AI Content Creation Dashboard">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="studio.css">
+
+    <meta name="theme-color" content="#0A0A0F">
+</head>
+
+<body class="studio-body">
+    <!-- Studio Header -->
+    <header class="studio-header">
+        <div class="studio-header-left">
+            <a href="../command-center.html" class="studio-back-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 12H5M12 19l-7-7 7-7"></path>
+                </svg>
+            </a>
+            <h1 class="studio-title">🎬 Studio V2.0</h1>
+        </div>
+
+        <div class="studio-header-center">
+            <!-- Project & Agent Team Selector -->
+            <div class="studio-selector-group">
+                <div class="studio-selector">
+                    <label>Project</label>
+                    <select id="project-select">
+                        <option value="">Select Project...</option>
+                    </select>
+                </div>
+                <div class="studio-selector">
+                    <label>Agent Team</label>
+                    <select id="agentteam-select" disabled>
+                        <option value="">Select Agent Team...</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="studio-header-right">
+            <div class="studio-timer" id="studio-timer">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <span>00:00</span>
+            </div>
+            <button class="studio-close-btn" onclick="window.location.href='../command-center.html'">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main 3-Panel Layout -->
+    <main class="studio-main">
+        <!-- LEFT PANEL: Workflow Config -->
+        <aside class="studio-panel studio-panel-left">
+            <div class="panel-section">
+                <h3 class="panel-title">Workflow Config</h3>
+
+                <div class="config-group">
+                    <label>Template Selection</label>
+                    <select id="workflow-template" class="template-dropdown">
+                        <option value="quick">Quick Post</option>
+                        <option value="standard" selected>Standard</option>
+                        <option value="premium">Premium</option>
+                        <option value="seo_focused">SEO Focused</option>
+                        <option value="full_media">Full Media</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="panel-section flex-grow">
+                <h3 class="panel-title">Agent Roster <span class="agent-count">(12)</span></h3>
+                <div id="agent-roster" class="agent-roster-grid">
+                    <!-- Phase 1: Research -->
+                    <div class="agent-card active" data-agent="research">
+                        <svg class="agent-icon">
+                            <use href="agent-icons.svg#icon-research" />
+                        </svg>
+                        <div class="agent-label">Research</div>
+                    </div>
+                    <div class="agent-card" data-agent="seo_watcher">
+                        <svg class="agent-icon">
+                            <use href="agent-icons.svg#icon-seo_watcher" />
+                        </svg>
+                        <div class="agent-label">SEO Watcher</div>
+                    </div>
+                    <div class="agent-card active" data-agent="knowledge_curator">
+                        <svg class="agent-icon">
+                            <use href="agent-icons.svg#icon-knowledge_curator" />
+                        </svg>
+                        <div class="agent-label">Knowledge</div>
+                    </div>
+                    <div class="agent-card" data-agent="kpi">
+                        <svg class="agent-icon">
+                            <use href="agent-icons.svg#icon-kpi" />
+                        </svg>
+                        <div class="agent-label">KPI Advisor</div>
+                    </div>
+
+                    <!-- Required: Planner -->
+                    <div class="agent-card active required" data-agent="planner">
+                        <svg class="agent-icon">
+                            <use href="agent-icons.svg#icon-planner" />
+                        </svg>
+                        <div class="agent-label">Planner</div>
+                    </div>
+
+                    <!-- Phase 2: Creation -->
+                    <div class="agent-card active required" data-agent="creator_text">
+                        <svg class="agent-icon">
+                            <use href="agent-icons.svg#icon-creator_text" />
+                        </svg>
+                        <div class="agent-label">Text Creator</div>
+                    </div>
+                    <div class="agent-card" data-agent="creator_image">
+                        <svg class="agent-icon">
+                            <use href="agent-icons.svg#icon-creator_image" />
+                        </svg>
+                        <div class="agent-label">Image Creator</div>
+                    </div>
+                    <div class="agent-card disabled" data-agent="creator_video">
+                        <svg class="agent-icon">
+                            <use href="agent-icons.svg#icon-creator_video" />
+                        </svg>
+                        <div class="agent-label">Video Planner</div>
+                    </div>
+
+                    <!-- Phase 3: Validation -->
+                    <div class="agent-card active" data-agent="compliance">
+                        <svg class="agent-icon">
+                            <use href="agent-icons.svg#icon-compliance" />
+                        </svg>
+                        <div class="agent-label">Compliance</div>
+                    </div>
+                    <div class="agent-card" data-agent="seo_optimizer">
+                        <svg class="agent-icon">
+                            <use href="agent-icons.svg#icon-seo_optimizer" />
+                        </svg>
+                        <div class="agent-label">SEO Optimizer</div>
+                    </div>
+                    <div class="agent-card" data-agent="evaluator">
+                        <svg class="agent-icon">
+                            <use href="agent-icons.svg#icon-evaluator" />
+                        </svg>
+                        <div class="agent-label">Evaluator</div>
+                    </div>
+
+                    <!-- Phase 4: Final -->
+                    <div class="agent-card active required" data-agent="manager">
+                        <svg class="agent-icon">
+                            <use href="agent-icons.svg#icon-manager" />
+                        </svg>
+                        <div class="agent-label">Manager</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-section stats-section">
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-label">Selected:</div>
+                        <div class="stat-value" id="stats-agents">10/12 agents</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Est. Time:</div>
+                        <div class="stat-value" id="stats-time">3 min</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Cost:</div>
+                        <div class="stat-value" id="stats-cost">$0.15</div>
+                    </div>
+                </div>
+            </div>
+
+            <button id="start-execution-btn" class="btn-start-execution" disabled>
+                Start Execution ▶
+            </button>
+        </aside>
+
+        <!-- CENTER PANEL: Pipeline Visualization -->
+        <section class="studio-panel studio-panel-center">
+            <div class="panel-section dag-section">
+                <div class="dag-header">
+                    <h3 class="panel-title">Workflow Pipeline</h3>
+                    <div class="dag-zoom-controls">
+                        <button class="zoom-btn" id="zoom-out" title="Zoom Out">−</button>
+                        <span class="zoom-level" id="zoom-level">100%</span>
+                        <button class="zoom-btn" id="zoom-in" title="Zoom In">+</button>
+                        <button class="zoom-btn" id="zoom-reset" title="Reset">⟲</button>
+                    </div>
+                </div>
+                <div id="dag-visualizer" class="dag-visualizer">
+                    <div id="dag-canvas" class="dag-canvas">
+                        <svg id="dag-svg" class="dag-svg" viewBox="0 0 500 480">
+                            <defs>
+                                <!-- Gradient for connections -->
+                                <linearGradient id="connection-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" stop-color="#8B5CF6" stop-opacity="0.6" />
+                                    <stop offset="100%" stop-color="#16E0BD" stop-opacity="0.8" />
+                                </linearGradient>
+                                <!-- Glow filter for active nodes -->
+                                <filter id="glow-running" x="-50%" y="-50%" width="200%" height="200%">
+                                    <feGaussianBlur stdDeviation="3" result="blur" />
+                                    <feMerge>
+                                        <feMergeNode in="blur" />
+                                        <feMergeNode in="SourceGraphic" />
+                                    </feMerge>
+                                </filter>
+                                <filter id="glow-complete" x="-50%" y="-50%" width="200%" height="200%">
+                                    <feGaussianBlur stdDeviation="3" result="blur" />
+                                    <feMerge>
+                                        <feMergeNode in="blur" />
+                                        <feMergeNode in="SourceGraphic" />
+                                    </feMerge>
+                                </filter>
+                                <!-- Particle gradient -->
+                                <radialGradient id="particle-gradient">
+                                    <stop offset="0%" stop-color="#16E0BD" />
+                                    <stop offset="100%" stop-color="#16E0BD" stop-opacity="0" />
+                                </radialGradient>
+                            </defs>
+
+                            <!-- Connection Paths Group -->
+                            <g id="dag-connections" class="dag-connections">
+                                <!-- Phase 1 (Research Row) to Planner -->
+                                <!-- Research (100,100) to Planner (260,130) -->
+                                <path class="dag-path" id="path-research-planner"
+                                    d="M100,100 C100,115 260,115 260,130" />
+                                <!-- SEO (200,100) to Planner (260,130) -->
+                                <path class="dag-path" id="path-seo-planner" d="M200,100 C200,115 260,115 260,130" />
+                                <!-- Knowledge (300,100) to Planner (260,130) -->
+                                <path class="dag-path" id="path-knowledge-planner"
+                                    d="M300,100 C300,115 260,115 260,130" />
+                                <!-- KPI (400,100) to Planner (260,130) -->
+                                <path class="dag-path" id="path-kpi-planner" d="M400,100 C400,115 260,115 260,130" />
+
+                                <!-- Planner (260,190) to Creation -->
+                                <!-- Planner to Text (150,220) -->
+                                <path class="dag-path" id="path-planner-text" d="M260,190 C260,205 150,205 150,220" />
+                                <!-- Planner to Image (280,220) -->
+                                <path class="dag-path" id="path-planner-image" d="M260,190 C260,205 280,205 280,220" />
+                                <!-- Planner to Video (400,220) -->
+                                <path class="dag-path" id="path-planner-video" d="M260,190 C260,205 400,205 400,220" />
+
+                                <!-- Creation to Validation -->
+                                <!-- Text (150,280) to Compliance (100,310) -->
+                                <path class="dag-path" id="path-text-compliance"
+                                    d="M150,280 C150,295 100,295 100,310" />
+                                <!-- Text (150,280) to SEO Opt (220,310) -->
+                                <path class="dag-path" id="path-text-seo" d="M150,280 C150,295 220,295 220,310" />
+                                <!-- Image (280,280) to Evaluator (340,310) -->
+                                <path class="dag-path" id="path-image-evaluator"
+                                    d="M280,280 C280,295 340,295 340,310" />
+
+                                <!-- Validation to Manager (260,400) -->
+                                <!-- Compliance (100,370) to Manager -->
+                                <path class="dag-path" id="path-compliance-manager"
+                                    d="M100,370 C100,385 260,385 260,400" />
+                                <!-- SEO Opt (220,370) to Manager -->
+                                <path class="dag-path" id="path-seo-manager" d="M220,370 C220,385 260,385 260,400" />
+                                <!-- Evaluator (340,370) to Manager -->
+                                <path class="dag-path" id="path-evaluator-manager"
+                                    d="M340,370 C340,385 260,385 260,400" />
+                            </g>
+
+                            <!-- Particle Effects Group -->
+                            <g id="dag-particles" class="dag-particles">
+                                <!-- Particles will be dynamically added here -->
+                            </g>
+
+                            <!-- Nodes Group -->
+                            <g id="dag-nodes" class="dag-nodes">
+                                <!-- Phase 1: Research -->
+                                <g class="dag-node waiting" id="node-research" transform="translate(60, 40)">
+                                    <rect class="node-bg" x="0" y="0" width="80" height="60" rx="8" />
+                                    <svg class="node-icon" x="28" y="8" width="24" height="24" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <circle cx="11" cy="11" r="8" />
+                                        <path d="M21 21l-4.35-4.35" />
+                                    </svg>
+                                    <text class="node-label" x="40" y="48" text-anchor="middle">Research</text>
+                                </g>
+                                <g class="dag-node waiting" id="node-seo" transform="translate(160, 40)">
+                                    <rect class="node-bg" x="0" y="0" width="80" height="60" rx="8" />
+                                    <svg class="node-icon" x="28" y="8" width="24" height="24" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <path d="M12 6v6l4 2" />
+                                    </svg>
+                                    <text class="node-label" x="40" y="48" text-anchor="middle">SEO</text>
+                                </g>
+                                <g class="dag-node waiting" id="node-knowledge" transform="translate(260, 40)">
+                                    <rect class="node-bg" x="0" y="0" width="80" height="60" rx="8" />
+                                    <svg class="node-icon" x="28" y="8" width="24" height="24" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <path d="M4 19.5A2.5 2.5 0 016.5 17H20" />
+                                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
+                                    </svg>
+                                    <text class="node-label" x="40" y="48" text-anchor="middle">Knowledge</text>
+                                </g>
+                                <g class="dag-node waiting" id="node-kpi" transform="translate(360, 40)">
+                                    <rect class="node-bg" x="0" y="0" width="80" height="60" rx="8" />
+                                    <svg class="node-icon" x="28" y="8" width="24" height="24" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                                    </svg>
+                                    <text class="node-label" x="40" y="48" text-anchor="middle">KPI</text>
+                                </g>
+
+                                <!-- Aggregator: Planner -->
+                                <g class="dag-node waiting" id="node-planner" transform="translate(220, 130)">
+                                    <rect class="node-bg node-main" x="0" y="0" width="80" height="60" rx="8" />
+                                    <svg class="node-icon" x="28" y="8" width="24" height="24" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <circle cx="12" cy="12" r="6" />
+                                        <circle cx="12" cy="12" r="2" />
+                                    </svg>
+                                    <text class="node-label" x="40" y="48" text-anchor="middle">Planner</text>
+                                </g>
+
+                                <!-- Phase 2: Creation -->
+                                <g class="dag-node waiting" id="node-text" transform="translate(110, 220)">
+                                    <rect class="node-bg" x="0" y="0" width="80" height="60" rx="8" />
+                                    <svg class="node-icon" x="28" y="8" width="24" height="24" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <path d="M12 19l7-7 3 3-7 7-3-3z" />
+                                        <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
+                                    </svg>
+                                    <text class="node-label" x="40" y="48" text-anchor="middle">Text</text>
+                                </g>
+                                <g class="dag-node waiting" id="node-image" transform="translate(240, 220)">
+                                    <rect class="node-bg" x="0" y="0" width="80" height="60" rx="8" />
+                                    <svg class="node-icon" x="28" y="8" width="24" height="24" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" />
+                                        <circle cx="8.5" cy="8.5" r="1.5" />
+                                        <path d="M21 15l-5-5L5 21" />
+                                    </svg>
+                                    <text class="node-label" x="40" y="48" text-anchor="middle">Image</text>
+                                </g>
+                                <g class="dag-node waiting disabled" id="node-video" transform="translate(360, 220)">
+                                    <rect class="node-bg" x="0" y="0" width="80" height="60" rx="8" />
+                                    <svg class="node-icon" x="28" y="8" width="24" height="24" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <rect x="2" y="4" width="20" height="14" rx="2" />
+                                        <path d="M10 9l5 3-5 3z" />
+                                    </svg>
+                                    <text class="node-label" x="40" y="48" text-anchor="middle">Video</text>
+                                </g>
+
+                                <!-- Phase 3: Validation -->
+                                <g class="dag-node waiting" id="node-compliance" transform="translate(60, 310)">
+                                    <rect class="node-bg" x="0" y="0" width="80" height="60" rx="8" />
+                                    <svg class="node-icon" x="28" y="8" width="24" height="24" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                                    </svg>
+                                    <text class="node-label" x="40" y="48" text-anchor="middle">Compliance</text>
+                                </g>
+                                <g class="dag-node waiting" id="node-seo-opt" transform="translate(180, 310)">
+                                    <rect class="node-bg" x="0" y="0" width="80" height="60" rx="8" />
+                                    <svg class="node-icon" x="28" y="8" width="24" height="24" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <circle cx="12" cy="12" r="3" />
+                                        <path
+                                            d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33" />
+                                    </svg>
+                                    <text class="node-label" x="40" y="48" text-anchor="middle">SEO Opt</text>
+                                </g>
+                                <g class="dag-node waiting" id="node-evaluator" transform="translate(300, 310)">
+                                    <rect class="node-bg" x="0" y="0" width="80" height="60" rx="8" />
+                                    <svg class="node-icon" x="28" y="8" width="24" height="24" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                                        <path d="M9 15l2 2 4-4" />
+                                    </svg>
+                                    <text class="node-label" x="40" y="48" text-anchor="middle">Evaluator</text>
+                                </g>
+
+                                <!-- Phase 4: Final -->
+                                <g class="dag-node waiting" id="node-manager" transform="translate(220, 400)">
+                                    <rect class="node-bg node-main" x="0" y="0" width="80" height="60" rx="8" />
+                                    <svg class="node-icon" x="28" y="8" width="24" height="24" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                                        <circle cx="12" cy="7" r="4" />
+                                    </svg>
+                                    <text class="node-label" x="40" y="48" text-anchor="middle">Manager</text>
+                                </g>
+                            </g>
+
+                            <!-- Phase Labels -->
+                            <g class="dag-phase-labels">
+                                <text class="phase-label" x="20" y="70" transform="rotate(-90, 20, 70)">Research</text>
+                                <text class="phase-label" x="20" y="160"
+                                    transform="rotate(-90, 20, 160)">Planning</text>
+                                <text class="phase-label" x="20" y="250"
+                                    transform="rotate(-90, 20, 250)">Creation</text>
+                                <text class="phase-label" x="20" y="340"
+                                    transform="rotate(-90, 20, 340)">Validation</text>
+                                <text class="phase-label" x="20" y="430" transform="rotate(-90, 20, 430)">Final</text>
+                            </g>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h3 class="panel-title">Activity Log</h3>
+                <div id="activity-log" class="activity-log">
+                    <div class="log-entry">
+                        <span class="log-time">[--:--:--]</span>
+                        <span class="log-message">Waiting for execution to start...</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- RIGHT PANEL: Live Preview -->
+        <aside class="studio-panel studio-panel-right">
+            <div class="panel-section">
+                <h3 class="panel-title">Live Preview</h3>
+                <div class="preview-tabs">
+                    <button class="preview-tab active" data-tab="twitter">𝕏</button>
+                    <button class="preview-tab" data-tab="instagram">📷</button>
+                    <button class="preview-tab" data-tab="facebook">📘</button>
+                    <button class="preview-tab" data-tab="linkedin">💼</button>
+                </div>
+            </div>
+
+            <div class="panel-section preview-content">
+                <!-- Twitter/X Preview -->
+                <div id="preview-twitter" class="preview-panel active">
+                    <div class="social-preview twitter-preview">
+                        <div class="social-header">
+                            <div class="social-avatar"
+                                style="background:#1DA1F2;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:bold;">
+                                𝕏
+                            </div>
+                            <div class="social-user-info">
+                                <div class="social-username">Your Brand <span class="verified">✓</span></div>
+                                <div class="social-handle">@yourbrand</div>
+                            </div>
+                        </div>
+                        <div class="social-content" id="twitter-content">
+                            <p class="preview-placeholder">Your generated tweet will appear here...</p>
+                        </div>
+                        <div class="social-image-container" id="twitter-image">
+                            <!-- Image will be inserted here -->
+                        </div>
+                        <div class="social-meta">
+                            <span class="meta-time">Just now</span>
+                        </div>
+                        <div class="social-actions twitter-actions">
+                            <div class="action-item">💬 <span>0</span></div>
+                            <div class="action-item">🔄 <span>0</span></div>
+                            <div class="action-item">❤️ <span>0</span></div>
+                            <div class="action-item">📊 <span>0</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Instagram Preview -->
+                <div id="preview-instagram" class="preview-panel">
+                    <div class="social-preview instagram-preview">
+                        <div class="social-header">
+                            <div class="social-avatar instagram-avatar"
+                                style="background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;">
+                                📷
+                            </div>
+                            <div class="social-user-info">
+                                <div class="social-username">yourbrand</div>
+                                <div class="social-handle">Sponsored</div>
+                            </div>
+                            <div class="social-more">⋯</div>
+                        </div>
+                        <div class="instagram-image-container" id="instagram-image">
+                            <div class="instagram-placeholder">
+                                <span>📷</span>
+                                <p>Image Preview</p>
+                            </div>
+                        </div>
+                        <div class="instagram-buttons">
+                            <div class="insta-left">
+                                <span>❤️</span>
+                                <span>💬</span>
+                                <span>📤</span>
+                            </div>
+                            <div class="insta-right">
+                                <span>🔖</span>
+                            </div>
+                        </div>
+                        <div class="instagram-likes">
+                            <strong>0 likes</strong>
+                        </div>
+                        <div class="instagram-caption" id="instagram-content">
+                            <strong>yourbrand</strong> <span class="preview-placeholder">Caption will appear
+                                here...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Facebook Preview -->
+                <div id="preview-facebook" class="preview-panel">
+                    <div class="social-preview facebook-preview">
+                        <div class="social-header">
+                            <div class="social-avatar"
+                                style="background:#1877F2;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;">
+                                f
+                            </div>
+                            <div class="social-user-info">
+                                <div class="social-username">Your Brand</div>
+                                <div class="social-handle">Just now · 🌐</div>
+                            </div>
+                            <div class="social-more">⋯</div>
+                        </div>
+                        <div class="social-content" id="facebook-content">
+                            <p class="preview-placeholder">Your Facebook post will appear here...</p>
+                        </div>
+                        <div class="facebook-image-container" id="facebook-image">
+                            <!-- Image will be inserted here -->
+                        </div>
+                        <div class="facebook-stats">
+                            <span>👍❤️ 0</span>
+                            <span>0 comments · 0 shares</span>
+                        </div>
+                        <div class="facebook-actions">
+                            <div class="fb-action">👍 Like</div>
+                            <div class="fb-action">💬 Comment</div>
+                            <div class="fb-action">↗️ Share</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LinkedIn Preview -->
+                <div id="preview-linkedin" class="preview-panel">
+                    <div class="social-preview linkedin-preview">
+                        <div class="social-header">
+                            <div class="social-avatar"
+                                style="background:#0A66C2;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;">
+                                in
+                            </div>
+                            <div class="social-user-info">
+                                <div class="social-username">Your Brand</div>
+                                <div class="social-handle">1,234 followers</div>
+                                <div class="social-time">Just now · 🌐</div>
+                            </div>
+                            <div class="social-more">⋯</div>
+                        </div>
+                        <div class="social-content" id="linkedin-content">
+                            <p class="preview-placeholder">Your LinkedIn post will appear here...</p>
+                        </div>
+                        <div class="linkedin-image-container" id="linkedin-image">
+                            <!-- Image will be inserted here -->
+                        </div>
+                        <div class="linkedin-stats">
+                            <span>👍 0</span>
+                            <span>0 comments</span>
+                        </div>
+                        <div class="linkedin-actions">
+                            <div class="li-action">👍 Like</div>
+                            <div class="li-action">💬 Comment</div>
+                            <div class="li-action">🔄 Repost</div>
+                            <div class="li-action">📤 Send</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content Approval Controls -->
+            <div class="panel-section approval-section">
+                <!-- Status Indicator -->
+                <div class="approval-status">
+                    <span class="status-label">Status:</span>
+                    <div class="status-badges">
+                        <span class="status-badge active" id="status-pending">Pending</span>
+                        <span class="status-badge" id="status-discarded">Discarded</span>
+                        <span class="status-badge" id="status-approved">Approved</span>
+                    </div>
+                </div>
+
+                <!-- AI Feedback Prompt -->
+                <div class="feedback-prompt">
+                    <textarea id="feedback-input" class="feedback-input"
+                        placeholder="Add feedback for AI regeneration (e.g., 'Make it more professional', 'Add more emojis')..."></textarea>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="approval-actions">
+                    <button class="approval-btn btn-discard" id="btn-discard" onclick="discardContent()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                        Discard
+                    </button>
+                    <button class="approval-btn btn-regenerate" id="btn-regenerate" onclick="regenerateContent()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <polyline points="23 4 23 10 17 10"></polyline>
+                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                        </svg>
+                        Regenerate
+                    </button>
+                    <button class="approval-btn btn-approve" id="btn-approve" onclick="approveContent()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        Approve
+                    </button>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h3 class="panel-title">Agent Insights</h3>
+                <div class="insights-card">
+                    <div class="insights-circles">
+                        <!-- SEO Score Circle -->
+                        <div class="insight-circle-wrap">
+                            <div class="insight-circle" id="seo-circle">
+                                <svg viewBox="0 0 100 100">
+                                    <circle class="circle-bg" cx="50" cy="50" r="42" />
+                                    <circle class="circle-progress seo-progress" cx="50" cy="50" r="42"
+                                        stroke-dasharray="264" stroke-dashoffset="264" id="seo-progress-ring" />
+                                </svg>
+                                <div class="circle-value">
+                                    <span class="value-number" id="seo-value">--</span>
+                                    <span class="value-unit">%</span>
+                                </div>
+                            </div>
+                            <div class="insight-label">SEO Score</div>
+                            <div class="insight-sublabel" id="seo-sublabel">--/100 - Waiting</div>
+                        </div>
+
+                        <!-- Compliance Circle -->
+                        <div class="insight-circle-wrap">
+                            <div class="insight-circle" id="compliance-circle">
+                                <svg viewBox="0 0 100 100">
+                                    <circle class="circle-bg" cx="50" cy="50" r="42" />
+                                    <circle class="circle-progress compliance-progress" cx="50" cy="50" r="42"
+                                        stroke-dasharray="264" stroke-dashoffset="264" id="compliance-progress-ring" />
+                                </svg>
+                                <div class="circle-value">
+                                    <span class="value-number" id="compliance-value">--</span>
+                                    <span class="value-unit">%</span>
+                                </div>
+                                <div class="compliance-check" id="compliance-check" style="display:none;">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                        <polyline points="20 6 9 17 4 12" />
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="insight-label">Compliance</div>
+                            <div class="insight-sublabel" id="compliance-sublabel">Status: Waiting</div>
+                        </div>
+                    </div>
+                    <div class="insights-footer">
+                        Insights updated every 30s.
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <!-- Footer Controls -->
+    <footer class="studio-footer">
+        <div class="footer-left">
+            <button id="pause-btn" class="footer-btn" disabled>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="6" y="4" width="4" height="16"></rect>
+                    <rect x="14" y="4" width="4" height="16"></rect>
+                </svg>
+                Pause
+            </button>
+            <button id="stop-btn" class="footer-btn btn-danger" disabled>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                </svg>
+                Stop
+            </button>
+        </div>
+        <div class="footer-center">
+            <span id="footer-progress">Phase --/-- • Agent --/--</span>
+        </div>
+        <div class="footer-right">
+            <button id="retry-btn" class="footer-btn" disabled>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                </svg>
+                Retry
+            </button>
+            <button id="complete-btn" class="footer-btn btn-success" disabled>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                Complete
+            </button>
+        </div>
+    </footer>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+    <!-- Config & Auth -->
+    <script src="../firebase-config.js"></script>
+    <script src="../auth.js"></script>
+
+    <!-- Studio Scripts -->
+    <script src="dag-executor.js"></script>
+    <script src="studio.js"></script>
+</body>
+
+</html>
