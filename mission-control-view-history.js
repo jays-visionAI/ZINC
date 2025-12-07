@@ -180,6 +180,42 @@
         }
     };
 
+    // ===== Tab State =====
+    let currentContentTab = 'content'; // 'content' or 'worklog'
+
+    /**
+     * Switch between Content and Work Log tabs
+     * @param {string} tabName - 'content' or 'worklog'
+     */
+    window.switchContentTab = function (tabName) {
+        currentContentTab = tabName;
+
+        // Update tab button states
+        document.querySelectorAll('.content-tab').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.tab === tabName);
+        });
+
+        // Show/hide panels
+        const contentPanel = document.getElementById('content-tab-panel');
+        const worklogPanel = document.getElementById('worklog-tab-panel');
+
+        if (contentPanel && worklogPanel) {
+            if (tabName === 'content') {
+                contentPanel.style.display = 'block';
+                contentPanel.classList.add('active');
+                worklogPanel.style.display = 'none';
+                worklogPanel.classList.remove('active');
+            } else {
+                contentPanel.style.display = 'none';
+                contentPanel.classList.remove('active');
+                worklogPanel.style.display = 'block';
+                worklogPanel.classList.add('active');
+            }
+        }
+
+        console.log(`[View History] Switched to ${tabName} tab`);
+    };
+
     // ===== Panel 1: Assigned Sub-Agents (Left) =====
 
     function loadAssignedAgentTeam(projectId, teamId) {
@@ -615,7 +651,25 @@
                     contents.push({ id: doc.id, ...doc.data() });
                 });
 
-                renderContents(contents, container);
+                // Separate publishable content from work logs
+                // Use content_category if available, fallback to is_meta for backward compatibility
+                const publishableContents = contents.filter(c =>
+                    c.content_category === 'publishable' ||
+                    (!c.content_category && !c.is_meta && c.content_type !== 'meta')
+                );
+                const workLogContents = contents.filter(c =>
+                    c.content_category === 'work_log' ||
+                    (!c.content_category && (c.is_meta || c.content_type === 'meta'))
+                );
+
+                // Render to Content tab
+                renderContents(publishableContents, container);
+
+                // Render to Work Log tab
+                const worklogContainer = document.getElementById('worklog-list');
+                if (worklogContainer) {
+                    renderWorkLogs(workLogContents, worklogContainer);
+                }
             },
             (error) => {
                 console.error('[View History] Error loading contents:', error);
@@ -626,7 +680,7 @@
 
     function renderContents(contents, container) {
         if (contents.length === 0) {
-            container.innerHTML = '<div class="empty-state">No content generated</div>';
+            container.innerHTML = '<div class="empty-state">No publishable content yet.<br><span style="font-size: 12px; opacity: 0.6;">Run an agent to generate content.</span></div>';
             return;
         }
 
@@ -638,6 +692,80 @@
                 return renderLegacyContent(content);
             }
         }).join('');
+    }
+
+    /**
+     * Render Work Log timeline
+     */
+    function renderWorkLogs(logs, container) {
+        if (logs.length === 0) {
+            container.innerHTML = '<div class="empty-state">No work logs yet.<br><span style="font-size: 12px; opacity: 0.6;">Agent activity logs will appear here.</span></div>';
+            return;
+        }
+
+        // Group logs by run_id
+        const logsByRun = {};
+        logs.forEach(log => {
+            const runId = log.run_id || 'unknown';
+            if (!logsByRun[runId]) {
+                logsByRun[runId] = [];
+            }
+            logsByRun[runId].push(log);
+        });
+
+        // Render timeline
+        container.innerHTML = `
+            <div class="worklog-timeline">
+                ${Object.entries(logsByRun).map(([runId, runLogs]) => {
+            const firstLog = runLogs[0];
+            const runTime = firstLog.created_at?.toDate?.()
+                ? firstLog.created_at.toDate().toLocaleString()
+                : 'Unknown time';
+
+            return `
+                        <div class="worklog-stage">
+                            <div class="worklog-stage-header">
+                                <span class="worklog-stage-title">Run: ${runId.substring(0, 8)}...</span>
+                                <span class="worklog-stage-duration">${runTime}</span>
+                            </div>
+                            ${runLogs.map(log => renderWorkLogItem(log)).join('')}
+                        </div>
+                    `;
+        }).join('')}
+            </div>
+        `;
+    }
+
+    /**
+     * Render individual work log item
+     */
+    function renderWorkLogItem(log) {
+        const title = log.title || log.sub_agent_role || 'Agent Output';
+        const status = log.status || 'complete';
+        const output = log.content_text || log.preview_text || '';
+        const truncatedOutput = output.length > 300 ? output.substring(0, 300) + '...' : output;
+
+        // Stage badge
+        const stage = log.execution_stage || '';
+        const stageBadge = stage ? `<span class="worklog-stage-badge ${stage}">${stage}</span>` : '';
+
+        // Stage colors: planning=blue, creation=purple, review=green
+        const stageStyle = stage === 'planning' ? 'background: rgba(59, 130, 246, 0.15); color: #3b82f6;'
+            : stage === 'creation' ? 'background: rgba(139, 92, 246, 0.15); color: #8b5cf6;'
+                : stage === 'review' ? 'background: rgba(16, 185, 129, 0.15); color: #10b981;' : '';
+
+        return `
+            <div class="worklog-agent">
+                <div class="worklog-agent-header">
+                    <span class="worklog-agent-name">
+                        ${stageBadge ? `<span style="font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-right: 8px; ${stageStyle}">${stage.toUpperCase()}</span>` : ''}
+                        ${title}
+                    </span>
+                    <span class="worklog-agent-status ${status}">${status === 'complete' ? '✅ Complete' : status}</span>
+                </div>
+                <div class="worklog-agent-output">${escapeHtml(truncatedOutput)}</div>
+            </div>
+        `;
     }
 
     /**
@@ -711,28 +839,50 @@
         return `
             <div class="platform-frame x-frame">
                 <div class="x-post">
-                    <div class="x-author">
+                    <div class="x-header">
                         <div class="x-avatar">
                             ${avatarUrl ? `<img src="${avatarUrl}" alt="">` : '<div class="avatar-placeholder">V</div>'}
                         </div>
-                        <div class="x-author-info">
-                            <div class="x-name">${authorName}</div>
-                            <div class="x-username">@${authorUsername}</div>
+                        <div class="x-header-content">
+                            <div class="x-author-row">
+                                <span class="x-name">${authorName}</span>
+                                <span class="x-verified">✓</span>
+                                <span class="x-username">@${authorUsername}</span>
+                            </div>
+                            <div class="x-text">${escapeHtml(text)}</div>
                         </div>
-                        <span class="x-time">now</span>
+                        <div class="x-menu">···</div>
                     </div>
-                    <div class="x-text">${escapeHtml(text)}</div>
                     ${imageUrl ? `
-                        <div class="x-image">
-                            <img src="${imageUrl}" alt="Post image">
+                        <div class="x-media">
+                            <img src="${imageUrl}" alt="Post media">
                         </div>
                     ` : ''}
                     <div class="x-interactions">
-                        <span>💬 0</span>
-                        <span>🔄 0</span>
-                        <span>❤️ 0</span>
-                        <span>📊 0</span>
-                        <span>📤</span>
+                        <div class="x-action">
+                            <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M1.751 10c0-4.42 3.584-8 8.005-8h4.366c4.49 0 8.129 3.64 8.129 8.13 0 2.96-1.607 5.68-4.196 7.11l-8.054 4.46v-3.69h-.067c-4.49.1-8.183-3.51-8.183-8.01zm8.005-6c-3.317 0-6.005 2.69-6.005 6 0 3.37 2.77 6.08 6.138 6.01l.351-.01h1.761v2.3l5.087-2.81c1.951-1.08 3.163-3.13 3.163-5.36 0-3.39-2.744-6.13-6.129-6.13H9.756z"></path></svg>
+                            <span>0</span>
+                        </div>
+                        <div class="x-action">
+                            <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M4.5 3.88l4.432 4.14-1.364 1.46L5.5 7.55V16c0 1.1.896 2 2 2H13v2H7.5c-2.209 0-4-1.79-4-4V7.55L1.432 9.48.068 8.02 4.5 3.88zM16.5 6H11V4h5.5c2.209 0 4 1.79 4 4v8.45l2.068-1.93 1.364 1.46-4.432 4.14-4.432-4.14 1.364-1.46 2.068 1.93V8c0-1.1-.896-2-2-2z"></path></svg>
+                            <span>0</span>
+                        </div>
+                        <div class="x-action">
+                            <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M16.697 5.5c-1.222-.06-2.679.51-3.89 2.16l-.805 1.09-.806-1.09C9.984 6.01 8.526 5.44 7.304 5.5c-1.243.07-2.349.78-2.91 1.91-.552 1.12-.633 2.78.479 4.82 1.074 1.97 3.257 4.27 7.129 6.61 3.87-2.34 6.052-4.64 7.126-6.61 1.111-2.04 1.03-3.7.477-4.82-.561-1.13-1.666-1.84-2.908-1.91zm4.187 7.69c-1.351 2.48-4.001 5.12-8.379 7.67l-.503.3-.504-.3c-4.379-2.55-7.029-5.19-8.382-7.67-1.36-2.5-1.41-4.86-.514-6.67.887-1.79 2.647-2.91 4.601-3.01 1.651-.09 3.368.56 4.798 2.01 1.429-1.45 3.146-2.1 4.796-2.01 1.954.1 3.714 1.22 4.601 3.01.896 1.81.846 4.17-.514 6.67z"></path></svg>
+                            <span>0</span>
+                        </div>
+                        <div class="x-action">
+                            <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M8.75 21V3h2v18h-2zM18 21V8.5h2V21h-2zM4 21v-5.5h2V21H4z"></path></svg>
+                            <span>0</span>
+                        </div>
+                        <div class="x-action-group">
+                            <div class="x-action">
+                                <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M4 4.5C4 3.12 5.119 2 6.5 2h11C18.881 2 20 3.12 20 4.5v18.44l-8-5.71-8 5.71V4.5zM6.5 4c-.276 0-.5.22-.5.5v14.56l6-4.29 6 4.29V4.5c0-.28-.224-.5-.5-.5h-11z"></path></svg>
+                            </div>
+                            <div class="x-action">
+                                <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 2.59l5.7 5.7-1.41 1.42L13 6.41V16h-2V6.41l-3.3 3.3-1.41-1.42L12 2.59zM21 15l-.02 3.51c0 1.38-1.12 2.49-2.5 2.49H5.5C4.11 21 3 19.88 3 18.5V15h2v3.5c0 .28.22.5.5.5h12.98c.28 0 .5-.22.5-.5L19 15h2z"></path></svg>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

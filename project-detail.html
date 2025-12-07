@@ -248,12 +248,42 @@
 
                             <!-- Panel 3: Generated Content -->
                             <div class="studio-panel">
-                                <div class="studio-panel-header">
-                                    <h4>Generated Content</h4>
+                                <div class="studio-panel-header" style="flex-direction: column; gap: 12px;">
+                                    <div
+                                        style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                                        <h4>Generated Content</h4>
+                                        <span id="content-filter-indicator"
+                                            style="display: none; font-size: 11px; color: #16e0bd;"></span>
+                                    </div>
+                                    <!-- Tab Buttons -->
+                                    <div class="content-tabs">
+                                        <button class="content-tab active" data-tab="content"
+                                            onclick="switchContentTab('content')">
+                                            📄 Content
+                                        </button>
+                                        <button class="content-tab" data-tab="worklog"
+                                            onclick="switchContentTab('worklog')">
+                                            📋 Work Log
+                                        </button>
+                                    </div>
                                 </div>
-                                <div id="content-list" class="studio-panel-content">
-                                    <div style="text-align: center; padding: 40px 20px; color: rgba(255,255,255,0.5);">
-                                        Loading content...
+                                <!-- Content Tab Panel -->
+                                <div id="content-tab-panel" class="studio-panel-content tab-panel active">
+                                    <div id="content-list">
+                                        <div
+                                            style="text-align: center; padding: 40px 20px; color: rgba(255,255,255,0.5);">
+                                            Loading content...
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Work Log Tab Panel -->
+                                <div id="worklog-tab-panel" class="studio-panel-content tab-panel"
+                                    style="display: none;">
+                                    <div id="worklog-list">
+                                        <div
+                                            style="text-align: center; padding: 40px 20px; color: rgba(255,255,255,0.5);">
+                                            Loading work logs...
+                                        </div>
                                     </div>
                                 </div>
                             </div>
