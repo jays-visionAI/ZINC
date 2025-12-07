@@ -380,6 +380,7 @@ async function updatePreviewChannel(teamId) {
 
         const team = teamDoc.data();
         const channels = team.channels || [];
+        const bindings = team.channelBindings || {};
 
         // Channel icon mapping
         const channelIcons = {
@@ -402,10 +403,11 @@ async function updatePreviewChannel(teamId) {
             'tiktok': 'TikTok'
         };
 
+        let provider = 'x'; // Default
+
         if (channels.length > 0) {
             // Get the first/primary channel
             const primaryChannel = channels[0];
-            let provider;
 
             // Handle different data formats (string ID or object)
             if (typeof primaryChannel === 'string') {
@@ -413,30 +415,56 @@ async function updatePreviewChannel(teamId) {
             } else if (typeof primaryChannel === 'object') {
                 provider = primaryChannel.provider || primaryChannel.key || primaryChannel.id;
             }
-
-            // Normalization
-            if (provider === 'twitter') provider = 'x';
-
-            channelIcon.textContent = channelIcons[provider] || '📺';
-            channelName.textContent = channelDisplayNames[provider] || provider;
-            channelInfo?.classList.add('ready');
-
-            // Store in state for later use
-            state.activeChannel = provider;
-
-            // Show the appropriate preview panel
-            showPreviewForChannel(provider);
-
-            addLogEntry(`📺 Channel set to: ${channelDisplayNames[provider] || provider}`, 'info');
         } else {
             console.log('No channels configured for team, defaulting to X');
-            channelIcon.textContent = '𝕏';
-            channelName.textContent = 'X (Default)';
-            channelInfo?.classList.remove('ready');
+        }
 
-            // Default to X if no channel configured
-            showPreviewForChannel('x');
-            state.activeChannel = 'x';
+        // Normalization
+        if (provider === 'twitter') provider = 'x';
+
+        // Update Channel Info UI
+        channelIcon.textContent = channelIcons[provider] || '📺';
+        channelName.textContent = channelDisplayNames[provider] || provider;
+        channelInfo?.classList.add('ready');
+
+        // Store in state for later use
+        state.activeChannel = provider;
+
+        // Show the appropriate preview panel
+        showPreviewForChannel(provider);
+
+        addLogEntry(`📺 Channel set to: ${channelDisplayNames[provider] || provider}`, 'info');
+
+        // Check for bindings and update profile
+        const credentialId = bindings[provider];
+        if (credentialId) {
+            try {
+                // Fetch credential details to get handle/avatar
+                const credDoc = await db.collection('userApiCredentials').doc(credentialId).get();
+                if (credDoc.exists) {
+                    const credData = credDoc.data();
+                    const handle = credData.accountHandle || credData.accountUsername || null;
+                    const name = credData.detailedName || credData.accountName || null;
+                    const avatarUrl = credData.profileImageUrl || null;
+
+                    if (name || handle) {
+                        // Use credential info
+                        updatePreviewProfile(name, handle, avatarUrl);
+                        addLogEntry(`👤 Profile updated from connected account: ${handle}`, 'success');
+                    }
+                }
+            } catch (credError) {
+                console.error('Error loading bound credential:', credError);
+            }
+        } else {
+            // If no binding, we stick with what we have (Project Name based)
+            // But we might want to refresh it just in case it was overwritten by previous team selection
+            // Get current project name from select
+            const projectSelect = document.getElementById('project-select');
+            const projectName = projectSelect.options[projectSelect.selectedIndex]?.textContent;
+            if (projectName) {
+                updatePreviewProfile(projectName);
+            }
         }
 
     } catch (error) {
