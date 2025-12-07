@@ -5,6 +5,17 @@
  * ============================================
  */
 
+:root {
+    /* Override inherited variables for Studio to match Command Center's bright aesthetic */
+    --color-cyan: #00FFA3;
+    --color-cyan-glow: rgba(0, 255, 163, 0.3);
+    /* Set success to Neon Green */
+    --color-success: #00FFA3;
+    --color-success-dark: #10B981;
+    /* Update gradient to be brighter */
+    --gradient-success: linear-gradient(135deg, #00FFA3 0%, #10B981 100%);
+}
+
 /* ============================================
    LAYOUT
    ============================================ */
@@ -1576,11 +1587,11 @@
 
 .seo-progress {
     stroke: url(#insight-gradient);
-    stroke: #16E0BD;
+    stroke: var(--color-success);
 }
 
 .compliance-progress {
-    stroke: #16E0BD;
+    stroke: var(--color-success);
 }
 
 .circle-value {
@@ -1610,7 +1621,7 @@
     right: -4px;
     width: 24px;
     height: 24px;
-    background: #16E0BD;
+    background: var(--color-success);
     border-radius: 50%;
     display: flex;
     align-items: center;
