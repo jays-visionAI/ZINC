@@ -811,6 +811,10 @@ function startExecution() {
                 if (imageContainer) {
                     imageContainer.style.display = 'block'; // Ensure it's visible
                     imageContainer.innerHTML = `<img src="${content.imageUrl}" alt="Generated Content" style="width:100%; height:100%; object-fit:cover; border-radius: 12px; border: 1px solid var(--color-border);">`;
+
+                    // Add log with image link
+                    const shortUrl = content.imageUrl.length > 50 ? 'View Generated Image' : content.imageUrl;
+                    addLogEntry(`🖼️ Image generated: <a href="${content.imageUrl}" target="_blank" style="color:#3b82f6;text-decoration:underline;">${shortUrl}</a>`, 'success');
                 }
             }
         })

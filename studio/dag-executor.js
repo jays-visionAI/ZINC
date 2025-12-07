@@ -237,7 +237,7 @@ class DAGExecutor {
                 content: "🚀 Exciting news! We're thrilled to announce our latest innovation that's changing the game.\n\nStay tuned for more updates. The future is here, and we're leading the way!\n\n#Innovation #Technology #Future #AI"
             },
             creator_image: {
-                imageUrl: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"><rect fill="%231a1a2e" width="400" height="300"/><text x="50%" y="50%" fill="%2316e0bd" text-anchor="middle" dy=".3em" font-family="sans-serif" font-size="18">Generated Image</text></svg>'
+                imageUrl: 'https://placehold.co/600x400/1a1a2e/16e0bd?text=Generated+Image'
             }
         };
 
