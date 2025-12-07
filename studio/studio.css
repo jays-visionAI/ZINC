@@ -537,9 +537,161 @@
 }
 
 .agent-count {
-    font-weight: 400;
+    padding: 24px;
+    text-align: center;
     color: var(--color-text-tertiary);
-    font-size: 12px;
+    font-size: 14px;
+}
+
+/* ========================================
+   Platform-Specific Preview Frames (Ported from Mission Control)
+   ======================================== */
+
+/* Avatar Placeholder */
+.avatar-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #16e0bd 0%, #10b981 100%);
+    color: #000;
+    font-weight: 700;
+    font-size: 18px;
+    border-radius: 50%;
+}
+
+/* X (Twitter) Frame */
+.x-frame {
+    background: #000;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    max-width: 550px;
+    margin: 0 auto;
+    border-radius: 12px;
+    border: 1px solid #2f3336;
+    overflow: hidden;
+    /* Ensure content stays within rounded corners */
+}
+
+.x-post {
+    color: #e7e9ea;
+    padding: 12px 16px;
+}
+
+/* X Header */
+.x-header {
+    display: flex;
+    gap: 12px;
+}
+
+.x-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.x-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.x-header-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.x-author-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.x-name {
+    font-weight: 700;
+    font-size: 15px;
+    color: #e7e9ea;
+}
+
+.x-verified {
+    color: #1d9bf0;
+    font-size: 14px;
+}
+
+.x-username {
+    color: #71767b;
+    font-size: 15px;
+}
+
+.x-menu {
+    color: #71767b;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px 8px;
+    margin-left: 8px;
+}
+
+.x-menu:hover {
+    color: #1d9bf0;
+}
+
+/* X Text */
+.x-text {
+    font-size: 15px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin-top: 4px;
+    color: #e7e9ea;
+}
+
+/* X Media */
+.x-media {
+    margin-top: 12px;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid #2f3336;
+}
+
+.x-media img {
+    width: 100%;
+    display: block;
+}
+
+/* X Interactions */
+.x-interactions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+    padding-top: 4px;
+}
+
+.x-action {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: #71767b;
+    cursor: pointer;
+    transition: color 0.2s;
+    font-size: 13px;
+}
+
+.x-action:hover {
+    color: #1d9bf0;
+}
+
+.x-action svg {
+    flex-shrink: 0;
+}
+
+.x-action-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
 
 /* Stats Section */
