@@ -102,6 +102,13 @@
     // Initialize on DOM ready
     // ===============================================
     function init() {
+        // Make sure body exists
+        if (!document.body) {
+            console.warn('[GlobalEventFix] Body not ready, waiting...');
+            setTimeout(init, 10);
+            return;
+        }
+
         fixButtonTypes();
         observer.observe(document.body, {
             childList: true,
@@ -110,10 +117,14 @@
         console.log('[GlobalEventFix] Ready - All buttons will have type="button" by default');
     }
 
+    // Multiple initialization strategies for reliability
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
-    } else {
+    } else if (document.body) {
         init();
+    } else {
+        // Body doesn't exist yet, wait a bit
+        setTimeout(init, 10);
     }
 
     // Export utilities

@@ -1,24 +1,68 @@
 :root {
-    /* Colors */
+    /* ============================================
+       ZYNK Theme Color System
+       Usage: var(--color-name)
+       ============================================ */
+
+    /* Background Colors */
     --color-bg-primary: #0a0a0f;
     --color-bg-secondary: #13131a;
     --color-bg-tertiary: #1a1a24;
+    --color-bg-card: rgba(255, 255, 255, 0.03);
+    --color-bg-hover: rgba(255, 255, 255, 0.05);
 
+    /* Text Colors */
     --color-text-primary: #ffffff;
     --color-text-secondary: #a0a0b0;
     --color-text-tertiary: #6b6b7b;
+    --color-text-muted: rgba(255, 255, 255, 0.5);
 
+    /* ★ Brand Colors */
+    --color-purple-400: #a78bfa;
     --color-purple-500: #8B5CF6;
     --color-purple-600: #7C3AED;
+    --color-blue-400: #60a5fa;
     --color-blue-500: #3B82F6;
     --color-blue-600: #2563EB;
+    --color-cyan-400: #22d3ee;
     --color-cyan-500: #06B6D4;
+    --color-pink-400: #f472b6;
     --color-pink-500: #EC4899;
+
+    /* ★ Semantic Colors */
+    --color-success: #16e0bd;
+    /* Teal-Cyan for success/active */
+    --color-success-dark: #10b981;
+    /* Darker teal */
+    --color-warning: #f59e0b;
+    /* Amber for warnings */
+    --color-danger: #ef4444;
+    /* Red for errors/delete */
+    --color-info: #3b82f6;
+    /* Blue for info */
+
+    /* ★ Action Button Colors */
+    --color-btn-primary: linear-gradient(135deg, #16e0bd 0%, #10b981 100%);
+    /* Green-Teal (Activate/Start) */
+    --color-btn-secondary: rgba(255, 255, 255, 0.08);
+    /* Gray (Cancel) */
+    --color-btn-accent: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%);
+    /* Blue-Purple (Featured) */
+    --color-btn-pause: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
+    /* Purple (Pause) */
+    --color-btn-danger: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    /* Red (Delete) */
 
     /* Gradients */
     --gradient-primary: linear-gradient(135deg, #8B5CF6 0%, #3B82F6 100%);
     --gradient-secondary: linear-gradient(135deg, #EC4899 0%, #8B5CF6 100%);
     --gradient-accent: linear-gradient(135deg, #06B6D4 0%, #3B82F6 100%);
+    --gradient-success: linear-gradient(135deg, #16e0bd 0%, #10b981 100%);
+
+    /* Border Colors */
+    --color-border: rgba(255, 255, 255, 0.08);
+    --color-border-hover: rgba(255, 255, 255, 0.15);
+    --color-border-active: #16e0bd;
 
     /* Spacing */
     --spacing-xs: 0.5rem;
@@ -42,6 +86,7 @@
     --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
     --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
     --shadow-glow: 0 0 40px rgba(139, 92, 246, 0.3);
+    --shadow-glow-success: 0 0 20px rgba(22, 224, 189, 0.3);
 
     /* Transitions */
     --transition-fast: 150ms ease;
@@ -57,6 +102,31 @@
 
 html {
     scroll-behavior: smooth;
+}
+
+/* Custom Scrollbar - Dark Theme */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1a1a24;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.4);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.6);
+}
+
+/* Firefox scrollbar */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.4) #1a1a24;
 }
 
 body {
@@ -1190,6 +1260,7 @@ body {
     margin-bottom: 8px;
     background: linear-gradient(to right, #fff, #9CA3AF);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
@@ -1526,6 +1597,7 @@ body {
     margin-bottom: 4px;
     background: linear-gradient(to bottom, #fff, #9CA3AF);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
@@ -2281,6 +2353,7 @@ body {
     margin: 0;
     background: linear-gradient(135deg, var(--color-cyan) 0%, #00ff88 100%);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 

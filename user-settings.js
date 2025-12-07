@@ -372,16 +372,24 @@ window.editCredential = function (id) {
 };
 
 window.deleteCredential = async function (id) {
-    if (!confirm('Are you sure you want to delete this connection?')) return;
-
-    try {
-        await window.ChannelCredentialService.deleteCredential(id);
-        await loadCredentials();
-        alert('✅ Connection deleted successfully');
-    } catch (error) {
-        console.error('Error deleting credential:', error);
-        alert('Error deleting connection: ' + error.message);
-    }
+    showConfirmModal(
+        'Delete Connection',
+        'Are you sure you want to delete this connection?\n\nThis action cannot be undone.',
+        async () => {
+            try {
+                await window.ChannelCredentialService.deleteCredential(id);
+                await loadCredentials();
+                showAlertModal('Deleted', 'Connection deleted successfully', null, { type: 'success' });
+            } catch (error) {
+                console.error('Error deleting credential:', error);
+                showAlertModal('Error', 'Error deleting connection: ' + error.message, null, { type: 'error' });
+            }
+        },
+        {
+            confirmText: 'Delete',
+            confirmStyle: 'danger'
+        }
+    );
 };
 
 // Dynamic Fields

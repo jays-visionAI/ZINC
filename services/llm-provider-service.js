@@ -16,14 +16,16 @@
          */
         async getProviders() {
             try {
-                const snapshot = await this.db.collection(this.collectionName)
-                    .orderBy('updatedAt', 'desc')
-                    .get();
+                // Removed orderBy to avoid index requirements
+                const snapshot = await this.db.collection(this.collectionName).get();
 
-                return snapshot.docs.map(doc => ({
+                const providers = snapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data()
                 }));
+
+                console.log(`[LLMProviderService] Found ${providers.length} providers`);
+                return providers;
             } catch (error) {
                 console.error("[LLMProviderService] Error fetching providers:", error);
                 throw error;
