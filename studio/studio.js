@@ -110,18 +110,29 @@ async function initProjectSelector() {
     // Wait for Firebase auth
     firebase.auth().onAuthStateChanged(async (user) => {
         if (!user) {
+            console.log('[Studio] No user logged in, redirecting...');
             window.location.href = '../index.html';
             return;
         }
 
+        console.log('[Studio] User authenticated:', user.uid);
+
         try {
             // Load projects
+            console.log('[Studio] Loading projects for user:', user.uid);
             const projectsSnapshot = await db.collection('projects')
                 .where('userId', '==', user.uid)
                 .orderBy('createdAt', 'desc')
                 .get();
 
+            console.log('[Studio] Found', projectsSnapshot.size, 'projects');
+
             projectSelect.innerHTML = '<option value="">Select Project...</option>';
+
+            if (projectsSnapshot.empty) {
+                projectSelect.innerHTML = '<option value="">No projects found</option>';
+                return;
+            }
 
             projectsSnapshot.forEach(doc => {
                 const project = doc.data();
@@ -129,6 +140,7 @@ async function initProjectSelector() {
                 option.value = doc.id;
                 option.textContent = project.name || project.businessName || doc.id;
                 projectSelect.appendChild(option);
+                console.log('[Studio] Added project:', doc.id, project.name || project.businessName);
             });
 
             // If URL has project param, auto-select
@@ -136,20 +148,24 @@ async function initProjectSelector() {
             const projectId = urlParams.get('project');
             if (projectId) {
                 projectSelect.value = projectId;
+                state.selectedProject = projectId;
                 await loadAgentTeams(projectId);
 
                 const teamId = urlParams.get('team');
                 if (teamId) {
                     agentTeamSelect.value = teamId;
                     state.selectedAgentTeam = teamId;
+                    await loadSubAgents(teamId);
                     enableStartButton();
                 }
             }
 
         } catch (error) {
-            console.error('Error loading projects:', error);
+            console.error('[Studio] Error loading projects:', error);
+            projectSelect.innerHTML = '<option value="">Error loading projects</option>';
         }
     });
+
 
     // Event: Project change
     projectSelect.addEventListener('change', async (e) => {
