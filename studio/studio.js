@@ -118,10 +118,11 @@ async function initProjectSelector() {
         console.log('[Studio] User authenticated:', user.uid);
 
         try {
-            // Load projects (no orderBy to avoid index requirement)
+            // Load projects (matching user-settings.js approach)
             console.log('[Studio] Loading projects for user:', user.uid);
             const projectsSnapshot = await db.collection('projects')
                 .where('userId', '==', user.uid)
+                .where('isDraft', '==', false)  // Only non-draft projects
                 .get();
 
             console.log('[Studio] Found', projectsSnapshot.size, 'projects');
@@ -130,6 +131,7 @@ async function initProjectSelector() {
 
             if (projectsSnapshot.empty) {
                 projectSelect.innerHTML = '<option value="">No projects found</option>';
+                addLogEntry('📂 No projects found', 'info');
                 return;
             }
 
@@ -138,14 +140,18 @@ async function initProjectSelector() {
             projectsSnapshot.forEach(doc => {
                 const data = doc.data();
 
-                // Log userId for debugging
-                console.log('[Studio] Project:', doc.id, 'name:', data.name, 'userId:', data.userId);
+                // Log for debugging
+                console.log('[Studio] Project:', doc.id, 'projectName:', data.projectName, 'name:', data.name);
 
-                // Double-check: Only include projects that belong to current user AND have a name
-                if (data.userId === user.uid && (data.name || data.businessName)) {
-                    projects.push({ id: doc.id, ...data });
-                } else if (data.userId !== user.uid) {
-                    console.warn('[Studio] Skipping project with wrong userId:', doc.id, 'owner:', data.userId);
+                // Use projectName (new) or name/businessName (legacy) 
+                const displayName = data.projectName || data.name || data.businessName;
+
+                if (displayName) {
+                    projects.push({
+                        id: doc.id,
+                        displayName,
+                        createdAt: data.createdAt
+                    });
                 } else {
                     console.log('[Studio] Skipping project without name:', doc.id);
                 }
@@ -153,13 +159,14 @@ async function initProjectSelector() {
 
             if (projects.length === 0) {
                 projectSelect.innerHTML = '<option value="">No valid projects found</option>';
+                addLogEntry('📂 No valid projects found', 'info');
                 return;
             }
 
             // Sort by createdAt descending (newest first)
             projects.sort((a, b) => {
-                const dateA = a.createdAt?.toDate?.() || new Date(0);
-                const dateB = b.createdAt?.toDate?.() || new Date(0);
+                const dateA = a.createdAt?.toDate?.() || a.createdAt?.seconds ? new Date(a.createdAt.seconds * 1000) : new Date(0);
+                const dateB = b.createdAt?.toDate?.() || b.createdAt?.seconds ? new Date(b.createdAt.seconds * 1000) : new Date(0);
                 return dateB - dateA;
             });
 
@@ -168,9 +175,9 @@ async function initProjectSelector() {
             projects.forEach(project => {
                 const option = document.createElement('option');
                 option.value = project.id;
-                option.textContent = project.name || project.businessName;
+                option.textContent = project.displayName;
                 projectSelect.appendChild(option);
-                console.log('[Studio] Added project:', project.id, project.name || project.businessName);
+                console.log('[Studio] Added project:', project.id, project.displayName);
             });
 
             // If URL has project param, auto-select
