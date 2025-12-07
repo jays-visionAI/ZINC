@@ -163,6 +163,8 @@ async function initProjectSelector() {
                 return dateB - dateA;
             });
 
+            addLogEntry(`📂 Loaded ${projects.length} project(s)`, 'info');
+
             projects.forEach(project => {
                 const option = document.createElement('option');
                 option.value = project.id;
@@ -191,6 +193,7 @@ async function initProjectSelector() {
         } catch (error) {
             console.error('[Studio] Error loading projects:', error);
             projectSelect.innerHTML = '<option value="">Error loading projects</option>';
+            addLogEntry('❌ Failed to load projects', 'error');
         }
     });
 
@@ -198,13 +201,17 @@ async function initProjectSelector() {
     // Event: Project change
     projectSelect.addEventListener('change', async (e) => {
         const projectId = e.target.value;
+        const selectedOption = projectSelect.options[projectSelect.selectedIndex];
+        const projectName = selectedOption?.textContent || projectId;
         state.selectedProject = projectId;
 
         if (projectId) {
+            addLogEntry(`📁 Selected project: ${projectName}`, 'info');
             await loadAgentTeams(projectId);
         } else {
             agentTeamSelect.innerHTML = '<option value="">Select Agent Team...</option>';
             agentTeamSelect.disabled = true;
+            addLogEntry('📁 Project deselected', 'info');
         }
 
         disableStartButton();
@@ -213,8 +220,11 @@ async function initProjectSelector() {
     // Event: Agent Team change
     agentTeamSelect.addEventListener('change', async (e) => {
         state.selectedAgentTeam = e.target.value;
+        const selectedOption = agentTeamSelect.options[agentTeamSelect.selectedIndex];
+        const teamName = selectedOption?.textContent || e.target.value;
 
         if (state.selectedProject && state.selectedAgentTeam) {
+            addLogEntry(`🤖 Selected team: ${teamName}`, 'info');
             // Load sub-agents for the selected team
             await loadSubAgents(state.selectedAgentTeam);
             enableStartButton();
@@ -266,6 +276,7 @@ async function loadAgentTeams(projectId) {
             console.log('[Studio] Added team:', doc.id, team.name);
         });
 
+        addLogEntry(`🤖 Found ${teamsSnapshot.size} agent team(s)`, 'info');
         agentTeamSelect.disabled = false;
 
     } catch (error) {
@@ -274,8 +285,10 @@ async function loadAgentTeams(projectId) {
         // Handle permission errors specifically
         if (error.code === 'permission-denied' || error.message?.includes('permission')) {
             agentTeamSelect.innerHTML = '<option value="">No access to this project</option>';
+            addLogEntry('⛔ No access to this project', 'error');
         } else {
             agentTeamSelect.innerHTML = '<option value="">Error loading teams</option>';
+            addLogEntry('❌ Failed to load agent teams', 'error');
         }
         agentTeamSelect.disabled = true;
     }
