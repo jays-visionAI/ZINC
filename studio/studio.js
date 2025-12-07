@@ -136,8 +136,19 @@ async function initProjectSelector() {
             // Collect and sort projects client-side
             const projects = [];
             projectsSnapshot.forEach(doc => {
-                projects.push({ id: doc.id, ...doc.data() });
+                const data = doc.data();
+                // Only include projects with a proper name
+                if (data.name || data.businessName) {
+                    projects.push({ id: doc.id, ...data });
+                } else {
+                    console.log('[Studio] Skipping project without name:', doc.id);
+                }
             });
+
+            if (projects.length === 0) {
+                projectSelect.innerHTML = '<option value="">No valid projects found</option>';
+                return;
+            }
 
             // Sort by createdAt descending (newest first)
             projects.sort((a, b) => {
@@ -149,7 +160,7 @@ async function initProjectSelector() {
             projects.forEach(project => {
                 const option = document.createElement('option');
                 option.value = project.id;
-                option.textContent = project.name || project.businessName || project.id;
+                option.textContent = project.name || project.businessName;
                 projectSelect.appendChild(option);
                 console.log('[Studio] Added project:', project.id, project.name || project.businessName);
             });
@@ -213,20 +224,32 @@ async function initProjectSelector() {
 async function loadAgentTeams(projectId) {
     const agentTeamSelect = document.getElementById('agentteam-select');
 
+    console.log('[Studio] Loading agent teams for project:', projectId);
+
     try {
         // Try projectAgentTeamInstances first (new structure)
         let teamsSnapshot = await db.collection('projectAgentTeamInstances')
             .where('projectId', '==', projectId)
             .get();
 
+        console.log('[Studio] Found', teamsSnapshot.size, 'team instances');
+
         // Fallback to agentTeams if no instances found
         if (teamsSnapshot.empty) {
+            console.log('[Studio] No team instances, trying agentTeams collection...');
             teamsSnapshot = await db.collection('agentTeams')
                 .where('projectId', '==', projectId)
                 .get();
+            console.log('[Studio] Found', teamsSnapshot.size, 'agent teams');
         }
 
         agentTeamSelect.innerHTML = '<option value="">Select Agent Team...</option>';
+
+        if (teamsSnapshot.empty) {
+            agentTeamSelect.innerHTML = '<option value="">No teams found</option>';
+            agentTeamSelect.disabled = true;
+            return;
+        }
 
         teamsSnapshot.forEach(doc => {
             const team = doc.data();
@@ -234,13 +257,21 @@ async function loadAgentTeams(projectId) {
             option.value = doc.id;
             option.textContent = team.name || doc.id;
             agentTeamSelect.appendChild(option);
+            console.log('[Studio] Added team:', doc.id, team.name);
         });
 
         agentTeamSelect.disabled = false;
 
     } catch (error) {
-        console.error('Error loading agent teams:', error);
-        agentTeamSelect.innerHTML = '<option value="">Error loading teams</option>';
+        console.error('[Studio] Error loading agent teams:', error);
+
+        // Handle permission errors specifically
+        if (error.code === 'permission-denied' || error.message?.includes('permission')) {
+            agentTeamSelect.innerHTML = '<option value="">No access to this project</option>';
+        } else {
+            agentTeamSelect.innerHTML = '<option value="">Error loading teams</option>';
+        }
+        agentTeamSelect.disabled = true;
     }
 }
 
