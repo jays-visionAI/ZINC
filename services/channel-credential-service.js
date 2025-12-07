@@ -130,16 +130,27 @@ window.ChannelCredentialService = {
     async _testTwitter(credentials) {
         const { apiKey, apiSecret, accessToken, accessTokenSecret } = credentials;
 
+        // Step 1: Format validation
+        const step1Result = { success: false, message: '' };
+
         if (!apiKey || !apiSecret || !accessToken || !accessTokenSecret) {
-            throw new Error('Missing required credentials');
+            throw new Error('❌ Step 1 Failed: Missing required credentials');
         }
 
-        // Basic format validation
-        if (apiKey.length < 10) throw new Error('API Key seems too short');
-        if (accessToken.length < 10) throw new Error('Access Token seems too short');
+        if (apiKey.length < 10) {
+            throw new Error('❌ Step 1 Failed: API Key seems too short');
+        }
+        if (accessToken.length < 10) {
+            throw new Error('❌ Step 1 Failed: Access Token seems too short');
+        }
+
+        step1Result.success = true;
+        step1Result.message = '✅ Step 1: Format verified';
+
+        // Step 2: API connection test via Cloud Function
+        let step2Result = { success: false, message: '', accountInfo: null };
 
         try {
-            // Call Cloud Function to test connection and get account info
             const testXConnection = firebase.functions().httpsCallable('testXConnection');
             const result = await testXConnection({
                 apiKey,
@@ -148,29 +159,36 @@ window.ChannelCredentialService = {
                 accessTokenSecret
             });
 
-            // Return with account info
-            return {
+            step2Result = {
                 success: result.data.success,
-                message: result.data.message,
-                accountInfo: result.data.accountInfo,
-                latency: 0
+                message: `✅ Step 2: ${result.data.message}`,
+                accountInfo: result.data.accountInfo
             };
         } catch (error) {
-            // If Cloud Function fails, fall back to format validation
-            console.warn('Cloud Function test failed, using format validation:', error.message);
+            console.error('Cloud Function test failed:', error);
 
-            // Check if it's a meaningful error from the function
-            if (error.message && !error.message.includes('internal')) {
-                throw new Error(error.message);
+            // Parse error message
+            let errorMsg = error.message || 'Unknown error';
+            if (error.details) {
+                errorMsg = error.details;
             }
 
-            // Fallback to format validation
-            return {
-                success: true,
-                message: 'Credential format verified (connection not tested)',
-                latency: 0
+            step2Result = {
+                success: false,
+                message: `⚠️ Step 2: Connection test failed - ${errorMsg}`,
+                accountInfo: null
             };
         }
+
+        // Combined result
+        return {
+            success: step1Result.success && step2Result.success,
+            message: `${step1Result.message}\n${step2Result.message}`,
+            accountInfo: step2Result.accountInfo,
+            step1: step1Result,
+            step2: step2Result,
+            latency: 0
+        };
     },
 
     async _testInstagram(credentials) {

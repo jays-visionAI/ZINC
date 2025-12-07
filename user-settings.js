@@ -519,35 +519,52 @@ async function testCredential() {
 
     btn.disabled = true;
     btn.textContent = 'Testing...';
-    resultDiv.innerHTML = '<span style="color: #888;">Testing connection...</span>';
+    resultDiv.innerHTML = '<span style="color: #888;">🔄 Step 1: Validating format...</span>';
 
     try {
         const result = await window.ChannelCredentialService.testConnection(provider, credentialValues);
 
         lastTestResult = result; // Save result for saveCredential
 
-        if (result.success) {
-            let displayMessage = `✅ ${result.message}`;
+        // Build multi-line result display
+        let resultHtml = '';
 
-            // If account info is available, show handle and auto-fill
-            if (result.accountInfo) {
-                const info = result.accountInfo;
-                displayMessage = `✅ Connected as <strong>${info.handle}</strong> (${info.name})`;
-
-                // Store account info for saving
-                lastTestResult.accountHandle = info.handle;
-                lastTestResult.accountName = info.name;
-                lastTestResult.accountUsername = info.username;
-                lastTestResult.profileImageUrl = info.profileImageUrl;
-            }
-
-            resultDiv.innerHTML = `<span style="color: #22c55e;">${displayMessage}</span>`;
+        // Step 1 result
+        if (result.step1?.success) {
+            resultHtml += `<div style="color: #22c55e; margin-bottom: 4px;">${result.step1.message}</div>`;
         } else {
-            resultDiv.innerHTML = `<span style="color: #ef4444;">❌ ${result.message}</span>`;
+            resultHtml += `<div style="color: #ef4444; margin-bottom: 4px;">${result.step1?.message || '❌ Step 1: Format check failed'}</div>`;
         }
+
+        // Step 2 result
+        if (result.step2) {
+            if (result.step2.success) {
+                resultHtml += `<div style="color: #22c55e; margin-bottom: 4px;">${result.step2.message}</div>`;
+
+                // Show account info if available
+                if (result.accountInfo) {
+                    const info = result.accountInfo;
+                    resultHtml += `<div style="color: #3b82f6; margin-top: 8px; padding: 8px; background: rgba(59, 130, 246, 0.1); border-radius: 6px; border: 1px solid rgba(59, 130, 246, 0.2);">
+                        <strong>🎉 Account Connected:</strong><br>
+                        <span style="font-size: 16px; font-weight: 600;">${info.handle}</span> (${info.name})
+                    </div>`;
+
+                    // Store account info for saving
+                    lastTestResult.accountHandle = info.handle;
+                    lastTestResult.accountName = info.name;
+                    lastTestResult.accountUsername = info.username;
+                    lastTestResult.profileImageUrl = info.profileImageUrl;
+                }
+            } else {
+                resultHtml += `<div style="color: #f59e0b;">${result.step2.message}</div>`;
+            }
+        }
+
+        resultDiv.innerHTML = resultHtml;
+
     } catch (error) {
         lastTestResult = { success: false, message: error.message };
-        resultDiv.innerHTML = `<span style="color: #ef4444;">❌ ${error.message}</span>`;
+        resultDiv.innerHTML = `<span style="color: #ef4444;">${error.message}</span>`;
     } finally {
         btn.disabled = false;
         btn.textContent = 'Test Connection';
