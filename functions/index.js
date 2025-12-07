@@ -440,7 +440,7 @@ exports.checkScheduledAgents = onSchedule({
             if (shouldRun) {
                 console.log(`[checkScheduledAgents] Team ${doc.id} should run now`);
                 executionPromises.push(
-                    executeScheduledRun(doc.id, team.project_id, schedule)
+                    executeScheduledRun(doc.id, team.projectId, schedule)
                 );
             }
         }
