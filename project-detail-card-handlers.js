@@ -143,10 +143,86 @@ window.toggleRunMode = function (event, teamId, mode) {
     // Show/hide schedule configuration UI
     if (scheduleConfig) {
         scheduleConfig.classList.toggle('visible', mode === 'schedule');
+
+        // Initialize timezone dropdown when schedule mode is shown
+        if (mode === 'schedule') {
+            initializeTimezoneDropdown(teamId);
+        }
     }
 
     console.log(`[toggleRunMode] Team ${teamId} set to mode: ${mode}`);
 };
+
+/**
+ * Initialize timezone dropdown with common timezones
+ * Auto-selects user's current timezone
+ */
+function initializeTimezoneDropdown(teamId) {
+    const tzSelect = document.getElementById(`schedule-timezone-${teamId}`);
+    if (!tzSelect || tzSelect.options.length > 0) return; // Already initialized
+
+    // Get user's current timezone
+    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+    // Common timezones with UTC offset
+    const timezones = [
+        { value: 'Pacific/Honolulu', label: 'Hawaii (UTC-10)', offset: -10 },
+        { value: 'America/Los_Angeles', label: 'Los Angeles (UTC-8)', offset: -8 },
+        { value: 'America/Denver', label: 'Denver (UTC-7)', offset: -7 },
+        { value: 'America/Chicago', label: 'Chicago (UTC-6)', offset: -6 },
+        { value: 'America/New_York', label: 'New York (UTC-5)', offset: -5 },
+        { value: 'America/Sao_Paulo', label: 'São Paulo (UTC-3)', offset: -3 },
+        { value: 'UTC', label: 'UTC (UTC+0)', offset: 0 },
+        { value: 'Europe/London', label: 'London (UTC+0)', offset: 0 },
+        { value: 'Europe/Paris', label: 'Paris (UTC+1)', offset: 1 },
+        { value: 'Europe/Berlin', label: 'Berlin (UTC+1)', offset: 1 },
+        { value: 'Africa/Cairo', label: 'Cairo (UTC+2)', offset: 2 },
+        { value: 'Europe/Moscow', label: 'Moscow (UTC+3)', offset: 3 },
+        { value: 'Asia/Dubai', label: 'Dubai (UTC+4)', offset: 4 },
+        { value: 'Asia/Karachi', label: 'Karachi (UTC+5)', offset: 5 },
+        { value: 'Asia/Kolkata', label: 'Mumbai (UTC+5:30)', offset: 5.5 },
+        { value: 'Asia/Dhaka', label: 'Dhaka (UTC+6)', offset: 6 },
+        { value: 'Asia/Bangkok', label: 'Bangkok (UTC+7)', offset: 7 },
+        { value: 'Asia/Ho_Chi_Minh', label: 'Ho Chi Minh (UTC+7)', offset: 7 },
+        { value: 'Asia/Singapore', label: 'Singapore (UTC+8)', offset: 8 },
+        { value: 'Asia/Hong_Kong', label: 'Hong Kong (UTC+8)', offset: 8 },
+        { value: 'Asia/Shanghai', label: 'Shanghai (UTC+8)', offset: 8 },
+        { value: 'Asia/Tokyo', label: 'Tokyo (UTC+9)', offset: 9 },
+        { value: 'Asia/Seoul', label: 'Seoul (UTC+9)', offset: 9 },
+        { value: 'Australia/Sydney', label: 'Sydney (UTC+11)', offset: 11 },
+        { value: 'Pacific/Auckland', label: 'Auckland (UTC+12)', offset: 12 }
+    ];
+
+    // Sort by offset
+    timezones.sort((a, b) => a.offset - b.offset);
+
+    // Check if user's timezone is in the list
+    let userTzInList = timezones.some(tz => tz.value === userTimezone);
+
+    // If not in list, add it at the top
+    if (!userTzInList) {
+        const offset = new Date().getTimezoneOffset() / -60;
+        const offsetStr = offset >= 0 ? `+${offset}` : `${offset}`;
+        timezones.unshift({
+            value: userTimezone,
+            label: `${userTimezone} (UTC${offsetStr}) ★`,
+            offset: offset
+        });
+    }
+
+    // Populate dropdown
+    timezones.forEach(tz => {
+        const option = document.createElement('option');
+        option.value = tz.value;
+        option.textContent = tz.label;
+        if (tz.value === userTimezone) {
+            option.selected = true;
+        }
+        tzSelect.appendChild(option);
+    });
+
+    console.log(`[initializeTimezoneDropdown] Initialized with user timezone: ${userTimezone}`);
+}
 
 /**
  * Handle Run Now / Activate Agent Team button
@@ -619,11 +695,13 @@ window.handleActivateTeam = async function (event, teamId) {
             const timeInput = document.getElementById(`schedule-time-${teamId}`);
             const quantitySelect = document.getElementById(`schedule-quantity-${teamId}`);
             const endTimeInput = document.getElementById(`schedule-endtime-${teamId}`);
+            const timezoneSelect = document.getElementById(`schedule-timezone-${teamId}`);
 
             const frequency = freqSelect?.value || 'daily';
             const startTime = timeInput?.value || '09:00';
             const quantity = parseInt(quantitySelect?.value || '3', 10);
             const endTime = endTimeInput?.value || '18:00';
+            const timezone = timezoneSelect?.value || Intl.DateTimeFormat().resolvedOptions().timeZone;
 
             // Update Firestore with schedule settings
             await firebase.firestore()
@@ -637,6 +715,7 @@ window.handleActivateTeam = async function (event, teamId) {
                         start_time: startTime,
                         end_time: endTime,
                         quantity: quantity,
+                        timezone: timezone,
                         enabled: true,
                         updated_at: firebase.firestore.FieldValue.serverTimestamp()
                     },
@@ -644,13 +723,14 @@ window.handleActivateTeam = async function (event, teamId) {
                 });
 
             // Show schedule summary in the card
-            updateScheduleSummary(teamId, { frequency, startTime, endTime, quantity });
+            updateScheduleSummary(teamId, { frequency, startTime, endTime, quantity, timezone });
 
-            // Create friendly frequency label
+            // Create friendly frequency label and timezone short name
             const freqLabels = { 'daily': 'Daily', 'weekly': 'Weekly', 'hourly': 'Every 6 Hours' };
             const freqLabel = freqLabels[frequency] || frequency;
+            const tzShort = timezone.split('/').pop().replace('_', ' ');
 
-            showAlertModal('Schedule Saved', `⏰ Agent team scheduled!\n\n📅 ${freqLabel} × ${quantity} runs\n🕐 ${startTime} - ${endTime}`);
+            showAlertModal('Schedule Saved', `⏰ Agent team scheduled!\n\n📅 ${freqLabel} × ${quantity} runs\n🕐 ${startTime} - ${endTime}\n🌍 ${tzShort}`);
 
             // Reload to update UI
             const projectId = new URLSearchParams(window.location.search).get('id');
@@ -678,7 +758,10 @@ function updateScheduleSummary(teamId, settings) {
     const freqLabels = { 'daily': 'Daily', 'weekly': 'Weekly', 'hourly': 'Every 6H' };
     const freqLabel = freqLabels[settings.frequency] || settings.frequency;
 
-    const summaryText = `${freqLabel} × ${settings.quantity} | ${settings.startTime} - ${settings.endTime}`;
+    // Get short timezone name (e.g., "Seoul" from "Asia/Seoul")
+    const tzShort = settings.timezone ? settings.timezone.split('/').pop().replace('_', ' ') : '';
+
+    const summaryText = `${freqLabel} × ${settings.quantity} | ${settings.startTime} - ${settings.endTime}${tzShort ? ` (${tzShort})` : ''}`;
 
     summaryEl.querySelector('.schedule-summary-text').textContent = summaryText;
     summaryEl.style.display = 'flex';

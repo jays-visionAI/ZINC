@@ -1264,6 +1264,15 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 <input type="time" class="agent-card__input" id="schedule-endtime-${inst.id}" value="18:00">
                             </div>
                         </div>
+                        <!-- Row 3: Timezone -->
+                        <div class="agent-card__schedule-row agent-card__timezone-row">
+                            <div class="agent-card__input-group" style="flex: 1;">
+                                <label>🌍 Timezone</label>
+                                <select class="agent-card__input agent-card__timezone-select" id="schedule-timezone-${inst.id}">
+                                    <!-- Populated dynamically with user's timezone selected -->
+                                </select>
+                            </div>
+                        </div>
                         <!-- Schedule Summary (shown when saved) -->
                         <div id="schedule-summary-${inst.id}" class="agent-card__schedule-summary" style="display: none;">
                             <span class="schedule-summary-text"></span>
