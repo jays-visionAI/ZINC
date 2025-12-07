@@ -405,7 +405,17 @@ async function updatePreviewChannel(teamId) {
         if (channels.length > 0) {
             // Get the first/primary channel
             const primaryChannel = channels[0];
-            const provider = primaryChannel.provider || primaryChannel.key;
+            let provider;
+
+            // Handle different data formats (string ID or object)
+            if (typeof primaryChannel === 'string') {
+                provider = primaryChannel;
+            } else if (typeof primaryChannel === 'object') {
+                provider = primaryChannel.provider || primaryChannel.key || primaryChannel.id;
+            }
+
+            // Normalization
+            if (provider === 'twitter') provider = 'x';
 
             channelIcon.textContent = channelIcons[provider] || '📺';
             channelName.textContent = channelDisplayNames[provider] || provider;
@@ -417,16 +427,23 @@ async function updatePreviewChannel(teamId) {
             // Show the appropriate preview panel
             showPreviewForChannel(provider);
 
-            addLogEntry(`📺 Channel: ${channelDisplayNames[provider] || provider}`, 'info');
+            addLogEntry(`📺 Channel set to: ${channelDisplayNames[provider] || provider}`, 'info');
         } else {
-            channelIcon.textContent = '📺';
-            channelName.textContent = 'No channel configured';
+            console.log('No channels configured for team, defaulting to X');
+            channelIcon.textContent = '𝕏';
+            channelName.textContent = 'X (Default)';
             channelInfo?.classList.remove('ready');
+
+            // Default to X if no channel configured
+            showPreviewForChannel('x');
+            state.activeChannel = 'x';
         }
 
     } catch (error) {
         console.error('Error loading team channels:', error);
         channelName.textContent = 'Error loading channel';
+        // Fallback to X on error
+        showPreviewForChannel('x');
     }
 }
 
