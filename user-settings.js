@@ -527,7 +527,21 @@ async function testCredential() {
         lastTestResult = result; // Save result for saveCredential
 
         if (result.success) {
-            resultDiv.innerHTML = `<span style="color: #22c55e;">✅ ${result.message}</span>`;
+            let displayMessage = `✅ ${result.message}`;
+
+            // If account info is available, show handle and auto-fill
+            if (result.accountInfo) {
+                const info = result.accountInfo;
+                displayMessage = `✅ Connected as <strong>${info.handle}</strong> (${info.name})`;
+
+                // Store account info for saving
+                lastTestResult.accountHandle = info.handle;
+                lastTestResult.accountName = info.name;
+                lastTestResult.accountUsername = info.username;
+                lastTestResult.profileImageUrl = info.profileImageUrl;
+            }
+
+            resultDiv.innerHTML = `<span style="color: #22c55e;">${displayMessage}</span>`;
         } else {
             resultDiv.innerHTML = `<span style="color: #ef4444;">❌ ${result.message}</span>`;
         }
@@ -592,7 +606,11 @@ async function saveCredential(e) {
             accountName,  // Keep for backward compatibility
             credentials,
             status,
-            lastTestedAt: lastTestResult ? new Date() : null
+            lastTestedAt: lastTestResult ? new Date() : null,
+            // ✨ Add account info from X API test
+            accountHandle: lastTestResult?.accountHandle || null,
+            accountUsername: lastTestResult?.accountUsername || null,
+            profileImageUrl: lastTestResult?.profileImageUrl || null
         };
 
         const savedCredId = await window.ChannelCredentialService.saveCredential(

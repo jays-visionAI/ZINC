@@ -48,6 +48,9 @@ window.ChannelCredentialService = {
             projectId: data.projectId || null,  // ✨ Add projectId
             detailedName: data.detailedName || data.accountName,  // ✨ Add detailedName
             accountName: data.accountName,  // Keep for backward compatibility
+            accountHandle: data.accountHandle || null,  // ✨ X handle (@username)
+            accountUsername: data.accountUsername || null,  // ✨ X username
+            profileImageUrl: data.profileImageUrl || null,  // ✨ Profile image
             credentials: data.credentials,
             status: data.status || 'active',
             updatedAt: timestamp
@@ -135,14 +138,39 @@ window.ChannelCredentialService = {
         if (apiKey.length < 10) throw new Error('API Key seems too short');
         if (accessToken.length < 10) throw new Error('Access Token seems too short');
 
-        // Simulate network delay for better UX
-        await new Promise(resolve => setTimeout(resolve, 800));
+        try {
+            // Call Cloud Function to test connection and get account info
+            const testXConnection = firebase.functions().httpsCallable('testXConnection');
+            const result = await testXConnection({
+                apiKey,
+                apiSecret,
+                accessToken,
+                accessTokenSecret
+            });
 
-        return {
-            success: true,
-            message: 'Credential format verified (Ready to use)',
-            latency: 0
-        };
+            // Return with account info
+            return {
+                success: result.data.success,
+                message: result.data.message,
+                accountInfo: result.data.accountInfo,
+                latency: 0
+            };
+        } catch (error) {
+            // If Cloud Function fails, fall back to format validation
+            console.warn('Cloud Function test failed, using format validation:', error.message);
+
+            // Check if it's a meaningful error from the function
+            if (error.message && !error.message.includes('internal')) {
+                throw new Error(error.message);
+            }
+
+            // Fallback to format validation
+            return {
+                success: true,
+                message: 'Credential format verified (connection not tested)',
+                latency: 0
+            };
+        }
     },
 
     async _testInstagram(credentials) {

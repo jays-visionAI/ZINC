@@ -253,6 +253,63 @@ exports.healthCheck = functions.https.onRequest((req, res) => {
 });
 
 /**
+ * Test X (Twitter) API connection and fetch account info
+ * Returns username/handle if successful
+ */
+exports.testXConnection = functions.https.onCall(async (data, context) => {
+    const payload = (data && data.data) ? data.data : data;
+    const { apiKey, apiSecret, accessToken, accessTokenSecret } = payload;
+
+    if (!apiKey || !accessToken) {
+        throw new functions.https.HttpsError('invalid-argument', 'Missing required credentials');
+    }
+
+    try {
+        const { TwitterApi } = require('twitter-api-v2');
+        const client = new TwitterApi({
+            appKey: apiKey,
+            appSecret: apiSecret || '',
+            accessToken: accessToken,
+            accessSecret: accessTokenSecret || ''
+        });
+
+        // Get current user info
+        const me = await client.v2.me({
+            'user.fields': ['username', 'name', 'profile_image_url', 'description']
+        });
+
+        console.log('[testXConnection] Successfully connected:', me.data);
+
+        return {
+            success: true,
+            message: `Connected as @${me.data.username}`,
+            accountInfo: {
+                id: me.data.id,
+                username: me.data.username,
+                name: me.data.name,
+                handle: `@${me.data.username}`,
+                profileImageUrl: me.data.profile_image_url,
+                description: me.data.description
+            }
+        };
+
+    } catch (error) {
+        console.error('[testXConnection] Error:', error);
+
+        let message = 'Connection failed';
+        if (error.code === 401 || error.message?.includes('401')) {
+            message = 'Invalid credentials - please check your API keys';
+        } else if (error.code === 403 || error.message?.includes('403')) {
+            message = 'Access forbidden - check app permissions in Twitter Developer Portal';
+        } else if (error.message) {
+            message = error.message;
+        }
+
+        throw new functions.https.HttpsError('internal', message);
+    }
+});
+
+/**
  * Post content to Twitter/X
  * This function posts approved content to the user's X account
  */

@@ -1709,6 +1709,7 @@
                         return;
                     }
 
+                    // Update status to posting
                     await firebase.firestore()
                         .collection('projects')
                         .doc(currentProjectId)
@@ -1719,23 +1720,58 @@
                             approved_at: firebase.firestore.FieldValue.serverTimestamp()
                         });
 
-                    const postToTwitter = firebase.functions().httpsCallable('postToTwitter');
-                    const result = await postToTwitter({
-                        projectId: currentProjectId,
-                        contentId: contentId,
-                        tweetText: tweetText
-                    });
+                    try {
+                        const postToTwitter = firebase.functions().httpsCallable('postToTwitter');
+                        const result = await postToTwitter({
+                            projectId: currentProjectId,
+                            contentId: contentId,
+                            tweetText: tweetText
+                        });
 
-                    if (result.data.success) {
-                        alert(`✅ Posted to X successfully!\n\nTweet URL: ${result.data.tweetUrl}`);
-                    } else {
-                        alert('❌ Failed to post to X.');
+                        if (result.data.success) {
+                            alert(`✅ Posted to X successfully!\n\nTweet URL: ${result.data.tweetUrl}`);
+                        } else {
+                            alert('❌ Failed to post to X.');
+                        }
+                    } catch (postError) {
+                        console.error('[approveContent] Post error:', postError);
+
+                        // Check for specific error types
+                        const errorMessage = postError.message || '';
+
+                        if (errorMessage.includes('credentials not configured') ||
+                            errorMessage.includes('failed-precondition')) {
+                            alert('❌ X (Twitter) API 자격 증명이 설정되지 않았습니다.\n\n' +
+                                '설정 방법:\n' +
+                                '1. Settings > Connections 메뉴로 이동\n' +
+                                '2. X (Twitter) 채널 연결을 추가하세요');
+                        } else if (errorMessage.includes('403') || errorMessage.includes('Forbidden')) {
+                            alert('❌ X API 권한이 부족합니다.\n\n' +
+                                'Twitter Developer Portal에서 앱 권한을 확인하세요:\n' +
+                                '- Read and Write 권한이 필요합니다');
+                        } else if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
+                            alert('❌ X API 자격 증명이 유효하지 않습니다.\n\n' +
+                                'API 키를 다시 확인해주세요.');
+                        } else {
+                            alert('❌ Error posting to X: ' + errorMessage);
+                        }
+
+                        // Revert status to pending
+                        await firebase.firestore()
+                            .collection('projects')
+                            .doc(currentProjectId)
+                            .collection('generatedContents')
+                            .doc(contentId)
+                            .update({
+                                status: 'pending',
+                                publish_error: errorMessage
+                            });
                     }
 
                     if (selectedRunId) loadRunContentWithActions(selectedRunId);
                 } catch (error) {
                     console.error('[approveContent] Error:', error);
-                    alert('Error posting to X: ' + (error.message || 'Unknown error'));
+                    alert('Error: ' + (error.message || 'Unknown error'));
                 }
             }
         );
