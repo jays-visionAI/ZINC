@@ -1366,31 +1366,43 @@
 }
 
 .status-badge {
-    font-size: 11px;
-    padding: 4px 10px;
-    border-radius: 12px;
+    font-size: 12px;
+    /* Slightly larger */
+    padding: 6px 16px;
+    /* Larger padding */
+    border-radius: 20px;
+    /* More rounded pill shape */
     background: rgba(255, 255, 255, 0.05);
     color: var(--color-text-tertiary);
     border: 1px solid transparent;
     transition: all 0.2s ease;
+    font-weight: 600;
+    /* Bolder */
+    letter-spacing: 0.5px;
+    cursor: default;
+    /* Not clickable directly in this context usually, but good for UI feel */
 }
 
 .status-badge.active {
     background: rgba(139, 92, 246, 0.15);
     color: var(--color-purple-400);
     border-color: var(--color-purple-500);
+    box-shadow: 0 0 10px rgba(139, 92, 246, 0.2);
+    /* Glow effect */
 }
 
 #status-discarded.active {
     background: rgba(239, 68, 68, 0.15);
     color: #ef4444;
     border-color: #ef4444;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
 }
 
 #status-approved.active {
     background: rgba(22, 224, 189, 0.15);
     color: var(--color-success);
     border-color: var(--color-success);
+    box-shadow: 0 0 10px rgba(22, 224, 189, 0.2);
 }
 
 .feedback-prompt {

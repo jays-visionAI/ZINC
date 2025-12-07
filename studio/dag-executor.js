@@ -22,7 +22,7 @@ class DAGExecutor {
         this.phases = [
             {
                 name: 'Research',
-                agents: ['research', 'seo', 'knowledge', 'kpi'],
+                agents: ['research', 'seo_watcher', 'knowledge_curator', 'kpi'],
                 parallel: true
             },
             {
@@ -32,17 +32,17 @@ class DAGExecutor {
             },
             {
                 name: 'Creation',
-                agents: ['text', 'image', 'video'],
+                agents: ['creator_text', 'creator_image', 'creator_video'],
                 parallel: true
             },
             {
                 name: 'Validation',
-                agents: ['compliance', 'seo-opt', 'evaluator'],
+                agents: ['compliance', 'seo_optimizer', 'evaluator'],
                 parallel: true
             },
             {
                 name: 'Final',
-                agents: ['manager'],
+                agents: ['manager', 'engagement'],
                 parallel: false
             }
         ];
@@ -50,17 +50,18 @@ class DAGExecutor {
         // Agent metadata for cost/token estimation
         this.agentMeta = {
             research: { avgTokens: 500, avgCost: 0.01 },
-            seo: { avgTokens: 300, avgCost: 0.008 },
-            knowledge: { avgTokens: 400, avgCost: 0.01 },
+            seo_watcher: { avgTokens: 300, avgCost: 0.008 },
+            knowledge_curator: { avgTokens: 400, avgCost: 0.01 },
             kpi: { avgTokens: 200, avgCost: 0.005 },
             planner: { avgTokens: 800, avgCost: 0.02 },
-            text: { avgTokens: 1500, avgCost: 0.04 },
-            image: { avgTokens: 0, avgCost: 0.08 },
-            video: { avgTokens: 0, avgCost: 0.15 },
+            creator_text: { avgTokens: 1500, avgCost: 0.04 },
+            creator_image: { avgTokens: 0, avgCost: 0.08 },
+            creator_video: { avgTokens: 0, avgCost: 0.15 },
             compliance: { avgTokens: 400, avgCost: 0.01 },
-            'seo-opt': { avgTokens: 600, avgCost: 0.015 },
+            seo_optimizer: { avgTokens: 600, avgCost: 0.015 },
             evaluator: { avgTokens: 500, avgCost: 0.012 },
-            manager: { avgTokens: 300, avgCost: 0.008 }
+            manager: { avgTokens: 300, avgCost: 0.008 },
+            engagement: { avgTokens: 200, avgCost: 0.005 }
         };
 
         // Callbacks for UI updates
@@ -202,7 +203,7 @@ class DAGExecutor {
             this.emit('onLog', { message: `   ✓ ${agentId} completed`, type: 'success' });
 
             // Trigger content generation callback for creation agents
-            if (['text', 'image'].includes(agentId)) {
+            if (['creator_text', 'creator_image', 'creator_video'].includes(agentId)) {
                 this.emit('onContentGenerated', { agentId, content: result });
             }
 
@@ -232,11 +233,11 @@ class DAGExecutor {
 
         // Mock responses
         const mockResponses = {
-            text: {
+            creator_text: {
                 content: "🚀 Exciting news! We're thrilled to announce our latest innovation that's changing the game.\n\nStay tuned for more updates. The future is here, and we're leading the way!\n\n#Innovation #Technology #Future #AI"
             },
-            image: {
-                imageUrl: 'data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"400\" height=\"300\" viewBox=\"0 0 400 300\"><rect fill=\"%231a1a2e\" width=\"400\" height=\"300\"/><text x=\"50%\" y=\"50%\" fill=\"%2316e0bd\" text-anchor=\"middle\" dy=\".3em\" font-family=\"sans-serif\" font-size=\"18\">Generated Image</text></svg>'
+            creator_image: {
+                imageUrl: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"><rect fill="%231a1a2e" width="400" height="300"/><text x="50%" y="50%" fill="%2316e0bd" text-anchor="middle" dy=".3em" font-family="sans-serif" font-size="18">Generated Image</text></svg>'
             }
         };
 

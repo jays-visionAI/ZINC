@@ -6,7 +6,7 @@
  * Instagram, X, Facebook, LinkedIn, YouTube, TikTok, Discord, Naver, Reddit, KakaoTalk, Line, Telegram, WhatsApp.
  * 
  * Usage:
- * 1. Open ZINC Admin Console (e.g., Channel Profile Management page).
+ * 1. Open ZINK Admin Console (e.g., Channel Profile Management page).
  * 2. Open Browser Developer Tools (F12 -> Console).
  * 3. Paste this entire script and press Enter.
  */

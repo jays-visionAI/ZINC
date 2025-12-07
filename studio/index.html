@@ -447,6 +447,16 @@
         <aside class="studio-panel studio-panel-right">
             <div class="panel-section">
                 <h3 class="panel-title">Live Preview</h3>
+
+                <!-- Status Indicator -->
+                <div class="approval-status" style="margin-top: 12px; margin-bottom: 4px;">
+                    <span class="status-label">Status:</span>
+                    <div class="status-badges">
+                        <span class="status-badge active" id="status-pending">PENDING</span>
+                        <span class="status-badge" id="status-discarded">DISCARDED</span>
+                        <span class="status-badge" id="status-approved">APPROVED</span>
+                    </div>
+                </div>
             </div>
 
             <div class="panel-section preview-content">
@@ -637,15 +647,7 @@
 
             <!-- Content Approval Controls -->
             <div class="panel-section approval-section">
-                <!-- Status Indicator -->
-                <div class="approval-status">
-                    <span class="status-label">Status:</span>
-                    <div class="status-badges">
-                        <span class="status-badge active" id="status-pending">Pending</span>
-                        <span class="status-badge" id="status-discarded">Discarded</span>
-                        <span class="status-badge" id="status-approved">Approved</span>
-                    </div>
-                </div>
+                <!-- Status Indicator moved to top -->
 
                 <!-- AI Feedback Prompt -->
                 <div class="feedback-prompt">

@@ -748,8 +748,14 @@ function startExecution() {
             addLogEntry(message, type);
         })
         .on('onContentGenerated', ({ agentId, content }) => {
-            if (agentId === 'text') {
+            if (agentId === 'creator_text') {
                 streamTextContent();
+            } else if (agentId === 'creator_image') {
+                const imageContainer = document.getElementById('twitter-image');
+                if (imageContainer) {
+                    imageContainer.style.display = 'block'; // Ensure it's visible
+                    imageContainer.innerHTML = `<img src="${content.imageUrl}" alt="Generated Content" style="width:100%; height:100%; object-fit:cover; border-radius: 12px; border: 1px solid var(--color-border);">`;
+                }
             }
         })
         .on('onExecutionComplete', ({ success }) => {
