@@ -186,6 +186,13 @@ async function initProjectSelector() {
             if (projectId) {
                 projectSelect.value = projectId;
                 state.selectedProject = projectId;
+
+                // Update Preview Profile for auto-selected project
+                const selectedOption = Array.from(projectSelect.options).find(opt => opt.value === projectId);
+                if (selectedOption) {
+                    updatePreviewProfile(selectedOption.textContent);
+                }
+
                 await loadAgentTeams(projectId);
 
                 const teamId = urlParams.get('team');
@@ -214,6 +221,10 @@ async function initProjectSelector() {
 
         if (projectId) {
             addLogEntry(`📁 Selected project: ${projectName}`, 'info');
+
+            // Update Preview Profile
+            updatePreviewProfile(projectName);
+
             await loadAgentTeams(projectId);
         } else {
             agentTeamSelect.innerHTML = '<option value="">Select Agent Team...</option>';
@@ -749,7 +760,7 @@ function startExecution() {
         })
         .on('onContentGenerated', ({ agentId, content }) => {
             if (agentId === 'creator_text') {
-                streamTextContent();
+                streamTextContent(content.content);
             } else if (agentId === 'creator_image') {
                 const imageContainer = document.getElementById('twitter-image');
                 if (imageContainer) {
@@ -975,6 +986,54 @@ function createParticle(pathId) {
     }, 1300);
 }
 
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
+
+/**
+ * Update the profile information in Live Preview
+ * @param {string} projectName - Display name of the project
+ * @param {string|null} handle - Optional handle override
+ * @param {string|null} avatarUrl - Optional avatar URL override
+ */
+function updatePreviewProfile(projectName, handle = null, avatarUrl = null) {
+    if (!projectName) return;
+
+    // Generate handle if not provided
+    const displayHandle = handle || '@' + projectName.replace(/\s+/g, '').toLowerCase();
+
+    // Update Name and Handle
+    const nameEl = document.getElementById('preview-profile-name');
+    const handleEl = document.getElementById('preview-profile-handle');
+
+    if (nameEl) nameEl.textContent = projectName;
+    if (handleEl) handleEl.textContent = displayHandle;
+
+    // Update Avatar
+    const avatarContainer = document.getElementById('preview-avatar-container');
+    if (avatarContainer) {
+        if (avatarUrl) {
+            avatarContainer.innerHTML = `<img src="${avatarUrl}" alt="Profile">`;
+        } else {
+            // Create initial avatar
+            const initial = projectName.charAt(0).toUpperCase();
+            avatarContainer.innerHTML = `<div class="avatar-placeholder" style="background:${stringToColor(projectName)}">${initial}</div>`;
+        }
+    }
+}
+
+/**
+ * Generate a consistent color from a string
+ */
+function stringToColor(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
+    return '#' + '00000'.substring(0, 6 - c.length) + c;
+}
+
 // Fire particles from node to connected paths
 function fireParticles(nodeId) {
     const paths = DAG_PATHS[nodeId];
@@ -1082,12 +1141,16 @@ What's your take on the future of AI in content creation?
 };
 
 // Typing animation for text streaming
-async function streamTextContent() {
+// Typing animation for text streaming
+async function streamTextContent(contentText) {
     const twitterContent = document.getElementById('twitter-content');
-    const content = SAMPLE_CONTENT.twitter;
+    // Use provided content or fallback to sample
+    const content = contentText || SAMPLE_CONTENT.twitter;
+
+    if (!twitterContent) return;
 
     // Clear placeholder
-    twitterContent.innerHTML = '<p class="streaming-text"></p>';
+    twitterContent.innerHTML = '<p class="streaming-text" style="white-space: pre-wrap; margin: 0;"></p>';
     const textEl = twitterContent.querySelector('.streaming-text');
 
     // Add cursor
@@ -1101,7 +1164,7 @@ async function streamTextContent() {
         twitterContent.scrollTop = twitterContent.scrollHeight;
 
         // Variable speed for natural feel
-        const delay = content[i] === '\n' ? 100 : (Math.random() * 20 + 10);
+        const delay = content[i] === '\n' ? 50 : (Math.random() * 15 + 5);
         await sleep(delay);
     }
 
@@ -1113,7 +1176,7 @@ async function streamTextContent() {
     updateCharacterCount(content.length);
 
     // Also update other platforms (simplified - just show content)
-    updateOtherPlatforms();
+    updateOtherPlatforms(content);
 }
 
 // Update character count in stats
@@ -1125,23 +1188,27 @@ function updateCharacterCount(count) {
 }
 
 // Update other platform previews
-function updateOtherPlatforms() {
+function updateOtherPlatforms(contentText) {
+    const text = contentText || SAMPLE_CONTENT.twitter;
+
     // Instagram caption
     const instagramCaption = document.querySelector('.instagram-caption');
     if (instagramCaption) {
-        instagramCaption.innerHTML = `<strong>yourbrand</strong> ${SAMPLE_CONTENT.instagram.substring(0, 100)}... <span style="color:#8e8e8e">more</span>`;
+        // Find the username element to preserve it
+        const username = instagramCaption.querySelector('strong')?.textContent || 'yourbrand';
+        instagramCaption.innerHTML = `<strong>${username}</strong> ${text.substring(0, 100)}... <span style="color:#8e8e8e">more</span>`;
     }
 
     // Facebook
     const facebookContent = document.querySelector('#preview-facebook .social-content');
     if (facebookContent) {
-        facebookContent.innerHTML = `<p>${SAMPLE_CONTENT.facebook.substring(0, 150)}... <a href="#" style="color:#1877f2">See more</a></p>`;
+        facebookContent.innerHTML = `<p>${text.substring(0, 150)}... <a href="#" style="color:#1877f2">See more</a></p>`;
     }
 
     // LinkedIn
     const linkedinContent = document.querySelector('#preview-linkedin .social-content');
     if (linkedinContent) {
-        linkedinContent.innerHTML = `<p>${SAMPLE_CONTENT.linkedin.substring(0, 150)}... <a href="#" style="color:#0a66c2">see more</a></p>`;
+        linkedinContent.innerHTML = `<p>${text.substring(0, 150)}... <a href="#" style="color:#0a66c2">see more</a></p>`;
     }
 }
 
