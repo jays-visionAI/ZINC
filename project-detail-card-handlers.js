@@ -614,12 +614,16 @@ window.handleActivateTeam = async function (event, teamId) {
     if (currentMode === 'schedule') {
         // SCHEDULE MODE: Save schedule settings and show confirmation
         try {
-            // Get schedule settings from the UI
+            // Get all schedule settings from the UI
             const freqSelect = document.getElementById(`schedule-freq-${teamId}`);
             const timeInput = document.getElementById(`schedule-time-${teamId}`);
+            const quantitySelect = document.getElementById(`schedule-quantity-${teamId}`);
+            const endTimeInput = document.getElementById(`schedule-endtime-${teamId}`);
 
             const frequency = freqSelect?.value || 'daily';
             const startTime = timeInput?.value || '09:00';
+            const quantity = parseInt(quantitySelect?.value || '3', 10);
+            const endTime = endTimeInput?.value || '18:00';
 
             // Update Firestore with schedule settings
             await firebase.firestore()
@@ -631,13 +635,22 @@ window.handleActivateTeam = async function (event, teamId) {
                     schedule: {
                         frequency: frequency,
                         start_time: startTime,
+                        end_time: endTime,
+                        quantity: quantity,
                         enabled: true,
                         updated_at: firebase.firestore.FieldValue.serverTimestamp()
                     },
                     activated_at: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
-            showAlertModal('Schedule Saved', `⏰ Agent team scheduled to run ${frequency} at ${startTime}.`);
+            // Show schedule summary in the card
+            updateScheduleSummary(teamId, { frequency, startTime, endTime, quantity });
+
+            // Create friendly frequency label
+            const freqLabels = { 'daily': 'Daily', 'weekly': 'Weekly', 'hourly': 'Every 6 Hours' };
+            const freqLabel = freqLabels[frequency] || frequency;
+
+            showAlertModal('Schedule Saved', `⏰ Agent team scheduled!\n\n📅 ${freqLabel} × ${quantity} runs\n🕐 ${startTime} - ${endTime}`);
 
             // Reload to update UI
             const projectId = new URLSearchParams(window.location.search).get('id');
@@ -654,6 +667,22 @@ window.handleActivateTeam = async function (event, teamId) {
         openActivationModal(teamId);
     }
 };
+
+/**
+ * Update Schedule Summary display in the card
+ */
+function updateScheduleSummary(teamId, settings) {
+    const summaryEl = document.getElementById(`schedule-summary-${teamId}`);
+    if (!summaryEl) return;
+
+    const freqLabels = { 'daily': 'Daily', 'weekly': 'Weekly', 'hourly': 'Every 6H' };
+    const freqLabel = freqLabels[settings.frequency] || settings.frequency;
+
+    const summaryText = `${freqLabel} × ${settings.quantity} | ${settings.startTime} - ${settings.endTime}`;
+
+    summaryEl.querySelector('.schedule-summary-text').textContent = summaryText;
+    summaryEl.style.display = 'flex';
+}
 
 /**
  * Handle settings button

@@ -1232,6 +1232,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                             </svg>
                             Schedule Settings
                         </div>
+                        <!-- Row 1: Frequency & Start Time -->
                         <div class="agent-card__schedule-row">
                             <div class="agent-card__input-group">
                                 <label>Frequency</label>
@@ -1245,6 +1246,27 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 <label>Start Time</label>
                                 <input type="time" class="agent-card__input" id="schedule-time-${inst.id}" value="09:00">
                             </div>
+                        </div>
+                        <!-- Row 2: Quantity & End Time -->
+                        <div class="agent-card__schedule-row">
+                            <div class="agent-card__input-group">
+                                <label>Quantity</label>
+                                <select class="agent-card__input" id="schedule-quantity-${inst.id}">
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3" selected>3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                </select>
+                            </div>
+                            <div class="agent-card__input-group">
+                                <label>End Time</label>
+                                <input type="time" class="agent-card__input" id="schedule-endtime-${inst.id}" value="18:00">
+                            </div>
+                        </div>
+                        <!-- Schedule Summary (shown when saved) -->
+                        <div id="schedule-summary-${inst.id}" class="agent-card__schedule-summary" style="display: none;">
+                            <span class="schedule-summary-text"></span>
                         </div>
                     </div>
                 </div>
