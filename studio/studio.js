@@ -167,13 +167,17 @@ async function initProjectSelector() {
     });
 
     // Event: Agent Team change
-    agentTeamSelect.addEventListener('change', (e) => {
+    agentTeamSelect.addEventListener('change', async (e) => {
         state.selectedAgentTeam = e.target.value;
 
         if (state.selectedProject && state.selectedAgentTeam) {
+            // Load sub-agents for the selected team
+            await loadSubAgents(state.selectedAgentTeam);
             enableStartButton();
             renderDAGPlaceholder();
         } else {
+            // Reset to default template when no team selected
+            resetAgentRoster();
             disableStartButton();
         }
     });
@@ -183,9 +187,17 @@ async function loadAgentTeams(projectId) {
     const agentTeamSelect = document.getElementById('agentteam-select');
 
     try {
-        const teamsSnapshot = await db.collection('agentTeams')
+        // Try projectAgentTeamInstances first (new structure)
+        let teamsSnapshot = await db.collection('projectAgentTeamInstances')
             .where('projectId', '==', projectId)
             .get();
+
+        // Fallback to agentTeams if no instances found
+        if (teamsSnapshot.empty) {
+            teamsSnapshot = await db.collection('agentTeams')
+                .where('projectId', '==', projectId)
+                .get();
+        }
 
         agentTeamSelect.innerHTML = '<option value="">Select Agent Team...</option>';
 
@@ -203,6 +215,118 @@ async function loadAgentTeams(projectId) {
         console.error('Error loading agent teams:', error);
         agentTeamSelect.innerHTML = '<option value="">Error loading teams</option>';
     }
+}
+
+/**
+ * Load sub-agents for the selected Agent Team
+ * @param {string} teamId - The selected Agent Team ID
+ */
+async function loadSubAgents(teamId) {
+    try {
+        // Fetch sub-agents from projectAgentTeamInstances/{teamId}/subAgents
+        const subAgentsSnapshot = await db.collection('projectAgentTeamInstances')
+            .doc(teamId)
+            .collection('subAgents')
+            .orderBy('display_order', 'asc')
+            .get();
+
+        if (subAgentsSnapshot.empty) {
+            console.log('No sub-agents found for team:', teamId);
+            // Use default template selection
+            const template = WORKFLOW_TEMPLATES[state.selectedTemplate];
+            if (template) {
+                applyTemplate(template);
+            }
+            return;
+        }
+
+        const subAgents = [];
+        subAgentsSnapshot.forEach(doc => {
+            subAgents.push({ id: doc.id, ...doc.data() });
+        });
+
+        console.log('Loaded sub-agents:', subAgents);
+
+        // Update Agent Roster UI
+        updateAgentRosterUI(subAgents);
+
+    } catch (error) {
+        console.error('Error loading sub-agents:', error);
+        // Fallback to default template
+        const template = WORKFLOW_TEMPLATES[state.selectedTemplate];
+        if (template) {
+            applyTemplate(template);
+        }
+    }
+}
+
+/**
+ * Update Agent Roster UI based on loaded sub-agents
+ * @param {Array} subAgents - Array of sub-agent objects from Firestore
+ */
+function updateAgentRosterUI(subAgents) {
+    const cards = document.querySelectorAll('.agent-card');
+
+    // Create a map of role_type to sub-agent data
+    const subAgentMap = {};
+    subAgents.forEach(agent => {
+        // Normalize role_type names (e.g., 'planner', 'creator_text', etc.)
+        const roleType = agent.role_type || agent.type || '';
+        subAgentMap[roleType.toLowerCase()] = agent;
+    });
+
+    console.log('Sub-agent map:', subAgentMap);
+
+    // Update each card based on sub-agent availability
+    cards.forEach(card => {
+        const agentId = card.dataset.agent;
+
+        // Check if this agent is in the team's sub-agents
+        const isInTeam = subAgentMap[agentId] ||
+            subAgentMap[agentId.replace('_', '')] ||
+            subAgentMap[agentId.replace('creator_', '')] ||
+            subAgentMap[agentId.replace('_watcher', '')] ||
+            subAgentMap[agentId.replace('_curator', '')] ||
+            subAgentMap[agentId.replace('_optimizer', '')];
+
+        if (isInTeam) {
+            card.classList.add('active');
+            card.classList.remove('disabled');
+        } else {
+            // Keep required agents active
+            if (card.classList.contains('required')) {
+                card.classList.add('active');
+            } else {
+                card.classList.remove('active');
+            }
+        }
+    });
+
+    // Switch to custom template mode since we're using team config
+    document.getElementById('workflow-template').value = 'custom';
+    state.selectedTemplate = 'custom';
+
+    updateStats();
+}
+
+/**
+ * Reset Agent Roster to default state
+ */
+function resetAgentRoster() {
+    const cards = document.querySelectorAll('.agent-card');
+    cards.forEach(card => {
+        if (card.classList.contains('required')) {
+            card.classList.add('active');
+        } else {
+            card.classList.remove('active');
+        }
+    });
+
+    // Reset to standard template
+    document.getElementById('workflow-template').value = 'standard';
+    state.selectedTemplate = 'standard';
+    applyTemplate(WORKFLOW_TEMPLATES.standard);
+    updateStats();
 }
 
 // ============================================
