@@ -990,9 +990,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (!grid) return;
 
         try {
+            // Removed status filter to show all team instances
             const snapshot = await db.collection("projectAgentTeamInstances")
                 .where("projectId", "==", projectId)
-                .where("status", "==", "active")
                 .get();
 
             const instances = [];
@@ -1008,6 +1008,20 @@ document.addEventListener("DOMContentLoaded", async () => {
                     instanceIds,
                     currentUser.uid
                 );
+
+                // Fetch sub-agent counts for each team instance
+                await Promise.all(instances.map(async (inst) => {
+                    try {
+                        const subAgentsSnap = await db.collection('projectAgentTeamInstances')
+                            .doc(inst.id)
+                            .collection('subAgents')
+                            .get();
+                        inst.subAgentCount = subAgentsSnap.size;
+                    } catch (err) {
+                        console.warn(`Failed to get sub-agent count for ${inst.id}:`, err);
+                        inst.subAgentCount = 0;
+                    }
+                }));
 
                 html += instances.map(inst => {
                     const context = contextMap.get(inst.id);
@@ -1114,67 +1128,176 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         return `
             <div class="agent-card ${statusClass}" data-team-id="${inst.id}" onclick="handleCardClick(event, '${inst.id}')">
+                <!-- Header: Channel + Agent Count -->
                 <div class="agent-card__header">
                     <div class="agent-card__channel">
                         <span class="agent-card__channel-icon">${channelIcon}</span>
                         <span class="agent-card__title">${inst.name}</span>
                     </div>
-                    
-                    <div class="agent-card__status-area">
-                        ${alertIcon}
+                    <div class="agent-card__agent-count">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                        ${inst.subAgentCount || 0} Agents
+                    </div>
+                </div>
+                
+                <!-- Status Row: Status Pill + Pulse + Actions -->
+                <div class="agent-card__status-row">
+                    <div class="agent-card__status-left">
                         <span class="agent-card__status-pill agent-card__status-pill--${inst.status}">${displayStatus}</span>
-                        <button class="agent-card__delete-btn" onclick="handleDeleteTeam(event, '${inst.id}')" aria-label="Delete team" title="Delete this agent team">
+                        ${inst.status === 'running' || inst.status === 'active' ? `
+                            <div class="agent-card__pulse-wave">
+                                <span></span><span></span><span></span><span></span>
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div class="agent-card__status-right">
+                        <button class="agent-card__icon-btn agent-card__icon-btn--delete" onclick="handleDeleteTeam(event, '${inst.id}')" title="Delete team">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <polyline points="3 6 5 6 21 6"></polyline>
                                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                             </svg>
                         </button>
+                        <button class="agent-card__icon-btn" onclick="handleOpenSettings(event, '${inst.id}')" title="Agent Brain">
+                            <!-- Brain Icon -->
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-1.54"></path>
+                                <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-1.54"></path>
+                            </svg>
+                        </button>
                     </div>
                 </div>
                 
-                <div class="agent-card__role">${inst.description || 'Autonomous Agent Team'}</div>
+                <!-- API Connection Status -->
+                <div class="agent-card__api-status">
+                    ${isReady ? `
+                        <div class="agent-card__api-badge agent-card__api-badge--connected">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            Connected
+                        </div>
+                    ` : `
+                        <div class="agent-card__api-badge agent-card__api-badge--disconnected" onclick="handleOpenSettings(event, '${inst.id}')">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="8" x2="12" y2="12"></line>
+                                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                            </svg>
+                            Setup Required
+                        </div>
+                    `}
+                </div>
                 
+                <!-- Active Directive Card -->
                 <div class="agent-card__directive">
-                    <div class="agent-card__directive-label">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-                        </svg>
-                        Active Directive:
+                    <div class="agent-card__directive-header">
+                        <span class="agent-card__directive-label">Active Directive</span>
+                        <span class="agent-card__directive-icon">⚡</span>
                     </div>
                     <div class="agent-card__directive-body">${activeDirective}</div>
                 </div>
                 
-                <div class="agent-card__metrics">
-                    <!-- Daily Actions -->
-                    <div class="agent-card__metric-row">
-                        <div class="agent-card__metric-label">Daily Actions</div>
-                        <div class="agent-card__metric-progress">
-                            <div class="agent-card__metric-progress-bar agent-card__metric-progress-bar--daily">
-                                <div class="agent-card__metric-progress-fill agent-card__metric-progress-fill--daily" style="width: ${dailyProgress}%"></div>
-                            </div>
-                            <div class="agent-card__metric-value">${dailyActionsDisplay}</div>
+                <!-- Run Mode Switch -->
+                <!-- NOTE: "Run Now" and "Schedule" are MODE NAMES, not action buttons! -->
+                <!-- Actual execution is triggered by the "Activate" button in the footer. -->
+                <div class="agent-card__run-mode" data-team-id="${inst.id}" data-mode="run-now">
+                    <div class="agent-card__run-mode-label">SELECT MODE</div>
+                    <div class="agent-card__mode-toggle">
+                        <div class="agent-card__mode-option active" id="mode-run-now-${inst.id}" onclick="toggleRunMode(event, '${inst.id}', 'run-now')">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                            </svg>
+                            Run Now
+                        </div>
+                        <div class="agent-card__mode-option" id="mode-schedule-${inst.id}" onclick="toggleRunMode(event, '${inst.id}', 'schedule')">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                            Schedule
                         </div>
                     </div>
                     
-                    <!-- Total Runs -->
-                    <div class="agent-card__metric-row">
-                        <div class="agent-card__metric-label">Total Runs</div>
-                        <div class="agent-card__metric-progress">
-                            <div class="agent-card__metric-progress-bar agent-card__metric-progress-bar--runs">
-                                <div class="agent-card__metric-progress-fill agent-card__metric-progress-fill--runs" style="width: ${totalRunsProgress}%"></div>
+                    <!-- Schedule Configuration UI (Hidden by default) -->
+                    <div id="schedule-config-${inst.id}" class="agent-card__schedule-config">
+                        <div class="agent-card__schedule-config-title">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                            Schedule Settings
+                        </div>
+                        <div class="agent-card__schedule-row">
+                            <div class="agent-card__input-group">
+                                <label>Frequency</label>
+                                <select class="agent-card__input" id="schedule-freq-${inst.id}">
+                                    <option value="daily">Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="hourly">Every 6 Hours</option>
+                                </select>
                             </div>
-                            <div class="agent-card__metric-value">${totalRunsDisplay}</div>
+                            <div class="agent-card__input-group">
+                                <label>Start Time</label>
+                                <input type="time" class="agent-card__input" id="schedule-time-${inst.id}" value="09:00">
+                            </div>
                         </div>
                     </div>
                 </div>
                 
+                <!-- Metrics Section -->
+                <div class="agent-card__metrics">
+                    <div class="agent-card__metrics-label">METRICS</div>
+                    <div class="agent-card__metric-row">
+                        <div class="agent-card__metric-header">
+                            <span class="agent-card__metric-name">Daily Actions</span>
+                            <span class="agent-card__metric-value">${dailyProgress.toFixed(0)}% <span>(${dailyActionsDisplay})</span></span>
+                        </div>
+                        <div class="agent-card__progress-bar">
+                            <div class="agent-card__progress-fill agent-card__progress-fill--daily" style="width: ${dailyProgress}%"></div>
+                        </div>
+                    </div>
+                    <div class="agent-card__metric-row">
+                        <div class="agent-card__metric-header">
+                            <span class="agent-card__metric-name">Total Runs</span>
+                            <span class="agent-card__metric-value">${totalRunsCurrent}</span>
+                        </div>
+                        <div class="agent-card__progress-bar">
+                            <div class="agent-card__progress-fill agent-card__progress-fill--runs" style="width: ${totalRunsProgress}%"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Footer Actions -->
                 <div class="agent-card__footer">
-                    <button class="agent-card__history-btn" onclick="handleViewHistory(event, '${inst.id}')">View History</button>
-                    <button class="agent-card__settings-btn" onclick="handleOpenSettings(event, '${inst.id}')" aria-label="Open settings" title="Team settings">
+                    ${inst.status === 'paused' ? `
+                        <button class="agent-card__action-btn agent-card__action-btn--activate" onclick="handleActivateTeam(event, '${inst.id}')">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                            </svg>
+                            Activate
+                        </button>
+                    ` : `
+                        <button class="agent-card__action-btn agent-card__action-btn--pause" onclick="handlePauseTeam(event, '${inst.id}')">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="6" y="4" width="4" height="16"></rect>
+                                <rect x="14" y="4" width="4" height="16"></rect>
+                            </svg>
+                            Pause
+                        </button>
+                    `}
+                    <button class="agent-card__history-btn" onclick="handleViewStudio(event, '${inst.id}')">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="3"></circle>
-                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                            <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"></path>
+                            <path d="M12 12l8-4.5"></path>
+                            <path d="M12 12v9"></path>
+                            <path d="M12 12L4 7.5"></path>
                         </svg>
+                        Studio
                     </button>
                 </div>
             </div>

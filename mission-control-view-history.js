@@ -67,6 +67,79 @@
         }
     };
 
+    // Run a single sub-agent
+    window.runSubAgent = async function (subAgentId, agentName) {
+        console.log(`[View History] Running sub-agent: ${subAgentId}`);
+
+        if (!currentProjectId || !selectedTeamId) {
+            if (window.safeAlert) {
+                await window.safeAlert('Error: Project or Team context not found.');
+            } else {
+                alert('Error: Project or Team context not found.');
+            }
+            return;
+        }
+
+        // Confirm run using safe confirm
+        let confirmed = false;
+        if (window.safeConfirm) {
+            confirmed = await window.safeConfirm(`Run "${agentName}" now?\n\nThis will execute the sub-agent and generate content.`);
+        } else {
+            confirmed = confirm(`Run "${agentName}" now?\n\nThis will execute the sub-agent and generate content.`);
+        }
+
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            // Show loading state on button
+            const btn = document.querySelector(`#sa-card-${subAgentId} .sub-agent-run-btn`);
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = `<span class="spinner"></span> Running...`;
+            }
+
+            // Check if AgentExecutionService is available
+            if (typeof AgentExecutionService === 'undefined') {
+                throw new Error('AgentExecutionService not loaded');
+            }
+
+            // Create a run document for tracking
+            const runRef = db.collection('projects').doc(currentProjectId).collection('agentRuns').doc();
+            const runData = {
+                team_instance_id: selectedTeamId,
+                sub_agent_id: subAgentId,
+                status: 'pending',
+                task_prompt: `Manual run for ${agentName}`,
+                started_at: firebase.firestore.FieldValue.serverTimestamp(),
+                triggered_by: 'manual_studio'
+            };
+            await runRef.set(runData);
+
+            // Execute the run
+            const result = await AgentExecutionService.executeRun(runRef.id, currentProjectId, selectedTeamId, subAgentId);
+
+            console.log('[View History] Sub-agent run completed:', result);
+
+            // Refresh the runs list
+            if (currentProjectId && selectedTeamId) {
+                loadRecentRuns(currentProjectId, selectedTeamId, selectedSubAgentId);
+            }
+
+        } catch (error) {
+            console.error('[View History] Error running sub-agent:', error);
+            alert(`Failed to run agent: ${error.message}`);
+        } finally {
+            // Reset button state
+            const btn = document.querySelector(`#sa-card-${subAgentId} .sub-agent-run-btn`);
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Run`;
+            }
+        }
+    };
+
     // ===== Panel 1: Assigned Sub-Agents (Left) =====
 
     function loadAssignedAgentTeam(projectId, teamId) {
@@ -201,6 +274,12 @@
     }
 
     function renderSubAgents(subAgents, container) {
+        // Update sub-agent count badge
+        const countEl = document.getElementById('sub-agent-count');
+        if (countEl) {
+            countEl.textContent = subAgents.length;
+        }
+
         if (subAgents.length === 0) {
             container.innerHTML = '<div class="empty-state">No sub-agents assigned</div>';
             return;
@@ -223,22 +302,29 @@
 
             return `
                 <div class="sub-agent-card ${selectedSubAgentId === agent.id ? 'selected' : ''}" 
-                     onclick="window.selectSubAgent('${agent.id}')" 
                      id="sa-card-${agent.id}">
-                    <div class="sub-agent-header">
+                    <div class="sub-agent-header" onclick="window.selectSubAgent('${agent.id}')">
                         <div class="sub-agent-name">${agent.role_name || 'Unnamed'}</div>
                         <div class="sr-badge">${successRate.toFixed(0)}% SR</div>
                     </div>
-                    <div class="sub-agent-role">${agent.role_type}</div>
-                    <div class="sub-agent-meta" style="margin-top: 4px;">
+                    <div class="sub-agent-role" onclick="window.selectSubAgent('${agent.id}')">${agent.role_type}</div>
+                    <div class="sub-agent-meta" style="margin-top: 4px;" onclick="window.selectSubAgent('${agent.id}')">
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="10"></circle>
                             <polyline points="12 6 12 12 16 14"></polyline>
                         </svg>
                         Last active ${lastActive}
                     </div>
-                    <div class="sub-agent-meta" style="margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 10px; color: rgba(255,255,255,0.5);">
+                    <div class="sub-agent-meta" style="margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 10px; color: rgba(255,255,255,0.5);" onclick="window.selectSubAgent('${agent.id}')">
                         🤖 ${runtimeDisplay}
+                    </div>
+                    <div class="sub-agent-actions" style="margin-top: 10px; display: flex; gap: 8px;">
+                        <button class="sub-agent-run-btn" onclick="event.stopPropagation(); window.runSubAgent('${agent.id}', '${agent.role_name || 'Agent'}')">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                            </svg>
+                            Run
+                        </button>
                     </div>
                 </div>
             `;
@@ -246,23 +332,50 @@
 
         // Update global selection handler
         window.selectSubAgent = function (subAgentId) {
-            selectedSubAgentId = subAgentId;
+            // Toggle selection - clicking the same sub-agent deselects it
+            if (selectedSubAgentId === subAgentId) {
+                selectedSubAgentId = null;
+            } else {
+                selectedSubAgentId = subAgentId;
+            }
 
             // Update UI selection
             document.querySelectorAll('.sub-agent-card').forEach(el => el.classList.remove('selected'));
-            const card = document.getElementById(`sa-card-${subAgentId}`);
-            if (card) card.classList.add('selected');
+            let subAgentName = null;
+            if (selectedSubAgentId) {
+                const card = document.getElementById(`sa-card-${selectedSubAgentId}`);
+                if (card) {
+                    card.classList.add('selected');
+                    // Get sub-agent name from the card
+                    const nameEl = card.querySelector('.sub-agent-name');
+                    subAgentName = nameEl ? nameEl.textContent : selectedSubAgentId;
+                }
+            }
 
-            // Note: In the original design, selecting a sub-agent would filter runs
-            // For now, we keep showing all team runs
-            console.log(`[View History] Selected sub-agent: ${subAgentId}`);
+            // Update filter indicator in Recent Runs header with sub-agent name
+            const filterIndicator = document.getElementById('runs-filter-indicator');
+            if (filterIndicator) {
+                if (selectedSubAgentId && subAgentName) {
+                    filterIndicator.innerHTML = `Filtered by ${subAgentName} ✕`;
+                    filterIndicator.style.display = 'inline-block';
+                } else {
+                    filterIndicator.style.display = 'none';
+                }
+            }
+
+            // Reload Recent Runs with sub-agent filter
+            if (currentProjectId && selectedTeamId) {
+                loadRecentRuns(currentProjectId, selectedTeamId, selectedSubAgentId);
+            }
+
+            console.log(`[View History] Selected sub-agent: ${selectedSubAgentId || 'none (showing all)'}`);
         };
     }
 
     // ===== Panel 2: Recent Runs (Center) =====
 
-    function loadRecentRuns(projectId, teamId) {
-        console.log('[View History] Loading Recent Runs...');
+    function loadRecentRuns(projectId, teamId, subAgentId = null) {
+        console.log('[View History] Loading Recent Runs...', { teamId, subAgentId });
 
         // Try both possible container IDs
         let container = document.getElementById('runs-list');
@@ -278,35 +391,49 @@
         // Show loading state
         container.innerHTML = '<div class="loading-state">Loading runs...</div>';
 
-        // Query: projects/{projectId}/agentRuns
-        // Where: team_instance_id == teamId
-        // Order by: started_at DESC
-        runsListener = db.collection('projects')
+        // Cleanup previous listener
+        if (runsListener) {
+            runsListener();
+            runsListener = null;
+        }
+
+        // Build query: projects/{projectId}/agentRuns
+        let query = db.collection('projects')
             .doc(projectId)
             .collection('agentRuns')
-            .where('team_instance_id', '==', teamId)
-            .orderBy('started_at', 'desc')
-            .limit(20)
-            .onSnapshot(
-                (snapshot) => {
-                    const runs = [];
-                    snapshot.forEach(doc => {
-                        runs.push({ id: doc.id, ...doc.data() });
-                    });
+            .where('team_instance_id', '==', teamId);
 
-                    console.log(`[View History] Loaded ${runs.length} runs`);
-                    renderRuns(runs, container);
-                },
-                (error) => {
-                    console.error('[View History] Error loading runs:', error);
-                    container.innerHTML = `<div class="error-state">Error: ${error.message}</div>`;
-                }
-            );
+        // Add sub-agent filter if selected
+        if (subAgentId) {
+            query = query.where('sub_agent_id', '==', subAgentId);
+        }
+
+        // Order and limit
+        query = query.orderBy('started_at', 'desc').limit(20);
+
+        runsListener = query.onSnapshot(
+            (snapshot) => {
+                const runs = [];
+                snapshot.forEach(doc => {
+                    runs.push({ id: doc.id, ...doc.data() });
+                });
+
+                console.log(`[View History] Loaded ${runs.length} runs for ${subAgentId ? 'sub-agent ' + subAgentId : 'team'}`);
+                renderRuns(runs, container, subAgentId);
+            },
+            (error) => {
+                console.error('[View History] Error loading runs:', error);
+                container.innerHTML = `<div class="error-state">Error: ${error.message}</div>`;
+            }
+        );
     }
 
-    function renderRuns(runs, container) {
+    function renderRuns(runs, container, subAgentId = null) {
         if (runs.length === 0) {
-            container.innerHTML = '<div class="empty-state">No runs found</div>';
+            const message = subAgentId
+                ? 'No runs found for this sub-agent. <button onclick="window.selectSubAgent(null)" style="background: rgba(22, 224, 189, 0.1); border: 1px solid rgba(22, 224, 189, 0.3); color: #16e0bd; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; margin-top: 8px;">Show All Runs</button>'
+                : 'No runs found';
+            container.innerHTML = `<div class="empty-state">${message}</div>`;
             return;
         }
 
@@ -458,14 +585,15 @@
                         ${content.preview_text ? `<div class="content-preview">${content.preview_text}</div>` : ''}
                         ${workflowBadge || stepBadge || channelBadge ?
                     `<div class="content-workflow-info">${workflowBadge} ${stepBadge} ${channelBadge}</div>` : ''}
-                        <div class="content-footer">
-                            ${hasExternalLink ? `
-                                <button class="btn-view-external" onclick="window.open('${content.external_post_url}', '_blank')">
-                                    View on ${content.platform}
-                                </button>
-                            ` : `
-                                <span class="not-published">Not published yet</span>
-                            `}
+                        <div class="content-footer" style="display: flex; gap: 8px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 12px;">
+                            <button onclick="event.stopPropagation(); window.viewContentDetails('${content.id}')" title="View Details" style="padding: 8px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); color: #8b5cf6; border-radius: 6px; cursor: pointer;">🔍</button>
+                            <button onclick="event.stopPropagation(); window.copyContent('${content.id}')" style="flex: 1; padding: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 6px; cursor: pointer; font-size: 12px;">📋 Copy</button>
+                            ${content.status === 'pending' ? `
+                                <button onclick="event.stopPropagation(); window.scheduleContent('${content.id}')" style="flex: 1; padding: 8px; background: rgba(22, 224, 189, 0.1); border: 1px solid rgba(22, 224, 189, 0.3); color: #16e0bd; border-radius: 6px; cursor: pointer; font-size: 12px;">📅 Schedule</button>
+                                <button onclick="event.stopPropagation(); window.approveContent('${content.id}')" style="flex: 1; padding: 8px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; color: #fff; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">✓ Approve</button>
+                            ` : content.status === 'published' ? `
+                                <button onclick="event.stopPropagation(); window.viewOnPlatform('${content.external_post_url || content.tweet_url || '#'}')" style="flex: 1.5; padding: 8px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); color: #3b82f6; border-radius: 6px; cursor: pointer; font-size: 12px;">🔗 View Post</button>
+                            ` : ''}
                         </div>
                     </div>
                 </div>
@@ -866,6 +994,292 @@
             window.closeCredentialSelector();
         }
     }
+
+    // ===== Content Action Handlers =====
+
+    /**
+     * View detailed input/output of a content item
+     * Shows what prompts were sent to the sub-agent
+     */
+    window.viewContentDetails = async function (contentId) {
+        try {
+            const contentDoc = await firebase.firestore()
+                .collection('projects')
+                .doc(currentProjectId)
+                .collection('generatedContents')
+                .doc(contentId)
+                .get();
+
+            if (!contentDoc.exists) {
+                alert('Content not found.');
+                return;
+            }
+
+            const content = contentDoc.data();
+            const input = content.input_prompts;
+
+            let modalContent = `
+                <div style="max-height: 80vh; overflow-y: auto;">
+                    <h3 style="margin: 0 0 16px 0; color: #16e0bd;">🔍 Content Details</h3>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <div style="font-size: 12px; color: rgba(255,255,255,0.6); margin-bottom: 4px;">SUB-AGENT</div>
+                        <div style="font-size: 14px; color: #fff; font-weight: 600;">${content.sub_agent_role || 'Unknown'}</div>
+                    </div>
+            `;
+
+            if (input) {
+                modalContent += `
+                    <div style="margin-bottom: 20px;">
+                        <div style="font-size: 12px; color: rgba(255,255,255,0.6); margin-bottom: 4px;">📋 SYSTEM PROMPT (Behavior Instructions)</div>
+                        <div style="background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); padding: 12px; border-radius: 8px; font-size: 13px; color: rgba(255,255,255,0.9); white-space: pre-wrap; max-height: 200px; overflow-y: auto;">
+                            ${input.system_prompt || 'Not available'}
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <div style="font-size: 12px; color: rgba(255,255,255,0.6); margin-bottom: 4px;">🎯 TEAM DIRECTIVE</div>
+                        <div style="background: rgba(22, 224, 189, 0.1); border: 1px solid rgba(22, 224, 189, 0.3); padding: 12px; border-radius: 8px; font-size: 13px; color: rgba(255,255,255,0.9);">
+                            ${input.team_directive || 'Not available'}
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <div style="font-size: 12px; color: rgba(255,255,255,0.6); margin-bottom: 4px;">💬 USER MESSAGE (Full Context)</div>
+                        <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); padding: 12px; border-radius: 8px; font-size: 13px; color: rgba(255,255,255,0.9); white-space: pre-wrap; max-height: 200px; overflow-y: auto;">
+                            ${input.user_message || 'Not available'}
+                        </div>
+                    </div>
+                `;
+            } else {
+                modalContent += `
+                    <div style="color: rgba(255,255,255,0.6); text-align: center; padding: 20px;">
+                        ⚠️ Input prompts not available for this content.<br>
+                        <span style="font-size: 12px;">This may be from an older run before prompt logging was enabled.</span>
+                    </div>
+                `;
+            }
+
+            modalContent += `
+                <div style="margin-bottom: 20px;">
+                    <div style="font-size: 12px; color: rgba(255,255,255,0.6); margin-bottom: 4px;">✅ GENERATED OUTPUT</div>
+                    <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); padding: 12px; border-radius: 8px; font-size: 13px; color: rgba(255,255,255,0.9); white-space: pre-wrap; max-height: 300px; overflow-y: auto;">
+                        ${content.content_text || 'No output'}
+                    </div>
+                </div>
+                </div>
+            `;
+
+            showDetailsModal('Content Details', modalContent);
+
+        } catch (error) {
+            console.error('[viewContentDetails] Error:', error);
+            alert('Failed to load content details: ' + error.message);
+        }
+    };
+
+    function showDetailsModal(title, content) {
+        const existing = document.getElementById('details-modal');
+        if (existing) existing.remove();
+
+        const modal = document.createElement('div');
+        modal.id = 'details-modal';
+        modal.innerHTML = `
+            <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 10000; display: flex; align-items: center; justify-content: center;" onclick="this.parentNode.remove()">
+                <div style="background: #1a1d24; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 24px; max-width: 600px; width: 90%; max-height: 90vh; overflow: hidden;" onclick="event.stopPropagation()">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <h2 style="margin: 0; color: #fff; font-size: 18px;">${title}</h2>
+                        <button onclick="document.getElementById('details-modal').remove()" style="background: none; border: none; color: rgba(255,255,255,0.6); font-size: 24px; cursor: pointer;">&times;</button>
+                    </div>
+                    ${content}
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    window.copyContent = async function (contentId) {
+        try {
+            const contentDoc = await firebase.firestore()
+                .collection('projects')
+                .doc(currentProjectId)
+                .collection('generatedContents')
+                .doc(contentId)
+                .get();
+
+            if (!contentDoc.exists) {
+                alert('Content not found.');
+                return;
+            }
+
+            const contentData = contentDoc.data();
+            const textToCopy = contentData.content_text || contentData.preview_text || '';
+
+            if (navigator.clipboard && textToCopy) {
+                await navigator.clipboard.writeText(textToCopy);
+                alert('📋 Content copied to clipboard!');
+            } else {
+                const textarea = document.createElement('textarea');
+                textarea.value = textToCopy;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                alert('📋 Content copied to clipboard!');
+            }
+        } catch (error) {
+            console.error('[copyContent] Error:', error);
+            alert('Failed to copy content: ' + error.message);
+        }
+    };
+
+    window.scheduleContent = function (contentId) {
+        const scheduledTime = prompt('Enter scheduled time (e.g., 2024-12-07 10:00):');
+        if (!scheduledTime) return;
+
+        firebase.firestore()
+            .collection('projects')
+            .doc(currentProjectId)
+            .collection('generatedContents')
+            .doc(contentId)
+            .update({
+                status: 'scheduled',
+                scheduled_for: new Date(scheduledTime),
+                scheduled_at: firebase.firestore.FieldValue.serverTimestamp()
+            })
+            .then(() => {
+                alert('📅 Content scheduled for: ' + scheduledTime);
+                if (selectedRunId) loadRunContentWithActions(selectedRunId);
+            })
+            .catch(error => alert('Failed to schedule: ' + error.message));
+    };
+
+    window.approveContent = function (contentId) {
+        // Show custom confirmation modal instead of browser confirm
+        showConfirmModal(
+            'Approve Content',
+            'Are you sure you want to approve and post this content to X (Twitter)?',
+            async () => {
+                try {
+                    const contentDoc = await firebase.firestore()
+                        .collection('projects')
+                        .doc(currentProjectId)
+                        .collection('generatedContents')
+                        .doc(contentId)
+                        .get();
+
+                    if (!contentDoc.exists) {
+                        alert('Content not found.');
+                        return;
+                    }
+
+                    const contentData = contentDoc.data();
+                    const tweetText = contentData.content_text || contentData.content || contentData.text;
+
+                    if (!tweetText) {
+                        alert('No text content to post.');
+                        return;
+                    }
+
+                    await firebase.firestore()
+                        .collection('projects')
+                        .doc(currentProjectId)
+                        .collection('generatedContents')
+                        .doc(contentId)
+                        .update({
+                            status: 'posting',
+                            approved_at: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+
+                    const postToTwitter = firebase.functions().httpsCallable('postToTwitter');
+                    const result = await postToTwitter({
+                        projectId: currentProjectId,
+                        contentId: contentId,
+                        tweetText: tweetText
+                    });
+
+                    if (result.data.success) {
+                        alert(`✅ Posted to X successfully!\n\nTweet URL: ${result.data.tweetUrl}`);
+                    } else {
+                        alert('❌ Failed to post to X.');
+                    }
+
+                    if (selectedRunId) loadRunContentWithActions(selectedRunId);
+                } catch (error) {
+                    console.error('[approveContent] Error:', error);
+                    alert('Error posting to X: ' + (error.message || 'Unknown error'));
+                }
+            }
+        );
+    };
+
+    /**
+     * Custom confirmation modal that doesn't disappear
+     */
+    function showConfirmModal(title, message, onConfirm) {
+        const existing = document.getElementById('confirm-modal');
+        if (existing) existing.remove();
+
+        const modal = document.createElement('div');
+        modal.id = 'confirm-modal';
+        modal.innerHTML = `
+            <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 10001; display: flex; align-items: center; justify-content: center;">
+                <div style="background: #1a1d24; border: 1px solid rgba(255,255,255,0.15); border-radius: 16px; padding: 28px; max-width: 400px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.5);">
+                    <h3 style="margin: 0 0 16px 0; color: #fff; font-size: 18px; font-weight: 600;">${title}</h3>
+                    <p style="margin: 0 0 24px 0; color: rgba(255,255,255,0.7); font-size: 14px; line-height: 1.6;">${message}</p>
+                    <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                        <button id="confirm-modal-cancel" style="padding: 12px 24px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer;">
+                            Cancel
+                        </button>
+                        <button id="confirm-modal-ok" style="padding: 12px 24px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; color: #fff; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
+                            ✓ Confirm
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        // Add event listeners
+        document.getElementById('confirm-modal-cancel').addEventListener('click', () => {
+            modal.remove();
+        });
+
+        document.getElementById('confirm-modal-ok').addEventListener('click', () => {
+            modal.remove();
+            onConfirm();
+        });
+    }
+
+    window.rejectContent = async function (contentId) {
+        if (!confirm('Are you sure you want to reject this content?')) return;
+
+        try {
+            await firebase.firestore()
+                .collection('projects')
+                .doc(currentProjectId)
+                .collection('generatedContents')
+                .doc(contentId)
+                .update({ status: 'rejected', rejected_at: firebase.firestore.FieldValue.serverTimestamp() });
+
+            alert('❌ Content rejected');
+            if (selectedRunId) loadRunContentWithActions(selectedRunId);
+        } catch (error) {
+            alert('Error rejecting content: ' + error.message);
+        }
+    };
+
+    window.editContent = function (contentId) {
+        alert('Edit modal coming soon! Content ID: ' + contentId);
+    };
+
+    window.viewOnPlatform = function (url) {
+        if (url && url !== '#') {
+            window.open(url, '_blank');
+        } else {
+            alert('Post URL not available yet.');
+        }
+    };
 
     console.log('[View History] Module loaded');
 })();
