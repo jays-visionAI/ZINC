@@ -1479,8 +1479,31 @@ function initZoomControls() {
     }
 }
 
-// Call initDAG and initZoomControls on load
+// Call initDAG, initZoomControls, and initTooltip on load
 document.addEventListener('DOMContentLoaded', () => {
     initDAG();
     initZoomControls();
+    initTooltip();
 });
+
+// ============================================
+// TOOLTIP CONTROL
+// ============================================
+function initTooltip() {
+    const icon = document.querySelector('.info-icon');
+    const tooltip = document.getElementById('insights-tooltip');
+
+    if (icon && tooltip) {
+        icon.addEventListener('click', (e) => {
+            e.stopPropagation();
+            tooltip.classList.toggle('visible');
+        });
+
+        // Close when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!tooltip.contains(e.target) && !icon.contains(e.target)) {
+                tooltip.classList.remove('visible');
+            }
+        });
+    }
+}

@@ -683,7 +683,27 @@
             </div>
 
             <div class="panel-section">
-                <h3 class="panel-title">Agent Insights</h3>
+                <div class="section-header-row" style="display:flex; align-items:center; gap:8px; margin-bottom:15px;">
+                    <h3 class="panel-title" style="margin-bottom:0;">Agent Insights</h3>
+                    <div class="info-icon-wrapper" style="position:relative;">
+                        <svg class="info-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" style="cursor:pointer; opacity:0.6;">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                        </svg>
+                        <div class="tooltip-bubble" id="insights-tooltip">
+                            <h4 style="margin:0 0 8px 0; color:#fff; font-size:14px;">Agent Insights 란?</h4>
+                            <p style="margin:0 0 8px 0; font-size:13px; color:#ccc; line-height:1.4;">AI 에이전트가 생성된 콘텐츠를
+                                실시간으로 분석한 결과지표입니다.</p>
+                            <ul style="margin:0; padding-left:16px; font-size:12px; color:#aaa; line-height:1.5;">
+                                <li><strong>SEO Score:</strong> 검색 노출 최적화 점수 (키워드 밀도, 가독성 등 분석)</li>
+                                <li><strong>Compliance:</strong> 브랜드 가이드라인, 저작권, 플랫폼 정책 준수 여부</li>
+                            </ul>
+                            <div class="tooltip-arrow"></div>
+                        </div>
+                    </div>
+                </div>
                 <div class="insights-card">
                     <div class="insights-circles">
                         <!-- SEO Score Circle -->
