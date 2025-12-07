@@ -255,16 +255,31 @@ exports.healthCheck = functions.https.onRequest((req, res) => {
 /**
  * Test X (Twitter) API connection and fetch account info
  * Returns username/handle if successful
+ * Using onRequest instead of onCall to handle CORS manually for Gen 2 functions
  */
-exports.testXConnection = functions.https.onCall(async (data, context) => {
-    const payload = (data && data.data) ? data.data : data;
-    const { apiKey, apiSecret, accessToken, accessTokenSecret } = payload;
+exports.testXConnection = functions.https.onRequest(async (req, res) => {
+    // Handle CORS
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
 
-    if (!apiKey || !accessToken) {
-        throw new functions.https.HttpsError('invalid-argument', 'Missing required credentials');
+    // Handle preflight
+    if (req.method === 'OPTIONS') {
+        res.status(204).send('');
+        return;
     }
 
     try {
+        const payload = req.body.data || req.body;
+        const { apiKey, apiSecret, accessToken, accessTokenSecret } = payload;
+
+        if (!apiKey || !accessToken) {
+            res.status(400).json({
+                error: { message: 'Missing required credentials' }
+            });
+            return;
+        }
+
         const { TwitterApi } = require('twitter-api-v2');
         const client = new TwitterApi({
             appKey: apiKey,
@@ -280,18 +295,20 @@ exports.testXConnection = functions.https.onCall(async (data, context) => {
 
         console.log('[testXConnection] Successfully connected:', me.data);
 
-        return {
-            success: true,
-            message: `Connected as @${me.data.username}`,
-            accountInfo: {
-                id: me.data.id,
-                username: me.data.username,
-                name: me.data.name,
-                handle: `@${me.data.username}`,
-                profileImageUrl: me.data.profile_image_url,
-                description: me.data.description
+        res.status(200).json({
+            data: {
+                success: true,
+                message: `Connected as @${me.data.username}`,
+                accountInfo: {
+                    id: me.data.id,
+                    username: me.data.username,
+                    name: me.data.name,
+                    handle: `@${me.data.username}`,
+                    profileImageUrl: me.data.profile_image_url,
+                    description: me.data.description
+                }
             }
-        };
+        });
 
     } catch (error) {
         console.error('[testXConnection] Error:', error);
@@ -305,7 +322,9 @@ exports.testXConnection = functions.https.onCall(async (data, context) => {
             message = error.message;
         }
 
-        throw new functions.https.HttpsError('internal', message);
+        res.status(500).json({
+            error: { message }
+        });
     }
 });
 

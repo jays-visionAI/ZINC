@@ -151,13 +151,26 @@ window.ChannelCredentialService = {
         let step2Result = { success: false, message: '', accountInfo: null };
 
         try {
-            const testXConnection = firebase.functions().httpsCallable('testXConnection');
-            const result = await testXConnection({
-                apiKey,
-                apiSecret,
-                accessToken,
-                accessTokenSecret
+            // Use fetch instead of httpsCallable for onRequest function
+            const functionUrl = 'https://us-central1-zinc-c790f.cloudfunctions.net/testXConnection';
+            const response = await fetch(functionUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    apiKey,
+                    apiSecret,
+                    accessToken,
+                    accessTokenSecret
+                })
             });
+
+            const result = await response.json();
+
+            if (result.error) {
+                throw new Error(result.error.message || 'Connection test failed');
+            }
 
             step2Result = {
                 success: result.data.success,
