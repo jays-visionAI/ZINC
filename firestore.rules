@@ -210,5 +210,39 @@ service cloud.firestore {
       // Admins can read all credentials
       allow read: if isAdmin();
     }
+
+    // ============================================
+    // Brand Brain Collection (User-specific brand strategy data)
+    // ============================================
+    match /brandBrain/{userId} {
+      // User can read/write their own brandBrain document
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+      
+      // Projects sub-collection
+      match /projects/{projectId} {
+        allow read, write: if isAuthenticated() && request.auth.uid == userId;
+        
+        // Sources sub-collection (Drive files, Links, Notes)
+        match /sources/{sourceId} {
+          allow read, write: if isAuthenticated() && request.auth.uid == userId;
+        }
+      }
+    }
+
+    // ============================================
+    // AI Helpdesk Chatbot Collections
+    // ============================================
+    
+    // Chatbot Config: Admin can write, Cloud Functions can read
+    match /chatbotConfig/{configId} {
+      allow read: if true;  // Cloud Functions need to read
+      allow write: if isAdmin();
+    }
+    
+    // Chatbot Usage: Cloud Functions manage, users can read their own
+    match /chatbotUsage/{usageId} {
+      allow read: if true;  // Cloud Functions need to read
+      allow write: if true;  // Cloud Functions need to write
+    }
   }
 }

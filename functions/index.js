@@ -834,3 +834,189 @@ async function saveScheduledContent(projectId, runId, teamId, results) {
     return contentIds;
 }
 
+// ============================================
+// ZYNK AI HELPDESK CHATBOT
+// ============================================
+
+/**
+ * askZynkBot - AI Helpdesk Chatbot using Gemini API
+ * Features:
+ * - Firestore-based rate limiting
+ * - Dynamic system prompt from chatbotConfig
+ * - ZYNK-focused responses only
+ */
+exports.askZynkBot = functions.https.onCall(async (data, context) => {
+    // 1. Check authentication
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
+    }
+
+    const userId = context.auth.uid;
+    const question = data.question;
+    const language = data.language || 'ko'; // default to Korean
+
+    if (!question || typeof question !== 'string') {
+        throw new functions.https.HttpsError('invalid-argument', 'Question is required');
+    }
+
+    console.log(`[askZynkBot] User ${userId} (${language}) asked: ${question.substring(0, 100)}...`);
+
+    try {
+        // 2. Load chatbot config from Firestore
+        const configDoc = await db.collection('chatbotConfig').doc('default').get();
+        const config = configDoc.exists ? configDoc.data() : {};
+
+        const dailyLimit = config.dailyLimit || 50;
+        let systemPrompt = config.systemPrompt || getDefaultSystemPrompt();
+        const status = config.status || 'active';
+
+        // Add language instruction to system prompt
+        const langInstruction = language === 'en'
+            ? '\n\n## IMPORTANT: Respond in English only.'
+            : '\n\n## 중요: 한국어로만 답변하세요.';
+        systemPrompt += langInstruction;
+
+        // Check if chatbot is disabled
+        if (status === 'disabled') {
+            throw new functions.https.HttpsError('unavailable', '챗봇이 현재 비활성화되어 있습니다.');
+        }
+
+        if (status === 'maintenance') {
+            throw new functions.https.HttpsError('unavailable', '챗봇이 점검 중입니다. 잠시 후 다시 시도해 주세요.');
+        }
+
+        // 3. Check rate limit
+        const today = new Date().toISOString().split('T')[0];
+        const usageRef = db.collection('chatbotUsage').doc(`${userId}_${today}`);
+        const usageDoc = await usageRef.get();
+        const currentCount = usageDoc.exists ? usageDoc.data().count : 0;
+
+        if (currentCount >= dailyLimit) {
+            throw new functions.https.HttpsError(
+                'resource-exhausted',
+                `일일 질문 횟수(${dailyLimit}회)를 초과했습니다. 내일 다시 이용해 주세요.`
+            );
+        }
+
+        // 4. Get Gemini API key
+        const geminiApiKey = await getGeminiApiKey();
+
+        if (!geminiApiKey) {
+            console.error('[askZynkBot] Gemini API key not found');
+            throw new functions.https.HttpsError('failed-precondition', 'AI 서비스가 설정되지 않았습니다.');
+        }
+
+        // 5. Call Gemini API
+        const { GoogleGenerativeAI } = require('@google/generative-ai');
+        const genAI = new GoogleGenerativeAI(geminiApiKey);
+        const model = genAI.getGenerativeModel({
+            model: 'gemini-2.0-flash-exp',
+            systemInstruction: systemPrompt
+        });
+
+        const result = await model.generateContent(question);
+        const response = result.response;
+        const answer = response.text();
+
+        // 6. Update usage count
+        await usageRef.set({
+            userId,
+            count: currentCount + 1,
+            date: today,
+            lastUsed: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        console.log(`[askZynkBot] Successfully responded to user ${userId} (${currentCount + 1}/${dailyLimit})`);
+
+        return {
+            answer,
+            usage: {
+                count: currentCount + 1,
+                limit: dailyLimit
+            }
+        };
+
+    } catch (error) {
+        console.error('[askZynkBot] Error:', error);
+
+        // Re-throw HttpsErrors as-is
+        if (error instanceof functions.https.HttpsError) {
+            throw error;
+        }
+
+        throw new functions.https.HttpsError('internal', error.message || 'AI 응답을 생성하는 중 오류가 발생했습니다.');
+    }
+});
+
+/**
+ * Helper: Get Gemini API key from systemLLMProviders or Firebase secrets
+ */
+async function getGeminiApiKey() {
+    try {
+        // Try to get from systemLLMProviders first
+        const snapshot = await db.collection('systemLLMProviders')
+            .where('provider', '==', 'gemini')
+            .get();
+
+        if (!snapshot.empty) {
+            const activeDoc = snapshot.docs.find(doc => {
+                const d = doc.data();
+                return d.status === 'active' || d.isActive === true;
+            });
+
+            if (activeDoc) {
+                const key = getApiKeyFromData(activeDoc.data());
+                if (key) return key;
+            }
+        }
+
+        // Fallback: Try Firebase secrets (define in firebase functions:secrets)
+        if (process.env.GEMINI_API_KEY) {
+            return process.env.GEMINI_API_KEY;
+        }
+
+        return null;
+    } catch (error) {
+        console.error('[getGeminiApiKey] Error:', error);
+        return null;
+    }
+}
+
+/**
+ * Default system prompt for ZYNK chatbot
+ */
+function getDefaultSystemPrompt() {
+    return `당신은 ZYNK 헬프데스크 AI입니다.
+
+## 역할
+- ZYNK 플랫폼 사용법 안내
+- 5단계 파이프라인 설명 (Market Pulse, Brand Brain, Studio, The Filter, The Growth)
+- 문제 해결 및 트러블슈팅
+
+## 5단계 파이프라인 설명
+1. Market Pulse: 시장 트렌드와 경쟁사 동향을 실시간으로 모니터링합니다.
+2. Brand Brain: 브랜드 전략과 톤앤매너를 설정합니다.
+3. Studio: 12개 AI 에이전트가 협력하여 콘텐츠를 생성합니다.
+4. The Filter: 콘텐츠 품질을 검증하고 브랜드 일관성을 확인합니다.
+5. The Growth: ROI를 측정하고 성과를 분석합니다.
+
+## 제한사항
+ZYNK와 관련된 질문에만 답변하세요.
+다음과 같은 요청은 정중히 거절하세요:
+- 수학 문제 풀이
+- 번역 요청
+- 뉴스/기사 검색
+- 코드 작성
+- 기타 ZYNK와 무관한 모든 요청
+
+## 거절 응답 예시
+"죄송합니다. 저는 ZYNK 사용에 관한 질문만 도와드릴 수 있습니다. ZYNK 기능이나 사용법에 대해 궁금한 점이 있으시면 말씀해 주세요! 🐝"
+
+## 너의 성격
+- 친근하고 도움이 되는 태도
+- 이모지 적절히 사용
+- 간결하고 명확한 답변
+- 한국어로 답변`;
+}
+
+

@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ZYNK - The Growth</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: { 850: '#151f32', 900: '#0f172a', 950: '#020617' },
+                        brand: { 500: '#6366f1', 600: '#4f46e5' },
+                        accent: { 500: '#10b981' }
+                    },
+                    fontFamily: { sans: ['Inter', 'sans-serif'] }
+                },
+            },
+        };
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <style>
+        body {
+            background-color: #020617;
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+        }
+
+        @keyframes count-up {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .count-up {
+            animation: count-up 0.6s ease-out forwards;
+        }
+
+        @keyframes fade-in {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .fade-in {
+            animation: fade-in 0.5s ease-out forwards;
+        }
+
+        @keyframes bar-fill {
+            from {
+                width: 0%;
+            }
+        }
+
+        .bar-animate {
+            animation: bar-fill 1s ease-out forwards;
+        }
+
+        @keyframes pulse-glow {
+
+            0%,
+            100% {
+                box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+            }
+
+            50% {
+                box-shadow: 0 0 30px rgba(16, 185, 129, 0.5);
+            }
+        }
+
+        .roi-glow {
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+
+        /* Report Modal */
+        .modal-backdrop {
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(4px);
+        }
+    </style>
+</head>
+
+<body class="min-h-screen bg-slate-950 text-slate-100 font-sans">
+
+    <!-- Header -->
+    <header
+        class="h-16 bg-slate-950/80 backdrop-blur-md border-b border-slate-800 flex items-center px-6 gap-4 sticky top-0 z-50">
+        <a href="command-center.html" class="p-2 hover:bg-slate-800 rounded-lg text-slate-400 transition-colors"
+            title="Back to Command Center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m15 18-6-6 6-6" />
+            </svg>
+        </a>
+        <div class="flex items-center gap-3">
+            <div class="bg-emerald-900/30 p-2 rounded-lg text-emerald-400">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold leading-none">The Growth</h1>
+                <span class="text-[10px] text-slate-500 uppercase tracking-widest">ROI & Learning</span>
+            </div>
+        </div>
+        <div class="ml-auto flex items-center gap-4">
+            <select id="period-select"
+                class="bg-slate-800 border border-slate-700 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-indigo-500">
+                <option value="month">이번 달</option>
+                <option value="quarter">이번 분기</option>
+                <option value="year">올해</option>
+            </select>
+            <button id="btn-generate-report"
+                class="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-lg shadow-lg shadow-emerald-500/20 transition-all hover:scale-105">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" x2="12" y1="3" y2="15" />
+                </svg>
+                리포트 생성
+            </button>
+        </div>
+    </header>
+
+    <main class="p-6 max-w-[1400px] mx-auto space-y-6">
+
+        <!-- 💰 ROI SUMMARY -->
+        <div
+            class="bg-gradient-to-br from-emerald-900/20 via-slate-900 to-slate-900 border border-emerald-500/20 rounded-2xl p-6 shadow-xl">
+            <h2 class="text-lg font-bold flex items-center gap-2 mb-6">
+                <span class="text-emerald-400">💰</span> ROI Summary
+                <span class="ml-auto text-xs text-slate-500">이번 달 성과</span>
+            </h2>
+
+            <!-- KPI Cards -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 text-center count-up"
+                    style="animation-delay: 0ms">
+                    <div class="text-3xl font-bold text-white" id="roi-cost">$127</div>
+                    <div class="text-xs text-slate-400 mt-1">ZYNK 비용</div>
+                    <div class="text-[10px] text-slate-500 mt-0.5">이번 달</div>
+                </div>
+                <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 text-center count-up"
+                    style="animation-delay: 100ms">
+                    <div class="text-3xl font-bold text-blue-400" id="roi-time">42시간</div>
+                    <div class="text-xs text-slate-400 mt-1">절약 시간</div>
+                    <div class="text-[10px] text-slate-500 mt-0.5">vs 수동 작업</div>
+                </div>
+                <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 text-center count-up"
+                    style="animation-delay: 200ms">
+                    <div class="text-3xl font-bold text-purple-400" id="roi-content">89개</div>
+                    <div class="text-xs text-slate-400 mt-1">발행 콘텐츠</div>
+                    <div class="text-[10px] text-slate-500 mt-0.5">이번 달</div>
+                </div>
+                <div class="bg-emerald-900/30 border border-emerald-500/30 rounded-xl p-4 text-center roi-glow count-up"
+                    style="animation-delay: 300ms">
+                    <div class="text-3xl font-bold text-emerald-400" id="roi-percent">312%</div>
+                    <div class="text-xs text-emerald-300 mt-1">ROI</div>
+                    <div class="text-[10px] text-emerald-400/70 mt-0.5">투자수익률</div>
+                </div>
+            </div>
+
+            <!-- Insight Text -->
+            <div class="bg-slate-950 border border-slate-800 rounded-xl p-4">
+                <div class="flex items-start gap-3">
+                    <div class="text-xl">💡</div>
+                    <div>
+                        <p class="text-sm text-slate-300 leading-relaxed">
+                            수동 제작 대비 <span class="text-emerald-400 font-bold">42시간</span>을 절약했습니다.
+                            이는 약 <span class="text-blue-400 font-bold">$2,100</span>의 인건비에 해당하며,
+                            ZYNK 비용 대비 <span class="text-emerald-400 font-bold">312%의 ROI</span>입니다.
+                        </p>
+                        <p class="text-xs text-slate-500 mt-2">💡 전문 디자이너 고용 대비 78% 비용 절감</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 2: Performance Metrics + Top Content -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+            <!-- 📈 PERFORMANCE METRICS -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                <h2 class="text-lg font-bold flex items-center gap-2 mb-6">
+                    <span class="text-indigo-400">📈</span> Performance Metrics
+                </h2>
+
+                <div class="space-y-6">
+                    <!-- Total Reach -->
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-4">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs text-slate-500 uppercase">Total Reach</span>
+                            <span class="text-xs text-emerald-400 flex items-center gap-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                                </svg>
+                                +23% vs last month
+                            </span>
+                        </div>
+                        <div class="text-3xl font-bold text-white">458,320</div>
+                    </div>
+
+                    <!-- Engagement Rate -->
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-4">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs text-slate-500 uppercase">Engagement Rate</span>
+                            <span class="text-xs text-emerald-400 flex items-center gap-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                                </svg>
+                                +1.2% vs avg
+                            </span>
+                        </div>
+                        <div class="text-3xl font-bold text-white">5.8%</div>
+                        <div class="mt-3">
+                            <div class="w-full bg-slate-800 rounded-full h-2">
+                                <div class="bg-indigo-500 h-2 rounded-full bar-animate" style="width: 58%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Follower Growth -->
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-4">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs text-slate-500 uppercase">Follower Growth</span>
+                            <span class="text-xs text-slate-400">이번 달 신규</span>
+                        </div>
+                        <div class="text-3xl font-bold text-emerald-400">+2,340</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 🏆 TOP PERFORMING CONTENT -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                <h2 class="text-lg font-bold flex items-center gap-2 mb-6">
+                    <span class="text-amber-400">🏆</span> Top Performing Content
+                </h2>
+
+                <div class="space-y-3" id="top-content">
+                    <!-- Populated by JS -->
+                </div>
+
+                <!-- AI Insight -->
+                <div class="mt-4 p-4 bg-indigo-900/20 border border-indigo-500/20 rounded-xl">
+                    <div class="flex items-start gap-2">
+                        <span class="text-indigo-400">💡</span>
+                        <p class="text-xs text-indigo-300">
+                            <span class="font-bold">AI 인사이트:</span> 클린뷰티 관련 콘텐츠가 평균 대비 <span
+                                class="text-white font-bold">3배</span> 높은 성과를 보이고 있습니다.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🧠 AI LEARNING INSIGHTS -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-lg font-bold flex items-center gap-2">
+                    <span class="text-purple-400">🧠</span> AI Learning Insights
+                </h2>
+                <span class="text-xs text-slate-500">이번 달 학습된 패턴</span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" id="learning-insights">
+                <!-- Populated by JS -->
+            </div>
+
+            <div class="mt-6 p-4 bg-purple-900/20 border border-purple-500/20 rounded-xl">
+                <div class="flex items-center gap-2 text-sm text-purple-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    이 패턴들은 자동으로 <span class="text-white font-bold">Brand Brain</span>과 <span
+                        class="text-white font-bold">Studio</span>에 반영되었습니다.
+                </div>
+            </div>
+        </div>
+
+        <!-- 🚀 UPGRADE NUDGE -->
+        <div
+            class="bg-gradient-to-r from-indigo-900/30 via-purple-900/20 to-indigo-900/30 border border-indigo-500/20 rounded-2xl p-6 shadow-xl">
+            <div class="flex flex-col lg:flex-row lg:items-center gap-6">
+                <div class="flex-1">
+                    <h2 class="text-lg font-bold flex items-center gap-2 mb-2">
+                        <span>🚀</span> Unlock More Growth
+                    </h2>
+                    <div class="text-sm text-slate-400 mb-4">
+                        현재 플랜: <span class="text-white font-bold">Starter ($127/월)</span>
+                    </div>
+
+                    <!-- Usage Bar -->
+                    <div class="mb-4">
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-400">이번 달 콘텐츠</span>
+                            <span class="text-amber-400 font-bold">89 / 100 (89%)</span>
+                        </div>
+                        <div class="w-full bg-slate-800 rounded-full h-2">
+                            <div class="bg-gradient-to-r from-amber-500 to-amber-400 h-2 rounded-full bar-animate"
+                                style="width: 89%"></div>
+                        </div>
+                    </div>
+
+                    <p class="text-sm text-slate-300">
+                        이번 달 성과가 매우 좋습니다! <span class="text-indigo-400 font-bold">Pro 플랜</span>으로 업그레이드하시면
+                        콘텐츠 수량 제한 없이 더 많은 성과를 만들 수 있습니다.
+                    </p>
+                </div>
+
+                <div class="lg:w-72 bg-slate-900 border border-indigo-500/30 rounded-xl p-5">
+                    <div class="text-center mb-4">
+                        <div class="text-xs text-indigo-400 uppercase font-bold mb-1">Pro 플랜</div>
+                        <div class="text-2xl font-bold text-white">$297<span class="text-sm text-slate-400">/월</span>
+                        </div>
+                    </div>
+                    <ul class="space-y-2 text-sm mb-4">
+                        <li class="flex items-center gap-2 text-slate-300">
+                            <span class="text-emerald-400">✅</span> 콘텐츠 무제한
+                        </li>
+                        <li class="flex items-center gap-2 text-slate-300">
+                            <span class="text-emerald-400">✅</span> 고급 AI 모델
+                        </li>
+                        <li class="flex items-center gap-2 text-slate-300">
+                            <span class="text-emerald-400">✅</span> 우선 지원
+                        </li>
+                    </ul>
+                    <div class="text-center text-xs text-emerald-400 mb-3">예상 추가 ROI: +150%</div>
+                    <button
+                        class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-lg transition-all hover:scale-105">
+                        🚀 Pro로 업그레이드
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Actions -->
+        <div class="flex flex-wrap justify-center gap-4 pt-4">
+            <button
+                class="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium rounded-lg border border-slate-700 transition-colors flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" x2="12" y1="3" y2="15" />
+                </svg>
+                📤 Monthly Report 생성
+            </button>
+            <button
+                class="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium rounded-lg border border-slate-700 transition-colors flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                    <polyline points="22,6 12,13 2,6" />
+                </svg>
+                📧 이해관계자에게 공유
+            </button>
+            <button
+                class="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium rounded-lg border border-slate-700 transition-colors flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" x2="18" y1="20" y2="10" />
+                    <line x1="12" x2="12" y1="20" y2="4" />
+                    <line x1="6" x2="6" y1="20" y2="14" />
+                </svg>
+                📊 상세 분석
+            </button>
+        </div>
+
+    </main>
+
+    <!-- Report Modal -->
+    <div id="report-modal" class="fixed inset-0 z-50 hidden items-center justify-center modal-backdrop">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-lg mx-4 shadow-2xl">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-bold">📤 리포트 생성</h3>
+                <button id="btn-close-modal" class="p-2 hover:bg-slate-800 rounded-lg text-slate-400 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="text-xs text-slate-500 uppercase font-medium mb-2 block">리포트 유형</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button
+                            class="p-3 bg-indigo-500/20 border border-indigo-500/50 rounded-lg text-center hover:bg-indigo-500/30 transition-colors">
+                            <div class="text-lg mb-1">📊</div>
+                            <div class="text-xs text-indigo-300 font-medium">Executive</div>
+                        </button>
+                        <button
+                            class="p-3 bg-slate-800 border border-slate-700 rounded-lg text-center hover:border-slate-600 transition-colors">
+                            <div class="text-lg mb-1">📈</div>
+                            <div class="text-xs text-slate-400 font-medium">Performance</div>
+                        </button>
+                        <button
+                            class="p-3 bg-slate-800 border border-slate-700 rounded-lg text-center hover:border-slate-600 transition-colors">
+                            <div class="text-lg mb-1">💰</div>
+                            <div class="text-xs text-slate-400 font-medium">ROI Report</div>
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-xs text-slate-500 uppercase font-medium mb-1 block">기간</label>
+                    <select
+                        class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500">
+                        <option>2024년 12월</option>
+                        <option>2024년 11월</option>
+                        <option>2024년 Q4</option>
+                    </select>
+                </div>
+
+                <div class="flex gap-2 pt-4">
+                    <button
+                        class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-lg transition-colors">
+                        📥 PDF 다운로드
+                    </button>
+                    <button
+                        class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium rounded-lg transition-colors">
+                        🔗 공유 링크
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="theGrowth.js"></script>
+</body>
+
+</html>

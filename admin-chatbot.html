@@ -1,0 +1,273 @@
+<div class="admin-card">
+    <div style="margin-bottom: 24px;">
+        <h3 style="margin: 0; display: flex; align-items: center; gap: 12px;">
+            <span style="font-size: 24px;">🤖</span>
+            AI Chatbot Settings
+        </h3>
+        <p style="margin: 4px 0 0 0; color: rgba(255,255,255,0.5); font-size: 14px;">
+            Configure the AI helpdesk chatbot settings and knowledge base.
+        </p>
+    </div>
+
+    <!-- System Prompt Section -->
+    <div
+        style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 24px;">
+        <h4 style="margin: 0 0 16px 0; color: #fff; display: flex; align-items: center; gap: 8px;">
+            <span>📝</span> System Prompt
+        </h4>
+        <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 12px;">
+            Define the AI's role, capabilities, and restrictions. This prompt is sent with every request.
+        </p>
+        <textarea id="chatbot-system-prompt" class="admin-input"
+            style="width: 100%; height: 200px; resize: vertical; font-family: monospace; font-size: 13px;"
+            placeholder="Enter system prompt...">당신은 ZYNK 헬프데스크 AI입니다.
+
+## 역할
+- ZYNK 플랫폼 사용법 안내
+- 기능 설명 (Market Pulse, Brand Brain, Studio, The Filter, The Growth)
+- 문제 해결 및 트러블슈팅
+
+## 제한사항
+ZYNK와 관련된 질문에만 답변하세요.
+다음과 같은 요청은 정중히 거절하세요:
+- 수학 문제 풀이
+- 번역 요청
+- 뉴스/기사 검색
+- 코드 작성
+
+## 거절 응답
+"죄송합니다. 저는 ZYNK 사용에 관한 질문만 도와드릴 수 있습니다. 🐝"</textarea>
+    </div>
+
+    <!-- Welcome Message Section -->
+    <div
+        style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 24px;">
+        <h4 style="margin: 0 0 16px 0; color: #fff; display: flex; align-items: center; gap: 8px;">
+            <span>👋</span> Welcome Message
+        </h4>
+        <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 12px;">
+            The first message users see when opening the chatbot.
+        </p>
+        <textarea id="chatbot-welcome-message" class="admin-input"
+            style="width: 100%; height: 100px; resize: vertical; font-size: 13px;"
+            placeholder="Enter welcome message...">안녕하세요! 저는 ZYNK 헬프데스크 AI입니다. 🐝
+
+ZYNK 사용에 관한 질문이 있으시면 편하게 물어보세요!
+
+🔹 기능 사용법
+🔹 문제 해결
+🔹 팁과 가이드</textarea>
+    </div>
+
+    <!-- Settings Section -->
+    <div
+        style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 24px;">
+        <h4 style="margin: 0 0 16px 0; color: #fff; display: flex; align-items: center; gap: 8px;">
+            <span>⚙️</span> Settings
+        </h4>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+            <div>
+                <label style="display: block; margin-bottom: 6px; font-size: 13px; color: #ccc;">Daily Limit (per
+                    user)</label>
+                <input type="number" id="chatbot-daily-limit" class="admin-input" value="50" min="1" max="1000"
+                    style="width: 100px;">
+            </div>
+            <div>
+                <label style="display: block; margin-bottom: 6px; font-size: 13px; color: #ccc;">Chatbot Status</label>
+                <select id="chatbot-status" class="admin-input" style="width: 150px;">
+                    <option value="active">Active</option>
+                    <option value="disabled">Disabled</option>
+                    <option value="maintenance">Maintenance</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- FAQ Section -->
+    <div
+        style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h4 style="margin: 0; color: #fff; display: flex; align-items: center; gap: 8px;">
+                <span>❓</span> FAQ (Quick Answers)
+            </h4>
+            <button id="btn-add-faq" class="admin-btn-primary" style="padding: 8px 16px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    style="vertical-align: middle; margin-right: 4px;">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Add FAQ
+            </button>
+        </div>
+        <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 16px;">
+            Pre-defined questions and answers for common queries.
+        </p>
+
+        <div id="faq-list" style="display: flex; flex-direction: column; gap: 12px;">
+            <!-- FAQ items will be rendered here -->
+        </div>
+    </div>
+
+    <!-- Save Button -->
+    <div style="display: flex; justify-content: flex-end; gap: 12px;">
+        <button id="btn-reset-chatbot" class="admin-btn-secondary" style="padding: 12px 24px;">
+            Reset to Defaults
+        </button>
+        <button id="btn-save-chatbot" class="admin-btn-primary" style="padding: 12px 32px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                style="vertical-align: middle; margin-right: 6px;">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                <polyline points="7 3 7 8 15 8"></polyline>
+            </svg>
+            Save Settings
+        </button>
+    </div>
+</div>
+
+<!-- Add/Edit FAQ Modal -->
+<div id="faq-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-container" style="max-width: 600px;">
+        <div class="modal-header">
+            <h3 id="faq-modal-title">Add FAQ</h3>
+            <button class="modal-close" onclick="closeFaqModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="faq-edit-id">
+
+            <div class="form-group">
+                <label>Question</label>
+                <input type="text" id="faq-question" class="admin-input" placeholder="e.g. Market Pulse가 뭔가요?" required>
+            </div>
+
+            <div class="form-group">
+                <label>Answer</label>
+                <textarea id="faq-answer" class="admin-input" style="height: 150px; resize: vertical;"
+                    placeholder="Enter the answer..." required></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="admin-btn-secondary" onclick="closeFaqModal()">Cancel</button>
+            <button class="admin-btn-primary" id="btn-save-faq">Save FAQ</button>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Modal Styles (reuse from settings) */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        backdrop-filter: blur(4px);
+    }
+
+    .modal-container {
+        background: #1e1e24;
+        border: 1px solid #333;
+        border-radius: 8px;
+        width: 90%;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid #333;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-body {
+        padding: 20px;
+    }
+
+    .modal-footer {
+        padding: 16px 20px;
+        border-top: 1px solid #333;
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        color: #888;
+        font-size: 24px;
+        cursor: pointer;
+    }
+
+    .form-group {
+        margin-bottom: 16px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 13px;
+        color: #ccc;
+    }
+
+    .admin-input {
+        width: 100%;
+        padding: 8px 12px;
+        background: #2a2a30;
+        border: 1px solid #444;
+        border-radius: 4px;
+        color: white;
+        font-size: 14px;
+    }
+
+    .admin-input:focus {
+        border-color: #16e0bd;
+        outline: none;
+    }
+
+    .faq-item {
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        padding: 16px;
+    }
+
+    .faq-item:hover {
+        border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .faq-question {
+        font-weight: 600;
+        color: #e2e8f0;
+        margin-bottom: 8px;
+    }
+
+    .faq-answer {
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.6);
+        white-space: pre-wrap;
+    }
+
+    .faq-actions {
+        margin-top: 12px;
+        display: flex;
+        gap: 8px;
+    }
+</style>
+
+<script>
+    // Auto-initialize Chatbot settings when loaded
+    if (typeof window.initChatbotSettings === 'function') {
+        console.log('[Chatbot Settings] Auto-initializing...');
+        window.initChatbotSettings();
+    } else {
+        console.error('[Chatbot Settings] initChatbotSettings function not found');
+    }
+</script>

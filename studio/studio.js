@@ -658,27 +658,57 @@ function getSelectedAgents() {
 // ============================================
 // STATS UPDATE
 // ============================================
+
+// Agent-specific time and cost estimates (based on typical API usage)
+const AGENT_ESTIMATES = {
+    research: { time: 15, cost: 0.03 },        // Web search + analysis
+    seo_watcher: { time: 10, cost: 0.02 },     // SEO monitoring
+    knowledge_curator: { time: 12, cost: 0.025 }, // Knowledge retrieval
+    kpi: { time: 8, cost: 0.015 },             // KPI analysis
+    planner: { time: 20, cost: 0.04 },         // Content planning (core)
+    creator_text: { time: 25, cost: 0.05 },    // Text generation (core)
+    creator_image: { time: 30, cost: 0.08 },   // Image generation (API intensive)
+    creator_video: { time: 60, cost: 0.15 },   // Video planning
+    compliance: { time: 10, cost: 0.02 },      // Compliance check
+    seo_optimizer: { time: 12, cost: 0.025 },  // SEO optimization
+    evaluator: { time: 15, cost: 0.03 },       // Quality evaluation
+    manager: { time: 10, cost: 0.02 }          // Final coordination
+};
+
 function updateStats() {
     const selectedAgents = getSelectedAgents();
-    const totalAgents = document.querySelectorAll('#agent-roster input[type="checkbox"]').length;
+    const totalAgents = document.querySelectorAll('.agent-card:not(.disabled)').length;
 
+    // Update agent count display
     document.getElementById('stats-agents').textContent = `${selectedAgents.length}/${totalAgents} agents`;
 
-    const template = WORKFLOW_TEMPLATES[state.selectedTemplate];
-    if (template && state.selectedTemplate !== 'custom') {
-        document.getElementById('stats-time').textContent = `~${template.estimatedTime}`;
-        document.getElementById('stats-cost').textContent = `$${template.estimatedCost.toFixed(2)}`;
-    } else {
-        // Estimate for custom
-        const costPerAgent = 0.02;
-        const cost = selectedAgents.length * costPerAgent;
-        const timePerAgent = 20; // seconds
-        const totalSeconds = selectedAgents.length * timePerAgent;
-        const minutes = Math.ceil(totalSeconds / 60);
+    // Calculate time and cost based on selected agents
+    let totalTimeSeconds = 0;
+    let totalCost = 0;
 
-        document.getElementById('stats-time').textContent = `~${minutes}min`;
-        document.getElementById('stats-cost').textContent = `$${cost.toFixed(2)}`;
+    selectedAgents.forEach(agentId => {
+        const estimate = AGENT_ESTIMATES[agentId];
+        if (estimate) {
+            totalTimeSeconds += estimate.time;
+            totalCost += estimate.cost;
+        } else {
+            // Default fallback for unknown agents
+            totalTimeSeconds += 15;
+            totalCost += 0.02;
+        }
+    });
+
+    // Format time display
+    let timeDisplay;
+    if (totalTimeSeconds < 60) {
+        timeDisplay = `~${totalTimeSeconds}s`;
+    } else {
+        const minutes = Math.ceil(totalTimeSeconds / 60);
+        timeDisplay = `~${minutes}min`;
     }
+
+    document.getElementById('stats-time').textContent = timeDisplay;
+    document.getElementById('stats-cost').textContent = `$${totalCost.toFixed(2)}`;
 }
 
 // ============================================

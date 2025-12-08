@@ -165,6 +165,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             industries: "Industry Master",
             documents: "Documentation",
             subscriptions: "Subscription Management",
+            chatbot: "AI Chatbot Settings",
             settings: "Settings"
         };
         document.getElementById("admin-page-title").textContent = titles[actualPage] || "Admin";

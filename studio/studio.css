@@ -324,6 +324,30 @@
     display: none;
 }
 
+/* Hide stats section in collapsed mode */
+.studio-main.collapsed .studio-panel-left .stats-section {
+    display: none;
+}
+
+/* Collapsed mode: Show only play button icon */
+.studio-main.collapsed .studio-panel-left .btn-start-execution {
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    border-radius: 50%;
+    font-size: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 12px auto 0;
+}
+
+.studio-main.collapsed .studio-panel-left .btn-start-execution::before {
+    content: '▶';
+    font-size: 18px;
+    color: #000;
+}
+
 
 .studio-panel-center {
     padding: 16px;

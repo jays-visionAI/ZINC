@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ZYNK - Brand Brain</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            850: '#151f32',
+                            900: '#0f172a',
+                            950: '#020617',
+                        },
+                        brand: {
+                            500: '#6366f1', // Indigo
+                            600: '#4f46e5',
+                        },
+                        accent: {
+                            500: '#10b981', // Emerald
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    }
+                },
+            },
+        };
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <style>
+        body {
+            background-color: #020617;
+            /* slate-950 */
+            color: #f8fafc;
+            /* slate-50 */
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+
+        /* Range Input Reset */
+        input[type=range] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+        }
+
+        input[type=range]:focus {
+            outline: none;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-indigo-500/30">
+
+    <!-- Navigation -->
+    <header
+        class="fixed top-0 left-0 right-0 h-16 bg-slate-950/80 backdrop-blur-md border-b border-slate-800 z-50 flex items-center justify-between px-6">
+        <div class="flex items-center gap-3">
+            <!-- Back Button -->
+            <a href="command-center.html"
+                class="flex items-center justify-center w-9 h-9 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 hover:border-slate-600 transition-all"
+                title="Back to Command Center">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 12H5M12 19l-7-7 7-7"></path>
+                </svg>
+            </a>
+            <!-- Brand Icon -->
+            <div class="bg-indigo-600 p-2 rounded-lg shadow-lg shadow-indigo-500/20 text-white">
+                <!-- Icon: Brain -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path
+                        d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z" />
+                    <path
+                        d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z" />
+                </svg>
+            </div>
+            <div class="flex flex-col">
+                <h1 class="text-xl font-bold tracking-tight text-white leading-none">Brand Brain</h1>
+                <span class="text-[10px] text-slate-400 font-medium tracking-widest uppercase mt-1">Strategic
+                    Intelligence Hub</span>
+            </div>
+        </div>
+
+        <!-- Center: Project & Agent Team Selector -->
+        <div class="flex items-center gap-4 bg-slate-900/80 rounded-xl px-4 py-2 border border-slate-800">
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-slate-500 uppercase">Project:</span>
+                <select id="project-select"
+                    class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-indigo-500 min-w-[160px]">
+                    <option value="">Loading...</option>
+                </select>
+            </div>
+            <div class="w-px h-6 bg-slate-700"></div>
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-slate-500 uppercase">Team:</span>
+                <select id="agentteam-select" disabled
+                    class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-indigo-500 min-w-[160px] disabled:opacity-50">
+                    <option value="">Select Project First</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-6">
+            <nav class="hidden md:flex items-center gap-1 bg-slate-900 rounded-full p-1 border border-slate-800">
+                <span class="px-4 py-1.5 text-xs text-slate-500 cursor-default">The Eyes</span>
+                <span
+                    class="px-4 py-1.5 text-xs font-semibold bg-slate-800 text-indigo-400 rounded-full shadow-sm border border-slate-700 cursor-default">The
+                    Brain</span>
+                <span class="px-4 py-1.5 text-xs text-slate-500 cursor-default">The Hands</span>
+            </nav>
+            <div class="h-6 w-px bg-slate-800"></div>
+            <div class="flex items-center gap-4">
+                <button class="relative text-slate-400 hover:text-white transition-colors">
+                    <!-- Icon: Bell -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+                        <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+                    </svg>
+                    <span class="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
+                </button>
+                <div
+                    class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-indigo-400">
+                    <!-- Icon: User -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="pt-24 pb-12 px-6 max-w-[1600px] mx-auto">
+
+        <!-- Weekly Check-in Banner -->
+        <div id="weekly-checkin"
+            class="mb-8 bg-gradient-to-r from-indigo-900/40 to-slate-900 border border-indigo-500/30 rounded-xl p-4 flex items-center justify-between relative overflow-hidden transition-all duration-500">
+            <div class="absolute left-0 top-0 w-1 h-full bg-indigo-500"></div>
+            <div class="flex items-center gap-4 z-10">
+                <div class="p-2 bg-indigo-500/20 rounded-full text-indigo-400 animate-pulse-slow">
+                    <!-- Icon: LayoutDashboard -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect width="7" height="9" x="3" y="3" rx="1" />
+                        <rect width="7" height="5" x="14" y="3" rx="1" />
+                        <rect width="7" height="9" x="14" y="12" rx="1" />
+                        <rect width="7" height="5" x="3" y="16" rx="1" />
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-white">Weekly Brand Check-in</h3>
+                    <p class="text-sm text-slate-400">Has anything changed with <span class="text-indigo-300"
+                            id="checkin-project-name">your brand</span> this week?</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3 z-10">
+                <button id="btn-skip-checkin"
+                    class="text-xs text-slate-500 hover:text-white transition-colors px-3 py-2">Skip for now</button>
+                <button
+                    class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-4 py-2 rounded-lg shadow-lg shadow-indigo-500/20 transition-all flex items-center gap-1">
+                    Start Update
+                    <!-- Icon: ChevronRight -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m9 18 6-6-6-6" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- BENTO GRID -->
+        <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 auto-rows-min">
+
+            <!-- CARD: Brand Health -->
+            <div class="md:col-span-2 lg:col-span-2 h-[280px]">
+                <div
+                    class="relative overflow-hidden rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-xl h-full flex flex-col justify-between group hover:border-slate-700 transition-all duration-300">
+                    <div
+                        class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-slate-100">
+                        <!-- Icon: Activity -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                        </svg>
+                    </div>
+
+                    <div class="flex justify-between items-start z-10">
+                        <div>
+                            <h2 class="text-sm font-semibold text-slate-400 tracking-wider uppercase mb-1">Brand Health
+                                Score</h2>
+                            <div class="flex items-baseline gap-2">
+                                <span id="health-score" class="text-5xl font-bold text-amber-400">0</span>
+                                <span class="text-sm text-slate-500">/ 100</span>
+                            </div>
+                        </div>
+                        <button id="health-optimize-btn"
+                            class="flex items-center gap-1 text-xs bg-amber-500/10 text-amber-400 px-3 py-1 rounded-full border border-amber-500/20 hover:bg-amber-500/20 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                                <path d="M12 9v4" />
+                                <path d="M12 17h.01" />
+                            </svg>
+                            <span>Optimize</span>
+                        </button>
+                    </div>
+
+                    <div class="mt-6 z-10">
+                        <div class="flex justify-between text-xs text-slate-400 mb-2">
+                            <span>Overall Completeness</span>
+                            <span id="health-status-text">Calculating...</span>
+                        </div>
+                        <div class="w-full bg-slate-800 rounded-full h-3 overflow-hidden">
+                            <div id="health-bar"
+                                class="h-full rounded-full bg-amber-500 shadow-[0_0_10px_rgba(251,191,36,0.5)] transition-all duration-1000 ease-out"
+                                style="width: 0%"></div>
+                        </div>
+                        <div class="mt-4 flex gap-2 overflow-x-auto pb-2" style="scrollbar-width: none;">
+                            <div class="flex flex-col items-center bg-slate-800/50 p-2 rounded-lg min-w-[70px]">
+                                <span class="text-[10px] text-slate-400 uppercase">Identity</span>
+                                <span id="score-identity" class="text-sm font-bold text-slate-200">0/25</span>
+                            </div>
+                            <div class="flex flex-col items-center bg-slate-800/50 p-2 rounded-lg min-w-[70px]">
+                                <span class="text-[10px] text-slate-400 uppercase">Know.</span>
+                                <span id="score-knowledge" class="text-sm font-bold text-slate-200">0/25</span>
+                            </div>
+                            <div class="flex flex-col items-center bg-slate-800/50 p-2 rounded-lg min-w-[70px]">
+                                <span class="text-[10px] text-slate-400 uppercase">Strat.</span>
+                                <span id="score-strategy" class="text-sm font-bold text-slate-200">0/25</span>
+                            </div>
+                            <div class="flex flex-col items-center bg-slate-800/50 p-2 rounded-lg min-w-[70px]">
+                                <span class="text-[10px] text-slate-400 uppercase">Update</span>
+                                <span id="score-update" class="text-sm font-bold text-slate-200">0/15</span>
+                            </div>
+                            <div class="flex flex-col items-center bg-slate-800/50 p-2 rounded-lg min-w-[70px]">
+                                <span class="text-[10px] text-slate-400 uppercase">Qual.</span>
+                                <span id="score-feedback" class="text-sm font-bold text-slate-200">0/10</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CARD: Market Pulse -->
+            <div class="h-[280px]">
+                <div
+                    class="rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-xl h-full flex flex-col relative group hover:border-slate-700 transition-all duration-300">
+                    <div class="flex justify-between items-center mb-6">
+                        <div class="flex items-center gap-2">
+                            <div class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
+                            <h2 class="text-sm font-semibold text-slate-400 tracking-wider uppercase">Market Pulse</h2>
+                        </div>
+                        <a href="marketPulse.html"
+                            class="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors">
+                            Details <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="M5 12h14" />
+                                <path d="m12 5 7 7-7 7" />
+                            </svg>
+                        </a>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2 mb-6">
+                        <div class="bg-slate-800/50 rounded-lg p-3 text-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" class="mx-auto mb-1 text-slate-400">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                            </svg>
+                            <div id="pulse-mentions" class="text-lg font-bold text-slate-200">--</div>
+                            <div class="text-[10px] text-slate-500">Mentions</div>
+                        </div>
+                        <div class="bg-slate-800/50 rounded-lg p-3 text-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" class="mx-auto mb-1 text-emerald-400">
+                                <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+                                <polyline points="16 7 22 7 22 13" />
+                            </svg>
+                            <div id="pulse-sentiment" class="text-lg font-bold text-emerald-400">--%</div>
+                            <div class="text-[10px] text-slate-500">Positive</div>
+                        </div>
+                        <div class="bg-slate-800/50 rounded-lg p-3 text-center border border-red-500/20">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" class="mx-auto mb-1 text-red-400">
+                                <polygon
+                                    points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2" />
+                            </svg>
+                            <div id="pulse-alerts" class="text-lg font-bold text-red-400">0</div>
+                            <div class="text-[10px] text-slate-500">Alerts</div>
+                        </div>
+                    </div>
+
+                    <div
+                        class="mt-auto bg-gradient-to-r from-blue-900/20 to-purple-900/20 rounded-xl p-4 border border-blue-500/10">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <span class="text-xs text-blue-300 font-medium">Top Trend</span>
+                                <div id="pulse-top-trend" class="text-base font-bold text-white mt-1">#Loading...</div>
+                            </div>
+                            <span id="pulse-trend-change"
+                                class="bg-emerald-500/10 text-emerald-400 text-xs px-2 py-1 rounded font-medium">
+                                --
+                            </span>
+                        </div>
+                        <div id="pulse-suggestion" class="mt-2 text-xs text-slate-400">
+                            Loading market insights...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CARD: Sync Status -->
+            <div class="h-[280px]">
+                <div
+                    class="bg-gradient-to-br from-indigo-900 to-slate-900 border border-indigo-500/30 rounded-2xl p-6 shadow-xl relative overflow-hidden group h-full">
+                    <div
+                        class="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity text-indigo-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path
+                                d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" />
+                            <path
+                                d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z" />
+                            <path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4" />
+                            <path d="M17.599 6.5a3 3 0 0 0 .399-1.375" />
+                            <path d="M6.003 5.125A3 3 0 0 0 6.401 6.5" />
+                            <path d="M3.477 10.896a4 4 0 0 1 .585-.396" />
+                            <path d="M19.938 10.5a4 4 0 0 1 .585.396" />
+                            <path d="M6 18a4 4 0 0 1-1.97-3.284" />
+                            <path d="M17.97 14.716A4 4 0 0 1 16 18" />
+                        </svg>
+                    </div>
+
+                    <div class="relative z-10 flex flex-col justify-between h-full">
+                        <div>
+                            <h3 class="text-indigo-300 text-sm font-semibold uppercase tracking-wider mb-2">Sync Status
+                            </h3>
+
+                            <div id="sync-status-display" class="mb-4">
+                                <span id="updates-count" class="text-2xl font-bold text-white block">All Synced</span>
+                                <span class="text-sm text-indigo-200/60">Ready to sync with Hive Mind</span>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3">
+                            <div id="sync-list"
+                                class="text-xs text-slate-400 bg-slate-900/50 p-3 rounded-lg border border-slate-700 hidden">
+                                <ul id="updates-list" class="list-disc list-inside space-y-1">
+                                </ul>
+                            </div>
+
+                            <button id="btn-sync"
+                                class="w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-500/25">
+                                <svg id="icon-sync" xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+                                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                                    <path d="M3 3v5h5" />
+                                    <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+                                    <path d="M16 16h5v5" />
+                                </svg>
+                                <span id="btn-sync-text">Sync with Hive Mind</span>
+                            </button>
+                            <div class="text-center">
+                                <span id="last-sync" class="text-[10px] text-slate-500">Last Synced: Never</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CARD: Core Identity -->
+            <div id="card-identity"
+                class="md:col-span-1 lg:col-span-1 min-h-[500px] rounded-2xl bg-slate-900 border border-slate-800 shadow-xl transition-all duration-300 overflow-hidden row-span-2">
+                <div id="identity-header"
+                    class="p-6 flex justify-between items-center cursor-pointer bg-slate-800/30 hover:bg-slate-800/50 transition-colors">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 bg-indigo-500/10 rounded-lg text-indigo-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-2.6 4" />
+                                <path d="M14 13.12c0 2.38 0 6.38-1 8.88" />
+                                <path d="M17.29 21.02c.12-.6.43-2.3.5-3.02" />
+                                <path d="M2 12a10 10 0 0 1 18-6" />
+                                <path d="M2 12a10 10 0 0 0 18-6" />
+                                <path d="M20 12a10 10 0 0 1-18-6" />
+                                <path d="M20 12a10 10 0 0 0-18-6" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h2 class="text-lg font-bold text-slate-100">Core Identity</h2>
+                            <p class="text-xs text-slate-500">The DNA of your brand</p>
+                        </div>
+                    </div>
+                    <svg id="identity-chevron" xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" class="text-slate-500">
+                        <path d="m18 15-6-6-6 6" />
+                    </svg>
+                </div>
+
+                <div id="identity-content" class="p-6 pt-2 space-y-6">
+                    <div class="space-y-2">
+                        <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Project Name</label>
+                        <input type="text" id="project-name" placeholder="Your brand name"
+                            class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors" />
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Mission</label>
+                        <textarea id="mission" rows="5" placeholder="What is your brand's mission?"
+                            class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 transition-colors resize-none leading-relaxed"></textarea>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Website
+                            Analysis</label>
+                        <div class="flex gap-2">
+                            <div class="relative flex-grow">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" class="absolute left-3 top-3 text-slate-500">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <line x1="2" x2="22" y1="12" y2="12" />
+                                    <path
+                                        d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                                </svg>
+                                <input type="text" id="website-url" placeholder="https://yourbrand.com"
+                                    class="w-full bg-slate-950 border border-slate-700 rounded-lg pl-9 pr-4 py-2 text-slate-200 text-sm focus:outline-none focus:border-indigo-500" />
+                            </div>
+                            <button id="btn-auto-analyze"
+                                class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 rounded-lg flex items-center gap-1 text-xs font-medium transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <path
+                                        d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                                    <path d="M12 9v4" />
+                                    <path d="M12 17h.01" />
+                                </svg> Auto
+                            </button>
+                        </div>
+                        <div id="website-analysis-status" class="flex items-center gap-2 mt-1">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-2">
+                            <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Industry</label>
+                            <select id="industry"
+                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 text-sm focus:outline-none focus:border-indigo-500">
+                                <option value="">Select...</option>
+                                <option value="beauty">Beauty & Cosmetics</option>
+                                <option value="tech">Technology</option>
+                                <option value="fashion">Fashion</option>
+                                <option value="food">Food & Beverage</option>
+                                <option value="health">Health & Wellness</option>
+                                <option value="finance">Finance</option>
+                                <option value="education">Education</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Target</label>
+                            <input type="text" id="target" placeholder="25-40 Females"
+                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 text-sm focus:outline-none focus:border-indigo-500" />
+                        </div>
+                    </div>
+
+                    <div class="pt-2">
+                        <button id="btn-save-identity"
+                            class="w-full py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium transition-colors">
+                            Save Changes
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CARD: Strategy Directives -->
+            <div class="md:col-span-2 lg:col-span-2 min-h-[500px]">
+                <div class="rounded-2xl bg-slate-900 border border-slate-800 shadow-xl overflow-hidden h-full">
+                    <div class="p-6 border-b border-slate-800/50 flex justify-between items-start">
+                        <div>
+                            <h2 class="text-lg font-bold text-slate-100 flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" class="text-purple-400">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <circle cx="12" cy="12" r="6" />
+                                    <circle cx="12" cy="12" r="2" />
+                                </svg>
+                                Strategy Directives
+                            </h2>
+                            <p class="text-xs text-slate-500">Fine-tune the content engine</p>
+                        </div>
+                        <a href="strategyWarRoom.html"
+                            class="flex items-center gap-1 text-xs bg-purple-500/10 text-purple-400 px-3 py-1.5 rounded-lg border border-purple-500/20 hover:bg-purple-500/20 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path
+                                    d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                                <circle cx="12" cy="12" r="3" />
+                            </svg>
+                            Configure
+                        </a>
+                    </div>
+
+                    <div class="p-6 space-y-8">
+                        <!-- Brand Voice Section -->
+                        <div>
+                            <h3 class="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <path d="m12 8-9.04 9.06a2.82 2.82 0 1 0 3.98 3.98L16 12" />
+                                    <path d="m19 7-5.1-5.1a2.12 2.12 0 0 1 3-3l5.1 5.1a2.12 2.12 0 0 1-3 3Z" />
+                                </svg>
+                                Brand Voice
+                            </h3>
+                            <div id="brand-voice-tags" class="flex flex-wrap gap-2 mb-3">
+                                <span
+                                    class="tag px-3 py-1 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-full text-xs font-medium cursor-pointer"
+                                    data-value="professional">Professional</span>
+                                <span
+                                    class="tag px-3 py-1 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-full text-xs font-medium cursor-pointer"
+                                    data-value="empathetic">Empathetic</span>
+                                <span
+                                    class="tag px-3 py-1 bg-slate-800 text-slate-400 border border-slate-700 rounded-full text-xs font-medium cursor-pointer"
+                                    data-value="friendly">Friendly</span>
+                                <span
+                                    class="tag px-3 py-1 bg-slate-800 text-slate-400 border border-slate-700 rounded-full text-xs font-medium cursor-pointer"
+                                    data-value="bold">Bold</span>
+                                <span
+                                    class="tag px-3 py-1 bg-slate-800 text-slate-400 border border-slate-700 rounded-full text-xs font-medium cursor-pointer"
+                                    data-value="witty">Witty</span>
+                                <button
+                                    class="tag-add px-3 py-1 bg-slate-800 text-slate-400 border border-slate-700 rounded-full text-xs font-medium hover:text-white transition-colors">
+                                    +
+                                </button>
+                            </div>
+                            <div
+                                class="bg-slate-950 rounded-lg p-3 text-sm text-slate-400 italic border border-slate-800">
+                                <textarea id="writing-style" rows="2"
+                                    placeholder='"Use polite honorifics, emojis sparingly, explain tech terms simply."'
+                                    class="w-full bg-transparent focus:outline-none resize-none"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Current Focus -->
+                        <div>
+                            <h3 class="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <polygon points="12 2 2 7 12 12 22 7 12 2" />
+                                    <polyline points="2 17 12 22 22 17" />
+                                    <polyline points="2 12 12 17 22 12" />
+                                </svg>
+                                Current Focus
+                            </h3>
+                            <div class="mb-2">
+                                <span class="text-sm text-slate-200 font-medium block mb-1">Topic:</span>
+                                <input type="text" id="focus-topic" placeholder="Clean Beauty Trend"
+                                    class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 text-sm focus:outline-none focus:border-indigo-500">
+                            </div>
+                            <div id="focus-keywords" class="flex flex-wrap gap-2">
+                                <span
+                                    class="keyword px-2 py-1 bg-slate-800 text-slate-300 rounded text-xs border border-slate-700">#CleanBeauty
+                                    <button class="keyword-remove ml-1 text-slate-500 hover:text-red-400"
+                                        data-keyword="#CleanBeauty">×</button></span>
+                                <span
+                                    class="keyword px-2 py-1 bg-slate-800 text-slate-300 rounded text-xs border border-slate-700">#Vegan
+                                    <button class="keyword-remove ml-1 text-slate-500 hover:text-red-400"
+                                        data-keyword="#Vegan">×</button></span>
+                                <input type="text" id="keyword-input" placeholder="Add keyword..."
+                                    class="bg-transparent text-slate-300 text-xs focus:outline-none w-24">
+                            </div>
+                        </div>
+
+                        <!-- Tone Intensity Slider -->
+                        <div>
+                            <div class="flex justify-between items-end mb-2">
+                                <h3 class="text-xs font-bold text-slate-500 uppercase">Tone Intensity</h3>
+                                <span id="tone-value-label" class="text-xs text-slate-400">Balanced</span>
+                            </div>
+                            <div class="relative h-2 bg-slate-800 rounded-full">
+                                <div id="tone-fill"
+                                    class="absolute h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full pointer-events-none"
+                                    style="width: 50%"></div>
+                                <div id="tone-knob"
+                                    class="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg pointer-events-none transition-all"
+                                    style="left: 50%; transform: translate(-50%, -50%);"></div>
+                                <input id="tone-slider" type="range" min="0" max="100" value="50"
+                                    class="absolute w-full h-full opacity-0 cursor-pointer" />
+                            </div>
+                            <div class="flex justify-between mt-2 text-[10px] text-slate-600 font-medium">
+                                <span>Informational</span>
+                                <span>Action-Oriented</span>
+                            </div>
+                        </div>
+
+                        <!-- Dos and Donts -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-emerald-900/10 border border-emerald-500/10 rounded-lg p-3">
+                                <div class="flex items-center gap-1 text-emerald-500 mb-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <path d="m9 12 2 2 4-4" />
+                                    </svg>
+                                    <span class="text-xs font-bold">DO</span>
+                                </div>
+                                <ul id="do-list"
+                                    class="text-[10px] text-emerald-200/70 space-y-1 list-disc list-inside">
+                                    <li>Emphasize sustainability</li>
+                                    <li>Highlight vegan ingredients</li>
+                                </ul>
+                                <button class="btn-add-item mt-2 text-[10px] text-emerald-400 hover:text-emerald-300"
+                                    data-list="do">+ Add</button>
+                            </div>
+                            <div class="bg-red-900/10 border border-red-500/10 rounded-lg p-3">
+                                <div class="flex items-center gap-1 text-red-500 mb-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <path d="m15 9-6 6" />
+                                        <path d="m9 9 6 6" />
+                                    </svg>
+                                    <span class="text-xs font-bold">DON'T</span>
+                                </div>
+                                <ul id="dont-list" class="text-[10px] text-red-200/70 space-y-1 list-disc list-inside">
+                                    <li>Mention competitors directly</li>
+                                    <li>Make unverified medical claims</li>
+                                </ul>
+                                <button class="btn-add-item mt-2 text-[10px] text-red-400 hover:text-red-300"
+                                    data-list="dont">+ Add</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CARD: Knowledge Base -->
+            <div class="md:col-span-1 lg:col-span-1 min-h-[500px]">
+                <div
+                    class="rounded-2xl bg-slate-900 border border-slate-800 shadow-xl flex flex-col h-full overflow-hidden">
+                    <div class="p-6 pb-2">
+                        <h2 class="text-lg font-bold text-slate-100 mb-1 flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" class="text-indigo-400">
+                                <path
+                                    d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H18a2 2 0 0 1 2 2v2" />
+                            </svg>
+                            Knowledge Base
+                        </h2>
+                        <p class="text-xs text-slate-500">Manage sources for AI context</p>
+                    </div>
+
+                    <div class="kb-tabs flex border-b border-slate-800 mt-2">
+                        <button
+                            class="kb-tab flex-1 py-3 flex justify-center items-center gap-2 text-sm font-medium transition-all border-b-2 border-indigo-500 text-indigo-400 bg-slate-800/30"
+                            data-tab="drive">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <line x1="22" x2="2" y1="12" y2="12" />
+                                <path
+                                    d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+                                <line x1="6" x2="6.01" y1="16" y2="16" />
+                                <line x1="10" x2="10.01" y1="16" y2="16" />
+                            </svg> Drive
+                        </button>
+                        <button
+                            class="kb-tab flex-1 py-3 flex justify-center items-center gap-2 text-sm font-medium transition-all border-b-2 border-transparent text-slate-500 hover:text-slate-300 hover:bg-slate-800/20"
+                            data-tab="links">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                            </svg> Links
+                        </button>
+                        <button
+                            class="kb-tab flex-1 py-3 flex justify-center items-center gap-2 text-sm font-medium transition-all border-b-2 border-transparent text-slate-500 hover:text-slate-300 hover:bg-slate-800/20"
+                            data-tab="notes">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z" />
+                                <path d="M15 3v6h6" />
+                            </svg> Notes
+                        </button>
+                    </div>
+
+                    <div id="kb-content-area" class="flex-1 overflow-y-auto p-4 space-y-3 min-h-[300px]">
+                        <!-- Tab Content -->
+                        <div id="tab-drive" class="kb-tab-content">
+                            <div
+                                class="bg-blue-900/10 border border-blue-500/20 rounded-lg p-3 mb-4 flex items-start gap-3">
+                                <div class="p-2 bg-blue-500/20 rounded-full text-blue-400">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round">
+                                        <line x1="22" x2="2" y1="12" y2="12" />
+                                        <path
+                                            d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h4 class="text-sm font-semibold text-blue-300">Google Drive Connected</h4>
+                                    <p class="text-xs text-blue-200/60 mt-1">Large files (PDF, PPTX) are processed via
+                                        Drive integration.</p>
+                                </div>
+                            </div>
+                            <div id="drive-files" class="space-y-2">
+                                <p class="text-center text-slate-500 text-xs py-4">No files connected yet</p>
+                            </div>
+                        </div>
+                        <div id="tab-links" class="kb-tab-content hidden">
+                            <div id="kb-links" class="space-y-2">
+                                <p class="text-center text-slate-500 text-xs py-4">No links added yet</p>
+                            </div>
+                        </div>
+                        <div id="tab-notes" class="kb-tab-content hidden">
+                            <div id="kb-notes" class="space-y-2">
+                                <p class="text-center text-slate-500 text-xs py-4">No notes added yet</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-4 border-t border-slate-800 bg-slate-900">
+                        <a href="knowledgeHub.html"
+                            class="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 py-2.5 rounded-xl border border-dashed border-slate-600 hover:border-slate-500 transition-all text-sm font-medium">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="M5 12h14" />
+                                <path d="M12 5v14" />
+                            </svg>
+                            <span>Manage Knowledge Base</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+    <!-- Config & Auth -->
+    <script src="firebase-config.js"></script>
+    <script src="auth.js"></script>
+
+    <!-- Brand Brain Logic -->
+    <script src="brand-brain.js"></script>
+
+    <!-- Auth Check -->
+    <script>
+        firebase.auth().onAuthStateChanged(function (user) {
+            if (!user) {
+                window.location.href = 'index.html';
+            }
+        });
+    </script>
+</body>
+
+</html>
