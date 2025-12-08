@@ -286,7 +286,18 @@ Feel free to ask me anything about using ZYNK!
 
         // Check if Firebase functions are available
         if (typeof firebase !== 'undefined' && firebase.functions) {
-            console.log('[Chatbot] Firebase functions available, calling askZynkBot...');
+            console.log('[Chatbot] Firebase functions available');
+
+            // Check auth state
+            const user = firebase.auth().currentUser;
+            console.log('[Chatbot] Current user:', user ? user.email : 'NOT LOGGED IN');
+
+            if (!user) {
+                const t = this.i18n[this.lang];
+                return t.loginRequired;
+            }
+
+            console.log('[Chatbot] Calling askZynkBot...');
             try {
                 const askZynkBot = firebase.functions().httpsCallable('askZynkBot');
                 const result = await askZynkBot({ question, language: this.lang });
@@ -305,18 +316,20 @@ Feel free to ask me anything about using ZYNK!
                 console.error('[Chatbot] Error code:', error.code);
                 console.error('[Chatbot] Error message:', error.message);
 
-                // Handle specific error codes
+                // Handle specific error codes (Firebase uses 'functions/code' format)
                 const t = this.i18n[this.lang];
-                if (error.code === 'resource-exhausted') {
+                const errorCode = error.code || '';
+
+                if (errorCode.includes('resource-exhausted')) {
                     return t.unavailable(error.message);
                 }
-                if (error.code === 'unauthenticated') {
+                if (errorCode.includes('unauthenticated')) {
                     return t.loginRequired;
                 }
-                if (error.code === 'unavailable') {
+                if (errorCode.includes('unavailable')) {
                     return t.unavailable(error.message);
                 }
-                if (error.code === 'failed-precondition') {
+                if (errorCode.includes('failed-precondition')) {
                     // AI service not configured - fall back to mock
                     console.warn('[Chatbot] AI service not configured, using mock response');
                     return this.getMockResponse(question);

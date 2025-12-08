@@ -846,12 +846,19 @@ async function saveScheduledContent(projectId, runId, teamId, results) {
  * - ZYNK-focused responses only
  */
 exports.askZynkBot = functions.https.onCall(async (data, context) => {
-    // 1. Check authentication
-    if (!context.auth) {
-        throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
+    // 1. Get user ID (authenticated or anonymous)
+    let userId;
+    let isAuthenticated = false;
+
+    if (context.auth && context.auth.uid) {
+        userId = context.auth.uid;
+        isAuthenticated = true;
+    } else {
+        // Use clientId from data for anonymous users, or generate one
+        userId = data.clientId || 'anonymous_' + Date.now();
+        console.log('[askZynkBot] Unauthenticated user, using clientId:', userId);
     }
 
-    const userId = context.auth.uid;
     const question = data.question;
     const language = data.language || 'ko'; // default to Korean
 
@@ -859,7 +866,7 @@ exports.askZynkBot = functions.https.onCall(async (data, context) => {
         throw new functions.https.HttpsError('invalid-argument', 'Question is required');
     }
 
-    console.log(`[askZynkBot] User ${userId} (${language}) asked: ${question.substring(0, 100)}...`);
+    console.log(`[askZynkBot] User ${userId} (auth:${isAuthenticated}, ${language}) asked: ${question.substring(0, 100)}...`);
 
     try {
         // 2. Load chatbot config from Firestore
