@@ -134,8 +134,11 @@ Feel free to ask me anything about using ZYNK!
         // Send button
         this.elements.sendBtn?.addEventListener('click', () => this.sendMessage());
 
-        // Enter key
+        // Enter key (with Korean composition check)
         this.elements.input?.addEventListener('keydown', (e) => {
+            // Skip if composing (Korean, Japanese, Chinese input)
+            if (e.isComposing || e.keyCode === 229) return;
+
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 this.sendMessage();
