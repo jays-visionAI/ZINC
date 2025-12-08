@@ -201,7 +201,7 @@
 .studio-main {
     flex: 1;
     display: grid;
-    grid-template-columns: 280px 1fr 320px;
+    grid-template-columns: 280px 1fr 380px;
     gap: 1px;
     background: var(--color-border);
     overflow: hidden;
@@ -234,7 +234,7 @@
 }
 
 .studio-main.collapsed {
-    grid-template-columns: 80px 1fr 320px;
+    grid-template-columns: 80px 1fr 380px;
 }
 
 /* Header Row & Toggle Button */
@@ -603,7 +603,7 @@
 .x-frame {
     background: #000;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    max-width: 550px;
+    max-width: 100%;
     margin: 0 auto;
     border-radius: 12px;
     border: 1px solid #2f3336;
