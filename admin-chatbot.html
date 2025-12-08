@@ -260,14 +260,85 @@ ZYNK 사용에 관한 질문이 있으시면 편하게 물어보세요!
         display: flex;
         gap: 8px;
     }
+
+    /* Resizable Textarea Styles */
+    textarea.admin-input {
+        resize: vertical;
+        min-height: 80px;
+        position: relative;
+    }
+
+    /* Custom resize handle - visible gripper */
+    textarea.admin-input::-webkit-resizer {
+        background: linear-gradient(135deg, transparent 60%, #16e0bd 60%, #16e0bd 70%, transparent 70%),
+            linear-gradient(135deg, transparent 70%, #16e0bd 70%, #16e0bd 80%, transparent 80%),
+            linear-gradient(135deg, transparent 80%, #16e0bd 80%, #16e0bd 90%, transparent 90%);
+        cursor: ns-resize;
+    }
+
+    /* Firefox resize styling */
+    textarea.admin-input {
+        scrollbar-color: #16e0bd #2a2a30;
+    }
+
+    /* Wrapper for resize indicator */
+    .textarea-wrapper {
+        position: relative;
+    }
+
+    .textarea-wrapper::after {
+        content: '⋮⋮';
+        position: absolute;
+        bottom: 4px;
+        right: 8px;
+        color: #16e0bd;
+        font-size: 10px;
+        letter-spacing: 2px;
+        pointer-events: none;
+        opacity: 0.7;
+    }
 </style>
 
 <script>
+    // Textarea height persistence via localStorage
+    function initTextareaResize() {
+        const textareas = document.querySelectorAll('textarea.admin-input[id]');
+
+        textareas.forEach(textarea => {
+            const storageKey = `textarea_height_${textarea.id}`;
+
+            // Restore saved height
+            const savedHeight = localStorage.getItem(storageKey);
+            if (savedHeight) {
+                textarea.style.height = savedHeight;
+            }
+
+            // Save height on resize using ResizeObserver
+            const resizeObserver = new ResizeObserver(entries => {
+                for (let entry of entries) {
+                    const height = entry.target.style.height || entry.target.offsetHeight + 'px';
+                    localStorage.setItem(storageKey, height);
+                }
+            });
+
+            resizeObserver.observe(textarea);
+        });
+    }
+
+    // Run after DOM is ready
+    document.addEventListener('DOMContentLoaded', initTextareaResize);
+
+    // Also run immediately in case DOM is already loaded
+    if (document.readyState !== 'loading') {
+        initTextareaResize();
+    }
+
     // Auto-initialize Chatbot settings when loaded
-    if (typeof window.initChatbotSettings === 'function') {
+    if (typeof window.initChatbot === 'function') {
         console.log('[Chatbot Settings] Auto-initializing...');
+        window.initChatbot();
+    } else if (typeof window.initChatbotSettings === 'function') {
+        console.log('[Chatbot Settings] Auto-initializing (legacy)...');
         window.initChatbotSettings();
-    } else {
-        console.error('[Chatbot Settings] initChatbotSettings function not found');
     }
 </script>

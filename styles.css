@@ -3021,6 +3021,14 @@ textarea.admin-form-input {
     min-height: 100px;
 }
 
+/* Visible resize handle gripper */
+textarea.admin-form-input::-webkit-resizer {
+    background: linear-gradient(135deg, transparent 60%, #16e0bd 60%, #16e0bd 70%, transparent 70%),
+        linear-gradient(135deg, transparent 70%, #16e0bd 70%, #16e0bd 80%, transparent 80%),
+        linear-gradient(135deg, transparent 80%, #16e0bd 80%, #16e0bd 90%, transparent 90%);
+    cursor: ns-resize;
+}
+
 /* ============================================
    Template Detail View Styles
    ============================================ */
