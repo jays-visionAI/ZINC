@@ -51,13 +51,43 @@ Feel free to ask me anything about using ZYNK!
     elements: {},
 
     // Initialize
-    init() {
+    async init() {
+        console.log('[Chatbot] Initializing...');
         this.detectLanguage();
         this.cacheElements();
+        await this.loadConfig(); // Load config from Firestore
         this.loadUsage();
         this.bindEvents();
         this.applyLocalization();
         this.addWelcomeMessage();
+    },
+
+    async loadConfig() {
+        try {
+            if (typeof firebase !== 'undefined' && firebase.firestore) {
+                const db = firebase.firestore();
+                const doc = await db.collection('chatbotConfig').doc('default').get();
+
+                if (doc.exists) {
+                    const config = doc.data();
+                    console.log('[Chatbot] Config loaded from Firestore:', config);
+
+                    // Override welcome message if configured
+                    if (config.welcomeMessage) {
+                        this.i18n.ko.welcome = config.welcomeMessage;
+                        this.i18n.en.welcome = config.welcomeMessage;
+                    }
+
+                    // Override daily limit if configured
+                    if (config.dailyLimit) {
+                        this.DAILY_LIMIT = config.dailyLimit;
+                    }
+                }
+            }
+        } catch (error) {
+            console.warn('[Chatbot] Failed to load config:', error);
+            // Use default values
+        }
     },
 
     detectLanguage() {
@@ -249,11 +279,15 @@ Feel free to ask me anything about using ZYNK!
     },
 
     async callAI(question) {
+        console.log('[Chatbot] callAI called, checking Firebase...');
+
         // Check if Firebase functions are available
         if (typeof firebase !== 'undefined' && firebase.functions) {
+            console.log('[Chatbot] Firebase functions available, calling askZynkBot...');
             try {
                 const askZynkBot = firebase.functions().httpsCallable('askZynkBot');
                 const result = await askZynkBot({ question, language: this.lang });
+                console.log('[Chatbot] askZynkBot success:', result);
 
                 // Update usage from server response
                 if (result.data.usage) {
@@ -265,6 +299,8 @@ Feel free to ask me anything about using ZYNK!
                 return result.data.answer;
             } catch (error) {
                 console.error('[Chatbot] Firebase function error:', error);
+                console.error('[Chatbot] Error code:', error.code);
+                console.error('[Chatbot] Error message:', error.message);
 
                 // Handle specific error codes
                 const t = this.i18n[this.lang];
@@ -284,11 +320,13 @@ Feel free to ask me anything about using ZYNK!
                 }
 
                 // Fall back to mock response
+                console.warn('[Chatbot] Unknown error, falling back to mock response');
                 return this.getMockResponse(question);
             }
         }
 
         // Fallback: Mock response for demo
+        console.warn('[Chatbot] Firebase not available, using mock response');
         return this.getMockResponse(question);
     },
 
