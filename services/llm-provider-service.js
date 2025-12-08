@@ -163,29 +163,40 @@
         }
 
         async _testGemini(apiKey, model = 'gemini-pro') {
-            // Placeholder for Gemini REST API test
-            // Note: Gemini often uses query param ?key=API_KEY
+            // Enhanced Gemini Test: Use listModels to validate API Key first
+            // This avoids "Model not found" errors when the key is valid but the specific model string is tricky
             const startTime = Date.now();
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: "Ping" }] }]
-                })
-            });
+            // 1. Try to list models (Best validation for API Key)
+            const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}&pageSize=1`;
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error?.message || `HTTP ${response.status}`);
+            try {
+                const listResponse = await fetch(listUrl);
+
+                if (!listResponse.ok) {
+                    const errorData = await listResponse.json();
+                    throw new Error(errorData.error?.message || `HTTP ${listResponse.status} (ListModels failed)`);
+                }
+
+                return {
+                    success: true,
+                    message: `Connected to Gemini API (Valid Key)`,
+                    latency: Date.now() - startTime
+                };
+
+            } catch (error) {
+                // If listModels fails, we might try generation as fallback or just throw
+                console.warn("[LLMProviderService] Gemini listModels failed, checking error:", error);
+
+                // If it's a 403 or 400 with API Key issues, throw immediately
+                if (error.message.includes('API key') || error.message.includes('403') || error.message.includes('400')) {
+                    throw error;
+                }
+
+                // Fallback: Try generation if listModels failed for some other reason (e.g. scope)
+                // But usually listModels is the open door.
+                throw error;
             }
-
-            return {
-                success: true,
-                message: `Connected to Gemini (${model})`,
-                latency: Date.now() - startTime
-            };
         }
     }
 

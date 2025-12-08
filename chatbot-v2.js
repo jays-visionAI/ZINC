@@ -153,6 +153,68 @@ Feel free to ask me anything about using ZYNK!
                 this.close();
             }
         });
+
+        // Add resize handle to panel
+        this.setupResizeHandle();
+    },
+
+    setupResizeHandle() {
+        const panel = this.elements.panel;
+        if (!panel) return;
+
+        // Create resize handle element
+        const handle = document.createElement('div');
+        handle.className = 'chatbot-resize-handle';
+        panel.insertBefore(handle, panel.firstChild);
+
+        let startY = 0;
+        let startHeight = 0;
+
+        const onMouseMove = (e) => {
+            const delta = startY - e.clientY;
+            const newHeight = Math.min(
+                Math.max(startHeight + delta, 300), // min-height
+                window.innerHeight - 150 // max-height
+            );
+            panel.style.height = newHeight + 'px';
+        };
+
+        const onMouseUp = () => {
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+            panel.style.transition = 'opacity 0.3s, transform 0.3s';
+        };
+
+        handle.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            startY = e.clientY;
+            startHeight = panel.offsetHeight;
+            panel.style.transition = 'none'; // Disable transition during drag
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
+
+        // Touch support for mobile
+        handle.addEventListener('touchstart', (e) => {
+            const touch = e.touches[0];
+            startY = touch.clientY;
+            startHeight = panel.offsetHeight;
+            panel.style.transition = 'none';
+        }, { passive: true });
+
+        handle.addEventListener('touchmove', (e) => {
+            const touch = e.touches[0];
+            const delta = startY - touch.clientY;
+            const newHeight = Math.min(
+                Math.max(startHeight + delta, 300),
+                window.innerHeight - 150
+            );
+            panel.style.height = newHeight + 'px';
+        }, { passive: true });
+
+        handle.addEventListener('touchend', () => {
+            panel.style.transition = 'opacity 0.3s, transform 0.3s';
+        });
     },
 
     toggle() {

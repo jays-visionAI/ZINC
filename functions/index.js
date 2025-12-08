@@ -5,7 +5,7 @@
 
 const functions = require('firebase-functions');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
-const { onRequest } = require('firebase-functions/v2/https');
+const { onRequest, onCall } = require('firebase-functions/v2/https');
 const admin = require('firebase-admin');
 const cors = require('cors')({ origin: true });
 
@@ -838,6 +838,8 @@ async function saveScheduledContent(projectId, runId, teamId, results) {
 // ZYNK AI HELPDESK CHATBOT
 // ============================================
 
+
+
 /**
  * askZynkBot - AI Helpdesk Chatbot using Gemini API
  * Features:
@@ -845,31 +847,39 @@ async function saveScheduledContent(projectId, runId, teamId, results) {
  * - Dynamic system prompt from chatbotConfig
  * - ZYNK-focused responses only
  */
-exports.askZynkBot = functions.https.onCall(async (data, context) => {
-    // 1. Get user ID (authenticated or anonymous)
-    let userId;
-    let isAuthenticated = false;
+exports.askZynkBot = onCall({ cors: true }, async (request) => {
+    console.log('[askZynkBot] Function invoked (v2)');
 
-    if (context.auth && context.auth.uid) {
-        userId = context.auth.uid;
-        isAuthenticated = true;
-    } else {
-        // Use clientId from data for anonymous users, or generate one
-        userId = data.clientId || 'anonymous_' + Date.now();
-        console.log('[askZynkBot] Unauthenticated user, using clientId:', userId);
-    }
-
-    const question = data.question;
-    const language = data.language || 'ko'; // default to Korean
-
-    if (!question || typeof question !== 'string') {
-        throw new functions.https.HttpsError('invalid-argument', 'Question is required');
-    }
-
-    console.log(`[askZynkBot] User ${userId} (auth:${isAuthenticated}, ${language}) asked: ${question.substring(0, 100)}...`);
+    // Unpack request
+    const data = request.data;
+    const auth = request.auth;
 
     try {
+        // 1. Get user ID (authenticated or anonymous)
+        let userId;
+        let isAuthenticated = false;
+
+        if (auth && auth.uid) {
+            userId = auth.uid;
+            isAuthenticated = true;
+        } else {
+            // Use clientId from data for anonymous users, or generate one
+            userId = data.clientId || 'anonymous_' + Date.now();
+            console.log('[askZynkBot] Unauthenticated user, using clientId:', userId);
+        }
+
+        const question = data.question;
+        const language = data.language || 'ko'; // default to Korean
+
+        if (!question || typeof question !== 'string') {
+            console.warn('[askZynkBot] Invalid argument: question is missing', { dataKeys: Object.keys(data), data });
+            throw new functions.https.HttpsError('invalid-argument', 'Question is required');
+        }
+
+        console.log(`[askZynkBot] User ${userId} (auth:${isAuthenticated}, ${language}) asked: ${question.substring(0, 50)}...`);
+
         // 2. Load chatbot config from Firestore
+        console.log('[askZynkBot] Loading config...');
         const configDoc = await db.collection('chatbotConfig').doc('default').get();
         const config = configDoc.exists ? configDoc.data() : {};
 
@@ -893,6 +903,7 @@ exports.askZynkBot = functions.https.onCall(async (data, context) => {
         }
 
         // 3. Check rate limit
+        console.log('[askZynkBot] Checking rate limit...');
         const today = new Date().toISOString().split('T')[0];
         const usageRef = db.collection('chatbotUsage').doc(`${userId}_${today}`);
         const usageDoc = await usageRef.get();
@@ -905,27 +916,67 @@ exports.askZynkBot = functions.https.onCall(async (data, context) => {
             );
         }
 
-        // 4. Get Gemini API key
-        const geminiApiKey = await getGeminiApiKey();
+        // 4. Get OpenAI API key
+        console.log('[askZynkBot] Getting OpenAI API key...');
+        const openaiApiKey = await getOpenAIApiKey();
 
-        if (!geminiApiKey) {
-            console.error('[askZynkBot] Gemini API key not found');
-            throw new functions.https.HttpsError('failed-precondition', 'AI 서비스가 설정되지 않았습니다.');
+        if (!openaiApiKey) {
+            console.error('[askZynkBot] OpenAI API key not found');
+            throw new functions.https.HttpsError('failed-precondition', 'AI Service (OpenAI) is not configured.');
         }
 
-        // 5. Call Gemini API
-        const { GoogleGenerativeAI } = require('@google/generative-ai');
-        const genAI = new GoogleGenerativeAI(geminiApiKey);
-        const model = genAI.getGenerativeModel({
-            model: 'gemini-2.0-flash-exp',
-            systemInstruction: systemPrompt
-        });
+        // 5. Call OpenAI API
+        console.log('[askZynkBot] Calling OpenAI API (Model: gpt-4o)...');
+        const OpenAI = require('openai');
+        const openai = new OpenAI({ apiKey: openaiApiKey });
 
-        const result = await model.generateContent(question);
-        const response = result.response;
-        const answer = response.text();
+        const messages = [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: question }
+        ];
 
-        // 6. Update usage count
+        let answer = "";
+        let usedModel = "gpt-4o";
+
+        try {
+            const completion = await openai.chat.completions.create({
+                model: "gpt-4o",
+                messages: messages,
+                max_tokens: 1000
+            });
+            answer = completion.choices[0].message.content;
+            console.log(`[askZynkBot] Success with model: ${usedModel}`);
+
+        } catch (err) {
+            console.warn(`[askZynkBot] Failed with gpt-4o, trying gpt-3.5-turbo fallback:`, err.message);
+            try {
+                usedModel = "gpt-3.5-turbo";
+                const fallbackCompletion = await openai.chat.completions.create({
+                    model: "gpt-3.5-turbo",
+                    messages: messages,
+                    max_tokens: 1000
+                });
+                answer = fallbackCompletion.choices[0].message.content;
+                console.log(`[askZynkBot] Success with model: ${usedModel}`);
+            } catch (fallbackErr) {
+                console.error('[askZynkBot] All OpenAI models failed:', fallbackErr);
+                throw new functions.https.HttpsError('internal', 'AI generation failed.');
+            }
+        }
+
+        // 6. Update usage stats
+        try {
+            await db.collection('system_stats').doc('chatbot_usage').set({
+                total_queries: admin.firestore.FieldValue.increment(1),
+                last_query_at: admin.firestore.FieldValue.serverTimestamp(),
+                last_provider: 'openai',
+                last_model: usedModel
+            }, { merge: true });
+        } catch (statsErr) {
+            console.error('[askZynkBot] Error updating stats:', statsErr);
+        }
+
+        // 7. Update user-specific usage count
         await usageRef.set({
             userId,
             count: currentCount + 1,
@@ -944,49 +995,33 @@ exports.askZynkBot = functions.https.onCall(async (data, context) => {
         };
 
     } catch (error) {
-        console.error('[askZynkBot] Error:', error);
+        console.error('[askZynkBot] Error caught:', error);
 
         // Re-throw HttpsErrors as-is
         if (error instanceof functions.https.HttpsError) {
             throw error;
         }
 
-        throw new functions.https.HttpsError('internal', error.message || 'AI 응답을 생성하는 중 오류가 발생했습니다.');
+        // Convert unknown errors to internal
+        throw new functions.https.HttpsError('internal', error.message || 'An unexpected error occurred');
     }
 });
 
-/**
- * Helper: Get Gemini API key from systemLLMProviders or Firebase secrets
- */
-async function getGeminiApiKey() {
-    try {
-        // Try to get from systemLLMProviders first
-        const snapshot = await db.collection('systemLLMProviders')
-            .where('provider', '==', 'gemini')
-            .get();
+// Helper: Get OpenAI API Key from Firestore
+async function getOpenAIApiKey() {
+    console.log('[getOpenAIApiKey] Fetching openai key from systemLLMProviders...');
+    const snapshot = await db.collection('systemLLMProviders').where('provider', '==', 'openai').get();
 
-        if (!snapshot.empty) {
-            const activeDoc = snapshot.docs.find(doc => {
-                const d = doc.data();
-                return d.status === 'active' || d.isActive === true;
-            });
-
-            if (activeDoc) {
-                const key = getApiKeyFromData(activeDoc.data());
-                if (key) return key;
-            }
-        }
-
-        // Fallback: Try Firebase secrets (define in firebase functions:secrets)
-        if (process.env.GEMINI_API_KEY) {
-            return process.env.GEMINI_API_KEY;
-        }
-
-        return null;
-    } catch (error) {
-        console.error('[getGeminiApiKey] Error:', error);
-        return null;
+    if (snapshot.empty) {
+        console.warn('[getOpenAIApiKey] No providers found in systemLLMProviders for openai');
+        return process.env.OPENAI_API_KEY || null;
     }
+
+    // Prefer first active provider
+    const docs = snapshot.docs.map(doc => doc.data());
+    const activeProvider = docs.find(p => p.status === 'active') || docs[0];
+
+    return getApiKeyFromData(activeProvider);
 }
 
 /**
