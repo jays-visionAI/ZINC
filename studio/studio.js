@@ -107,6 +107,9 @@ async function initProjectSelector() {
     const projectSelect = document.getElementById('project-select');
     const agentTeamSelect = document.getElementById('agentteam-select');
 
+    // Add highlight initially to guide user
+    projectSelect.classList.add('selection-highlight');
+
     // Wait for Firebase auth
     firebase.auth().onAuthStateChanged(async (user) => {
         if (!user) {
@@ -130,7 +133,8 @@ async function initProjectSelector() {
             projectSelect.innerHTML = '<option value="">Select Project...</option>';
 
             if (projectsSnapshot.empty) {
-                projectSelect.innerHTML = '<option value="">No projects found</option>';
+                projectSelect.innerHTML = '<option value="" disabled selected>⚠️ Please create a Project in Admin Settings</option>';
+                projectSelect.classList.remove('selection-highlight'); // Remove glow if empty
                 addLogEntry('📂 No projects found', 'info');
                 return;
             }
@@ -158,7 +162,8 @@ async function initProjectSelector() {
             });
 
             if (projects.length === 0) {
-                projectSelect.innerHTML = '<option value="">No valid projects found</option>';
+                projectSelect.innerHTML = '<option value="" disabled selected>⚠️ Please create a Project in Admin Settings</option>';
+                projectSelect.classList.remove('selection-highlight');
                 addLogEntry('📂 No valid projects found', 'info');
                 return;
             }
@@ -214,6 +219,7 @@ async function initProjectSelector() {
 
     // Event: Project change
     projectSelect.addEventListener('change', async (e) => {
+        projectSelect.classList.remove('selection-highlight'); // Stop glowing
         const projectId = e.target.value;
         const selectedOption = projectSelect.options[projectSelect.selectedIndex];
         const projectName = selectedOption?.textContent || projectId;
@@ -237,6 +243,7 @@ async function initProjectSelector() {
 
     // Event: Agent Team change
     agentTeamSelect.addEventListener('change', async (e) => {
+        agentTeamSelect.classList.remove('selection-highlight'); // Stop glowing
         state.selectedAgentTeam = e.target.value;
         const selectedOption = agentTeamSelect.options[agentTeamSelect.selectedIndex];
         const teamName = selectedOption?.textContent || e.target.value;
@@ -280,8 +287,8 @@ async function loadAgentTeams(projectId) {
         agentTeamSelect.innerHTML = '<option value="">Select Agent Team...</option>';
 
         if (teamsSnapshot.empty) {
-            agentTeamSelect.innerHTML = '<option value="">No teams found</option>';
-            agentTeamSelect.disabled = true;
+            agentTeamSelect.innerHTML = '<option value="" disabled selected>⚠️ Please create an Agent Team in Admin Settings</option>';
+            agentTeamSelect.disabled = false; // Enabled so user can see the message
             return;
         }
 
@@ -296,6 +303,7 @@ async function loadAgentTeams(projectId) {
 
         addLogEntry(`🤖 Found ${teamsSnapshot.size} agent team(s)`, 'info');
         agentTeamSelect.disabled = false;
+        agentTeamSelect.classList.add('selection-highlight'); // Highlight to guide next step
 
     } catch (error) {
         console.error('[Studio] Error loading agent teams:', error);

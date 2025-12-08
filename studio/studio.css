@@ -9,11 +9,38 @@
     /* Override inherited variables for Studio to match Command Center's bright aesthetic */
     --color-cyan: #00FFA3;
     --color-cyan-glow: rgba(0, 255, 163, 0.3);
-    /* Set success to Neon Green */
-    --color-success: #00FFA3;
+    /* Override success to match Command Center green */
+    --color-success: #10B981;
     --color-success-dark: #10B981;
     /* Update gradient to be brighter */
     --gradient-success: linear-gradient(135deg, #00FFA3 0%, #10B981 100%);
+}
+
+/* ============================================
+   UX ENHANCEMENTS
+   ============================================ */
+@keyframes glow-pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(0, 255, 163, 0.4);
+        border-color: var(--color-cyan);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(0, 255, 163, 0);
+        border-color: var(--color-cyan);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(0, 255, 163, 0);
+        border-color: var(--color-cyan);
+    }
+}
+
+.selection-highlight {
+    animation: glow-pulse 2s infinite;
+    border-color: var(--color-cyan) !important;
+    position: relative;
+    z-index: 10;
 }
 
 /* ============================================
