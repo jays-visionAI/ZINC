@@ -6,6 +6,7 @@
 const functions = require('firebase-functions');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { onRequest, onCall } = require('firebase-functions/v2/https');
+const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const admin = require('firebase-admin');
 const cors = require('cors')({ origin: true });
 
@@ -1310,3 +1311,1626 @@ function buildBrandContextFromData(data) {
         platformPriority: st.platformPriority || []
     };
 }
+
+// ============================================================
+// KNOWLEDGE HUB: Source Analysis Functions
+// ============================================================
+
+const axios = require('axios');
+const cheerio = require('cheerio');
+
+/**
+ * Analyze a knowledge source
+ * Extracts text from various source types and generates AI summary
+ */
+exports.analyzeKnowledgeSource = functions.https.onCall(async (data, context) => {
+    const { projectId, sourceId } = data;
+
+    if (!projectId || !sourceId) {
+        throw new functions.https.HttpsError('invalid-argument', 'Missing projectId or sourceId');
+    }
+
+    console.log(`[analyzeKnowledgeSource] Analyzing source ${sourceId} for project ${projectId}`);
+
+    try {
+        // Get source document
+        const sourceRef = db.collection('projects').doc(projectId)
+            .collection('knowledgeSources').doc(sourceId);
+        const sourceDoc = await sourceRef.get();
+
+        if (!sourceDoc.exists) {
+            throw new functions.https.HttpsError('not-found', 'Source not found');
+        }
+
+        const source = sourceDoc.data();
+
+        // Update status to analyzing
+        await sourceRef.update({
+            status: 'analyzing',
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        let extractedText = '';
+
+        // Extract text based on source type
+        switch (source.sourceType) {
+            case 'link':
+                extractedText = await extractTextFromUrl(source.link?.url);
+                break;
+            case 'note':
+                extractedText = source.note?.content || '';
+                break;
+            case 'google_drive':
+                extractedText = await extractTextFromDrive(source.googleDrive);
+                break;
+            default:
+                extractedText = source.description || '';
+        }
+
+        if (!extractedText || extractedText.length < 10) {
+            await sourceRef.update({
+                status: 'failed',
+                analysis: { error: 'Could not extract text from source' },
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+            throw new functions.https.HttpsError('failed-precondition', 'No text could be extracted');
+        }
+
+        // Generate AI analysis
+        const analysis = await generateSourceAnalysis(extractedText, source.title);
+
+        // Update source with analysis
+        await sourceRef.update({
+            status: 'completed',
+            analysis: {
+                ...analysis,
+                extractedTextLength: extractedText.length,
+                analyzedAt: admin.firestore.FieldValue.serverTimestamp(),
+                aiModel: 'gpt-4-turbo'
+            },
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        console.log(`[analyzeKnowledgeSource] Completed analysis for source ${sourceId}`);
+
+        return {
+            success: true,
+            analysis: analysis
+        };
+
+    } catch (error) {
+        console.error('[analyzeKnowledgeSource] Error:', error);
+
+        // Update status to failed
+        await db.collection('projects').doc(projectId)
+            .collection('knowledgeSources').doc(sourceId)
+            .update({
+                status: 'failed',
+                analysis: { error: error.message },
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+
+        throw new functions.https.HttpsError('internal', error.message);
+    }
+});
+
+/**
+ * Extract text from URL
+ */
+async function extractTextFromUrl(url) {
+    if (!url) return '';
+
+    try {
+        const response = await axios.get(url, {
+            timeout: 30000,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (compatible; ZYNK/1.0; +https://zynk.ai)'
+            }
+        });
+
+        const $ = cheerio.load(response.data);
+
+        // Remove script, style, nav, footer
+        $('script, style, nav, footer, header, aside, .ad, .advertisement').remove();
+
+        // Extract main content
+        const mainContent = $('main, article, .content, .post, #content').text() ||
+            $('body').text();
+
+        // Clean up whitespace
+        const cleanText = mainContent
+            .replace(/\s+/g, ' ')
+            .replace(/\n+/g, '\n')
+            .trim()
+            .substring(0, 50000); // Limit to 50k chars
+
+        // Also extract metadata
+        const title = $('title').text() || '';
+        const description = $('meta[name="description"]').attr('content') || '';
+
+        return `Title: ${title}\nDescription: ${description}\n\n${cleanText}`;
+
+    } catch (error) {
+        console.error('[extractTextFromUrl] Error:', error.message);
+        return '';
+    }
+}
+
+/**
+ * Extract text from Google Drive file
+ * Note: Requires Google Drive API access token
+ */
+async function extractTextFromDrive(driveInfo) {
+    if (!driveInfo || !driveInfo.fileId) return '';
+
+    // For now, return placeholder - actual implementation requires
+    // OAuth token from user's session or service account with access
+    console.log(`[extractTextFromDrive] Would extract from file: ${driveInfo.fileId}`);
+
+    // TODO: Implement actual Drive extraction
+    // This would require:
+    // 1. Service account with domain-wide delegation, or
+    // 2. Passing user's access token from frontend
+    return `[Google Drive file: ${driveInfo.fileName}]\n\nFile extraction requires additional setup. Please use Links or Notes for now.`;
+}
+
+/**
+ * Generate AI analysis of extracted text
+ */
+async function generateSourceAnalysis(text, sourceTitle) {
+    try {
+        const apiKey = await getSystemApiKey('openai');
+
+        if (!apiKey) {
+            throw new Error('OpenAI API key not configured');
+        }
+
+        const OpenAI = require('openai');
+        const openai = new OpenAI({ apiKey });
+
+        const prompt = `Analyze the following document and extract key information for brand strategy purposes.
+
+Document Title: ${sourceTitle || 'Untitled'}
+
+Document Content:
+${text.substring(0, 15000)}
+
+Please provide the analysis in this JSON format:
+{
+    "summary": "A 2-3 sentence summary of the document",
+    "keyInsights": ["insight1", "insight2", "insight3"],
+    "extractedEntities": {
+        "companyName": "if mentioned",
+        "products": ["product1", "product2"],
+        "values": ["value1", "value2"],
+        "targetAudience": "if mentioned"
+    },
+    "tags": ["tag1", "tag2", "tag3"],
+    "relevanceScore": 0.0-1.0
+}`;
+
+        const response = await openai.chat.completions.create({
+            model: 'gpt-4-turbo',
+            messages: [
+                { role: 'system', content: 'You are a brand strategist analyzing documents for marketing insights. Always respond with valid JSON.' },
+                { role: 'user', content: prompt }
+            ],
+            temperature: 0.3,
+            max_tokens: 1000,
+            response_format: { type: "json_object" }
+        });
+
+        const content = response.choices[0]?.message?.content || '{}';
+        return JSON.parse(content);
+
+    } catch (error) {
+        console.error('[generateSourceAnalysis] Error:', error);
+        return {
+            summary: 'Analysis failed',
+            keyInsights: [],
+            extractedEntities: {},
+            tags: [],
+            error: error.message
+        };
+    }
+}
+
+/**
+ * Firestore trigger: Auto-analyze new sources
+ * Using firebase-functions v2
+ */
+exports.onKnowledgeSourceCreated = onDocumentCreated(
+    'projects/{projectId}/knowledgeSources/{sourceId}',
+    async (event) => {
+        const snap = event.data;
+        if (!snap) return null;
+
+        const { projectId, sourceId } = event.params;
+        const source = snap.data();
+
+        // Skip if already analyzed or if it's a note (notes are immediately complete)
+        if (source.status === 'completed' || source.sourceType === 'note') {
+            return null;
+        }
+
+        console.log(`[onKnowledgeSourceCreated] Auto-analyzing source ${sourceId}`);
+
+        try {
+            // Update status to analyzing
+            await snap.ref.update({
+                status: 'analyzing',
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+
+            let extractedText = '';
+
+            // Extract text based on source type
+            switch (source.sourceType) {
+                case 'link':
+                    extractedText = await extractTextFromUrl(source.link?.url);
+                    break;
+                case 'google_drive':
+                    extractedText = await extractTextFromDrive(source.googleDrive);
+                    break;
+                default:
+                    extractedText = source.description || '';
+            }
+
+            if (!extractedText || extractedText.length < 10) {
+                await snap.ref.update({
+                    status: 'failed',
+                    analysis: { error: 'Could not extract text from source' },
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                });
+                return null;
+            }
+
+            // Generate AI analysis
+            const analysis = await generateSourceAnalysis(extractedText, source.title);
+
+            // Update source with analysis
+            await snap.ref.update({
+                status: 'completed',
+                analysis: {
+                    ...analysis,
+                    extractedTextLength: extractedText.length,
+                    analyzedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    aiModel: 'gpt-4-turbo'
+                },
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+
+            console.log(`[onKnowledgeSourceCreated] Completed analysis for source ${sourceId}`);
+            return { success: true };
+
+        } catch (error) {
+            console.error('[onKnowledgeSourceCreated] Error:', error);
+            await snap.ref.update({
+                status: 'failed',
+                analysis: { error: error.message },
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+            return null;
+        }
+    }
+);
+
+/**
+ * Generate document summary for Knowledge Hub chat
+ */
+exports.generateKnowledgeSummary = functions.https.onCall(async (data, context) => {
+    const { projectId } = data;
+
+    if (!projectId) {
+        throw new functions.https.HttpsError('invalid-argument', 'Missing projectId');
+    }
+
+    try {
+        // Get all active sources
+        const sourcesSnap = await db.collection('projects').doc(projectId)
+            .collection('knowledgeSources')
+            .where('isActive', '==', true)
+            .where('status', '==', 'completed')
+            .get();
+
+        if (sourcesSnap.empty) {
+            return {
+                success: true,
+                summary: 'No active sources available for summary.',
+                suggestedQuestions: []
+            };
+        }
+
+        // Collect all summaries and insights
+        const allInsights = [];
+        const allEntities = {
+            companyName: null,
+            products: [],
+            values: [],
+            targetAudience: null
+        };
+
+        sourcesSnap.forEach(doc => {
+            const source = doc.data();
+            if (source.analysis) {
+                if (source.analysis.summary) {
+                    allInsights.push(source.analysis.summary);
+                }
+                if (source.analysis.keyInsights) {
+                    allInsights.push(...source.analysis.keyInsights);
+                }
+                if (source.analysis.extractedEntities) {
+                    const entities = source.analysis.extractedEntities;
+                    if (entities.companyName) allEntities.companyName = entities.companyName;
+                    if (entities.products) allEntities.products.push(...entities.products);
+                    if (entities.values) allEntities.values.push(...entities.values);
+                    if (entities.targetAudience) allEntities.targetAudience = entities.targetAudience;
+                }
+            }
+        });
+
+        // Generate combined summary
+        const apiKey = await getSystemApiKey('openai');
+        const OpenAI = require('openai');
+        const openai = new OpenAI({ apiKey });
+
+        const combinedText = allInsights.join('\n- ');
+
+        const response = await openai.chat.completions.create({
+            model: 'gpt-4-turbo',
+            messages: [
+                {
+                    role: 'system',
+                    content: 'You are a brand strategist creating a concise summary for a client. Be professional and insightful.'
+                },
+                {
+                    role: 'user',
+                    content: `Based on these insights from uploaded documents, create:
+1. A 2-3 paragraph executive summary of the brand/company
+2. 5 suggested questions the user might want to ask about their brand
+
+Insights:
+- ${combinedText}
+
+Company: ${allEntities.companyName || 'Unknown'}
+Products: ${allEntities.products.slice(0, 5).join(', ') || 'Not specified'}
+Values: ${allEntities.values.slice(0, 5).join(', ') || 'Not specified'}
+Target: ${allEntities.targetAudience || 'Not specified'}
+
+Respond in JSON format:
+{
+    "summary": "executive summary here",
+    "suggestedQuestions": ["question1", "question2", ...]
+}`
+                }
+            ],
+            temperature: 0.5,
+            max_tokens: 1000,
+            response_format: { type: "json_object" }
+        });
+
+        const result = JSON.parse(response.choices[0]?.message?.content || '{}');
+
+        return {
+            success: true,
+            summary: result.summary || 'Summary generated.',
+            suggestedQuestions: result.suggestedQuestions || [],
+            sourceCount: sourcesSnap.size
+        };
+
+    } catch (error) {
+        console.error('[generateKnowledgeSummary] Error:', error);
+        throw new functions.https.HttpsError('internal', error.message);
+    }
+});
+
+/**
+ * Answer questions based on knowledge sources (RAG-style)
+ */
+exports.askKnowledgeHub = functions.https.onCall(async (data, context) => {
+    const { projectId, question } = data;
+
+    if (!projectId || !question) {
+        throw new functions.https.HttpsError('invalid-argument', 'Missing projectId or question');
+    }
+
+    try {
+        // Get all active sources
+        const sourcesSnap = await db.collection('projects').doc(projectId)
+            .collection('knowledgeSources')
+            .where('isActive', '==', true)
+            .where('status', '==', 'completed')
+            .get();
+
+        if (sourcesSnap.empty) {
+            return {
+                success: true,
+                answer: 'No sources available. Please add and activate some sources first.',
+                sources: []
+            };
+        }
+
+        // Build context from sources
+        let context = '';
+        const sourceRefs = [];
+
+        sourcesSnap.forEach(doc => {
+            const source = doc.data();
+            if (source.analysis) {
+                context += `\n\n--- Source: ${source.title} ---\n`;
+                context += `Summary: ${source.analysis.summary || ''}\n`;
+                context += `Key Insights: ${(source.analysis.keyInsights || []).join(', ')}\n`;
+                sourceRefs.push({
+                    id: doc.id,
+                    title: source.title,
+                    type: source.sourceType
+                });
+            }
+        });
+
+        // Generate answer
+        const apiKey = await getSystemApiKey('openai');
+        const OpenAI = require('openai');
+        const openai = new OpenAI({ apiKey });
+
+        const response = await openai.chat.completions.create({
+            model: 'gpt-4-turbo',
+            messages: [
+                {
+                    role: 'system',
+                    content: `You are a helpful brand strategist assistant. Answer questions based ONLY on the provided context from the user's documents. If the answer is not in the context, say so. Always cite which source you're referencing.`
+                },
+                {
+                    role: 'user',
+                    content: `Context from user's documents:${context}\n\n---\n\nQuestion: ${question}`
+                }
+            ],
+            temperature: 0.3,
+            max_tokens: 1000
+        });
+
+        const answer = response.choices[0]?.message?.content || 'Unable to generate answer.';
+
+        return {
+            success: true,
+            answer,
+            sources: sourceRefs.map(s => s.title)
+        };
+
+    } catch (error) {
+        console.error('[askKnowledgeHub] Error:', error);
+        throw new functions.https.HttpsError('internal', error.message);
+    }
+});
+
+// ============================================================
+// KNOWLEDGE HUB: Content Plan Generation
+// ============================================================
+
+/**
+ * Plan type configurations
+ */
+const PLAN_CONFIGS = {
+    // Strategic Plans
+    campaign_brief: {
+        name: 'Campaign Brief',
+        category: 'strategic',
+        credits: 10,
+        prompt: `Create a comprehensive marketing campaign brief including:
+1. Campaign Overview (objective, theme, duration)
+2. Target Audience (demographics, psychographics, pain points)
+3. Key Messages (primary message, supporting points)
+4. Channel Strategy (which platforms, why)
+5. Content Pillars (3-5 themes)
+6. KPIs and Success Metrics
+7. Timeline and Milestones
+8. Budget Allocation Recommendations`
+    },
+    content_calendar: {
+        name: 'Content Calendar',
+        category: 'strategic',
+        credits: 10,
+        prompt: `Create a 4-week content calendar including:
+1. Weekly themes aligned with brand values
+2. Daily post ideas for each platform (Instagram, X, LinkedIn)
+3. Content types (carousel, video, story, article)
+4. Optimal posting times
+5. Hashtag suggestions
+6. Call-to-action for each post
+
+Format as a structured weekly plan with specific content ideas.`
+    },
+    channel_strategy: {
+        name: 'Channel Strategy',
+        category: 'strategic',
+        credits: 10,
+        prompt: `Develop a channel-specific strategy covering:
+
+For each major platform (Instagram, X/Twitter, LinkedIn, TikTok, YouTube):
+1. Platform Fit Score (1-10) and rationale
+2. Content Format Recommendations
+3. Posting Frequency
+4. Tone and Voice Adjustments
+5. Engagement Tactics
+6. Key Metrics to Track
+
+Include prioritization recommendations based on target audience.`
+    },
+    // Quick Actions
+    social_post_ideas: {
+        name: 'Social Post Ideas',
+        category: 'quick_action',
+        credits: 1,
+        prompt: `Generate 10 creative social media post ideas including:
+1. Hook/Opening line
+2. Main content/message
+3. Call-to-action
+4. Suggested visual (photo/video/carousel)
+5. Recommended platform
+6. Relevant hashtags (3-5)
+
+Make each post unique and engaging, aligned with brand voice.`
+    },
+    trend_response: {
+        name: 'Trend Response',
+        category: 'quick_action',
+        credits: 1,
+        prompt: `Create 5 trend-responsive content pieces that:
+1. Connect current trends to the brand
+2. Feel authentic, not forced
+3. Are time-sensitive and actionable
+4. Include specific copy suggestions
+5. Suggest visual treatments
+
+Consider viral formats, memes, trending topics that align with brand values.`
+    },
+    ad_copy: {
+        name: 'Ad Copy Variants',
+        category: 'quick_action',
+        credits: 1,
+        prompt: `Create 10 ad copy variations including:
+
+For each variation:
+1. Headline (max 40 chars)
+2. Primary Text (max 125 chars)
+3. Description (max 30 chars)
+4. Call-to-Action button suggestion
+5. Target emotion/appeal
+
+Include variations for: awareness, consideration, and conversion stages.`
+    },
+    // Knowledge Outputs
+    brand_mind_map: {
+        name: 'Brand Mind Map',
+        category: 'knowledge',
+        credits: 5,
+        prompt: `Create a comprehensive brand mind map structure with:
+
+Central Node: Brand Name
+├── Core Values (3-5 values)
+├── Products/Services (with key features)
+├── Target Audience
+│   ├── Demographics
+│   └── Psychographics
+├── Brand Personality Traits
+├── Competitive Advantages
+├── Key Messages
+└── Visual Identity Elements
+
+Provide as a nested hierarchical structure.`
+    },
+    competitor_analysis: {
+        name: 'Competitor Analysis',
+        category: 'knowledge',
+        credits: 5,
+        prompt: `Based on the brand information, create a competitor analysis framework:
+
+1. Identify 3-5 likely competitors in this space
+2. For each competitor:
+   - Positioning statement
+   - Strengths
+   - Weaknesses
+   - Content strategy observations
+3. Competitive opportunity gaps
+4. Differentiation recommendations
+5. Strategic recommendations
+
+Note: Analysis is based on industry knowledge, not real-time data.`
+    },
+    visual_moodboard: {
+        name: 'Visual Moodboard',
+        category: 'knowledge',
+        credits: 5,
+        prompt: `Create a visual moodboard brief including:
+
+1. Color Palette (5 colors with hex codes)
+2. Typography Recommendations
+   - Heading font style
+   - Body font style
+3. Photography Style
+   - Lighting
+   - Composition
+   - Subject matter
+4. Graphic Elements
+   - Shapes
+   - Patterns
+   - Icons style
+5. Overall Aesthetic Keywords (5-7 words)
+6. Inspiration References (describe types of images)
+7. Do's and Don'ts for visual content`
+    },
+    // Create Now
+    product_brochure: {
+        name: 'Product Brochure',
+        category: 'create_now',
+        credits: 20,
+        prompt: `Create content for a product brochure including:
+
+1. Cover headline and tagline
+2. Product/Service overview (100 words)
+3. Key features (5-7 bullet points)
+4. Benefits section (3 main benefits with descriptions)
+5. Social proof suggestions
+6. Call-to-action
+7. Contact information format
+
+Structure for a professional, visually appealing brochure.`
+    },
+    one_pager: {
+        name: '1-Pager PDF',
+        category: 'create_now',
+        credits: 15,
+        prompt: `Create a one-pager executive summary including:
+
+1. Headline and tagline
+2. Company/Brand overview (50 words)
+3. Problem statement
+4. Solution overview
+5. Key differentiators (3-4 points)
+6. Target market
+7. Traction/Social proof
+8. Call-to-action
+
+Format for a single-page professional document.`
+    },
+    campaign_cards: {
+        name: 'Campaign Cards',
+        category: 'create_now',
+        credits: 5,
+        prompt: `Create 5 campaign cards, each including:
+
+1. Campaign Title (catchy, memorable)
+2. Campaign Theme
+3. Target Audience
+4. Duration (suggested)
+5. Key Message
+6. Action Plan (5 steps)
+7. Success Metrics
+
+Make each campaign distinct and actionable.`
+    }
+};
+
+/**
+ * Generate a content plan
+ */
+exports.generateContentPlan = functions.https.onCall(async (data, context) => {
+    const { projectId, planType, options = {} } = data;
+
+    if (!projectId || !planType) {
+        throw new functions.https.HttpsError('invalid-argument', 'Missing projectId or planType');
+    }
+
+    const planConfig = PLAN_CONFIGS[planType];
+    if (!planConfig) {
+        throw new functions.https.HttpsError('invalid-argument', `Unknown plan type: ${planType}`);
+    }
+
+    console.log(`[generateContentPlan] Generating ${planType} for project ${projectId}`);
+
+    try {
+        // Get foundational data
+        const foundationalRef = db.collection('projects').doc(projectId)
+            .collection('foundationalData').doc('latest');
+        const foundationalDoc = await foundationalRef.get();
+
+        // Get active sources for context
+        const sourcesSnap = await db.collection('projects').doc(projectId)
+            .collection('knowledgeSources')
+            .where('isActive', '==', true)
+            .where('status', '==', 'completed')
+            .get();
+
+        // Build context
+        let brandContext = '';
+
+        if (foundationalDoc.exists) {
+            const fd = foundationalDoc.data();
+            brandContext += `Company: ${fd.brandProfile?.companyName || 'Unknown'}\n`;
+            brandContext += `Industry: ${fd.brandProfile?.industry || 'Unknown'}\n`;
+            brandContext += `Mission: ${fd.brandProfile?.mission || ''}\n`;
+            brandContext += `Values: ${(fd.brandProfile?.coreValues || []).join(', ')}\n`;
+            brandContext += `Target Audience: ${JSON.stringify(fd.targetAudience?.primary || {})}\n`;
+            brandContext += `Brand Voice: ${(fd.brandVoice?.personality || []).join(', ')}\n`;
+        }
+
+        // Add source insights
+        let sourceInsights = '';
+        sourcesSnap.forEach(doc => {
+            const source = doc.data();
+            if (source.analysis?.summary) {
+                sourceInsights += `\n- ${source.title}: ${source.analysis.summary}`;
+            }
+        });
+
+        if (sourceInsights) {
+            brandContext += `\n\nSource Insights:${sourceInsights}`;
+        }
+
+        // Generate plan with AI
+        const apiKey = await getSystemApiKey('openai');
+        const OpenAI = require('openai');
+        const openai = new OpenAI({ apiKey });
+
+        const systemPrompt = `You are an expert brand strategist and content marketing specialist. 
+Create professional, actionable content plans based on the provided brand context.
+Be specific and practical. Output should be well-structured and ready to implement.`;
+
+        const userPrompt = `Brand Context:
+${brandContext}
+
+${options.additionalContext ? `Additional Context: ${options.additionalContext}` : ''}
+
+Task: ${planConfig.prompt}
+
+Respond in JSON format:
+{
+    "title": "Plan title",
+    "content": { ... structured content based on plan type ... },
+    "summary": "Brief 1-2 sentence summary of the plan"
+}`;
+
+        const response = await openai.chat.completions.create({
+            model: 'gpt-4-turbo',
+            messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt }
+            ],
+            temperature: 0.7,
+            max_tokens: 3000,
+            response_format: { type: "json_object" }
+        });
+
+        const generatedContent = JSON.parse(response.choices[0]?.message?.content || '{}');
+
+        // Save to Firestore
+        const planData = {
+            type: planType,
+            category: planConfig.category,
+            title: generatedContent.title || `${planConfig.name} - ${new Date().toLocaleDateString()}`,
+            content: generatedContent.content || generatedContent,
+            summary: generatedContent.summary || '',
+            status: 'draft',
+            credits: planConfig.credits,
+            basedOnSources: sourcesSnap.docs.map(d => d.id),
+            generationParams: options,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        };
+
+        const planRef = await db.collection('projects').doc(projectId)
+            .collection('contentPlans').add(planData);
+
+        console.log(`[generateContentPlan] Created plan ${planRef.id}`);
+
+        return {
+            success: true,
+            planId: planRef.id,
+            plan: planData
+        };
+
+    } catch (error) {
+        console.error('[generateContentPlan] Error:', error);
+        throw new functions.https.HttpsError('internal', error.message);
+    }
+});
+
+/**
+ * Get saved content plans
+ */
+exports.getContentPlans = functions.https.onCall(async (data, context) => {
+    const { projectId, status, category, limit = 20 } = data;
+
+    if (!projectId) {
+        throw new functions.https.HttpsError('invalid-argument', 'Missing projectId');
+    }
+
+    try {
+        let query = db.collection('projects').doc(projectId)
+            .collection('contentPlans')
+            .orderBy('createdAt', 'desc')
+            .limit(limit);
+
+        if (status) {
+            query = query.where('status', '==', status);
+        }
+        if (category) {
+            query = query.where('category', '==', category);
+        }
+
+        const snapshot = await query.get();
+        const plans = [];
+
+        snapshot.forEach(doc => {
+            plans.push({
+                id: doc.id,
+                ...doc.data(),
+                createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || null
+            });
+        });
+
+        return {
+            success: true,
+            plans,
+            count: plans.length
+        };
+
+    } catch (error) {
+        console.error('[getContentPlans] Error:', error);
+        throw new functions.https.HttpsError('internal', error.message);
+    }
+});
+
+// ============================================================
+// MULTI-PROVIDER IMAGE GENERATION SYSTEM
+// ============================================================
+
+/**
+ * Image provider configurations
+ */
+const IMAGE_PROVIDERS = {
+    dalle: {
+        name: 'DALL-E 3',
+        costPerImage: 0.04,
+        maxResolution: '1792x1024',
+        supportsText: true,
+        provider: 'openai'
+    },
+    stability: {
+        name: 'Stability AI (SDXL)',
+        costPerImage: 0.003,
+        maxResolution: '1024x1024',
+        supportsText: false,
+        provider: 'stability'
+    },
+    flux: {
+        name: 'Flux Pro (Replicate)',
+        costPerImage: 0.003,
+        maxResolution: '1024x1024',
+        supportsText: true,
+        provider: 'replicate'
+    },
+    ideogram: {
+        name: 'Ideogram',
+        costPerImage: 0.05,
+        maxResolution: '1024x1024',
+        supportsText: true,
+        provider: 'ideogram'
+    },
+    imagen: {
+        name: 'Google Imagen 3',
+        costPerImage: 0.03,
+        maxResolution: '2048x2048',
+        supportsText: true,
+        provider: 'google'
+    }
+};
+
+/**
+ * Generate image using selected provider
+ */
+exports.generateImage = functions.https.onCall(async (data, context) => {
+    const {
+        prompt,
+        provider = 'flux', // Default to Flux (cheapest quality option)
+        size = '1024x1024',
+        style = 'vivid',
+        projectId,
+        purpose = 'promotional' // promotional, brochure, social, etc.
+    } = data;
+
+    if (!prompt) {
+        throw new functions.https.HttpsError('invalid-argument', 'Prompt is required');
+    }
+
+    const providerConfig = IMAGE_PROVIDERS[provider];
+    if (!providerConfig) {
+        throw new functions.https.HttpsError('invalid-argument', `Unknown provider: ${provider}`);
+    }
+
+    console.log(`[generateImage] Using ${providerConfig.name} for: "${prompt.substring(0, 50)}..."`);
+
+    try {
+        let imageUrl;
+        let metadata = {};
+
+        switch (provider) {
+            case 'dalle':
+                imageUrl = await generateWithDALLE(prompt, size, style);
+                break;
+            case 'stability':
+                imageUrl = await generateWithStability(prompt, size);
+                break;
+            case 'flux':
+                imageUrl = await generateWithFlux(prompt, size);
+                break;
+            case 'ideogram':
+                imageUrl = await generateWithIdeogram(prompt, size);
+                break;
+            case 'imagen':
+                imageUrl = await generateWithImagen(prompt, size);
+                break;
+            default:
+                throw new Error(`Provider ${provider} not implemented`);
+        }
+
+        // Save to Firestore if projectId provided
+        if (projectId) {
+            const imageDoc = await db.collection('projects').doc(projectId)
+                .collection('generatedImages').add({
+                    prompt,
+                    provider,
+                    providerName: providerConfig.name,
+                    imageUrl,
+                    size,
+                    purpose,
+                    cost: providerConfig.costPerImage,
+                    createdAt: admin.firestore.FieldValue.serverTimestamp()
+                });
+            metadata.imageId = imageDoc.id;
+        }
+
+        return {
+            success: true,
+            imageUrl,
+            provider: providerConfig.name,
+            cost: providerConfig.costPerImage,
+            ...metadata
+        };
+
+    } catch (error) {
+        console.error(`[generateImage] Error with ${provider}:`, error);
+        throw new functions.https.HttpsError('internal', error.message);
+    }
+});
+
+/**
+ * DALL-E 3 (OpenAI)
+ */
+async function generateWithDALLE(prompt, size, style) {
+    const apiKey = await getSystemApiKey('openai');
+    const OpenAI = require('openai');
+    const openai = new OpenAI({ apiKey });
+
+    const response = await openai.images.generate({
+        model: 'dall-e-3',
+        prompt,
+        n: 1,
+        size: size || '1024x1024',
+        style: style || 'vivid',
+        quality: 'standard'
+    });
+
+    return response.data[0].url;
+}
+
+/**
+ * Stability AI (SDXL)
+ */
+async function generateWithStability(prompt, size) {
+    const apiKey = await getImageApiKey('stability');
+    if (!apiKey) throw new Error('Stability AI API key not configured');
+
+    const response = await axios.post(
+        'https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image',
+        {
+            text_prompts: [{ text: prompt, weight: 1 }],
+            cfg_scale: 7,
+            height: parseInt(size.split('x')[1]) || 1024,
+            width: parseInt(size.split('x')[0]) || 1024,
+            samples: 1,
+            steps: 30
+        },
+        {
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        }
+    );
+
+    // Stability returns base64, we need to upload to storage
+    const base64Image = response.data.artifacts[0].base64;
+    return await uploadBase64ToStorage(base64Image, 'stability');
+}
+
+/**
+ * Flux Pro (via Replicate)
+ */
+async function generateWithFlux(prompt, size) {
+    const apiKey = await getImageApiKey('replicate');
+    if (!apiKey) throw new Error('Replicate API key not configured');
+
+    // Start prediction
+    const startResponse = await axios.post(
+        'https://api.replicate.com/v1/predictions',
+        {
+            version: 'black-forest-labs/flux-pro',
+            input: {
+                prompt,
+                width: parseInt(size.split('x')[0]) || 1024,
+                height: parseInt(size.split('x')[1]) || 1024,
+                num_outputs: 1
+            }
+        },
+        {
+            headers: {
+                'Authorization': `Token ${apiKey}`,
+                'Content-Type': 'application/json'
+            }
+        }
+    );
+
+    // Poll for completion
+    let prediction = startResponse.data;
+    while (prediction.status !== 'succeeded' && prediction.status !== 'failed') {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const pollResponse = await axios.get(prediction.urls.get, {
+            headers: { 'Authorization': `Token ${apiKey}` }
+        });
+        prediction = pollResponse.data;
+    }
+
+    if (prediction.status === 'failed') {
+        throw new Error(prediction.error || 'Flux generation failed');
+    }
+
+    return prediction.output[0];
+}
+
+/**
+ * Ideogram
+ */
+async function generateWithIdeogram(prompt, size) {
+    const apiKey = await getImageApiKey('ideogram');
+    if (!apiKey) throw new Error('Ideogram API key not configured');
+
+    const response = await axios.post(
+        'https://api.ideogram.ai/generate',
+        {
+            image_request: {
+                prompt,
+                aspect_ratio: 'ASPECT_1_1',
+                model: 'V_2',
+                magic_prompt_option: 'AUTO'
+            }
+        },
+        {
+            headers: {
+                'Api-Key': apiKey,
+                'Content-Type': 'application/json'
+            }
+        }
+    );
+
+    return response.data.data[0].url;
+}
+
+/**
+ * Google Imagen 3 (Vertex AI)
+ */
+async function generateWithImagen(prompt, size) {
+    // Google Imagen requires Vertex AI setup
+    // For now, return placeholder - needs service account configuration
+    console.log('[generateWithImagen] Not yet implemented - requires Vertex AI setup');
+    throw new Error('Google Imagen not yet configured. Please use another provider.');
+}
+
+/**
+ * Helper: Get image provider API key
+ */
+async function getImageApiKey(provider) {
+    try {
+        const doc = await db.collection('systemSettings').doc('imageProviders').get();
+        if (!doc.exists) return null;
+        return doc.data()[provider]?.apiKey || null;
+    } catch (error) {
+        console.error(`[getImageApiKey] Error getting ${provider} key:`, error);
+        return null;
+    }
+}
+
+/**
+ * Helper: Upload base64 image to Firebase Storage
+ */
+async function uploadBase64ToStorage(base64Data, provider) {
+    const bucket = admin.storage().bucket();
+    const fileName = `generated-images/${provider}/${Date.now()}.png`;
+    const file = bucket.file(fileName);
+
+    const buffer = Buffer.from(base64Data, 'base64');
+    await file.save(buffer, {
+        metadata: { contentType: 'image/png' }
+    });
+
+    await file.makePublic();
+    return `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+}
+
+/**
+ * Get available image providers and their status
+ */
+exports.getImageProviders = functions.https.onCall(async (data, context) => {
+    try {
+        const doc = await db.collection('systemSettings').doc('imageProviders').get();
+        const settings = doc.exists ? doc.data() : {};
+
+        const providers = Object.entries(IMAGE_PROVIDERS).map(([key, config]) => ({
+            id: key,
+            name: config.name,
+            costPerImage: config.costPerImage,
+            maxResolution: config.maxResolution,
+            supportsText: config.supportsText,
+            isConfigured: !!(settings[key]?.apiKey),
+            isEnabled: settings[key]?.enabled !== false
+        }));
+
+        return {
+            success: true,
+            providers,
+            defaultProvider: settings.defaultProvider || 'flux'
+        };
+
+    } catch (error) {
+        console.error('[getImageProviders] Error:', error);
+        throw new functions.https.HttpsError('internal', error.message);
+    }
+});
+
+/**
+ * Admin: Configure image provider
+ */
+exports.configureImageProvider = functions.https.onCall(async (data, context) => {
+    const { provider, apiKey, enabled = true, setAsDefault = false } = data;
+
+    if (!provider || !IMAGE_PROVIDERS[provider]) {
+        throw new functions.https.HttpsError('invalid-argument', 'Invalid provider');
+    }
+
+    try {
+        const updateData = {
+            [`${provider}.apiKey`]: apiKey,
+            [`${provider}.enabled`]: enabled,
+            [`${provider}.updatedAt`]: admin.firestore.FieldValue.serverTimestamp()
+        };
+
+        if (setAsDefault) {
+            updateData.defaultProvider = provider;
+        }
+
+        await db.collection('systemSettings').doc('imageProviders').set(updateData, { merge: true });
+
+        return {
+            success: true,
+            message: `${IMAGE_PROVIDERS[provider].name} configured successfully`
+        };
+
+    } catch (error) {
+        console.error('[configureImageProvider] Error:', error);
+        throw new functions.https.HttpsError('internal', error.message);
+    }
+});
+
+/**
+ * Smart provider selection based on use case
+ */
+exports.generateSmartImage = functions.https.onCall(async (data, context) => {
+    const { prompt, purpose = 'general', projectId } = data;
+
+    if (!prompt) {
+        throw new functions.https.HttpsError('invalid-argument', 'Prompt is required');
+    }
+
+    // Get provider settings
+    const doc = await db.collection('systemSettings').doc('imageProviders').get();
+    const settings = doc.exists ? doc.data() : {};
+
+    // Smart provider selection based on purpose
+    let selectedProvider;
+
+    // Check if prompt contains text requirements
+    const hasTextRequirement = /logo|text|banner|title|headline|caption/i.test(prompt);
+
+    if (hasTextRequirement && settings.ideogram?.apiKey && settings.ideogram?.enabled !== false) {
+        // Use Ideogram for text-heavy images
+        selectedProvider = 'ideogram';
+    } else if (settings.flux?.apiKey && settings.flux?.enabled !== false) {
+        // Default to Flux for best quality/price
+        selectedProvider = 'flux';
+    } else if (settings.stability?.apiKey && settings.stability?.enabled !== false) {
+        // Fallback to Stability
+        selectedProvider = 'stability';
+    } else if (settings.dalle?.apiKey || true) {
+        // Ultimate fallback to DALL-E (uses OpenAI key)
+        selectedProvider = 'dalle';
+    }
+
+    console.log(`[generateSmartImage] Selected ${selectedProvider} for purpose: ${purpose}`);
+
+    // Call the main generate function
+    return exports.generateImage.run({
+        prompt,
+        provider: selectedProvider,
+        projectId,
+        purpose
+    }, context);
+});
+
+// ============================================================
+// CREDITS & BILLING SYSTEM
+// ============================================================
+
+/**
+ * Plan configurations
+ */
+const PLAN_TIERS = {
+    free: {
+        name: 'Free',
+        monthlyCredits: 50,
+        dailyLimit: 10,
+        features: ['basic_chat', 'link_sources', 'note_sources'],
+        price: 0
+    },
+    starter: {
+        name: 'Starter',
+        monthlyCredits: 500,
+        dailyLimit: 100,
+        features: ['basic_chat', 'link_sources', 'note_sources', 'drive_sources', 'content_plans', 'image_gen'],
+        price: 19
+    },
+    pro: {
+        name: 'Pro',
+        monthlyCredits: 2000,
+        dailyLimit: 500,
+        features: ['basic_chat', 'link_sources', 'note_sources', 'drive_sources', 'content_plans', 'image_gen', 'scheduling', 'analytics', 'priority_support'],
+        price: 49
+    },
+    enterprise: {
+        name: 'Enterprise',
+        monthlyCredits: 10000,
+        dailyLimit: 2000,
+        features: ['basic_chat', 'link_sources', 'note_sources', 'drive_sources', 'content_plans', 'image_gen', 'scheduling', 'analytics', 'priority_support', 'custom_agents', 'api_access', 'white_label'],
+        price: 199
+    }
+};
+
+/**
+ * Credit costs for different operations
+ */
+const CREDIT_COSTS = {
+    chat_message: 1,
+    generate_summary: 2,
+    content_plan_quick: 1,
+    content_plan_strategy: 10,
+    content_plan_knowledge: 5,
+    content_plan_create: 15,
+    image_flux: 1,
+    image_stability: 1,
+    image_dalle: 5,
+    image_ideogram: 6,
+    source_analysis: 1
+};
+
+/**
+ * Get user credits and usage
+ */
+exports.getUserCredits = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Must be logged in');
+    }
+
+    const userId = context.auth.uid;
+
+    try {
+        // Get user document
+        const userDoc = await db.collection('users').doc(userId).get();
+
+        if (!userDoc.exists) {
+            // Create default user record
+            const defaultData = {
+                plan: 'free',
+                credits: PLAN_TIERS.free.monthlyCredits,
+                creditsUsedToday: 0,
+                creditsUsedThisMonth: 0,
+                lastCreditReset: admin.firestore.FieldValue.serverTimestamp(),
+                createdAt: admin.firestore.FieldValue.serverTimestamp()
+            };
+            await db.collection('users').doc(userId).set(defaultData);
+
+            return {
+                success: true,
+                plan: 'free',
+                planDetails: PLAN_TIERS.free,
+                credits: PLAN_TIERS.free.monthlyCredits,
+                creditsUsedToday: 0,
+                creditsUsedThisMonth: 0,
+                dailyLimit: PLAN_TIERS.free.dailyLimit
+            };
+        }
+
+        const userData = userDoc.data();
+        const plan = userData.plan || 'free';
+        const planDetails = PLAN_TIERS[plan] || PLAN_TIERS.free;
+
+        // Check if daily reset needed
+        const lastReset = userData.lastDailyReset?.toDate() || new Date(0);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        let creditsUsedToday = userData.creditsUsedToday || 0;
+        if (lastReset < today) {
+            // Reset daily usage
+            creditsUsedToday = 0;
+            await db.collection('users').doc(userId).update({
+                creditsUsedToday: 0,
+                lastDailyReset: admin.firestore.FieldValue.serverTimestamp()
+            });
+        }
+
+        return {
+            success: true,
+            plan,
+            planDetails,
+            credits: userData.credits || 0,
+            creditsUsedToday,
+            creditsUsedThisMonth: userData.creditsUsedThisMonth || 0,
+            dailyLimit: planDetails.dailyLimit
+        };
+
+    } catch (error) {
+        console.error('[getUserCredits] Error:', error);
+        throw new functions.https.HttpsError('internal', error.message);
+    }
+});
+
+/**
+ * Deduct credits for an operation
+ */
+exports.deductCredits = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Must be logged in');
+    }
+
+    const { operation, amount } = data;
+    const userId = context.auth.uid;
+
+    // Calculate cost
+    const cost = amount || CREDIT_COSTS[operation] || 1;
+
+    try {
+        const userRef = db.collection('users').doc(userId);
+        const userDoc = await userRef.get();
+
+        if (!userDoc.exists) {
+            throw new Error('User not found');
+        }
+
+        const userData = userDoc.data();
+        const plan = userData.plan || 'free';
+        const planDetails = PLAN_TIERS[plan];
+
+        // Check credits
+        if ((userData.credits || 0) < cost) {
+            return {
+                success: false,
+                error: 'insufficient_credits',
+                message: 'Not enough credits',
+                required: cost,
+                available: userData.credits || 0
+            };
+        }
+
+        // Check daily limit
+        const creditsUsedToday = userData.creditsUsedToday || 0;
+        if (creditsUsedToday + cost > planDetails.dailyLimit) {
+            return {
+                success: false,
+                error: 'daily_limit_exceeded',
+                message: 'Daily credit limit reached',
+                dailyLimit: planDetails.dailyLimit,
+                usedToday: creditsUsedToday
+            };
+        }
+
+        // Deduct credits
+        await userRef.update({
+            credits: admin.firestore.FieldValue.increment(-cost),
+            creditsUsedToday: admin.firestore.FieldValue.increment(cost),
+            creditsUsedThisMonth: admin.firestore.FieldValue.increment(cost)
+        });
+
+        // Log usage
+        await db.collection('users').doc(userId).collection('creditHistory').add({
+            operation,
+            cost,
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            remainingCredits: (userData.credits || 0) - cost
+        });
+
+        return {
+            success: true,
+            deducted: cost,
+            remaining: (userData.credits || 0) - cost
+        };
+
+    } catch (error) {
+        console.error('[deductCredits] Error:', error);
+        throw new functions.https.HttpsError('internal', error.message);
+    }
+});
+
+/**
+ * Check if user has feature access
+ */
+exports.checkFeatureAccess = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Must be logged in');
+    }
+
+    const { feature } = data;
+    const userId = context.auth.uid;
+
+    try {
+        const userDoc = await db.collection('users').doc(userId).get();
+        const plan = userDoc.exists ? (userDoc.data().plan || 'free') : 'free';
+        const planDetails = PLAN_TIERS[plan];
+
+        const hasAccess = planDetails.features.includes(feature);
+
+        return {
+            success: true,
+            hasAccess,
+            plan,
+            requiredPlan: getMinimumPlanForFeature(feature)
+        };
+
+    } catch (error) {
+        console.error('[checkFeatureAccess] Error:', error);
+        throw new functions.https.HttpsError('internal', error.message);
+    }
+});
+
+function getMinimumPlanForFeature(feature) {
+    for (const [planId, plan] of Object.entries(PLAN_TIERS)) {
+        if (plan.features.includes(feature)) {
+            return planId;
+        }
+    }
+    return 'enterprise';
+}
+
+/**
+ * Get usage analytics
+ */
+exports.getUsageAnalytics = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Must be logged in');
+    }
+
+    const userId = context.auth.uid;
+    const { period = '30d' } = data;
+
+    try {
+        // Calculate date range
+        const now = new Date();
+        let startDate = new Date();
+        switch (period) {
+            case '7d': startDate.setDate(now.getDate() - 7); break;
+            case '30d': startDate.setDate(now.getDate() - 30); break;
+            case '90d': startDate.setDate(now.getDate() - 90); break;
+            default: startDate.setDate(now.getDate() - 30);
+        }
+
+        // Get credit history
+        const historySnapshot = await db.collection('users').doc(userId)
+            .collection('creditHistory')
+            .where('timestamp', '>=', admin.firestore.Timestamp.fromDate(startDate))
+            .orderBy('timestamp', 'desc')
+            .get();
+
+        const history = [];
+        const usageByOperation = {};
+        let totalUsed = 0;
+
+        historySnapshot.forEach(doc => {
+            const data = doc.data();
+            history.push({
+                id: doc.id,
+                ...data,
+                timestamp: data.timestamp?.toDate()?.toISOString()
+            });
+
+            const op = data.operation || 'unknown';
+            usageByOperation[op] = (usageByOperation[op] || 0) + (data.cost || 0);
+            totalUsed += data.cost || 0;
+        });
+
+        // Get user info
+        const userDoc = await db.collection('users').doc(userId).get();
+        const userData = userDoc.data() || {};
+
+        return {
+            success: true,
+            period,
+            totalUsed,
+            usageByOperation,
+            recentHistory: history.slice(0, 20),
+            currentCredits: userData.credits || 0,
+            plan: userData.plan || 'free'
+        };
+
+    } catch (error) {
+        console.error('[getUsageAnalytics] Error:', error);
+        throw new functions.https.HttpsError('internal', error.message);
+    }
+});
+
+/**
+ * Add credits (admin or purchase)
+ */
+exports.addCredits = functions.https.onCall(async (data, context) => {
+    const { userId, amount, reason } = data;
+
+    // For now, allow self-adding for testing (in production, restrict to admin)
+    const targetUserId = userId || context.auth?.uid;
+
+    if (!targetUserId) {
+        throw new functions.https.HttpsError('invalid-argument', 'User ID required');
+    }
+
+    try {
+        await db.collection('users').doc(targetUserId).update({
+            credits: admin.firestore.FieldValue.increment(amount)
+        });
+
+        // Log
+        await db.collection('users').doc(targetUserId).collection('creditHistory').add({
+            operation: 'credit_added',
+            amount,
+            reason: reason || 'manual_add',
+            timestamp: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        return {
+            success: true,
+            added: amount,
+            message: `Added ${amount} credits`
+        };
+
+    } catch (error) {
+        console.error('[addCredits] Error:', error);
+        throw new functions.https.HttpsError('internal', error.message);
+    }
+});
+
+/**
+ * Get plan details
+ */
+exports.getPlanDetails = functions.https.onCall(async (data, context) => {
+    return {
+        success: true,
+        plans: PLAN_TIERS,
+        creditCosts: CREDIT_COSTS
+    };
+});

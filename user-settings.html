@@ -282,8 +282,112 @@
 
                     <!-- Billing Tab Content -->
                     <div id="tab-billing" class="tab-content" style="display: none;">
-                        <div style="padding: 60px; text-align: center; color: rgba(255,255,255,0.5);">
-                            Billing coming soon
+                        <div style="max-width: 600px;">
+                            <!-- Current Plan Card -->
+                            <div
+                                style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1)); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 16px; padding: 24px; margin-bottom: 24px;">
+                                <div
+                                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                                    <div>
+                                        <p style="font-size: 12px; color: rgba(255,255,255,0.5); margin: 0 0 4px 0;">
+                                            Current Plan</p>
+                                        <h3 id="billing-plan-name" style="font-size: 24px; margin: 0; color: white;">
+                                            Free</h3>
+                                    </div>
+                                    <button onclick="openBillingPage()" class="admin-btn-primary"
+                                        style="padding: 10px 24px;">
+                                        Upgrade
+                                    </button>
+                                </div>
+                                <div
+                                    style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 20px;">
+                                    <div
+                                        style="text-align: center; padding: 12px; background: rgba(255,255,255,0.05); border-radius: 12px;">
+                                        <p style="font-size: 20px; font-weight: bold; margin: 0;" id="billing-credits">
+                                            --</p>
+                                        <p style="font-size: 11px; color: rgba(255,255,255,0.5); margin: 4px 0 0 0;">
+                                            Credits</p>
+                                    </div>
+                                    <div
+                                        style="text-align: center; padding: 12px; background: rgba(255,255,255,0.05); border-radius: 12px;">
+                                        <p style="font-size: 20px; font-weight: bold; margin: 0;"
+                                            id="billing-daily-used">--</p>
+                                        <p style="font-size: 11px; color: rgba(255,255,255,0.5); margin: 4px 0 0 0;">
+                                            Used Today</p>
+                                    </div>
+                                    <div
+                                        style="text-align: center; padding: 12px; background: rgba(255,255,255,0.05); border-radius: 12px;">
+                                        <p style="font-size: 20px; font-weight: bold; margin: 0;"
+                                            id="billing-daily-limit">--</p>
+                                        <p style="font-size: 11px; color: rgba(255,255,255,0.5); margin: 4px 0 0 0;">
+                                            Daily Limit</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Credit Usage -->
+                            <div
+                                style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 24px; margin-bottom: 24px;">
+                                <h4 style="margin: 0 0 16px 0; color: white; font-size: 16px;">Credit Usage</h4>
+                                <div
+                                    style="background: rgba(255,255,255,0.05); border-radius: 8px; overflow: hidden; height: 12px; margin-bottom: 8px;">
+                                    <div id="usage-progress-bar"
+                                        style="background: linear-gradient(90deg, #6366f1, #8b5cf6); height: 100%; width: 0%; transition: width 0.5s;">
+                                    </div>
+                                </div>
+                                <p style="font-size: 12px; color: rgba(255,255,255,0.5); margin: 0;">
+                                    <span id="billing-used-this-month">0</span> / <span
+                                        id="billing-monthly-limit">50</span> credits used this month
+                                </p>
+                            </div>
+
+                            <!-- Plans Comparison -->
+                            <div
+                                style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 24px;">
+                                <h4 style="margin: 0 0 16px 0; color: white; font-size: 16px;">Available Plans</h4>
+                                <div style="display: grid; gap: 12px;">
+                                    <div class="plan-option"
+                                        style="display: flex; justify-content: space-between; align-items: center; padding: 16px; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;">
+                                        <div>
+                                            <h5 style="margin: 0; color: white;">Free</h5>
+                                            <p
+                                                style="margin: 4px 0 0 0; font-size: 12px; color: rgba(255,255,255,0.5);">
+                                                50 credits/month • 10/day</p>
+                                        </div>
+                                        <span style="color: rgba(255,255,255,0.5); font-size: 14px;">$0/mo</span>
+                                    </div>
+                                    <div class="plan-option"
+                                        style="display: flex; justify-content: space-between; align-items: center; padding: 16px; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 12px; background: rgba(16, 185, 129, 0.05);">
+                                        <div>
+                                            <h5 style="margin: 0; color: white;">🚀 Starter</h5>
+                                            <p
+                                                style="margin: 4px 0 0 0; font-size: 12px; color: rgba(255,255,255,0.5);">
+                                                500 credits/month • 100/day • Drive + Images</p>
+                                        </div>
+                                        <span style="color: #10B981; font-weight: bold; font-size: 14px;">$19/mo</span>
+                                    </div>
+                                    <div class="plan-option"
+                                        style="display: flex; justify-content: space-between; align-items: center; padding: 16px; border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 12px; background: rgba(99, 102, 241, 0.05);">
+                                        <div>
+                                            <h5 style="margin: 0; color: white;">⭐ Pro</h5>
+                                            <p
+                                                style="margin: 4px 0 0 0; font-size: 12px; color: rgba(255,255,255,0.5);">
+                                                2,000 credits/month • 500/day • Full access</p>
+                                        </div>
+                                        <span style="color: #6366f1; font-weight: bold; font-size: 14px;">$49/mo</span>
+                                    </div>
+                                    <div class="plan-option"
+                                        style="display: flex; justify-content: space-between; align-items: center; padding: 16px; border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 12px; background: rgba(139, 92, 246, 0.05);">
+                                        <div>
+                                            <h5 style="margin: 0; color: white;">💎 Enterprise</h5>
+                                            <p
+                                                style="margin: 4px 0 0 0; font-size: 12px; color: rgba(255,255,255,0.5);">
+                                                10,000 credits/month • API access • Custom agents</p>
+                                        </div>
+                                        <span style="color: #8B5CF6; font-weight: bold; font-size: 14px;">$199/mo</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -380,10 +484,45 @@
 
     <!-- App Scripts -->
     <script src="firebase-config.js"></script>
+    <script src="credits.js"></script>
     <script src="utils-modal.js"></script>
     <script src="services/channel-credential-service.js?v=20241207"></script>
     <script src="scripts/sidebar-loader.js?v=20241204"></script>
     <script src="user-settings.js?v=20241207"></script>
+
+    <script>
+        // Update billing tab when loaded
+        function updateBillingTab() {
+            if (typeof ZYNKCredits !== 'undefined') {
+                document.getElementById('billing-plan-name').textContent =
+                    ZYNKCredits.plan.charAt(0).toUpperCase() + ZYNKCredits.plan.slice(1);
+                document.getElementById('billing-credits').textContent = ZYNKCredits.credits;
+                document.getElementById('billing-daily-used').textContent = ZYNKCredits.creditsUsedToday;
+                document.getElementById('billing-daily-limit').textContent = ZYNKCredits.dailyLimit;
+
+                const monthlyLimits = { free: 50, starter: 500, pro: 2000, enterprise: 10000 };
+                const limit = monthlyLimits[ZYNKCredits.plan] || 50;
+                const used = ZYNKCredits.creditsUsedThisMonth || 0;
+
+                document.getElementById('billing-used-this-month').textContent = used;
+                document.getElementById('billing-monthly-limit').textContent = limit;
+                document.getElementById('usage-progress-bar').style.width =
+                    Math.min((limit - ZYNKCredits.credits) / limit * 100, 100) + '%';
+            }
+        }
+
+        // Update when tab is switched
+        const originalSwitchTab = window.switchTab;
+        window.switchTab = function (tabName) {
+            originalSwitchTab(tabName);
+            if (tabName === 'billing') {
+                setTimeout(updateBillingTab, 100);
+            }
+        };
+
+        // Initial load
+        setTimeout(updateBillingTab, 1000);
+    </script>
 </body>
 
 </html>

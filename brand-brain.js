@@ -268,6 +268,12 @@ async function loadBrandBrainForProject(userId, projectId) {
         populateUI(brandBrainData);
         calculateHealthScore();
 
+        // Update Knowledge Hub link with projectId
+        const kbLink = document.getElementById('kb-manage-link');
+        if (kbLink) {
+            kbLink.href = `knowledgeHub.html?projectId=${projectId}`;
+        }
+
         showNotification(`Loaded: ${brandBrainData.coreIdentity?.projectName || 'Project'}`);
 
     } catch (error) {

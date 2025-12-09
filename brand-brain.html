@@ -152,6 +152,10 @@
             </nav>
             <div class="h-6 w-px bg-slate-800"></div>
             <div class="flex items-center gap-4">
+                <span id="credit-display"
+                    class="text-xs text-slate-400 bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700">
+                    🪙 <span id="credit-count">--</span> credits
+                </span>
                 <button class="relative text-slate-400 hover:text-white transition-colors">
                     <!-- Icon: Bell -->
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
@@ -795,7 +799,7 @@
                     </div>
 
                     <div class="p-4 border-t border-slate-800 bg-slate-900">
-                        <a href="knowledgeHub.html"
+                        <a id="kb-manage-link" href="knowledgeHub.html"
                             class="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 py-2.5 rounded-xl border border-dashed border-slate-600 hover:border-slate-500 transition-all text-sm font-medium">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
                                 fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -973,6 +977,7 @@
             </button>
         </div>
     </div>
+    <script src="credits.js"></script>
     <script src="chatbot-v2.js"></script>
 </body>
 
