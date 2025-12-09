@@ -344,9 +344,17 @@
                             <!-- Plans Comparison -->
                             <div
                                 style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 24px;">
-                                <h4 style="margin: 0 0 16px 0; color: white; font-size: 16px;">Available Plans</h4>
+                                <div
+                                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                                    <h4 style="margin: 0; color: white; font-size: 16px;">Available Plans</h4>
+                                    <button id="btn-manage-subscription" onclick="openCustomerPortal()"
+                                        style="display: none; padding: 8px 16px; font-size: 12px; background: transparent; border: 1px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.7); border-radius: 8px; cursor: pointer;">
+                                        Manage Subscription
+                                    </button>
+                                </div>
                                 <div style="display: grid; gap: 12px;">
-                                    <div class="plan-option"
+                                    <!-- Free Plan -->
+                                    <div class="plan-option" id="plan-free"
                                         style="display: flex; justify-content: space-between; align-items: center; padding: 16px; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;">
                                         <div>
                                             <h5 style="margin: 0; color: white;">Free</h5>
@@ -356,7 +364,9 @@
                                         </div>
                                         <span style="color: rgba(255,255,255,0.5); font-size: 14px;">$0/mo</span>
                                     </div>
-                                    <div class="plan-option"
+
+                                    <!-- Starter Plan -->
+                                    <div class="plan-option" id="plan-starter"
                                         style="display: flex; justify-content: space-between; align-items: center; padding: 16px; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 12px; background: rgba(16, 185, 129, 0.05);">
                                         <div>
                                             <h5 style="margin: 0; color: white;">🚀 Starter</h5>
@@ -364,19 +374,39 @@
                                                 style="margin: 4px 0 0 0; font-size: 12px; color: rgba(255,255,255,0.5);">
                                                 500 credits/month • 100/day • Drive + Images</p>
                                         </div>
-                                        <span style="color: #10B981; font-weight: bold; font-size: 14px;">$19/mo</span>
+                                        <div style="display: flex; align-items: center; gap: 12px;">
+                                            <span
+                                                style="color: #10B981; font-weight: bold; font-size: 14px;">$19/mo</span>
+                                            <button onclick="subscribeToPlan('starter')" class="plan-subscribe-btn"
+                                                style="padding: 6px 12px; font-size: 12px; background: #10B981; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                                                Subscribe
+                                            </button>
+                                        </div>
                                     </div>
-                                    <div class="plan-option"
-                                        style="display: flex; justify-content: space-between; align-items: center; padding: 16px; border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 12px; background: rgba(99, 102, 241, 0.05);">
+
+                                    <!-- Pro Plan (Popular) -->
+                                    <div class="plan-option" id="plan-pro"
+                                        style="display: flex; justify-content: space-between; align-items: center; padding: 16px; border: 2px solid rgba(99, 102, 241, 0.5); border-radius: 12px; background: rgba(99, 102, 241, 0.08); position: relative;">
+                                        <span
+                                            style="position: absolute; top: -10px; right: 16px; background: #6366f1; color: white; font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: bold;">POPULAR</span>
                                         <div>
                                             <h5 style="margin: 0; color: white;">⭐ Pro</h5>
                                             <p
                                                 style="margin: 4px 0 0 0; font-size: 12px; color: rgba(255,255,255,0.5);">
                                                 2,000 credits/month • 500/day • Full access</p>
                                         </div>
-                                        <span style="color: #6366f1; font-weight: bold; font-size: 14px;">$49/mo</span>
+                                        <div style="display: flex; align-items: center; gap: 12px;">
+                                            <span
+                                                style="color: #6366f1; font-weight: bold; font-size: 14px;">$49/mo</span>
+                                            <button onclick="subscribeToPlan('pro')" class="plan-subscribe-btn"
+                                                style="padding: 6px 12px; font-size: 12px; background: #6366f1; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                                                Subscribe
+                                            </button>
+                                        </div>
                                     </div>
-                                    <div class="plan-option"
+
+                                    <!-- Enterprise Plan -->
+                                    <div class="plan-option" id="plan-enterprise"
                                         style="display: flex; justify-content: space-between; align-items: center; padding: 16px; border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 12px; background: rgba(139, 92, 246, 0.05);">
                                         <div>
                                             <h5 style="margin: 0; color: white;">💎 Enterprise</h5>
@@ -384,8 +414,23 @@
                                                 style="margin: 4px 0 0 0; font-size: 12px; color: rgba(255,255,255,0.5);">
                                                 10,000 credits/month • API access • Custom agents</p>
                                         </div>
-                                        <span style="color: #8B5CF6; font-weight: bold; font-size: 14px;">$199/mo</span>
+                                        <div style="display: flex; align-items: center; gap: 12px;">
+                                            <span
+                                                style="color: #8B5CF6; font-weight: bold; font-size: 14px;">$199/mo</span>
+                                            <button onclick="subscribeToPlan('enterprise')" class="plan-subscribe-btn"
+                                                style="padding: 6px 12px; font-size: 12px; background: #8B5CF6; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                                                Subscribe
+                                            </button>
+                                        </div>
                                     </div>
+                                </div>
+
+                                <!-- Subscription Status -->
+                                <div id="subscription-status"
+                                    style="margin-top: 16px; padding: 12px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; display: none;">
+                                    <p style="margin: 0; font-size: 13px; color: #10B981;">
+                                        ✓ Active subscription • Next billing: <span id="next-billing-date">--</span>
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -517,11 +562,155 @@
             originalSwitchTab(tabName);
             if (tabName === 'billing') {
                 setTimeout(updateBillingTab, 100);
+                setTimeout(loadSubscriptionStatus, 200);
             }
         };
 
         // Initial load
         setTimeout(updateBillingTab, 1000);
+        setTimeout(loadSubscriptionStatus, 1500);
+
+        // ============================================================
+        // STRIPE INTEGRATION
+        // ============================================================
+
+        /**
+         * Subscribe to a plan - opens Stripe Checkout
+         */
+        async function subscribeToPlan(planId) {
+            const btn = event.target;
+            const originalText = btn.textContent;
+            btn.textContent = 'Loading...';
+            btn.disabled = true;
+
+            try {
+                const createCheckoutSession = firebase.functions().httpsCallable('createCheckoutSession');
+                const result = await createCheckoutSession({
+                    planId: planId,
+                    billingPeriod: 'monthly',
+                    successUrl: window.location.origin + '/user-settings.html?tab=billing&success=true',
+                    cancelUrl: window.location.origin + '/user-settings.html?tab=billing&canceled=true'
+                });
+
+                if (result.data.success && result.data.url) {
+                    // Redirect to Stripe Checkout
+                    window.location.href = result.data.url;
+                } else {
+                    throw new Error('Failed to create checkout session');
+                }
+
+            } catch (error) {
+                console.error('Subscription error:', error);
+                alert('Failed to start checkout. Please try again.\n\n' + error.message);
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        /**
+         * Open Stripe Customer Portal
+         */
+        async function openCustomerPortal() {
+            try {
+                const createCustomerPortal = firebase.functions().httpsCallable('createCustomerPortal');
+                const result = await createCustomerPortal({
+                    returnUrl: window.location.origin + '/user-settings.html?tab=billing'
+                });
+
+                if (result.data.success && result.data.url) {
+                    window.location.href = result.data.url;
+                } else {
+                    throw new Error('Failed to open customer portal');
+                }
+
+            } catch (error) {
+                console.error('Portal error:', error);
+                alert('Failed to open subscription management. Please try again.');
+            }
+        }
+
+        /**
+         * Load subscription status
+         */
+        async function loadSubscriptionStatus() {
+            try {
+                const getSubscriptionStatus = firebase.functions().httpsCallable('getSubscriptionStatus');
+                const result = await getSubscriptionStatus({});
+
+                if (result.data.success) {
+                    const { plan, subscriptionStatus, currentPeriodEnd, hasActiveSubscription } = result.data;
+
+                    // Update UI based on subscription
+                    if (hasActiveSubscription) {
+                        // Show manage subscription button
+                        document.getElementById('btn-manage-subscription').style.display = 'block';
+
+                        // Show subscription status
+                        const statusEl = document.getElementById('subscription-status');
+                        statusEl.style.display = 'block';
+
+                        if (currentPeriodEnd) {
+                            document.getElementById('next-billing-date').textContent =
+                                new Date(currentPeriodEnd).toLocaleDateString();
+                        }
+
+                        // Highlight current plan and hide subscribe button
+                        const currentPlanEl = document.getElementById(`plan-${plan}`);
+                        if (currentPlanEl) {
+                            currentPlanEl.style.border = '2px solid #10B981';
+                            const btn = currentPlanEl.querySelector('.plan-subscribe-btn');
+                            if (btn) {
+                                btn.textContent = 'Current';
+                                btn.disabled = true;
+                                btn.style.background = 'transparent';
+                                btn.style.border = '1px solid #10B981';
+                                btn.style.color = '#10B981';
+                            }
+                        }
+                    }
+
+                    // Handle URL parameters (success/canceled)
+                    const urlParams = new URLSearchParams(window.location.search);
+                    if (urlParams.get('success') === 'true') {
+                        showNotification('🎉 Subscription successful! Welcome to ' + plan.charAt(0).toUpperCase() + plan.slice(1) + '!', 'success');
+                        // Clean URL
+                        window.history.replaceState({}, '', window.location.pathname + '?tab=billing');
+                    } else if (urlParams.get('canceled') === 'true') {
+                        showNotification('Checkout canceled', 'info');
+                        window.history.replaceState({}, '', window.location.pathname + '?tab=billing');
+                    }
+                }
+
+            } catch (error) {
+                console.error('Error loading subscription status:', error);
+            }
+        }
+
+        /**
+         * Simple notification
+         */
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 16px 24px;
+                background: ${type === 'success' ? '#10B981' : type === 'error' ? '#EF4444' : '#6366f1'};
+                color: white;
+                border-radius: 12px;
+                font-size: 14px;
+                z-index: 10000;
+                box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+                animation: slideIn 0.3s ease;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.remove();
+            }, 4000);
+        }
     </script>
 </body>
 

@@ -3,6 +3,12 @@
  * Handles UI interactions, Firestore CRUD, and health score calculation
  */
 
+// Google Drive Config (Copied from knowledgeHub.js)
+const GOOGLE_CLIENT_ID = '670347890116-4oo0t76jnmd26ee4b2gdgjvb99a9rqb8.apps.googleusercontent.com';
+const GOOGLE_API_KEY = 'AIzaSyDaXEIw8msNgesSnb51VVOq84_Dt_ALROE';
+const GOOGLE_DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'];
+const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly';
+
 // State
 let currentProjectId = null;
 let currentSourceProjectId = null; // The original project from Command Center
@@ -11,6 +17,12 @@ let brandBrainData = null;
 let allProjects = []; // List of all user projects
 let availableIndustries = []; // List of industries from Firestore
 let saveTimeout = null;
+
+// Google API state
+let gapiInited = false;
+let gisInited = false;
+let tokenClient = null;
+let accessToken = null;
 
 // DOM Ready
 document.addEventListener('DOMContentLoaded', () => {
@@ -21,6 +33,9 @@ document.addEventListener('DOMContentLoaded', () => {
  * Initialize Brand Brain
  */
 async function initializeBrandBrain() {
+    // Initialize Google APIs
+    initializeGoogleAPIs();
+
     // Load industries first (doesn't require auth)
     await loadIndustries();
 
@@ -55,6 +70,48 @@ async function loadIndustries() {
     } catch (error) {
         console.error('Error loading industries:', error);
         // Fall back to static options if Firestore fails
+    }
+}
+
+/**
+ * Initialize Google APIs (GAPI + GIS)
+ */
+function initializeGoogleAPIs() {
+    // Load GAPI
+    if (typeof gapi !== 'undefined') {
+        gapi.load('client:picker', async () => {
+            try {
+                await gapi.client.init({
+                    apiKey: GOOGLE_API_KEY,
+                    discoveryDocs: GOOGLE_DISCOVERY_DOCS,
+                });
+                gapiInited = true;
+                console.log('GAPI initialized');
+            } catch (error) {
+                console.error('Error initializing GAPI:', error);
+            }
+        });
+    }
+
+    // Initialize GIS Token Client
+    if (typeof google !== 'undefined' && google.accounts) {
+        tokenClient = google.accounts.oauth2.initTokenClient({
+            client_id: GOOGLE_CLIENT_ID,
+            scope: GOOGLE_SCOPES,
+            callback: (response) => {
+                if (response.error !== undefined) {
+                    console.error('OAuth error:', response);
+                    showNotification('Google Drive authentication failed', 'error');
+                    return;
+                }
+                accessToken = response.access_token;
+                gisInited = true;
+                console.log('GIS Token received');
+                // Open picker after getting token
+                openGooglePicker();
+            },
+        });
+        console.log('GIS Token Client initialized');
     }
 }
 
@@ -95,7 +152,7 @@ async function loadUserProjects(userId) {
     try {
         const db = firebase.firestore();
         const projectSelect = document.getElementById('project-select');
-        const agentTeamSelect = document.getElementById('agentteam-select');
+        const agentTeamSelect = document.getElementById('agentteam-select'); // May not exist
 
         // Add glow highlight initially to guide user
         projectSelect.classList.add('selection-highlight');
@@ -122,7 +179,9 @@ async function loadUserProjects(userId) {
         if (allProjects.length === 0) {
             projectSelect.innerHTML = '<option value="" disabled selected>⚠️ Please create a Project in Command Center</option>';
             projectSelect.classList.remove('selection-highlight');
-            agentTeamSelect.innerHTML = '<option value="" disabled>No Project Selected</option>';
+            if (agentTeamSelect) {
+                agentTeamSelect.innerHTML = '<option value="" disabled>No Project Selected</option>';
+            }
             return;
         }
 
@@ -141,39 +200,50 @@ async function loadUserProjects(userId) {
 
             if (selectedId) {
                 await loadBrandBrainForProject(userId, selectedId);
-                await loadAgentTeams(selectedId);
+                // Only load agent teams if the select exists
+                if (agentTeamSelect) {
+                    await loadAgentTeams(selectedId);
+                }
             } else {
-                // Reset agent team dropdown
-                agentTeamSelect.innerHTML = '<option value="">Select Project First...</option>';
-                agentTeamSelect.disabled = true;
+                // Reset agent team dropdown if it exists
+                if (agentTeamSelect) {
+                    agentTeamSelect.innerHTML = '<option value="">Select Project First...</option>';
+                    agentTeamSelect.disabled = true;
+                }
             }
         });
 
-        // Event: Agent Team change
-        agentTeamSelect.addEventListener('change', async (e) => {
-            agentTeamSelect.classList.remove('selection-highlight'); // Stop glowing
-            const teamId = e.target.value;
+        // Event: Agent Team change (only if element exists)
+        if (agentTeamSelect) {
+            agentTeamSelect.addEventListener('change', async (e) => {
+                agentTeamSelect.classList.remove('selection-highlight'); // Stop glowing
+                const teamId = e.target.value;
 
-            if (teamId) {
-                currentAgentTeamId = teamId;
-                const selectedOption = agentTeamSelect.options[agentTeamSelect.selectedIndex];
-                showNotification(`Agent Team: ${selectedOption?.textContent || teamId}`);
-            }
-        });
+                if (teamId) {
+                    currentAgentTeamId = teamId;
+                    const selectedOption = agentTeamSelect.options[agentTeamSelect.selectedIndex];
+                    showNotification(`Agent Team: ${selectedOption?.textContent || teamId}`);
+                }
+            });
+        }
 
         // Auto-select first project
         if (allProjects.length > 0) {
             projectSelect.value = allProjects[0].id;
             projectSelect.classList.remove('selection-highlight');
             await loadBrandBrainForProject(userId, allProjects[0].id);
-            await loadAgentTeams(allProjects[0].id);
+            if (agentTeamSelect) {
+                await loadAgentTeams(allProjects[0].id);
+            }
         }
 
     } catch (error) {
         console.error('Error loading user projects:', error);
         const projectSelect = document.getElementById('project-select');
-        projectSelect.innerHTML = '<option value="">Error loading projects</option>';
-        projectSelect.classList.remove('selection-highlight');
+        if (projectSelect) {
+            projectSelect.innerHTML = '<option value="">Error loading projects</option>';
+            projectSelect.classList.remove('selection-highlight');
+        }
     }
 }
 
@@ -267,6 +337,9 @@ async function loadBrandBrainForProject(userId, projectId) {
 
         populateUI(brandBrainData);
         calculateHealthScore();
+
+        // Load Knowledge Sources (Unified Collection)
+        await loadKnowledgeSources(projectId);
 
         // Update Knowledge Hub link with projectId
         const kbLink = document.getElementById('kb-manage-link');
@@ -574,16 +647,19 @@ function initializeEventListeners() {
     });
 
     // Add Link
-    document.getElementById('btn-add-link').addEventListener('click', () => {
+    document.getElementById('btn-add-link')?.addEventListener('click', () => {
         const urlInput = document.getElementById('new-link-url');
-        if (urlInput.value.trim()) {
+        if (urlInput && urlInput.value.trim()) {
             addLink(urlInput.value.trim());
             urlInput.value = '';
         }
     });
 
     // Add Note
-    document.getElementById('btn-add-note').addEventListener('click', addNote);
+    document.getElementById('btn-add-note')?.addEventListener('click', addNote);
+
+    // Connect Google Drive
+    document.getElementById('btn-connect-drive')?.addEventListener('click', connectGoogleDrive);
 }
 
 /**
@@ -737,17 +813,271 @@ function updateToneLabel(value) {
 }
 
 /**
+ * Connect Google Drive - opens file picker
+ */
+/**
+ * Connect Google Drive - opens file picker (Inline)
+ */
+async function connectGoogleDrive() {
+    if (!currentProjectId) {
+        showNotification('Please select a project first', 'error');
+        return;
+    }
+
+    if (!gapiInited) {
+        showNotification('Google API not loaded. Please refresh the page.', 'error');
+        return;
+    }
+
+    if (accessToken) {
+        // Already have token, open picker directly
+        openGooglePicker();
+    } else {
+        // Request token
+        if (tokenClient) {
+            tokenClient.requestAccessToken({ prompt: 'consent' });
+        } else {
+            showNotification('Google Sign-In not available', 'error');
+        }
+    }
+}
+
+/**
+ * Open Google Picker to select files
+ */
+function openGooglePicker() {
+    if (!accessToken) {
+        showNotification('No access token available', 'error');
+        return;
+    }
+
+    const picker = new google.picker.PickerBuilder()
+        .addView(new google.picker.DocsView()
+            .setIncludeFolders(false)
+            .setMimeTypes('application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain'))
+        .setOAuthToken(accessToken)
+        .setDeveloperKey(GOOGLE_API_KEY)
+        .setCallback(handlePickerCallback)
+        .setTitle('Select files from Drive')
+        .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
+        .build();
+
+    picker.setVisible(true);
+}
+
+/**
+ * Handle Google Picker callback (Unified)
+ */
+async function handlePickerCallback(data) {
+    if (data.action === google.picker.Action.PICKED) {
+        const files = data.docs;
+
+        for (const file of files) {
+            await addGoogleDriveSource(file);
+        }
+
+        // Refresh Lists
+        await loadKnowledgeSources(currentProjectId);
+        showNotification(`Added ${files.length} file(s) from Google Drive`, 'success');
+    }
+}
+
+/**
+ * Add a Google Drive file as a source (Unified)
+ */
+async function addGoogleDriveSource(file) {
+    try {
+        const sourceData = {
+            sourceType: 'google_drive',
+            title: file.name,
+            isActive: true,
+            status: 'pending',
+            googleDrive: {
+                fileId: file.id,
+                fileName: file.name,
+                mimeType: file.mimeType,
+                fileUrl: file.url,
+                iconUrl: file.iconUrl,
+                lastModified: file.lastEditedUtc ? new Date(file.lastEditedUtc) : null,
+                sizeBytes: file.sizeBytes || null
+            },
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        const db = firebase.firestore();
+        await db.collection('projects')
+            .doc(currentProjectId)
+            .collection('knowledgeSources')
+            .add(sourceData);
+
+    } catch (error) {
+        console.error('Error adding Drive source:', error);
+        showNotification(`Failed to add ${file.name}`, 'error');
+    }
+}
+
+/**
+ * Load Knowledge Sources (Unified)
+ */
+async function loadKnowledgeSources(projectId) {
+    const driveContainer = document.getElementById('drive-files');
+    const linksContainer = document.getElementById('kb-links');
+    const notesContainer = document.getElementById('kb-notes');
+
+    // Clear and Show Loading
+    driveContainer.innerHTML = '<div class="text-center py-4"><div class="animate-spin w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full mx-auto"></div></div>';
+    linksContainer.innerHTML = '<div class="text-center py-4"><div class="animate-spin w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full mx-auto"></div></div>';
+    notesContainer.innerHTML = '<div class="text-center py-4"><div class="animate-spin w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full mx-auto"></div></div>';
+
+    try {
+        const db = firebase.firestore();
+        const snapshot = await db.collection('projects')
+            .doc(projectId)
+            .collection('knowledgeSources')
+            .orderBy('createdAt', 'desc')
+            .get();
+
+        // Clear Loading
+        driveContainer.innerHTML = '';
+        linksContainer.innerHTML = '';
+        notesContainer.innerHTML = '';
+
+        let driveCount = 0;
+        let linksCount = 0;
+        let notesCount = 0;
+
+        snapshot.forEach(doc => {
+            const source = { id: doc.id, ...doc.data() };
+            // Populate based on type
+            if (source.sourceType === 'google_drive') {
+                renderDriveSource(source, driveContainer);
+                driveCount++;
+            } else if (source.sourceType === 'link') {
+                renderLinkSource(source, linksContainer);
+                linksCount++;
+            } else if (source.sourceType === 'note') {
+                renderNoteSource(source, notesContainer);
+                notesCount++;
+            }
+        });
+
+        // Empty States
+        if (driveCount === 0) driveContainer.innerHTML = '<p class="text-center text-slate-500 text-xs py-4">No files connected yet</p>';
+        if (linksCount === 0) linksContainer.innerHTML = '<p class="text-center text-slate-500 text-xs py-4">No links added yet</p>';
+        if (notesCount === 0) notesContainer.innerHTML = '<p class="text-center text-slate-500 text-xs py-4">No notes added yet</p>';
+
+    } catch (error) {
+        console.error('Error loading sources:', error);
+        driveContainer.innerHTML = '<p class="text-center text-red-400 text-xs">Error loading files</p>';
+    }
+}
+
+/**
+ * Render Drive Source Item
+ */
+function renderDriveSource(source, container) {
+    const file = source.googleDrive || {};
+    const div = document.createElement('div');
+    div.className = 'flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg border border-slate-700';
+    div.innerHTML = `
+        <div class="p-2 bg-blue-500/20 rounded-lg text-blue-400">
+             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                <polyline points="14,2 14,8 20,8"/>
+            </svg>
+        </div>
+        <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-white truncate">${source.title}</p>
+             <p class="text-xs text-slate-500">${formatFileType(file.mimeType)}</p>
+        </div>
+         <button onclick="deleteSource('${source.id}', 'drive')" class="text-slate-500 hover:text-red-400 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+        </button>
+    `;
+    container.appendChild(div);
+}
+
+/**
+ * Render Link Source Item
+ */
+function renderLinkSource(source, container) {
+    const div = document.createElement('div');
+    div.className = 'kb-link'; // Using CSS from brand-brain OR add inline styles if needed
+    div.style.cssText = "display: flex; align-items: center; gap: 10px; padding: 10px; background: rgba(30, 41, 59, 0.5); border-radius: 8px; border: 1px solid rgba(51, 65, 85, 0.5); margin-bottom: 8px;";
+    div.innerHTML = `
+        <span class="link-icon">🌐</span>
+        <div class="link-info" style="flex:1; min-width:0;">
+            <div class="link-url" style="color: #e2e8f0; font-size: 0.875rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${source.url}</div>
+            <div class="link-status" style="color: #64748b; font-size: 0.75rem;">${source.status === 'completed' ? 'Analyzed' : 'Pending...'}</div>
+        </div>
+        <button class="btn-remove" onclick="deleteSource('${source.id}', 'link')" style="color: #64748b; padding: 4px;">×</button>
+    `;
+    container.appendChild(div);
+}
+
+/**
+ * Render Note Source Item
+ */
+function renderNoteSource(source, container) {
+    const div = document.createElement('div');
+    div.className = 'kb-note';
+    div.style.cssText = "padding: 12px; background: rgba(30, 41, 59, 0.5); border-radius: 8px; border: 1px solid rgba(51, 65, 85, 0.5); margin-bottom: 8px;";
+    div.innerHTML = `
+        <div class="note-header" style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span class="note-title" style="color: #e2e8f0; font-weight: 500; font-size: 0.875rem;">${source.title}</span>
+            <button class="btn-remove" onclick="deleteSource('${source.id}', 'note')" style="color: #64748b;">×</button>
+        </div>
+        <p class="note-content" style="color: #94a3b8; font-size: 0.75rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${source.content}</p>
+    `;
+    container.appendChild(div);
+}
+
+/**
+ * Delete Source (Unified)
+ */
+async function deleteSource(sourceId, type) {
+    if (!confirm('Are you sure you want to remove this source?')) return;
+
+    try {
+        const db = firebase.firestore();
+        await db.collection('projects')
+            .doc(currentProjectId)
+            .collection('knowledgeSources')
+            .doc(sourceId)
+            .delete();
+
+        await loadKnowledgeSources(currentProjectId); // Refresh
+        showNotification('Source removed', 'info');
+
+    } catch (error) {
+        console.error('Error deleting source:', error);
+        showNotification('Error removing source', 'error');
+    }
+}
+
+/**
  * Switch Knowledge Base tab
  */
 function switchKBTab(tabName) {
-    // Update tab buttons
+    // Update tab buttons - remove active from all, add to selected
     document.querySelectorAll('.kb-tab').forEach(tab => {
-        tab.classList.toggle('active', tab.dataset.tab === tabName);
+        if (tab.dataset.tab === tabName) {
+            tab.classList.add('active');
+        } else {
+            tab.classList.remove('active');
+        }
     });
 
-    // Update tab content
+    // Update tab content - hide all, show selected
     document.querySelectorAll('.kb-tab-content').forEach(content => {
-        content.classList.toggle('active', content.id === `tab-${tabName}`);
+        if (content.id === `tab-${tabName}`) {
+            content.classList.add('active');
+        } else {
+            content.classList.remove('active');
+        }
     });
 }
 
@@ -991,50 +1321,67 @@ function buildBrandContext(data) {
 }
 
 /**
- * Add link
+ * Add link (Unified)
  */
-function addLink(url) {
-    const linksContainer = document.getElementById('kb-links');
-    const linkDiv = document.createElement('div');
-    linkDiv.className = 'kb-link';
-    linkDiv.innerHTML = `
-        <span class="link-icon">🌐</span>
-        <div class="link-info">
-            <span class="link-url">${url}</span>
-            <span class="link-status">Pending analysis...</span>
-        </div>
-        <button class="btn-remove" onclick="this.parentElement.remove()">×</button>
-    `;
-    linksContainer.appendChild(linkDiv);
+async function addLink(url) {
+    if (!currentProjectId) return;
 
-    // TODO: Save to Firestore
-    showNotification('Link added! Analysis will begin shortly.');
+    try {
+        const db = firebase.firestore();
+        await db.collection('projects')
+            .doc(currentProjectId)
+            .collection('knowledgeSources')
+            .add({
+                sourceType: 'link',
+                title: url, // Assuming URL as title initially
+                url: url,
+                isActive: true,
+                status: 'pending',
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+        await loadKnowledgeSources(currentProjectId);
+        showNotification('Link added! Analysis will begin shortly.');
+    } catch (error) {
+        console.error('Error adding link:', error);
+        showNotification('Failed to add link', 'error');
+    }
 }
 
 /**
- * Add note
+ * Add note (Unified)
  */
-function addNote() {
+async function addNote() {
+    if (!currentProjectId) return;
+
     const title = prompt('Note title:');
     if (!title) return;
 
     const content = prompt('Note content:');
     if (!content) return;
 
-    const notesContainer = document.getElementById('kb-notes');
-    const noteDiv = document.createElement('div');
-    noteDiv.className = 'kb-note';
-    noteDiv.innerHTML = `
-        <div class="note-header">
-            <span class="note-title">${title}</span>
-            <button class="btn-remove" onclick="this.closest('.kb-note').remove()">×</button>
-        </div>
-        <p class="note-content">${content}</p>
-    `;
-    notesContainer.appendChild(noteDiv);
+    try {
+        const db = firebase.firestore();
+        await db.collection('projects')
+            .doc(currentProjectId)
+            .collection('knowledgeSources')
+            .add({
+                sourceType: 'note',
+                title: title,
+                content: content,
+                isActive: true,
+                status: 'pending',
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
 
-    // TODO: Save to Firestore
-    showNotification('Note added!');
+        await loadKnowledgeSources(currentProjectId);
+        showNotification('Note added!');
+    } catch (error) {
+        console.error('Error adding note:', error);
+        showNotification('Failed to add note', 'error');
+    }
 }
 
 /**

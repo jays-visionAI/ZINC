@@ -2934,3 +2934,413 @@ exports.getPlanDetails = functions.https.onCall(async (data, context) => {
         creditCosts: CREDIT_COSTS
     };
 });
+
+// ============================================================
+// STRIPE PAYMENT INTEGRATION
+// ============================================================
+
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder');
+
+// Stripe Price IDs (set these in Firebase config or environment)
+const STRIPE_PRICES = {
+    starter_monthly: process.env.STRIPE_PRICE_STARTER_MONTHLY || 'price_starter_monthly',
+    starter_yearly: process.env.STRIPE_PRICE_STARTER_YEARLY || 'price_starter_yearly',
+    pro_monthly: process.env.STRIPE_PRICE_PRO_MONTHLY || 'price_pro_monthly',
+    pro_yearly: process.env.STRIPE_PRICE_PRO_YEARLY || 'price_pro_yearly',
+    enterprise_monthly: process.env.STRIPE_PRICE_ENTERPRISE_MONTHLY || 'price_enterprise_monthly',
+    enterprise_yearly: process.env.STRIPE_PRICE_ENTERPRISE_YEARLY || 'price_enterprise_yearly'
+};
+
+/**
+ * Create Stripe Checkout Session for subscription
+ */
+exports.createCheckoutSession = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Must be logged in');
+    }
+
+    const { priceId, planId, billingPeriod = 'monthly' } = data;
+    const userId = context.auth.uid;
+    const userEmail = context.auth.token.email;
+
+    try {
+        // Get or create Stripe customer
+        let customerId;
+        const userDoc = await db.collection('users').doc(userId).get();
+        const userData = userDoc.data() || {};
+
+        if (userData.stripeCustomerId) {
+            customerId = userData.stripeCustomerId;
+        } else {
+            // Create new Stripe customer
+            const customer = await stripe.customers.create({
+                email: userEmail,
+                metadata: {
+                    firebaseUID: userId
+                }
+            });
+            customerId = customer.id;
+
+            // Save customer ID to Firestore
+            await db.collection('users').doc(userId).update({
+                stripeCustomerId: customerId
+            });
+        }
+
+        // Get the correct price ID
+        const stripePriceId = priceId || STRIPE_PRICES[`${planId}_${billingPeriod}`];
+
+        if (!stripePriceId || stripePriceId.startsWith('price_')) {
+            // Return placeholder for test mode
+            console.log('[Stripe] Test mode - no real price IDs configured');
+        }
+
+        // Create checkout session
+        const session = await stripe.checkout.sessions.create({
+            customer: customerId,
+            payment_method_types: ['card'],
+            line_items: [{
+                price: stripePriceId,
+                quantity: 1
+            }],
+            mode: 'subscription',
+            success_url: `${data.successUrl || 'https://yourapp.com/settings'}?session_id={CHECKOUT_SESSION_ID}&success=true`,
+            cancel_url: data.cancelUrl || 'https://yourapp.com/settings?canceled=true',
+            metadata: {
+                firebaseUID: userId,
+                planId: planId
+            },
+            subscription_data: {
+                metadata: {
+                    firebaseUID: userId,
+                    planId: planId
+                }
+            },
+            allow_promotion_codes: true
+        });
+
+        return {
+            success: true,
+            sessionId: session.id,
+            url: session.url
+        };
+
+    } catch (error) {
+        console.error('[createCheckoutSession] Error:', error);
+        throw new functions.https.HttpsError('internal', error.message);
+    }
+});
+
+/**
+ * Create Stripe Customer Portal session
+ */
+exports.createCustomerPortal = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Must be logged in');
+    }
+
+    const userId = context.auth.uid;
+
+    try {
+        const userDoc = await db.collection('users').doc(userId).get();
+        const userData = userDoc.data();
+
+        if (!userData?.stripeCustomerId) {
+            throw new Error('No Stripe customer found');
+        }
+
+        const session = await stripe.billingPortal.sessions.create({
+            customer: userData.stripeCustomerId,
+            return_url: data.returnUrl || 'https://yourapp.com/settings'
+        });
+
+        return {
+            success: true,
+            url: session.url
+        };
+
+    } catch (error) {
+        console.error('[createCustomerPortal] Error:', error);
+        throw new functions.https.HttpsError('internal', error.message);
+    }
+});
+
+/**
+ * Stripe Webhook Handler
+ */
+exports.stripeWebhook = functions.https.onRequest(async (req, res) => {
+    const sig = req.headers['stripe-signature'];
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || 'whsec_placeholder';
+
+    let event;
+
+    try {
+        event = stripe.webhooks.constructEvent(req.rawBody, sig, webhookSecret);
+    } catch (err) {
+        console.error('[stripeWebhook] Signature verification failed:', err.message);
+        return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    // Handle the event
+    try {
+        switch (event.type) {
+            case 'checkout.session.completed':
+                await handleCheckoutComplete(event.data.object);
+                break;
+
+            case 'customer.subscription.created':
+            case 'customer.subscription.updated':
+                await handleSubscriptionUpdate(event.data.object);
+                break;
+
+            case 'customer.subscription.deleted':
+                await handleSubscriptionCanceled(event.data.object);
+                break;
+
+            case 'invoice.payment_succeeded':
+                await handlePaymentSucceeded(event.data.object);
+                break;
+
+            case 'invoice.payment_failed':
+                await handlePaymentFailed(event.data.object);
+                break;
+
+            default:
+                console.log(`[stripeWebhook] Unhandled event type: ${event.type}`);
+        }
+
+        res.json({ received: true });
+
+    } catch (error) {
+        console.error('[stripeWebhook] Handler error:', error);
+        res.status(500).send('Webhook handler failed');
+    }
+});
+
+/**
+ * Handle checkout completion
+ */
+async function handleCheckoutComplete(session) {
+    const userId = session.metadata?.firebaseUID;
+    const planId = session.metadata?.planId;
+
+    if (!userId) {
+        console.error('[handleCheckoutComplete] No user ID in metadata');
+        return;
+    }
+
+    console.log(`[handleCheckoutComplete] User ${userId} completed checkout for ${planId}`);
+
+    // Update user plan
+    const planCredits = PLAN_TIERS[planId]?.monthlyCredits || 50;
+
+    await db.collection('users').doc(userId).update({
+        plan: planId,
+        credits: planCredits,
+        creditsUsedThisMonth: 0,
+        subscriptionStatus: 'active',
+        subscriptionId: session.subscription,
+        lastPaymentDate: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    console.log(`[handleCheckoutComplete] Updated user ${userId} to ${planId} plan with ${planCredits} credits`);
+}
+
+/**
+ * Handle subscription updates
+ */
+async function handleSubscriptionUpdate(subscription) {
+    const userId = subscription.metadata?.firebaseUID;
+
+    if (!userId) {
+        // Try to find user by customer ID
+        const customerId = subscription.customer;
+        const usersSnapshot = await db.collection('users')
+            .where('stripeCustomerId', '==', customerId)
+            .limit(1)
+            .get();
+
+        if (usersSnapshot.empty) {
+            console.error('[handleSubscriptionUpdate] No user found for customer:', customerId);
+            return;
+        }
+
+        const userDoc = usersSnapshot.docs[0];
+        const planId = subscription.metadata?.planId || determinePlanFromPrice(subscription.items.data[0]?.price?.id);
+
+        await userDoc.ref.update({
+            subscriptionStatus: subscription.status,
+            subscriptionId: subscription.id,
+            plan: planId,
+            currentPeriodEnd: new Date(subscription.current_period_end * 1000)
+        });
+
+        return;
+    }
+
+    const planId = subscription.metadata?.planId || 'pro';
+
+    await db.collection('users').doc(userId).update({
+        subscriptionStatus: subscription.status,
+        subscriptionId: subscription.id,
+        currentPeriodEnd: new Date(subscription.current_period_end * 1000)
+    });
+}
+
+/**
+ * Handle subscription cancellation
+ */
+async function handleSubscriptionCanceled(subscription) {
+    const customerId = subscription.customer;
+
+    const usersSnapshot = await db.collection('users')
+        .where('stripeCustomerId', '==', customerId)
+        .limit(1)
+        .get();
+
+    if (usersSnapshot.empty) {
+        console.error('[handleSubscriptionCanceled] No user found');
+        return;
+    }
+
+    const userDoc = usersSnapshot.docs[0];
+
+    // Downgrade to free plan
+    await userDoc.ref.update({
+        plan: 'free',
+        credits: PLAN_TIERS.free.monthlyCredits,
+        subscriptionStatus: 'canceled',
+        subscriptionId: null
+    });
+
+    console.log(`[handleSubscriptionCanceled] Downgraded user to free plan`);
+}
+
+/**
+ * Handle successful payment
+ */
+async function handlePaymentSucceeded(invoice) {
+    const customerId = invoice.customer;
+
+    const usersSnapshot = await db.collection('users')
+        .where('stripeCustomerId', '==', customerId)
+        .limit(1)
+        .get();
+
+    if (usersSnapshot.empty) return;
+
+    const userDoc = usersSnapshot.docs[0];
+    const userData = userDoc.data();
+    const planCredits = PLAN_TIERS[userData.plan]?.monthlyCredits || 50;
+
+    // Reset monthly credits
+    await userDoc.ref.update({
+        credits: planCredits,
+        creditsUsedThisMonth: 0,
+        lastPaymentDate: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    console.log(`[handlePaymentSucceeded] Reset credits for user to ${planCredits}`);
+}
+
+/**
+ * Handle failed payment
+ */
+async function handlePaymentFailed(invoice) {
+    const customerId = invoice.customer;
+
+    const usersSnapshot = await db.collection('users')
+        .where('stripeCustomerId', '==', customerId)
+        .limit(1)
+        .get();
+
+    if (usersSnapshot.empty) return;
+
+    const userDoc = usersSnapshot.docs[0];
+
+    await userDoc.ref.update({
+        subscriptionStatus: 'past_due'
+    });
+
+    console.log(`[handlePaymentFailed] Marked subscription as past_due`);
+}
+
+/**
+ * Determine plan from Stripe price ID
+ */
+function determinePlanFromPrice(priceId) {
+    if (!priceId) return 'free';
+
+    for (const [key, value] of Object.entries(STRIPE_PRICES)) {
+        if (value === priceId) {
+            return key.split('_')[0]; // Extract plan name (starter, pro, enterprise)
+        }
+    }
+    return 'pro'; // Default
+}
+
+/**
+ * Get user subscription status
+ */
+exports.getSubscriptionStatus = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Must be logged in');
+    }
+
+    const userId = context.auth.uid;
+
+    try {
+        const userDoc = await db.collection('users').doc(userId).get();
+        const userData = userDoc.data() || {};
+
+        return {
+            success: true,
+            plan: userData.plan || 'free',
+            subscriptionStatus: userData.subscriptionStatus || 'none',
+            currentPeriodEnd: userData.currentPeriodEnd?.toDate?.()?.toISOString() || null,
+            hasActiveSubscription: ['active', 'trialing'].includes(userData.subscriptionStatus)
+        };
+
+    } catch (error) {
+        console.error('[getSubscriptionStatus] Error:', error);
+        throw new functions.https.HttpsError('internal', error.message);
+    }
+});
+
+/**
+ * Cancel subscription
+ */
+exports.cancelSubscription = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Must be logged in');
+    }
+
+    const userId = context.auth.uid;
+
+    try {
+        const userDoc = await db.collection('users').doc(userId).get();
+        const userData = userDoc.data();
+
+        if (!userData?.subscriptionId) {
+            throw new Error('No active subscription');
+        }
+
+        // Cancel at period end (user keeps access until end of billing period)
+        await stripe.subscriptions.update(userData.subscriptionId, {
+            cancel_at_period_end: true
+        });
+
+        await db.collection('users').doc(userId).update({
+            subscriptionStatus: 'canceling'
+        });
+
+        return {
+            success: true,
+            message: 'Subscription will be canceled at the end of the billing period'
+        };
+
+    } catch (error) {
+        console.error('[cancelSubscription] Error:', error);
+        throw new functions.https.HttpsError('internal', error.message);
+    }
+});

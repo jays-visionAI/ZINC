@@ -7,8 +7,8 @@
 // GOOGLE DRIVE CONFIGURATION
 // ============================================================
 // NOTE: Replace these with your actual Google Cloud Console credentials
-const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
-const GOOGLE_API_KEY = 'YOUR_GOOGLE_API_KEY';
+const GOOGLE_CLIENT_ID = '670347890116-4oo0t76jnmd26ee4b2gdgjvb99a9rqb8.apps.googleusercontent.com';
+const GOOGLE_API_KEY = 'AIzaSyDaXEIw8msNgesSnb51VVOq84_Dt_ALROE';
 const GOOGLE_DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'];
 const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly';
 
@@ -21,6 +21,7 @@ let currentProject = null;
 let sources = [];
 let chatMessages = [];
 let isLoading = false;
+let sourcesUnsubscribe = null;
 
 // Google API state
 let gapiInited = false;
@@ -330,27 +331,113 @@ async function selectProject(projectId) {
 async function loadSources() {
     if (!currentProjectId) return;
 
-    const sourcesList = document.getElementById('sources-list');
-    const emptyState = document.getElementById('sources-empty');
+    // Unsubscribe from previous listener if exists
+    if (sourcesUnsubscribe) {
+        sourcesUnsubscribe();
+        sourcesUnsubscribe = null;
+    }
 
     try {
-        const snapshot = await firebase.firestore()
+        // Use onSnapshot for realtime updates
+        sourcesUnsubscribe = firebase.firestore()
             .collection('projects')
             .doc(currentProjectId)
             .collection('knowledgeSources')
             .orderBy('createdAt', 'desc')
-            .get();
+            .onSnapshot((snapshot) => {
+                sources = [];
+                snapshot.forEach(doc => {
+                    sources.push({ id: doc.id, ...doc.data() });
+                });
 
-        sources = [];
-        snapshot.forEach(doc => {
-            sources.push({ id: doc.id, ...doc.data() });
-        });
-
-        renderSources();
+                renderSources();
+                updateSummarySection();
+            }, (error) => {
+                console.error('Error loading sources:', error);
+                showNotification('Failed to load sources', 'error');
+            });
 
     } catch (error) {
-        console.error('Error loading sources:', error);
-        showNotification('Failed to load sources', 'error');
+        console.error('Error setting up sources listener:', error);
+        showNotification('Failed to setup sources listener', 'error');
+    }
+}
+
+function updateSummarySection() {
+    const summaryTitle = document.getElementById('summary-title');
+    const summaryContent = document.getElementById('summary-content');
+    const keyInsights = document.getElementById('key-insights');
+    const insightsList = document.getElementById('insights-list');
+
+    const activeSources = sources.filter(s => s.isActive !== false);
+
+    if (activeSources.length === 0) {
+        summaryTitle.textContent = 'No active sources';
+        summaryContent.textContent = 'Add sources or enable existing ones to generate an AI summary.';
+        keyInsights.classList.add('hidden');
+        return;
+    }
+
+    // Check statuses
+    const analyzing = activeSources.filter(s => s.status === 'analyzing');
+    const completed = activeSources.filter(s => s.status === 'completed');
+    const failed = activeSources.filter(s => s.status === 'failed');
+
+    if (analyzing.length > 0) {
+        summaryTitle.textContent = 'Analyzing sources...';
+        summaryContent.innerHTML = `
+            <div class="flex items-center gap-2">
+                <span class="animate-spin h-4 w-4 border-2 border-indigo-500 border-t-transparent rounded-full"></span>
+                <span>Analyzing ${analyzing.length} source(s). Please wait...</span>
+            </div>
+        `;
+        keyInsights.classList.add('hidden');
+        return;
+    }
+
+    if (completed.length === 0) {
+        if (failed.length > 0) {
+            summaryTitle.textContent = 'Analysis Failed';
+            summaryContent.textContent = 'Some sources failed to analyze. Please check the source list.';
+        } else {
+            summaryTitle.textContent = 'Ready to analyze';
+            summaryContent.textContent = 'Sources are added but not yet analyzed.';
+        }
+        keyInsights.classList.add('hidden');
+        return;
+    }
+
+    // Sort completed by analyzedAt desc to show latest info
+    completed.sort((a, b) => {
+        const dateA = a.analysis?.analyzedAt?.toDate?.() || new Date(0);
+        const dateB = b.analysis?.analyzedAt?.toDate?.() || new Date(0);
+        return dateB - dateA;
+    });
+
+    const primarySource = completed[0];
+    const analysis = primarySource.analysis || {};
+
+    // If multiple sources, we might want to hint at that
+    const suffix = completed.length > 1 ? ` (+${completed.length - 1} others)` : '';
+    summaryTitle.textContent = analysis.summary ? 'Brand Summary' : 'Summary Processing...';
+
+    if (analysis.summary) {
+        summaryContent.textContent = analysis.summary;
+    } else {
+        summaryContent.textContent = 'Summary extracted from ' + (primarySource.title || 'source') + suffix;
+    }
+
+    // Key Insights
+    if (analysis.keyInsights && analysis.keyInsights.length > 0) {
+        keyInsights.classList.remove('hidden');
+        insightsList.innerHTML = analysis.keyInsights.map(insight => `
+            <div class="flex items-start gap-2 text-xs text-slate-400">
+                <span class="text-indigo-400 mt-0.5">•</span>
+                <span>${insight}</span>
+            </div>
+        `).join('');
+    } else {
+        keyInsights.classList.add('hidden');
     }
 }
 
@@ -505,6 +592,9 @@ function updateSourceCounts() {
     document.getElementById('source-count').textContent = total;
     document.getElementById('active-sources-count').textContent = active;
     document.getElementById('sources-indicator').textContent = active;
+
+    // Also trigger summary update when counts change (e.g. toggle active/inactive)
+    updateSummarySection();
 }
 
 // ============================================================
