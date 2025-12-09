@@ -715,7 +715,11 @@ ZYNK 사용에 관한 질문이 있으시면 편하게 물어보세요!
         // EVENT LISTENERS
         // ============================================
 
-        document.addEventListener('DOMContentLoaded', () => {
+        // Initialize immediately since this HTML is dynamically loaded
+        // (DOMContentLoaded has already fired when admin.js loads this page)
+        function initChatbotAdmin() {
+            console.log('[Chatbot Admin] Initializing tabs and event listeners...');
+
             initChatbotTabs();
 
             // Page Context
@@ -729,5 +733,13 @@ ZYNK 사용에 관한 질문이 있으시면 편하게 물어보세요!
 
             // Voice
             document.getElementById('btn-save-voice')?.addEventListener('click', saveVoiceSettings);
-        });
+
+            console.log('[Chatbot Admin] Initialization complete');
+        }
+
+        // Run immediately
+        initChatbotAdmin();
+
+        // Also expose globally for admin.js compatibility
+        window.initChatbot = initChatbotAdmin;
     </script>
