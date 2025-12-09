@@ -931,12 +931,13 @@ async function loadKnowledgeSources(projectId) {
     notesContainer.innerHTML = '<div class="text-center py-4"><div class="animate-spin w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full mx-auto"></div></div>';
 
     try {
+        if (!projectId) throw new Error('Project ID is missing');
+
         const db = firebase.firestore();
         const snapshot = await db.collection('projects')
             .doc(projectId)
             .collection('knowledgeSources')
-            .orderBy('createdAt', 'desc')
-            .get();
+            .get(); // Removed orderBy to prevent index errors
 
         // Clear Loading
         driveContainer.innerHTML = '';
@@ -947,8 +948,19 @@ async function loadKnowledgeSources(projectId) {
         let linksCount = 0;
         let notesCount = 0;
 
+        const sources = [];
         snapshot.forEach(doc => {
-            const source = { id: doc.id, ...doc.data() };
+            sources.push({ id: doc.id, ...doc.data() });
+        });
+
+        // Client-side sort
+        sources.sort((a, b) => {
+            const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
+            const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
+            return dateB - dateA;
+        });
+
+        sources.forEach(source => {
             // Populate based on type
             if (source.sourceType === 'google_drive') {
                 renderDriveSource(source, driveContainer);
