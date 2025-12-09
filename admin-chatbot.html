@@ -9,21 +9,18 @@
         </p>
     </div>
 
-    <!-- Tab Navigation -->
+    <!-- Tab Navigation (matching Settings page style) -->
     <div id="chatbot-tabs"
-        style="display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 12px;">
-        <button class="chatbot-tab active" data-tab="general"
-            style="padding: 10px 20px; background: rgba(99, 102, 241, 0.2); border: 1px solid rgba(99, 102, 241, 0.5); color: #a5b4fc; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600;">
-            ⚙️ General Settings
-        </button>
-        <button class="chatbot-tab" data-tab="page-context"
-            style="padding: 10px 20px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.6); border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500;">
-            📄 Page Context
-        </button>
-        <button class="chatbot-tab" data-tab="voice"
-            style="padding: 10px 20px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.6); border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500;">
-            🎤 Voice Settings
-        </button>
+        style="display: flex; gap: 32px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 24px;">
+        <div class="chatbot-tab active" data-tab="general" id="tab-btn-general"
+            style="padding-bottom: 12px; cursor: pointer; border-bottom: 2px solid #16e0bd; color: #fff; font-weight: 600;">
+            General</div>
+        <div class="chatbot-tab" data-tab="page-context" id="tab-btn-page-context"
+            style="padding-bottom: 12px; cursor: pointer; border-bottom: 2px solid transparent; color: rgba(255,255,255,0.5);">
+            Page Context</div>
+        <div class="chatbot-tab" data-tab="voice" id="tab-btn-voice"
+            style="padding-bottom: 12px; cursor: pointer; border-bottom: 2px solid transparent; color: rgba(255,255,255,0.5);">
+            Voice Settings</div>
     </div>
 
     <!-- General Settings Tab -->
@@ -515,18 +512,16 @@ ZYNK 사용에 관한 질문이 있으시면 편하게 물어보세요!
                 tab.addEventListener('click', () => {
                     const targetTab = tab.dataset.tab;
 
-                    // Update tab styles
+                    // Update tab styles (underline style)
                     tabs.forEach(t => {
-                        t.style.background = 'rgba(255,255,255,0.03)';
-                        t.style.borderColor = 'rgba(255,255,255,0.1)';
-                        t.style.color = 'rgba(255,255,255,0.6)';
-                        t.style.fontWeight = '500';
+                        t.style.borderBottom = '2px solid transparent';
+                        t.style.color = 'rgba(255,255,255,0.5)';
+                        t.style.fontWeight = '400';
                         t.classList.remove('active');
                     });
 
-                    tab.style.background = 'rgba(99, 102, 241, 0.2)';
-                    tab.style.borderColor = 'rgba(99, 102, 241, 0.5)';
-                    tab.style.color = '#a5b4fc';
+                    tab.style.borderBottom = '2px solid #16e0bd';
+                    tab.style.color = '#fff';
                     tab.style.fontWeight = '600';
                     tab.classList.add('active');
 
