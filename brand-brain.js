@@ -1418,8 +1418,23 @@ function calculateHealthScore() {
         // Calculate Total
         score = checks.identity + checks.strategy + checks.consistency; // + checks.knowledge
 
-        // Update UI
-        updateHealthScoreUI(score, checks);
+        // Update UI directly
+        const healthScoreEl = document.querySelector('.health-score-value, #health-score-value');
+        const completenessEl = document.querySelector('.health-completeness, #health-completeness');
+
+        if (healthScoreEl) {
+            healthScoreEl.textContent = score;
+        }
+        if (completenessEl) {
+            completenessEl.textContent = `${score}%`;
+        }
+
+        // Update individual score elements if they exist
+        const identityScoreEl = document.getElementById('identity-score');
+        const strategyScoreEl = document.getElementById('strategy-score');
+
+        if (identityScoreEl) identityScoreEl.textContent = `${checks.identity}/25`;
+        if (strategyScoreEl) strategyScoreEl.textContent = `${checks.strategy}/25`;
 
     } catch (error) {
         console.error('Error calculating health score:', error);
