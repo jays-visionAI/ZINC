@@ -244,5 +244,11 @@ service cloud.firestore {
       allow read: if true;  // Cloud Functions need to read
       allow write: if true;  // Cloud Functions need to write
     }
+    
+    // Chatbot Page Context: Admin can write, authenticated users can read
+    match /chatbotPageContext/{pageId} {
+      allow read: if isAuthenticated();  // Users need to read for context
+      allow write: if isAdmin();  // Only Admin can modify
+    }
   }
 }
