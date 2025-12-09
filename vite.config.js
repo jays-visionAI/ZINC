@@ -16,6 +16,10 @@ export default defineConfig({
                 strategyWarRoom: resolve(__dirname, 'strategyWarRoom.html'),
                 admin: resolve(__dirname, 'admin.html'),
                 projectDetail: resolve(__dirname, 'project-detail.html'),
+                theFilter: resolve(__dirname, 'theFilter.html'),
+                theGrowth: resolve(__dirname, 'theGrowth.html'),
+                // Studio
+                studio: resolve(__dirname, 'studio/index.html'),
             }
         }
     },
