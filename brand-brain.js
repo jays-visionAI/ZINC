@@ -25,6 +25,24 @@ let gisInited = false;
 let tokenClient = null;
 let accessToken = null;
 
+// Helper: Format file type from MIME type
+function formatFileType(mimeType) {
+    if (!mimeType) return 'File';
+    const mimeMap = {
+        'application/pdf': 'PDF',
+        'application/vnd.google-apps.document': 'Google Doc',
+        'application/vnd.google-apps.spreadsheet': 'Google Sheet',
+        'application/vnd.google-apps.presentation': 'Google Slides',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'Word Doc',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'Excel',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'PowerPoint',
+        'text/plain': 'Text',
+        'image/png': 'PNG Image',
+        'image/jpeg': 'JPEG Image',
+    };
+    return mimeMap[mimeType] || mimeType.split('/').pop() || 'File';
+}
+
 // DOM Ready
 document.addEventListener('DOMContentLoaded', () => {
     initializeBrandBrain();
@@ -232,15 +250,9 @@ async function loadUserProjects(userId) {
             });
         }
 
-        // Auto-select first project
-        if (allProjects.length > 0) {
-            projectSelect.value = allProjects[0].id;
-            projectSelect.classList.remove('selection-highlight');
-            await loadBrandBrainForProject(userId, allProjects[0].id);
-            if (agentTeamSelect) {
-                await loadAgentTeams(allProjects[0].id);
-            }
-        }
+        // Don't auto-select - let user choose
+        // Glow effect remains until user selects a project
+        projectSelect.value = '';  // Keep default "Select Project..."
 
     } catch (error) {
         console.error('Error loading user projects:', error);
