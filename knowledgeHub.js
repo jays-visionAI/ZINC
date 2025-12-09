@@ -7,8 +7,8 @@
 // GOOGLE DRIVE CONFIGURATION
 // ============================================================
 // NOTE: Replace these with your actual Google Cloud Console credentials
-const GOOGLE_CLIENT_ID = '670347890116-4oo0t76jnmd26ee4b2gdgjvb99a9rqb8.apps.googleusercontent.com';
-const GOOGLE_API_KEY = 'AIzaSyDaXEIw8msNgesSnb51VVOq84_Dt_ALROE';
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY || '';
 const GOOGLE_DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'];
 const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly';
 
