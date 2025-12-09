@@ -1,10 +1,13 @@
 // ========================================
 // ZYNK AI Helpdesk Chatbot
+// Global Version with Page Context, Voice, and Draggable FAB
 // ========================================
 
 const CHATBOT = {
     // Config
     DAILY_LIMIT: 50,
+    FAB_STORAGE_KEY: 'zynk_chatbot_fab_position',
+    USAGE_STORAGE_KEY: 'zynk_chatbot_usage',
 
     // State
     isOpen: false,
@@ -12,6 +15,18 @@ const CHATBOT = {
     usageCount: 0,
     isLoading: false,
     lang: 'ko', // detected language
+    isDragging: false,
+
+    // Page Context
+    currentPage: null,
+    pageContext: null,
+
+    // Voice settings
+    voiceEnabled: false,
+    voiceInputEnabled: false,
+    voiceOutputEnabled: false,
+    isListening: false,
+    recognition: null,
 
     // Localization strings
     i18n: {
@@ -28,7 +43,9 @@ ZYNK 사용에 관한 질문이 있으시면 편하게 물어보세요!
             rateLimitExceeded: (limit) => `⚠️ 일일 질문 횟수(${limit}회)를 초과했습니다.\n내일 다시 이용해 주세요!`,
             error: (msg) => `❌ 오류가 발생했습니다: ${msg}\n잠시 후 다시 시도해 주세요.`,
             loginRequired: '❌ 로그인이 필요합니다. 다시 로그인해 주세요.',
-            unavailable: (msg) => `⚠️ ${msg}`
+            unavailable: (msg) => `⚠️ ${msg}`,
+            listening: '🎤 말씀하세요...',
+            voiceNotSupported: '음성 인식이 지원되지 않는 브라우저입니다.'
         },
         en: {
             subtitle: 'AI Helpdesk',
@@ -43,7 +60,9 @@ Feel free to ask me anything about using ZYNK!
             rateLimitExceeded: (limit) => `⚠️ Daily question limit (${limit}) exceeded.\nPlease try again tomorrow!`,
             error: (msg) => `❌ An error occurred: ${msg}\nPlease try again later.`,
             loginRequired: '❌ Login required. Please log in again.',
-            unavailable: (msg) => `⚠️ ${msg}`
+            unavailable: (msg) => `⚠️ ${msg}`,
+            listening: '🎤 Listening...',
+            voiceNotSupported: 'Voice recognition is not supported in this browser.'
         }
     },
 
@@ -52,14 +71,49 @@ Feel free to ask me anything about using ZYNK!
 
     // Initialize
     async init() {
-        console.log('[Chatbot] Initializing...');
+        console.log('[Chatbot] Initializing Global Chatbot...');
+
+        // Detect current page
+        this.detectCurrentPage();
+
         this.detectLanguage();
         this.cacheElements();
+
         await this.loadConfig(); // Load config from Firestore
+        await this.loadPageContext(); // Load page-specific context
+
         this.loadUsage();
         this.bindEvents();
+        this.setupDraggableFAB(); // Draggable FAB feature
+        this.restoreFABPosition(); // Restore saved position
+        this.setupVoice(); // Voice input/output
+
         this.applyLocalization();
         this.addWelcomeMessage();
+
+        console.log(`[Chatbot] Initialized for page: ${this.currentPage}`);
+    },
+
+    // Detect current page from URL
+    detectCurrentPage() {
+        const path = window.location.pathname;
+        const filename = path.split('/').pop().replace('.html', '');
+
+        // Map filename to page ID
+        const pageMap = {
+            'command-center': 'command-center',
+            'project-detail': 'project-detail',
+            'brand-brain': 'brand-brain',
+            'knowledgeHub': 'knowledge-hub',
+            'marketPulse': 'market-pulse',
+            'strategyWarRoom': 'strategy-war-room',
+            'theFilter': 'the-filter',
+            'theGrowth': 'the-growth',
+            'studio': 'studio'
+        };
+
+        this.currentPage = pageMap[filename] || filename;
+        console.log(`[Chatbot] Detected page: ${this.currentPage}`);
     },
 
     async loadConfig() {
@@ -82,12 +136,59 @@ Feel free to ask me anything about using ZYNK!
                     if (config.dailyLimit) {
                         this.DAILY_LIMIT = config.dailyLimit;
                     }
+
+                    // Voice settings
+                    this.voiceEnabled = config.voiceEnabled ?? false;
+                    this.voiceInputEnabled = config.voiceInputEnabled ?? false;
+                    this.voiceOutputEnabled = config.voiceOutputEnabled ?? false;
                 }
             }
         } catch (error) {
             console.warn('[Chatbot] Failed to load config:', error);
             // Use default values
         }
+    },
+
+    // Load page-specific context from Firestore
+    async loadPageContext() {
+        if (!this.currentPage) return;
+
+        try {
+            if (typeof firebase !== 'undefined' && firebase.firestore) {
+                const db = firebase.firestore();
+                const doc = await db.collection('chatbotPageContext').doc(this.currentPage).get();
+
+                if (doc.exists) {
+                    this.pageContext = doc.data();
+                    console.log('[Chatbot] Page context loaded:', this.pageContext.name);
+                } else {
+                    console.log('[Chatbot] No page context found for:', this.currentPage);
+                }
+            }
+        } catch (error) {
+            console.warn('[Chatbot] Failed to load page context:', error);
+        }
+    },
+
+    // Get page context prompt for AI
+    getPageContextPrompt() {
+        if (!this.pageContext) return '';
+
+        const ctx = this.pageContext;
+        const langKey = this.lang;
+
+        let prompt = `\n\n## 현재 페이지 컨텍스트\n`;
+        prompt += `사용자는 현재 "${ctx.name?.[langKey] || ctx.pageId}" 페이지에 있습니다.\n`;
+        prompt += `이 페이지 설명: ${ctx.description?.[langKey] || ''}\n\n`;
+
+        if (ctx.tips && ctx.tips.length > 0) {
+            prompt += `### 이 페이지의 주요 기능 및 팁:\n`;
+            ctx.tips.forEach((tip, i) => {
+                prompt += `${i + 1}. ${tip[langKey] || tip.en || ''}\n`;
+            });
+        }
+
+        return prompt;
     },
 
     detectLanguage() {
@@ -234,16 +335,136 @@ Feel free to ask me anything about using ZYNK!
         this.elements.fab?.classList.remove('hidden');
     },
 
-    addWelcomeMessage() {
-        const t = this.i18n[this.lang];
-        this.addMessage('bot', t.welcome);
+    // ============================================
+    // CHAT HISTORY PERSISTENCE (localStorage)
+    // ============================================
+
+    HISTORY_STORAGE_KEY: 'zynk_chatbot_history',
+    HISTORY_MAX_MESSAGES: 50, // Keep last 50 messages
+    HISTORY_EXPIRY_HOURS: 24, // Auto-delete after 24 hours
+    lastVisitedPage: null,
+
+    loadChatHistory() {
+        try {
+            const stored = localStorage.getItem(this.HISTORY_STORAGE_KEY);
+            if (!stored) return false;
+
+            const data = JSON.parse(stored);
+
+            // Check if expired (24 hours)
+            const expiry = data.timestamp + (this.HISTORY_EXPIRY_HOURS * 60 * 60 * 1000);
+            if (Date.now() > expiry) {
+                console.log('[Chatbot] History expired, clearing...');
+                this.clearChatHistory();
+                return false;
+            }
+
+            // Restore messages
+            this.messages = data.messages || [];
+            this.lastVisitedPage = data.lastPage || null;
+
+            // Render saved messages
+            this.messages.forEach(msg => this.renderMessage(msg, false));
+            this.scrollToBottom();
+
+            console.log(`[Chatbot] Restored ${this.messages.length} messages from history`);
+            return true;
+        } catch (error) {
+            console.warn('[Chatbot] Failed to load history:', error);
+            return false;
+        }
     },
 
-    addMessage(type, content) {
-        const message = { type, content, time: new Date() };
+    saveChatHistory() {
+        try {
+            // Limit to last N messages
+            const messagesToSave = this.messages.slice(-this.HISTORY_MAX_MESSAGES);
+
+            const data = {
+                messages: messagesToSave,
+                lastPage: this.currentPage,
+                timestamp: Date.now()
+            };
+
+            localStorage.setItem(this.HISTORY_STORAGE_KEY, JSON.stringify(data));
+        } catch (error) {
+            console.warn('[Chatbot] Failed to save history:', error);
+        }
+    },
+
+    clearChatHistory() {
+        localStorage.removeItem(this.HISTORY_STORAGE_KEY);
+        this.messages = [];
+        if (this.elements.messagesContainer) {
+            this.elements.messagesContainer.innerHTML = '';
+        }
+    },
+
+    // ============================================
+    // WELCOME & PAGE INTRO MESSAGES
+    // ============================================
+
+    addWelcomeMessage() {
+        // Try to load existing chat history
+        const historyLoaded = this.loadChatHistory();
+
+        if (!historyLoaded) {
+            // No history - show welcome message
+            const t = this.i18n[this.lang];
+            this.addMessage('bot', t.welcome, false); // Don't save welcome to history
+        }
+
+        // Add page intro if entering a new page
+        this.addPageIntroMessage();
+    },
+
+    addPageIntroMessage() {
+        // Skip if same page as before
+        if (this.lastVisitedPage === this.currentPage) {
+            return;
+        }
+
+        // Get page context
+        if (!this.pageContext) {
+            return;
+        }
+
+        const ctx = this.pageContext;
+        const langKey = this.lang;
+        const pageName = ctx.name?.[langKey] || ctx.name?.en || this.currentPage;
+        const pageDesc = ctx.description?.[langKey] || ctx.description?.en || '';
+
+        // Build intro message
+        let introMsg = this.lang === 'ko'
+            ? `📍 **${pageName}** 페이지에 오셨습니다!\n\n${pageDesc}`
+            : `📍 You are now on the **${pageName}** page!\n\n${pageDesc}`;
+
+        // Add tips if available
+        if (ctx.tips && ctx.tips.length > 0) {
+            introMsg += this.lang === 'ko' ? '\n\n💡 **주요 기능:**\n' : '\n\n💡 **Key features:**\n';
+            ctx.tips.slice(0, 3).forEach((tip, i) => {
+                const tipText = tip[langKey] || tip.en || '';
+                introMsg += `${i + 1}. ${tipText}\n`;
+            });
+        }
+
+        // Add as system message (different styling)
+        this.addMessage('system', introMsg, true);
+
+        // Update last visited page
+        this.lastVisitedPage = this.currentPage;
+    },
+
+    addMessage(type, content, saveToHistory = true) {
+        const message = { type, content, time: new Date().toISOString() };
         this.messages.push(message);
         this.renderMessage(message);
         this.scrollToBottom();
+
+        // Save to localStorage (except for initial welcome)
+        if (saveToHistory) {
+            this.saveChatHistory();
+        }
     },
 
     renderMessage(message) {
@@ -493,7 +714,7 @@ ZYNK는 5단계 파이프라인으로 콘텐츠 마케팅을 자동화합니다:
     // Usage tracking (localStorage for demo)
     loadUsage() {
         const today = new Date().toDateString();
-        const stored = localStorage.getItem('zynk_chatbot_usage');
+        const stored = localStorage.getItem(this.USAGE_STORAGE_KEY);
 
         if (stored) {
             const data = JSON.parse(stored);
@@ -509,7 +730,7 @@ ZYNK는 5단계 파이프라인으로 콘텐츠 마케팅을 자동화합니다:
 
     saveUsage() {
         const today = new Date().toDateString();
-        localStorage.setItem('zynk_chatbot_usage', JSON.stringify({
+        localStorage.setItem(this.USAGE_STORAGE_KEY, JSON.stringify({
             date: today,
             count: this.usageCount
         }));
@@ -519,6 +740,324 @@ ZYNK는 5단계 파이프라인으로 콘텐츠 마케팅을 자동화합니다:
         if (this.elements.usageBadge) {
             this.elements.usageBadge.textContent = `${this.usageCount}/${this.DAILY_LIMIT}`;
         }
+    },
+
+    // ============================================
+    // DRAGGABLE FAB FEATURE
+    // ============================================
+
+    setupDraggableFAB() {
+        const fab = this.elements.fab;
+        if (!fab) return;
+
+        let offsetX = 0, offsetY = 0;
+        let startX = 0, startY = 0;
+        let hasMoved = false;
+
+        const onMouseDown = (e) => {
+            if (e.button !== 0) return; // Only left click
+            e.preventDefault();
+
+            this.isDragging = false;
+            hasMoved = false;
+            startX = e.clientX;
+            startY = e.clientY;
+
+            const rect = fab.getBoundingClientRect();
+            offsetX = e.clientX - rect.left;
+            offsetY = e.clientY - rect.top;
+
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        };
+
+        const onMouseMove = (e) => {
+            const dx = Math.abs(e.clientX - startX);
+            const dy = Math.abs(e.clientY - startY);
+
+            // Start dragging only after moving 5px
+            if (dx > 5 || dy > 5) {
+                this.isDragging = true;
+                hasMoved = true;
+            }
+
+            if (this.isDragging) {
+                let x = e.clientX - offsetX;
+                let y = e.clientY - offsetY;
+
+                // Keep within viewport
+                const fabRect = fab.getBoundingClientRect();
+                x = Math.max(0, Math.min(x, window.innerWidth - fabRect.width));
+                y = Math.max(0, Math.min(y, window.innerHeight - fabRect.height));
+
+                fab.style.left = x + 'px';
+                fab.style.top = y + 'px';
+                fab.style.right = 'auto';
+                fab.style.bottom = 'auto';
+            }
+        };
+
+        const onMouseUp = (e) => {
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+
+            if (hasMoved) {
+                this.saveFABPosition();
+            }
+
+            // Delay resetting isDragging to prevent click from firing
+            setTimeout(() => {
+                this.isDragging = false;
+            }, 50);
+        };
+
+        // Double-click to reset position
+        fab.addEventListener('dblclick', (e) => {
+            e.preventDefault();
+            this.resetFABPosition();
+        });
+
+        fab.addEventListener('mousedown', onMouseDown);
+
+        // Touch support for mobile
+        fab.addEventListener('touchstart', (e) => {
+            const touch = e.touches[0];
+            startX = touch.clientX;
+            startY = touch.clientY;
+
+            const rect = fab.getBoundingClientRect();
+            offsetX = touch.clientX - rect.left;
+            offsetY = touch.clientY - rect.top;
+            hasMoved = false;
+        }, { passive: true });
+
+        fab.addEventListener('touchmove', (e) => {
+            const touch = e.touches[0];
+            const dx = Math.abs(touch.clientX - startX);
+            const dy = Math.abs(touch.clientY - startY);
+
+            if (dx > 5 || dy > 5) {
+                this.isDragging = true;
+                hasMoved = true;
+            }
+
+            if (this.isDragging) {
+                let x = touch.clientX - offsetX;
+                let y = touch.clientY - offsetY;
+
+                const fabRect = fab.getBoundingClientRect();
+                x = Math.max(0, Math.min(x, window.innerWidth - fabRect.width));
+                y = Math.max(0, Math.min(y, window.innerHeight - fabRect.height));
+
+                fab.style.left = x + 'px';
+                fab.style.top = y + 'px';
+                fab.style.right = 'auto';
+                fab.style.bottom = 'auto';
+            }
+        }, { passive: true });
+
+        fab.addEventListener('touchend', () => {
+            if (hasMoved) {
+                this.saveFABPosition();
+            }
+            setTimeout(() => {
+                this.isDragging = false;
+            }, 50);
+        });
+
+        // Add drag cursor style
+        fab.style.cursor = 'grab';
+    },
+
+    saveFABPosition() {
+        const fab = this.elements.fab;
+        if (!fab) return;
+
+        const rect = fab.getBoundingClientRect();
+        localStorage.setItem(this.FAB_STORAGE_KEY, JSON.stringify({
+            x: rect.left,
+            y: rect.top
+        }));
+        console.log('[Chatbot] FAB position saved:', rect.left, rect.top);
+    },
+
+    restoreFABPosition() {
+        const fab = this.elements.fab;
+        if (!fab) return;
+
+        const stored = localStorage.getItem(this.FAB_STORAGE_KEY);
+        if (stored) {
+            const pos = JSON.parse(stored);
+
+            // Validate position is within viewport
+            const fabSize = 60; // Approximate FAB size
+            if (pos.x >= 0 && pos.x <= window.innerWidth - fabSize &&
+                pos.y >= 0 && pos.y <= window.innerHeight - fabSize) {
+                fab.style.left = pos.x + 'px';
+                fab.style.top = pos.y + 'px';
+                fab.style.right = 'auto';
+                fab.style.bottom = 'auto';
+                console.log('[Chatbot] FAB position restored:', pos.x, pos.y);
+            }
+        }
+    },
+
+    resetFABPosition() {
+        const fab = this.elements.fab;
+        if (!fab) return;
+
+        // Reset to default (bottom-right)
+        fab.style.left = 'auto';
+        fab.style.top = 'auto';
+        fab.style.right = '24px';
+        fab.style.bottom = '24px';
+
+        localStorage.removeItem(this.FAB_STORAGE_KEY);
+        console.log('[Chatbot] FAB position reset');
+    },
+
+    // ============================================
+    // VOICE FEATURES (STT & TTS)
+    // ============================================
+
+    setupVoice() {
+        // Check for Web Speech API support
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        if (SpeechRecognition && this.voiceInputEnabled) {
+            this.recognition = new SpeechRecognition();
+            this.recognition.lang = this.lang === 'ko' ? 'ko-KR' : 'en-US';
+            this.recognition.continuous = false;
+            this.recognition.interimResults = false;
+
+            this.recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                console.log('[Chatbot] Voice input:', transcript);
+
+                if (this.elements.input) {
+                    this.elements.input.value = transcript;
+                }
+                this.sendMessage();
+            };
+
+            this.recognition.onend = () => {
+                this.isListening = false;
+                this.updateVoiceButton();
+            };
+
+            this.recognition.onerror = (event) => {
+                console.error('[Chatbot] Speech recognition error:', event.error);
+                this.isListening = false;
+                this.updateVoiceButton();
+            };
+
+            // Add voice button to input area
+            this.addVoiceButton();
+        }
+
+        // Check for TTS support
+        if ('speechSynthesis' in window && this.voiceOutputEnabled) {
+            console.log('[Chatbot] TTS enabled');
+        }
+    },
+
+    addVoiceButton() {
+        const inputArea = document.querySelector('.chatbot-input-area');
+        if (!inputArea || document.getElementById('chatbot-voice-btn')) return;
+
+        const voiceBtn = document.createElement('button');
+        voiceBtn.id = 'chatbot-voice-btn';
+        voiceBtn.className = 'chatbot-voice-btn';
+        voiceBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                <line x1="12" x2="12" y1="19" y2="22"/>
+            </svg>
+        `;
+        voiceBtn.title = this.lang === 'ko' ? '음성으로 말하기' : 'Speak';
+        voiceBtn.addEventListener('click', () => this.toggleVoiceInput());
+
+        // Insert before send button
+        const sendBtn = this.elements.sendBtn;
+        if (sendBtn) {
+            sendBtn.parentNode.insertBefore(voiceBtn, sendBtn);
+        }
+
+        this.elements.voiceBtn = voiceBtn;
+    },
+
+    toggleVoiceInput() {
+        if (!this.recognition) {
+            alert(this.i18n[this.lang].voiceNotSupported);
+            return;
+        }
+
+        if (this.isListening) {
+            this.recognition.stop();
+            this.isListening = false;
+        } else {
+            this.recognition.start();
+            this.isListening = true;
+
+            // Show listening indicator
+            if (this.elements.input) {
+                this.elements.input.placeholder = this.i18n[this.lang].listening;
+            }
+        }
+
+        this.updateVoiceButton();
+    },
+
+    updateVoiceButton() {
+        const btn = this.elements.voiceBtn;
+        if (!btn) return;
+
+        if (this.isListening) {
+            btn.classList.add('listening');
+            btn.style.background = '#ef4444';
+        } else {
+            btn.classList.remove('listening');
+            btn.style.background = '';
+
+            // Restore placeholder
+            if (this.elements.input) {
+                this.elements.input.placeholder = this.i18n[this.lang].placeholder;
+            }
+        }
+    },
+
+    speakText(text) {
+        if (!this.voiceOutputEnabled || !('speechSynthesis' in window)) return;
+
+        // Cancel any ongoing speech
+        speechSynthesis.cancel();
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = this.lang === 'ko' ? 'ko-KR' : 'en-US';
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+
+        speechSynthesis.speak(utterance);
+    },
+
+    // Add speaker button to bot messages
+    addSpeakerButton(messageEl, text) {
+        if (!this.voiceOutputEnabled) return;
+
+        const speakerBtn = document.createElement('button');
+        speakerBtn.className = 'chatbot-speaker-btn';
+        speakerBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+            </svg>
+        `;
+        speakerBtn.title = this.lang === 'ko' ? '읽어주기' : 'Read aloud';
+        speakerBtn.addEventListener('click', () => this.speakText(text));
+
+        messageEl.appendChild(speakerBtn);
     }
 };
 

@@ -276,6 +276,25 @@
     box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
 }
 
+/* System/Intro Messages */
+.chatbot-message.system {
+    justify-content: center;
+}
+
+.chatbot-message.system .chatbot-message-content {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(99, 102, 241, 0.1) 100%);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: #94a3b8;
+    border-radius: 12px;
+    font-size: 13px;
+    text-align: left;
+    max-width: 90%;
+}
+
+.chatbot-message.system .chatbot-message-content strong {
+    color: #10b981;
+}
+
 /* Typing Indicator */
 .chatbot-typing {
     display: flex;
@@ -393,4 +412,115 @@
         right: 16px;
         bottom: 16px;
     }
+}
+
+/* ============================================
+   Voice Button Styles
+   ============================================ */
+.chatbot-voice-btn {
+    width: 48px;
+    height: 48px;
+    background: rgba(99, 102, 241, 0.2);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #a5b4fc;
+    transition: all 0.2s;
+}
+
+.chatbot-voice-btn:hover {
+    background: rgba(99, 102, 241, 0.3);
+    color: #c7d2fe;
+    transform: scale(1.05);
+}
+
+.chatbot-voice-btn.listening {
+    background: #ef4444 !important;
+    color: white;
+    animation: pulse-mic 1s infinite;
+}
+
+@keyframes pulse-mic {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.1);
+    }
+}
+
+/* Speaker Button on Bot Messages */
+.chatbot-speaker-btn {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    background: rgba(99, 102, 241, 0.2);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #a5b4fc;
+    opacity: 0;
+    transition: all 0.2s;
+}
+
+.chatbot-message.bot {
+    position: relative;
+}
+
+.chatbot-message.bot:hover .chatbot-speaker-btn {
+    opacity: 1;
+}
+
+.chatbot-speaker-btn:hover {
+    background: rgba(99, 102, 241, 0.4);
+    color: white;
+}
+
+/* ============================================
+   Draggable FAB Styles
+   ============================================ */
+.chatbot-fab {
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+}
+
+.chatbot-fab:active {
+    cursor: grabbing;
+}
+
+.chatbot-fab.dragging {
+    opacity: 0.8;
+    transform: scale(1.1);
+}
+
+/* FAB Tooltip (double-click hint) */
+.chatbot-fab::after {
+    content: 'Drag to move • Double-click to reset';
+    position: absolute;
+    bottom: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.5);
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+}
+
+.chatbot-fab:hover::after {
+    opacity: 1;
 }

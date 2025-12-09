@@ -1258,6 +1258,49 @@
                         document.getElementById('agent-settings-modal').style.display = 'none';
                     };
                 </script>
+
+                <!-- ZYNK AI Chatbot -->
+                <link rel="stylesheet" href="chatbot.css">
+                <button id="chatbot-fab" class="chatbot-fab" aria-label="Open ZYNK Assistant">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 8V4H8"></path>
+                        <rect width="16" height="12" x="4" y="8" rx="2"></rect>
+                        <path d="M2 14h2"></path>
+                        <path d="M20 14h2"></path>
+                        <path d="M15 13v2"></path>
+                        <path d="M9 13v2"></path>
+                    </svg>
+                </button>
+                <div id="chatbot-panel" class="chatbot-panel">
+                    <div class="chatbot-header">
+                        <div class="chatbot-header-icon">🤖</div>
+                        <div class="chatbot-header-info">
+                            <p class="chatbot-header-title">ZYNK Assistant</p>
+                            <small class="chatbot-header-subtitle">AI 헬프데스크</small>
+                        </div>
+                        <span id="chatbot-usage" class="chatbot-usage-badge">0/50</span>
+                        <button id="chatbot-close" class="chatbot-close-btn" aria-label="Close">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 6 6 18"></path>
+                                <path d="m6 6 12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="chatbot-messages" class="chatbot-messages"></div>
+                    <div class="chatbot-input-area">
+                        <input type="text" id="chatbot-input" class="chatbot-input" placeholder="ZYNK에 대해 물어보세요..." />
+                        <button id="chatbot-send" class="chatbot-send-btn" aria-label="Send">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="m22 2-7 20-4-9-9-4Z"></path>
+                                <path d="M22 2 11 13"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <script src="chatbot-v2.js"></script>
 </body>
 
 </html>
