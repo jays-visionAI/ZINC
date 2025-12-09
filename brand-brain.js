@@ -159,14 +159,18 @@ async function loadUserProjects(userId) {
         projectSelect.classList.add('selection-highlight');
 
         // Load projects from the main projects collection
+        // Filter client-side to handle projects without isDraft field
         const snapshot = await db.collection('projects')
             .where('userId', '==', userId)
-            .where('isDraft', '==', false)
             .get();
 
         allProjects = [];
         snapshot.forEach(doc => {
-            allProjects.push({ id: doc.id, ...doc.data() });
+            const data = doc.data();
+            // Only include non-draft projects (isDraft is false or undefined)
+            if (data.isDraft !== true) {
+                allProjects.push({ id: doc.id, ...data });
+            }
         });
 
         // Sort by createdAt

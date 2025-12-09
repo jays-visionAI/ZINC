@@ -256,6 +256,7 @@ async function loadUserProjects() {
         const snapshot = await firebase.firestore()
             .collection('projects')
             .where('userId', '==', currentUser.uid)
+            .where('isDraft', '==', false)
             .get();
 
         const projects = [];
