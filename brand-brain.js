@@ -1108,82 +1108,7 @@ function switchKBTab(tabName) {
 /**
  * Calculate health score
  */
-function calculateHealthScore() {
-    let score = 0;
-    const breakdown = {
-        identity: 0,
-        knowledge: 0,
-        strategy: 0,
-        update: 0,
-        feedback: 0
-    };
 
-    const ci = brandBrainData?.coreIdentity || {};
-    const st = brandBrainData?.strategy || {};
-
-    // Identity (25 points)
-    if (ci.projectName) breakdown.identity += 5;
-    if (ci.description) breakdown.identity += 5;
-    if (ci.website) breakdown.identity += 5;
-    if (ci.industry) breakdown.identity += 5;
-    if (ci.targetAudience) breakdown.identity += 5;
-
-    // Knowledge (25 points) - placeholder for now
-    breakdown.knowledge = 15; // Base points
-
-    // Strategy (25 points)
-    if (st.brandVoice?.personality?.length > 0) breakdown.strategy += 8;
-    if (st.brandVoice?.writingStyle) breakdown.strategy += 4;
-    if (st.currentFocus?.topic) breakdown.strategy += 5;
-    if (st.currentFocus?.keywords?.length > 0) breakdown.strategy += 4;
-    if (st.brandVoice?.dos?.length > 0) breakdown.strategy += 2;
-    if (st.brandVoice?.donts?.length > 0) breakdown.strategy += 2;
-
-    // Update (25 points) - based on last update
-    const lastUpdate = brandBrainData?.updatedAt;
-    if (lastUpdate) {
-        const daysSinceUpdate = (Date.now() - (lastUpdate.toDate ? lastUpdate.toDate() : new Date(lastUpdate)).getTime()) / (1000 * 60 * 60 * 24);
-        if (daysSinceUpdate < 1) breakdown.update = 10;
-        else if (daysSinceUpdate < 7) breakdown.update = 7;
-        else if (daysSinceUpdate < 30) breakdown.update = 4;
-        else breakdown.update = 0;
-    }
-
-    // Feedback (25 points) - placeholder
-    breakdown.feedback = 8;
-
-    // Calculate total
-    score = breakdown.identity + breakdown.knowledge + breakdown.strategy + breakdown.update + breakdown.feedback;
-
-    // Update UI
-    document.getElementById('health-score-value').textContent = score;
-    document.getElementById('health-bar').style.width = `${score}%`;
-
-    document.getElementById('score-identity').textContent = `${breakdown.identity}/25`;
-    document.getElementById('score-knowledge').textContent = `${breakdown.knowledge}/25`;
-    document.getElementById('score-strategy').textContent = `${breakdown.strategy}/25`;
-    document.getElementById('score-update').textContent = `${breakdown.update}/25`;
-    document.getElementById('score-feedback').textContent = `${breakdown.feedback}/25`;
-
-    // Status label
-    const statusLabel = document.getElementById('health-status-label');
-    if (score >= 80) {
-        statusLabel.textContent = 'Excellent';
-        statusLabel.parentElement.style.background = 'rgba(22, 224, 189, 0.15)';
-        statusLabel.parentElement.style.borderColor = 'rgba(22, 224, 189, 0.3)';
-        statusLabel.style.color = '#16E0BD';
-    } else if (score >= 60) {
-        statusLabel.textContent = 'Good';
-        statusLabel.parentElement.style.background = 'rgba(59, 130, 246, 0.15)';
-        statusLabel.parentElement.style.borderColor = 'rgba(59, 130, 246, 0.3)';
-        statusLabel.style.color = '#3B82F6';
-    } else {
-        statusLabel.textContent = 'Needs Attention';
-        statusLabel.parentElement.style.background = 'rgba(251, 191, 36, 0.15)';
-        statusLabel.parentElement.style.borderColor = 'rgba(251, 191, 36, 0.3)';
-        statusLabel.style.color = '#FBBF24';
-    }
-}
 /**
  * Sync with Hive Mind - Push Brand Brain data to all Agent Teams
  * Phase 1 Implementation: Manual sync to all teams under current project
@@ -1437,6 +1362,51 @@ function formatRelativeTime(date) {
     if (minutes < 60) return `${minutes} min ago`;
     if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
     return `${days} day${days > 1 ? 's' : ''} ago`;
+}
+
+/**
+ * Calculate Brand Health Score (Real-time)
+ */
+function calculateHealthScore() {
+    try {
+        if (!brandBrainData) return;
+
+        let score = 0;
+        let checks = {
+            identity: 0,
+            strategy: 0,
+            knowledge: 0, // Will be updated by knowledge sources check
+            consistency: 0
+        };
+
+        // 1. Core Identity (30%)
+        if (brandBrainData.coreIdentity) {
+            if (brandBrainData.coreIdentity.projectName) checks.identity += 10;
+            if (brandBrainData.coreIdentity.description) checks.identity += 10;
+            if (brandBrainData.coreIdentity.targetAudience) checks.identity += 10;
+        }
+
+        // 2. Strategy (30%)
+        if (brandBrainData.strategy) {
+            if (brandBrainData.strategy.brandVoice?.writingStyle) checks.strategy += 10;
+            if (brandBrainData.strategy.currentFocus?.topic) checks.strategy += 10;
+            if (brandBrainData.strategy.brandVoice?.dos?.length > 0) checks.strategy += 10;
+        }
+
+        // 3. Knowledge Source (20%) - Placeholder
+        // 4. Consistency (20%) - Placeholder
+        if (brandBrainData.healthScore?.score > 80) checks.consistency = 20;
+        else checks.consistency = 10;
+
+        // Calculate Total
+        score = checks.identity + checks.strategy + checks.consistency; // + checks.knowledge
+
+        // Update UI
+        updateHealthScoreUI(score, checks);
+
+    } catch (error) {
+        console.error('Error calculating health score:', error);
+    }
 }
 
 /**
