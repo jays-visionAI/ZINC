@@ -9,6 +9,7 @@ let currentSourceProjectId = null; // The original project from Command Center
 let currentAgentTeamId = null; // The selected Agent Team
 let brandBrainData = null;
 let allProjects = []; // List of all user projects
+let availableIndustries = []; // List of industries from Firestore
 let saveTimeout = null;
 
 // DOM Ready
@@ -20,6 +21,9 @@ document.addEventListener('DOMContentLoaded', () => {
  * Initialize Brand Brain
  */
 async function initializeBrandBrain() {
+    // Load industries first (doesn't require auth)
+    await loadIndustries();
+
     // Wait for auth
     firebase.auth().onAuthStateChanged(async (user) => {
         if (user) {
@@ -27,6 +31,61 @@ async function initializeBrandBrain() {
             initializeEventListeners();
         }
     });
+}
+
+/**
+ * Load industries from Firestore (same as Command Center)
+ */
+async function loadIndustries() {
+    try {
+        const db = firebase.firestore();
+        const snapshot = await db.collection('industries')
+            .where('isActive', '==', true)
+            .get();
+
+        availableIndustries = [];
+        snapshot.forEach(doc => {
+            availableIndustries.push({ id: doc.id, ...doc.data() });
+        });
+
+        // Client-side sort by order
+        availableIndustries.sort((a, b) => (a.order || 0) - (b.order || 0));
+
+        populateIndustryDropdown();
+    } catch (error) {
+        console.error('Error loading industries:', error);
+        // Fall back to static options if Firestore fails
+    }
+}
+
+/**
+ * Populate industry dropdown with Firestore data
+ */
+function populateIndustryDropdown() {
+    const select = document.getElementById('industry');
+    if (!select) return;
+
+    const currentLang = localStorage.getItem('language') || 'en';
+    const currentValue = select.value; // Preserve current selection
+
+    if (availableIndustries.length === 0) {
+        // Keep static options as fallback
+        return;
+    }
+
+    select.innerHTML = '<option value="">Select...</option>';
+
+    availableIndustries.forEach(ind => {
+        const option = document.createElement('option');
+        option.value = ind.key;
+        option.textContent = currentLang === 'ko' && ind.labelKo ? ind.labelKo : ind.labelEn;
+        select.appendChild(option);
+    });
+
+    // Restore previous selection if it exists
+    if (currentValue) {
+        select.value = currentValue;
+    }
 }
 
 /**
@@ -313,7 +372,22 @@ function populateUI(data) {
     document.getElementById('project-name').value = ci.projectName || '';
     document.getElementById('mission').value = ci.description || '';
     document.getElementById('website-url').value = ci.website || '';
-    document.getElementById('industry').value = ci.industry || '';
+
+    // Industry - ensure the option exists before setting
+    const industrySelect = document.getElementById('industry');
+    if (ci.industry && industrySelect) {
+        // Check if option exists
+        const optionExists = Array.from(industrySelect.options).some(opt => opt.value === ci.industry);
+        if (!optionExists && ci.industry) {
+            // Add the option if it doesn't exist (for legacy data)
+            const newOption = document.createElement('option');
+            newOption.value = ci.industry;
+            newOption.textContent = ci.industry; // Use key as label if not in Firestore
+            industrySelect.appendChild(newOption);
+        }
+        industrySelect.value = ci.industry;
+    }
+
     document.getElementById('target').value = ci.targetAudience || '';
 
     // Website Analysis Status
@@ -464,6 +538,28 @@ function initializeEventListeners() {
 
     // Sync Button
     document.getElementById('btn-sync').addEventListener('click', syncWithHiveMind);
+
+    // Schedule Settings Button
+    document.getElementById('btn-sync-schedule')?.addEventListener('click', openScheduleModal);
+    document.getElementById('btn-close-schedule-modal')?.addEventListener('click', closeScheduleModal);
+    document.getElementById('btn-cancel-schedule')?.addEventListener('click', closeScheduleModal);
+    document.getElementById('btn-save-schedule')?.addEventListener('click', saveScheduleSettings);
+
+    // Toggle schedule settings visibility based on enabled state
+    document.getElementById('auto-sync-enabled')?.addEventListener('change', (e) => {
+        const container = document.getElementById('schedule-settings-container');
+        if (container) {
+            container.style.opacity = e.target.checked ? '1' : '0.5';
+            container.style.pointerEvents = e.target.checked ? 'auto' : 'none';
+        }
+    });
+
+    // Close modal on backdrop click
+    document.getElementById('sync-schedule-modal')?.addEventListener('click', (e) => {
+        if (e.target.id === 'sync-schedule-modal') {
+            closeScheduleModal();
+        }
+    });
 
     // Save Identity Button
     document.getElementById('btn-save-identity').addEventListener('click', () => {
@@ -728,45 +824,116 @@ function calculateHealthScore() {
         statusLabel.style.color = '#FBBF24';
     }
 }
-
 /**
- * Sync with Hive Mind
+ * Sync with Hive Mind - Push Brand Brain data to all Agent Teams
+ * Phase 1 Implementation: Manual sync to all teams under current project
  */
 async function syncWithHiveMind() {
     const btn = document.getElementById('btn-sync');
-    btn.textContent = 'Syncing...';
+    const originalHTML = btn.innerHTML;
+
+    btn.innerHTML = `
+        <svg class="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
+            <path d="M12 2a10 10 0 0 1 10 10" stroke-opacity="1"></path>
+        </svg>
+        Syncing...
+    `;
     btn.disabled = true;
 
     try {
-        // Simulate sync delay
-        await new Promise(resolve => setTimeout(resolve, 1500));
-
         const user = firebase.auth().currentUser;
-        if (!user || !currentProjectId) return;
+        if (!user) {
+            throw new Error('User not authenticated');
+        }
+
+        if (!currentSourceProjectId) {
+            throw new Error('No project selected');
+        }
+
+        if (!brandBrainData) {
+            throw new Error('Brand Brain data not loaded');
+        }
 
         const db = firebase.firestore();
-        const projectRef = db.collection('brandBrain').doc(user.uid).collection('projects').doc(currentProjectId);
 
-        await projectRef.update({
-            'syncStatus.lastSynced': firebase.firestore.FieldValue.serverTimestamp(),
-            'syncStatus.pendingChanges': 0,
-            'syncStatus.pendingItems': []
+        // 1. Collect Brand Brain data for sync
+        console.log('[BrandBrain Sync] Collecting brand context data...');
+        const brandContext = buildBrandContext(brandBrainData);
+        console.log('[BrandBrain Sync] Brand context:', brandContext);
+
+        // 2. Find all Agent Teams under this project
+        console.log('[BrandBrain Sync] Finding Agent Teams for project:', currentSourceProjectId);
+
+        // Try projectAgentTeamInstances first
+        let teamsSnapshot = await db.collection('projectAgentTeamInstances')
+            .where('projectId', '==', currentSourceProjectId)
+            .get();
+
+        // Fallback to agentTeams collection
+        if (teamsSnapshot.empty) {
+            console.log('[BrandBrain Sync] No team instances, trying agentTeams...');
+            teamsSnapshot = await db.collection('agentTeams')
+                .where('projectId', '==', currentSourceProjectId)
+                .get();
+        }
+
+        if (teamsSnapshot.empty) {
+            showNotification('⚠️ No Agent Teams found for this project. Create an Agent Team first.', 'warning');
+            return;
+        }
+
+        // 3. Batch update all Agent Teams with brandContext
+        console.log(`[BrandBrain Sync] Syncing to ${teamsSnapshot.size} Agent Team(s)...`);
+
+        const batch = db.batch();
+        const syncTimestamp = firebase.firestore.FieldValue.serverTimestamp();
+        const syncVersion = (brandBrainData.syncStatus?.syncVersion || 0) + 1;
+
+        teamsSnapshot.forEach(doc => {
+            const teamRef = doc.ref;
+            batch.update(teamRef, {
+                brandContext: {
+                    syncedAt: syncTimestamp,
+                    syncVersion: syncVersion,
+                    syncedBy: user.uid,
+                    data: brandContext
+                }
+            });
         });
 
+        await batch.commit();
+        console.log('[BrandBrain Sync] Batch update complete');
+
+        // 4. Update Brand Brain sync status
+        const brandBrainRef = db.collection('brandBrain').doc(user.uid).collection('projects').doc(currentSourceProjectId);
+        await brandBrainRef.update({
+            'syncStatus.lastSynced': syncTimestamp,
+            'syncStatus.syncVersion': syncVersion,
+            'syncStatus.pendingChanges': 0,
+            'syncStatus.pendingItems': [],
+            'syncStatus.lastSyncedTeamCount': teamsSnapshot.size
+        });
+
+        // 5. Update local state
         brandBrainData.syncStatus = {
+            ...brandBrainData.syncStatus,
             lastSynced: new Date(),
+            syncVersion: syncVersion,
             pendingChanges: 0,
-            pendingItems: []
+            pendingItems: [],
+            lastSyncedTeamCount: teamsSnapshot.size
         };
 
+        // 6. Update UI
         document.getElementById('updates-count').textContent = 'All Synced';
         document.getElementById('last-sync').textContent = 'Last Synced: Just now';
 
-        showNotification('Successfully synced with Hive Mind! 🐝');
+        showNotification(`✅ ${teamsSnapshot.size} Agent Team(s)에 브랜드 정보가 동기화되었습니다!`);
 
     } catch (error) {
-        console.error('Sync error:', error);
-        showNotification('Sync failed. Please try again.', 'error');
+        console.error('[BrandBrain Sync] Error:', error);
+        showNotification(`❌ Sync failed: ${error.message}`, 'error');
     } finally {
         btn.innerHTML = `
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -779,6 +946,42 @@ async function syncWithHiveMind() {
         `;
         btn.disabled = false;
     }
+}
+
+/**
+ * Build brand context object from Brand Brain data
+ * This is the data structure that will be injected into Agent System Prompts
+ */
+function buildBrandContext(data) {
+    const ci = data.coreIdentity || {};
+    const st = data.strategy || {};
+    const bv = st.brandVoice || {};
+    const cf = st.currentFocus || {};
+
+    return {
+        // Core Identity
+        brandName: ci.projectName || '',
+        mission: ci.description || '',
+        industry: ci.industry || '',
+        targetAudience: ci.targetAudience || '',
+        website: ci.website || '',
+
+        // Brand Voice
+        voiceTone: bv.personality || [],
+        writingStyle: bv.writingStyle || '',
+        toneIntensity: st.toneIntensity || 0.5,
+
+        // Content Rules
+        dos: bv.dos || [],
+        donts: bv.donts || [],
+
+        // Focus
+        currentFocus: cf.topic || '',
+        keywords: cf.keywords || [],
+
+        // Platform Priority
+        platformPriority: st.platformPriority || []
+    };
 }
 
 /**
@@ -900,3 +1103,216 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+/**
+ * ============================================================
+ * AUTO-SYNC SCHEDULE MODAL FUNCTIONS
+ * ============================================================
+ */
+
+// Common timezones with UTC offset
+const TIMEZONES = [
+    { value: 'Pacific/Honolulu', label: 'Honolulu', offset: -10 },
+    { value: 'America/Los_Angeles', label: 'Los Angeles', offset: -8 },
+    { value: 'America/Denver', label: 'Denver', offset: -7 },
+    { value: 'America/Chicago', label: 'Chicago', offset: -6 },
+    { value: 'America/New_York', label: 'New York', offset: -5 },
+    { value: 'America/Sao_Paulo', label: 'São Paulo', offset: -3 },
+    { value: 'Europe/London', label: 'London', offset: 0 },
+    { value: 'Europe/Paris', label: 'Paris', offset: 1 },
+    { value: 'Europe/Berlin', label: 'Berlin', offset: 1 },
+    { value: 'Europe/Moscow', label: 'Moscow', offset: 3 },
+    { value: 'Asia/Dubai', label: 'Dubai', offset: 4 },
+    { value: 'Asia/Kolkata', label: 'Mumbai', offset: 5.5 },
+    { value: 'Asia/Bangkok', label: 'Bangkok', offset: 7 },
+    { value: 'Asia/Singapore', label: 'Singapore', offset: 8 },
+    { value: 'Asia/Shanghai', label: 'Shanghai', offset: 8 },
+    { value: 'Asia/Hong_Kong', label: 'Hong Kong', offset: 8 },
+    { value: 'Asia/Seoul', label: 'Seoul', offset: 9 },
+    { value: 'Asia/Tokyo', label: 'Tokyo', offset: 9 },
+    { value: 'Australia/Sydney', label: 'Sydney', offset: 11 },
+    { value: 'Pacific/Auckland', label: 'Auckland', offset: 13 }
+];
+
+/**
+ * Open schedule settings modal
+ */
+function openScheduleModal() {
+    const modal = document.getElementById('sync-schedule-modal');
+    if (!modal) return;
+
+    // Initialize timezone dropdown
+    initializeTimezoneDropdown();
+
+    // Load current settings
+    loadScheduleSettings();
+
+    // Show modal
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+/**
+ * Close schedule settings modal
+ */
+function closeScheduleModal() {
+    const modal = document.getElementById('sync-schedule-modal');
+    if (!modal) return;
+
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
+/**
+ * Initialize timezone dropdown with user's timezone selected
+ */
+function initializeTimezoneDropdown() {
+    const tzSelect = document.getElementById('auto-sync-timezone');
+    if (!tzSelect || tzSelect.options.length > 1) return; // Already initialized
+
+    // Get user's current timezone
+    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+    // Sort by offset
+    const sortedTimezones = [...TIMEZONES].sort((a, b) => a.offset - b.offset);
+
+    // Check if user's timezone is in the list
+    let userTzInList = sortedTimezones.some(tz => tz.value === userTimezone);
+
+    // If not in list, add it
+    if (!userTzInList) {
+        const offset = new Date().getTimezoneOffset() / -60;
+        const offsetStr = offset >= 0 ? `+${offset}` : `${offset}`;
+        sortedTimezones.unshift({
+            value: userTimezone,
+            label: `${userTimezone.split('/').pop().replace('_', ' ')} ★`,
+            offset: offset
+        });
+    }
+
+    // Populate dropdown
+    tzSelect.innerHTML = '';
+    sortedTimezones.forEach(tz => {
+        const option = document.createElement('option');
+        option.value = tz.value;
+        const offsetStr = tz.offset >= 0 ? `+${tz.offset}` : `${tz.offset}`;
+        option.textContent = `${tz.label} (UTC${offsetStr})`;
+
+        if (tz.value === userTimezone) {
+            option.selected = true;
+        }
+
+        tzSelect.appendChild(option);
+    });
+}
+
+/**
+ * Load current schedule settings from Brand Brain data
+ */
+function loadScheduleSettings() {
+    if (!brandBrainData) return;
+
+    const syncStatus = brandBrainData.syncStatus || {};
+
+    // Set enabled state
+    const enabledCheckbox = document.getElementById('auto-sync-enabled');
+    if (enabledCheckbox) {
+        enabledCheckbox.checked = syncStatus.autoSyncEnabled !== false; // Default to true
+
+        // Update settings container opacity
+        const container = document.getElementById('schedule-settings-container');
+        if (container) {
+            container.style.opacity = enabledCheckbox.checked ? '1' : '0.5';
+            container.style.pointerEvents = enabledCheckbox.checked ? 'auto' : 'none';
+        }
+    }
+
+    // Set time
+    const timeInput = document.getElementById('auto-sync-time');
+    if (timeInput && syncStatus.autoSyncTime) {
+        timeInput.value = syncStatus.autoSyncTime;
+    }
+
+    // Set timezone
+    const tzSelect = document.getElementById('auto-sync-timezone');
+    if (tzSelect && syncStatus.autoSyncTimezone) {
+        tzSelect.value = syncStatus.autoSyncTimezone;
+    }
+
+    // Update status text
+    updateAutoSyncStatusText(syncStatus);
+}
+
+/**
+ * Save schedule settings to Firestore
+ */
+async function saveScheduleSettings() {
+    const user = firebase.auth().currentUser;
+    if (!user || !currentSourceProjectId) {
+        showNotification('❌ Please select a project first', 'error');
+        return;
+    }
+
+    const enabled = document.getElementById('auto-sync-enabled')?.checked ?? true;
+    const syncTime = document.getElementById('auto-sync-time')?.value || '09:00';
+    const timezone = document.getElementById('auto-sync-timezone')?.value || 'UTC';
+
+    const db = firebase.firestore();
+    const brandBrainRef = db.collection('brandBrain').doc(user.uid).collection('projects').doc(currentSourceProjectId);
+
+    try {
+        const scheduleSettings = {
+            'syncStatus.autoSyncEnabled': enabled,
+            'syncStatus.autoSyncTime': syncTime,
+            'syncStatus.autoSyncTimezone': timezone,
+            'syncStatus.autoSyncUpdatedAt': firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        await brandBrainRef.update(scheduleSettings);
+
+        // Update local data
+        if (!brandBrainData.syncStatus) brandBrainData.syncStatus = {};
+        brandBrainData.syncStatus.autoSyncEnabled = enabled;
+        brandBrainData.syncStatus.autoSyncTime = syncTime;
+        brandBrainData.syncStatus.autoSyncTimezone = timezone;
+
+        // Update status text
+        updateAutoSyncStatusText(brandBrainData.syncStatus);
+
+        closeScheduleModal();
+
+        if (enabled) {
+            const tzShort = timezone.split('/').pop().replace('_', ' ');
+            showNotification(`✅ Auto-sync scheduled: ${syncTime} (${tzShort})`);
+        } else {
+            showNotification('ℹ️ Auto-sync disabled');
+        }
+
+    } catch (error) {
+        console.error('[BrandBrain] Error saving schedule:', error);
+        showNotification('❌ Failed to save schedule settings', 'error');
+    }
+}
+
+/**
+ * Update the auto-sync status text in the UI
+ */
+function updateAutoSyncStatusText(syncStatus) {
+    const statusEl = document.getElementById('auto-sync-status');
+    if (!statusEl) return;
+
+    if (syncStatus?.autoSyncEnabled === false) {
+        statusEl.textContent = 'Auto-sync disabled';
+        statusEl.classList.add('text-slate-500');
+        statusEl.classList.remove('text-indigo-200/60');
+    } else if (syncStatus?.autoSyncTime && syncStatus?.autoSyncTimezone) {
+        const tzShort = syncStatus.autoSyncTimezone.split('/').pop().replace('_', ' ');
+        statusEl.textContent = `Auto-sync: ${syncStatus.autoSyncTime} (${tzShort})`;
+        statusEl.classList.remove('text-slate-500');
+        statusEl.classList.add('text-indigo-200/60');
+    } else {
+        statusEl.textContent = 'Ready to sync with Hive Mind';
+        statusEl.classList.remove('text-slate-500');
+        statusEl.classList.add('text-indigo-200/60');
+    }
+}

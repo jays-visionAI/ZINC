@@ -30,6 +30,13 @@
                     },
                     animation: {
                         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'spin': 'spin 1s linear infinite',
+                    },
+                    keyframes: {
+                        spin: {
+                            from: { transform: 'rotate(0deg)' },
+                            to: { transform: 'rotate(360deg)' },
+                        }
                     }
                 },
             },
@@ -374,12 +381,25 @@
 
                     <div class="relative z-10 flex flex-col justify-between h-full">
                         <div>
-                            <h3 class="text-indigo-300 text-sm font-semibold uppercase tracking-wider mb-2">Sync Status
-                            </h3>
+                            <div class="flex items-center justify-between mb-2">
+                                <h3 class="text-indigo-300 text-sm font-semibold uppercase tracking-wider">Sync Status
+                                </h3>
+                                <!-- Schedule Settings Button -->
+                                <button id="btn-sync-schedule" title="Auto-sync settings"
+                                    class="p-1.5 rounded-lg bg-slate-800/50 hover:bg-indigo-600/50 text-indigo-300 hover:text-white transition-all">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round">
+                                        <circle cx="12" cy="12" r="10"></circle>
+                                        <polyline points="12 6 12 12 16 14"></polyline>
+                                    </svg>
+                                </button>
+                            </div>
 
                             <div id="sync-status-display" class="mb-4">
                                 <span id="updates-count" class="text-2xl font-bold text-white block">All Synced</span>
-                                <span class="text-sm text-indigo-200/60">Ready to sync with Hive Mind</span>
+                                <span id="auto-sync-status" class="text-sm text-indigo-200/60">Ready to sync with Hive
+                                    Mind</span>
                             </div>
                         </div>
 
@@ -791,6 +811,110 @@
 
         </div>
     </main>
+
+    <!-- Auto-Sync Schedule Modal -->
+    <div id="sync-schedule-modal"
+        class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md mx-4 shadow-2xl">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between p-4 border-b border-slate-700">
+                <h3 class="text-lg font-semibold text-white flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" class="text-indigo-400">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    Auto-Sync Schedule
+                </h3>
+                <button id="btn-close-schedule-modal"
+                    class="p-1 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <path d="M18 6 6 18"></path>
+                        <path d="m6 6 12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-6 space-y-5">
+                <!-- Enable/Disable Toggle -->
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-slate-300">Enable Auto-Sync</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="auto-sync-enabled" class="sr-only peer" checked>
+                        <div
+                            class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600">
+                        </div>
+                    </label>
+                </div>
+
+                <!-- Schedule Settings (visible when enabled) -->
+                <div id="schedule-settings-container" class="space-y-4">
+                    <!-- Sync Time -->
+                    <div class="space-y-2">
+                        <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Sync Time
+                            (Daily)</label>
+                        <div class="relative">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2"
+                                class="absolute left-3 top-3 text-slate-500">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                            <input type="time" id="auto-sync-time" value="09:00"
+                                class="w-full bg-slate-800 border border-slate-600 rounded-lg pl-10 pr-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 transition-colors">
+                        </div>
+                    </div>
+
+                    <!-- Timezone -->
+                    <div class="space-y-2">
+                        <label
+                            class="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1">
+                            <span>🌍</span> Timezone
+                        </label>
+                        <select id="auto-sync-timezone"
+                            class="w-full bg-slate-800 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 transition-colors">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+
+                    <!-- Info Box -->
+                    <div class="bg-slate-800/50 border border-slate-700 rounded-lg p-3 text-xs text-slate-400">
+                        <p class="flex items-start gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2"
+                                class="mt-0.5 flex-shrink-0 text-indigo-400">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <path d="M12 16v-4"></path>
+                                <path d="M12 8h.01"></path>
+                            </svg>
+                            <span>Brand Brain data will be automatically synced to all Agent Teams at the scheduled
+                                time.</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="flex gap-3 p-4 border-t border-slate-700">
+                <button id="btn-cancel-schedule"
+                    class="flex-1 py-2.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 font-medium transition-colors">
+                    Cancel
+                </button>
+                <button id="btn-save-schedule"
+                    class="flex-1 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-colors flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                        <polyline points="7 3 7 8 15 8"></polyline>
+                    </svg>
+                    Save Schedule
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>

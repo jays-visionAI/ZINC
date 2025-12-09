@@ -1062,3 +1062,251 @@ ZYNK와 관련된 질문에만 답변하세요.
 }
 
 
+/**
+ * ============================================================
+ * BRAND BRAIN SYNC - Phase 3: Scheduled Daily Sync
+ * ============================================================
+ * This function runs daily to sync Brand Brain data to all Agent Teams
+ * 
+ * Schedule: Every day at 09:00 AM (KST = UTC+9, so 00:00 UTC)
+ * Region: asia-northeast3 (Seoul)
+ */
+exports.scheduledBrandSync = onSchedule({
+    schedule: 'every day 00:00',
+    timeZone: 'Asia/Seoul',
+    region: 'asia-northeast3'
+}, async (event) => {
+    console.log('[scheduledBrandSync] Starting daily Brand Brain sync...');
+
+    const stats = {
+        projectsProcessed: 0,
+        teamsUpdated: 0,
+        errors: 0,
+        startTime: Date.now()
+    };
+
+    try {
+        // 1. Get all users with Brand Brain data
+        const brandBrainUsersSnapshot = await db.collection('brandBrain').get();
+        console.log(`[scheduledBrandSync] Found ${brandBrainUsersSnapshot.size} users with Brand Brain data`);
+
+        for (const userDoc of brandBrainUsersSnapshot.docs) {
+            const userId = userDoc.id;
+
+            try {
+                // 2. Get all projects for this user
+                const projectsSnapshot = await db.collection('brandBrain')
+                    .doc(userId)
+                    .collection('projects')
+                    .get();
+
+                for (const projectDoc of projectsSnapshot.docs) {
+                    const projectId = projectDoc.id;
+                    const brandBrainData = projectDoc.data();
+
+                    // Check if auto-sync is enabled (default: true if not set)
+                    const autoSyncEnabled = brandBrainData.syncStatus?.autoSyncEnabled !== false;
+
+                    if (!autoSyncEnabled) {
+                        console.log(`[scheduledBrandSync] Skipping project ${projectId} - auto-sync disabled`);
+                        continue;
+                    }
+
+                    // 3. Build brand context
+                    const brandContext = buildBrandContextFromData(brandBrainData);
+
+                    // 4. Find all Agent Teams for this project
+                    let teamsSnapshot = await db.collection('projectAgentTeamInstances')
+                        .where('projectId', '==', projectId)
+                        .get();
+
+                    // Fallback to agentTeams collection
+                    if (teamsSnapshot.empty) {
+                        teamsSnapshot = await db.collection('agentTeams')
+                            .where('projectId', '==', projectId)
+                            .get();
+                    }
+
+                    if (teamsSnapshot.empty) {
+                        console.log(`[scheduledBrandSync] No teams for project ${projectId}`);
+                        continue;
+                    }
+
+                    // 5. Batch update all teams
+                    const batch = db.batch();
+                    const syncTimestamp = admin.firestore.FieldValue.serverTimestamp();
+                    const syncVersion = (brandBrainData.syncStatus?.syncVersion || 0) + 1;
+
+                    teamsSnapshot.forEach(teamDoc => {
+                        batch.update(teamDoc.ref, {
+                            brandContext: {
+                                syncedAt: syncTimestamp,
+                                syncVersion: syncVersion,
+                                syncedBy: 'scheduled_sync',
+                                data: brandContext
+                            }
+                        });
+                        stats.teamsUpdated++;
+                    });
+
+                    await batch.commit();
+
+                    // 6. Update Brand Brain sync status
+                    await projectDoc.ref.update({
+                        'syncStatus.lastSynced': syncTimestamp,
+                        'syncStatus.syncVersion': syncVersion,
+                        'syncStatus.lastSyncedTeamCount': teamsSnapshot.size,
+                        'syncStatus.lastAutoSync': syncTimestamp
+                    });
+
+                    stats.projectsProcessed++;
+                    console.log(`[scheduledBrandSync] Synced project ${projectId} to ${teamsSnapshot.size} teams`);
+                }
+            } catch (userError) {
+                console.error(`[scheduledBrandSync] Error processing user ${userId}:`, userError);
+                stats.errors++;
+            }
+        }
+
+        // 7. Log sync completion
+        const duration = Date.now() - stats.startTime;
+        console.log(`[scheduledBrandSync] ✅ Complete!`, {
+            ...stats,
+            durationMs: duration
+        });
+
+        // Optional: Save sync log
+        await db.collection('systemLogs').add({
+            type: 'brand_brain_sync',
+            trigger: 'scheduled',
+            stats: stats,
+            durationMs: duration,
+            completedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+    } catch (error) {
+        console.error('[scheduledBrandSync] ❌ Fatal error:', error);
+
+        // Log error
+        await db.collection('systemLogs').add({
+            type: 'brand_brain_sync',
+            trigger: 'scheduled',
+            status: 'failed',
+            error: error.message,
+            failedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+    }
+});
+
+/**
+ * Manual Brand Brain Sync (callable function)
+ * Allows admins to trigger sync manually from Admin UI
+ */
+exports.triggerBrandSync = onCall({ cors: true }, async (request) => {
+    const { projectId, userId } = request.data || {};
+
+    console.log('[triggerBrandSync] Manual sync triggered', { projectId, userId });
+
+    if (!projectId) {
+        return { success: false, error: 'projectId is required' };
+    }
+
+    try {
+        // Get Brand Brain data
+        const brandBrainRef = db.collection('brandBrain').doc(userId).collection('projects').doc(projectId);
+        const brandBrainDoc = await brandBrainRef.get();
+
+        if (!brandBrainDoc.exists) {
+            return { success: false, error: 'Brand Brain data not found' };
+        }
+
+        const brandBrainData = brandBrainDoc.data();
+        const brandContext = buildBrandContextFromData(brandBrainData);
+
+        // Find Agent Teams
+        let teamsSnapshot = await db.collection('projectAgentTeamInstances')
+            .where('projectId', '==', projectId)
+            .get();
+
+        if (teamsSnapshot.empty) {
+            teamsSnapshot = await db.collection('agentTeams')
+                .where('projectId', '==', projectId)
+                .get();
+        }
+
+        if (teamsSnapshot.empty) {
+            return { success: false, error: 'No Agent Teams found for this project' };
+        }
+
+        // Batch update
+        const batch = db.batch();
+        const syncTimestamp = admin.firestore.FieldValue.serverTimestamp();
+        const syncVersion = (brandBrainData.syncStatus?.syncVersion || 0) + 1;
+
+        teamsSnapshot.forEach(teamDoc => {
+            batch.update(teamDoc.ref, {
+                brandContext: {
+                    syncedAt: syncTimestamp,
+                    syncVersion: syncVersion,
+                    syncedBy: userId || 'manual_trigger',
+                    data: brandContext
+                }
+            });
+        });
+
+        await batch.commit();
+
+        // Update sync status
+        await brandBrainRef.update({
+            'syncStatus.lastSynced': syncTimestamp,
+            'syncStatus.syncVersion': syncVersion,
+            'syncStatus.lastSyncedTeamCount': teamsSnapshot.size
+        });
+
+        console.log(`[triggerBrandSync] ✅ Synced ${teamsSnapshot.size} teams`);
+        return {
+            success: true,
+            teamsUpdated: teamsSnapshot.size,
+            syncVersion: syncVersion
+        };
+
+    } catch (error) {
+        console.error('[triggerBrandSync] Error:', error);
+        return { success: false, error: error.message };
+    }
+});
+
+/**
+ * Helper: Build brand context from Brand Brain data (server-side version)
+ */
+function buildBrandContextFromData(data) {
+    const ci = data.coreIdentity || {};
+    const st = data.strategy || {};
+    const bv = st.brandVoice || {};
+    const cf = st.currentFocus || {};
+
+    return {
+        // Core Identity
+        brandName: ci.projectName || '',
+        mission: ci.description || '',
+        industry: ci.industry || '',
+        targetAudience: ci.targetAudience || '',
+        website: ci.website || '',
+
+        // Brand Voice
+        voiceTone: bv.personality || [],
+        writingStyle: bv.writingStyle || '',
+        toneIntensity: st.toneIntensity || 0.5,
+
+        // Content Rules
+        dos: bv.dos || [],
+        donts: bv.donts || [],
+
+        // Focus
+        currentFocus: cf.topic || '',
+        keywords: cf.keywords || [],
+
+        // Platform Priority
+        platformPriority: st.platformPriority || []
+    };
+}

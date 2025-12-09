@@ -96,6 +96,18 @@
                 console.log(`[AgentExecutionService] 4. Grouped agents by stage:`,
                     Object.entries(stagedAgents).map(([k, v]) => `${k}: ${v.length}`));
 
+                // 4.5 Load Brand Context (Phase 2: Brand Brain Sync)
+                const brandContext = team.brandContext?.data || null;
+                if (brandContext) {
+                    console.log(`[AgentExecutionService] 📦 Brand Context loaded:`, {
+                        brandName: brandContext.brandName,
+                        voiceTone: brandContext.voiceTone,
+                        keywords: brandContext.keywords?.length || 0
+                    });
+                } else {
+                    console.log(`[AgentExecutionService] ⚠️ No Brand Context synced for this team`);
+                }
+
                 // 5. Execute stages in order (with parallel support for creation stage)
                 const results = [];
                 const stageResults = [];
@@ -103,6 +115,7 @@
                     projectId,
                     teamDirective: team.active_directive?.summary || team.activeDirective,
                     customInstructions: run.custom_instructions,
+                    brandContext: brandContext, // Phase 2: Brand Brain integration
                     previousResults: results
                 };
 
@@ -310,12 +323,18 @@
          * Returns both input (prompts) and output for transparency
          */
         async _executeSubAgent(subAgent, context) {
-            const systemPrompt = subAgent.system_prompt || this._getDefaultPrompt(subAgent.role_type);
+            const baseSystemPrompt = subAgent.system_prompt || this._getDefaultPrompt(subAgent.role_type);
+
+            // Phase 2: Inject Brand Context into System Prompt
+            const systemPrompt = this._buildSystemPromptWithBrandContext(baseSystemPrompt, context.brandContext);
             const userMessage = this._buildUserMessage(subAgent.role_type, context);
 
             console.log(`[AgentExecutionService] 🤖 ${subAgent.role_name || subAgent.role_type}:`);
-            console.log(`  📋 System Prompt: ${systemPrompt.substring(0, 100)}...`);
+            console.log(`  📋 System Prompt: ${systemPrompt.substring(0, 150)}...`);
             console.log(`  💬 User Message: ${userMessage.substring(0, 100)}...`);
+            if (context.brandContext) {
+                console.log(`  🏷️ Brand: ${context.brandContext.brandName || 'N/A'}`);
+            }
 
             // apiKey is handled by Cloud Function
             const response = await this._callOpenAI(systemPrompt, userMessage, null, context.projectId);
@@ -328,12 +347,55 @@
                     system_prompt: systemPrompt || null,
                     user_message: userMessage || null,
                     team_directive: context.teamDirective || null,
-                    custom_instructions: context.customInstructions || null
+                    custom_instructions: context.customInstructions || null,
+                    brand_context_applied: !!context.brandContext // Track if brand context was used
                 },
                 // Output
                 output: response,
                 timestamp: new Date().toISOString()
             };
+        }
+
+        /**
+         * Build System Prompt with Brand Context injection
+         * This ensures AI follows brand guidelines during content generation
+         */
+        _buildSystemPromptWithBrandContext(basePrompt, brandContext) {
+            if (!brandContext) {
+                return basePrompt;
+            }
+
+            // Build brand guidelines section
+            const brandSection = `
+## Brand Guidelines (MUST FOLLOW)
+
+### Brand Identity
+- Brand Name: ${brandContext.brandName || 'Not specified'}
+- Mission: ${brandContext.mission || 'Not specified'}
+- Industry: ${brandContext.industry || 'Not specified'}
+- Target Audience: ${brandContext.targetAudience || 'Not specified'}
+
+### Voice & Tone
+- Personality: ${brandContext.voiceTone?.join(', ') || 'Professional'}
+- Writing Style: ${brandContext.writingStyle || 'Clear and engaging'}
+- Tone Intensity: ${brandContext.toneIntensity ? (brandContext.toneIntensity * 100).toFixed(0) + '% formal' : 'Balanced'}
+
+### Content Rules
+✅ DO:
+${brandContext.dos?.length > 0 ? brandContext.dos.map(d => `- ${d}`).join('\n') : '- Follow brand voice\n- Be authentic'}
+
+❌ DON'T:
+${brandContext.donts?.length > 0 ? brandContext.donts.map(d => `- ${d}`).join('\n') : '- Use inappropriate language\n- Go off-brand'}
+
+### Focus & Keywords
+- Current Focus: ${brandContext.currentFocus || 'General content'}
+- Keywords to Include: ${brandContext.keywords?.length > 0 ? brandContext.keywords.join(', ') : 'None specified'}
+
+---
+`;
+
+            // Combine brand section with base prompt
+            return brandSection + '\n' + basePrompt;
         }
 
         /**
