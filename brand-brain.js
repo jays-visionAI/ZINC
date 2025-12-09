@@ -3,9 +3,10 @@
  * Handles UI interactions, Firestore CRUD, and health score calculation
  */
 
-// Google Drive Config (Environment Variables via Vite)
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
-const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY || '';
+// Google Drive Config
+// These values are set in env-config.js (loaded before this script)
+const GOOGLE_CLIENT_ID = window.ENV_CONFIG?.GOOGLE_CLIENT_ID || '';
+const GOOGLE_API_KEY = window.ENV_CONFIG?.GOOGLE_API_KEY || '';
 const GOOGLE_DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'];
 const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly';
 

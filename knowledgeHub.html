@@ -161,6 +161,26 @@
 
         <!-- Right: Actions -->
         <div class="flex items-center gap-4">
+            <!-- Target Language Selector -->
+            <div class="flex items-center gap-2 bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    class="text-slate-400">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="2" y1="12" x2="22" y2="12"></line>
+                    <path
+                        d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z">
+                    </path>
+                </svg>
+                <select id="target-language-selector"
+                    class="bg-transparent text-xs font-medium text-slate-300 focus:outline-none cursor-pointer">
+                    <option value="ko" class="bg-slate-800">🇰🇷 한국어</option>
+                    <option value="en" class="bg-slate-800">🇺🇸 English</option>
+                    <option value="ja" class="bg-slate-800">🇯🇵 日本語</option>
+                    <option value="zh" class="bg-slate-800">🇨🇳 中文</option>
+                    <option value="es" class="bg-slate-800">🇪🇸 Español</option>
+                </select>
+            </div>
             <span id="credit-display"
                 class="text-xs text-slate-400 bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700">
                 🪙 <span id="credit-count">--</span> credits
@@ -873,6 +893,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-functions-compat.js"></script>
     <script src="firebase-config.js"></script>
+    <script src="env-config.js"></script>
     <script src="knowledgeHub.js"></script>
 </body>
 

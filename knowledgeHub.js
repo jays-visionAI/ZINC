@@ -6,9 +6,9 @@
 // ============================================================
 // GOOGLE DRIVE CONFIGURATION
 // ============================================================
-// NOTE: Replace these with your actual Google Cloud Console credentials
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
-const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY || '';
+// These values are set in env-config.js (loaded before this script)
+const GOOGLE_CLIENT_ID = window.ENV_CONFIG?.GOOGLE_CLIENT_ID || '';
+const GOOGLE_API_KEY = window.ENV_CONFIG?.GOOGLE_API_KEY || '';
 const GOOGLE_DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'];
 const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly';
 
@@ -22,6 +22,7 @@ let sources = [];
 let chatMessages = [];
 let isLoading = false;
 let sourcesUnsubscribe = null;
+let targetLanguage = 'ko'; // Default target language for summaries
 
 // Google API state
 let gapiInited = false;
@@ -279,7 +280,7 @@ async function loadUserProjects() {
         projects.forEach(project => {
             const option = document.createElement('option');
             option.value = project.id;
-            option.textContent = project.name || project.brandName || 'Unnamed Project';
+            option.textContent = project.projectName || project.name || project.brandName || 'Unnamed Project';
             projectSelector.appendChild(option);
         });
 
@@ -1062,6 +1063,36 @@ function initializeEventListeners() {
     document.getElementById('btn-regenerate-summary').addEventListener('click', () => {
         generateSummary();
     });
+
+    // Target language selector
+    const langSelector = document.getElementById('target-language-selector');
+    if (langSelector) {
+        // Load saved preference
+        const savedLang = localStorage.getItem('knowledgeHub_targetLanguage');
+        if (savedLang) {
+            langSelector.value = savedLang;
+            targetLanguage = savedLang;
+        }
+
+        langSelector.addEventListener('change', (e) => {
+            targetLanguage = e.target.value;
+            localStorage.setItem('knowledgeHub_targetLanguage', targetLanguage);
+            showNotification(`Target language changed to ${getLanguageName(targetLanguage)}`, 'success');
+            // Regenerate summary with new language
+            generateSummary();
+        });
+    }
+}
+
+function getLanguageName(code) {
+    const names = {
+        'ko': '한국어',
+        'en': 'English',
+        'ja': '日本語',
+        'zh': '中文',
+        'es': 'Español'
+    };
+    return names[code] || code;
 }
 
 
@@ -1184,9 +1215,12 @@ async function generateSummary() {
     document.getElementById('summary-content').textContent = 'Analyzing your documents...';
 
     try {
-        // Call Cloud Function
+        // Call Cloud Function with target language
         const generateKnowledgeSummary = firebase.functions().httpsCallable('generateKnowledgeSummary');
-        const result = await generateKnowledgeSummary({ projectId: currentProjectId });
+        const result = await generateKnowledgeSummary({
+            projectId: currentProjectId,
+            targetLanguage: targetLanguage
+        });
 
         if (result.data.success) {
             document.getElementById('summary-title').textContent = 'Brand Summary';

@@ -1619,29 +1619,38 @@ exports.onKnowledgeSourceCreated = onDocumentCreated(
  * Generate document summary for Knowledge Hub chat
  */
 exports.generateKnowledgeSummary = functions.https.onCall(async (data, context) => {
-    const { projectId } = data;
+    const { projectId, targetLanguage = 'en' } = data;
 
     if (!projectId) {
         throw new functions.https.HttpsError('invalid-argument', 'Missing projectId');
     }
 
+    // Language name mapping for AI prompt
+    const languageNames = {
+        'ko': 'Korean',
+        'en': 'English',
+        'ja': 'Japanese',
+        'zh': 'Chinese',
+        'es': 'Spanish'
+    };
+    const outputLanguage = languageNames[targetLanguage] || 'English';
+
     try {
-        // Get all active sources
+        // Get all active sources (including pending ones for Drive files)
         const sourcesSnap = await db.collection('projects').doc(projectId)
             .collection('knowledgeSources')
             .where('isActive', '==', true)
-            .where('status', '==', 'completed')
             .get();
 
         if (sourcesSnap.empty) {
             return {
                 success: true,
-                summary: 'No active sources available for summary.',
+                summary: targetLanguage === 'ko' ? '활성화된 소스가 없습니다. 소스를 추가해주세요.' : 'No active sources available for summary.',
                 suggestedQuestions: []
             };
         }
 
-        // Collect all summaries and insights
+        // Collect all summaries, insights, and source content
         const allInsights = [];
         const allEntities = {
             companyName: null,
@@ -1649,9 +1658,32 @@ exports.generateKnowledgeSummary = functions.https.onCall(async (data, context) 
             values: [],
             targetAudience: null
         };
+        const sourceNames = [];
 
         sourcesSnap.forEach(doc => {
             const source = doc.data();
+
+            // Add source title
+            if (source.title) {
+                sourceNames.push(source.title);
+            }
+
+            // Add note content directly
+            if (source.sourceType === 'note' && source.note?.content) {
+                allInsights.push(`[Note: ${source.title}] ${source.note.content}`);
+            }
+
+            // Add link URL for context
+            if (source.sourceType === 'link' && source.link?.url) {
+                allInsights.push(`[Link: ${source.title}] URL: ${source.link.url}`);
+            }
+
+            // Add Google Drive file info
+            if (source.sourceType === 'google_drive' && source.googleDrive) {
+                allInsights.push(`[Document: ${source.googleDrive.fileName}]`);
+            }
+
+            // Add analysis data if available
             if (source.analysis) {
                 if (source.analysis.summary) {
                     allInsights.push(source.analysis.summary);
@@ -1681,13 +1713,15 @@ exports.generateKnowledgeSummary = functions.https.onCall(async (data, context) 
             messages: [
                 {
                     role: 'system',
-                    content: 'You are a brand strategist creating a concise summary for a client. Be professional and insightful.'
+                    content: `You are a brand strategist creating a concise summary for a client. Be professional and insightful. IMPORTANT: Respond entirely in ${outputLanguage}.`
                 },
                 {
                     role: 'user',
                     content: `Based on these insights from uploaded documents, create:
 1. A 2-3 paragraph executive summary of the brand/company
 2. 5 suggested questions the user might want to ask about their brand
+
+IMPORTANT: Write your response entirely in ${outputLanguage}.
 
 Insights:
 - ${combinedText}
@@ -1697,10 +1731,10 @@ Products: ${allEntities.products.slice(0, 5).join(', ') || 'Not specified'}
 Values: ${allEntities.values.slice(0, 5).join(', ') || 'Not specified'}
 Target: ${allEntities.targetAudience || 'Not specified'}
 
-Respond in JSON format:
+Respond in JSON format (with ${outputLanguage} content):
 {
-    "summary": "executive summary here",
-    "suggestedQuestions": ["question1", "question2", ...]
+    "summary": "executive summary here in ${outputLanguage}",
+    "suggestedQuestions": ["question1 in ${outputLanguage}", "question2 in ${outputLanguage}", ...]
 }`
                 }
             ],
@@ -1710,6 +1744,22 @@ Respond in JSON format:
         });
 
         const result = JSON.parse(response.choices[0]?.message?.content || '{}');
+
+        // Save summary to Firestore for persistence
+        const summaryData = {
+            summary: result.summary || '',
+            suggestedQuestions: result.suggestedQuestions || [],
+            targetLanguage: targetLanguage,
+            sourceCount: sourcesSnap.size,
+            sourceNames: sourceNames.slice(0, 10),
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        };
+
+        await db.collection('projects').doc(projectId)
+            .collection('knowledgeSummaries')
+            .doc('latest')
+            .set(summaryData, { merge: true });
 
         return {
             success: true,
