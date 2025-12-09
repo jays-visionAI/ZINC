@@ -35,7 +35,254 @@ window.initChatbot = function () {
     console.log('[Chatbot Settings] Initializing...');
     loadSettings();
     bindEvents();
+    initChatbotTabs();  // Initialize tabs
+    bindTabEvents();    // Bind tab-specific events
 };
+
+// ============================================
+// TAB SWITCHING
+// ============================================
+
+function initChatbotTabs() {
+    console.log('[Chatbot Settings] Initializing tabs...');
+    const tabs = document.querySelectorAll('.chatbot-tab');
+
+    if (tabs.length === 0) {
+        console.warn('[Chatbot Settings] No tabs found!');
+        return;
+    }
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const targetTab = tab.dataset.tab;
+            console.log('[Chatbot Settings] Switching to tab:', targetTab);
+
+            // Update tab styles (underline style)
+            tabs.forEach(t => {
+                t.style.borderBottom = '2px solid transparent';
+                t.style.color = 'rgba(255,255,255,0.5)';
+                t.style.fontWeight = '400';
+                t.classList.remove('active');
+            });
+
+            tab.style.borderBottom = '2px solid #16e0bd';
+            tab.style.color = '#fff';
+            tab.style.fontWeight = '600';
+            tab.classList.add('active');
+
+            // Show/hide content
+            const generalTab = document.getElementById('tab-general');
+            const pageContextTab = document.getElementById('tab-page-context');
+            const voiceTab = document.getElementById('tab-voice');
+
+            if (generalTab) generalTab.style.display = targetTab === 'general' ? 'block' : 'none';
+            if (pageContextTab) pageContextTab.style.display = targetTab === 'page-context' ? 'block' : 'none';
+            if (voiceTab) voiceTab.style.display = targetTab === 'voice' ? 'block' : 'none';
+
+            // Initialize tab content
+            if (targetTab === 'page-context') {
+                loadPageContextList();
+            } else if (targetTab === 'voice') {
+                loadVoiceSettings();
+            }
+        });
+    });
+
+    console.log('[Chatbot Settings] Tabs initialized:', tabs.length);
+}
+
+// Bind tab-specific events
+function bindTabEvents() {
+    // Page Context
+    document.getElementById('page-context-select')?.addEventListener('change', (e) => {
+        loadPageContext(e.target.value);
+    });
+
+    document.getElementById('btn-refresh-pages')?.addEventListener('click', loadPageContextList);
+    document.getElementById('btn-add-tip')?.addEventListener('click', addTip);
+    document.getElementById('btn-save-page-context')?.addEventListener('click', savePageContext);
+
+    // Voice
+    document.getElementById('btn-save-voice')?.addEventListener('click', saveVoiceSettings);
+}
+
+// ============================================
+// PAGE CONTEXT MANAGEMENT
+// ============================================
+
+let currentPageContextId = null;
+let currentPageContextData = null;
+let currentTips = [];
+
+async function loadPageContextList() {
+    const select = document.getElementById('page-context-select');
+    if (!select) return;
+
+    select.innerHTML = '<option value="">-- Select a page --</option>';
+
+    try {
+        const db = firebase.firestore();
+        const snapshot = await db.collection('chatbotPageContext').orderBy('order').get();
+
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const option = document.createElement('option');
+            option.value = doc.id;
+            option.textContent = `${data.name?.en || doc.id} (${data.isActive ? '✅' : '❌'})`;
+            select.appendChild(option);
+        });
+
+        console.log(`[Chatbot Settings] Loaded ${snapshot.size} page contexts`);
+    } catch (error) {
+        console.error('[Chatbot Settings] Failed to load page contexts:', error);
+    }
+}
+
+async function loadPageContext(pageId) {
+    if (!pageId) {
+        document.getElementById('page-context-editor').style.display = 'none';
+        return;
+    }
+
+    try {
+        const db = firebase.firestore();
+        const doc = await db.collection('chatbotPageContext').doc(pageId).get();
+
+        if (!doc.exists) {
+            alert('Page context not found');
+            return;
+        }
+
+        currentPageContextId = pageId;
+        currentPageContextData = doc.data();
+        currentTips = currentPageContextData.tips || [];
+
+        // Populate form
+        document.getElementById('ctx-name-en').value = currentPageContextData.name?.en || '';
+        document.getElementById('ctx-name-ko').value = currentPageContextData.name?.ko || '';
+        document.getElementById('ctx-desc-en').value = currentPageContextData.description?.en || '';
+        document.getElementById('ctx-desc-ko').value = currentPageContextData.description?.ko || '';
+        document.getElementById('ctx-is-active').checked = currentPageContextData.isActive !== false;
+
+        // Render tips
+        renderTips();
+
+        document.getElementById('page-context-editor').style.display = 'block';
+
+    } catch (error) {
+        console.error('[Chatbot Settings] Failed to load page context:', error);
+        alert('Error loading page context');
+    }
+}
+
+function renderTips() {
+    const container = document.getElementById('tips-container');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    currentTips.forEach((tip, index) => {
+        const tipEl = document.createElement('div');
+        tipEl.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; padding: 12px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px;';
+        tipEl.innerHTML = `
+            <input type="text" class="admin-input tip-en" data-index="${index}" placeholder="Tip in English..." value="${tip.en || ''}">
+            <input type="text" class="admin-input tip-ko" data-index="${index}" placeholder="팁 (한국어)..." value="${tip.ko || ''}">
+            <button type="button" class="admin-btn-secondary btn-remove-tip" data-index="${index}" style="padding: 8px 12px; color: #ef4444;">🗑️</button>
+        `;
+        container.appendChild(tipEl);
+    });
+
+    // Add event listeners
+    container.querySelectorAll('.tip-en, .tip-ko').forEach(input => {
+        input.addEventListener('change', (e) => {
+            const idx = parseInt(e.target.dataset.index);
+            const lang = e.target.classList.contains('tip-en') ? 'en' : 'ko';
+            if (!currentTips[idx]) currentTips[idx] = {};
+            currentTips[idx][lang] = e.target.value;
+        });
+    });
+
+    container.querySelectorAll('.btn-remove-tip').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const idx = parseInt(e.target.dataset.index);
+            currentTips.splice(idx, 1);
+            renderTips();
+        });
+    });
+}
+
+function addTip() {
+    currentTips.push({ en: '', ko: '' });
+    renderTips();
+}
+
+async function savePageContext() {
+    if (!currentPageContextId) return;
+
+    const data = {
+        name: {
+            en: document.getElementById('ctx-name-en').value,
+            ko: document.getElementById('ctx-name-ko').value
+        },
+        description: {
+            en: document.getElementById('ctx-desc-en').value,
+            ko: document.getElementById('ctx-desc-ko').value
+        },
+        tips: currentTips.filter(t => t.en || t.ko),
+        isActive: document.getElementById('ctx-is-active').checked,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    try {
+        const db = firebase.firestore();
+        await db.collection('chatbotPageContext').doc(currentPageContextId).update(data);
+
+        alert('✅ Page context saved!');
+        loadPageContextList();
+    } catch (error) {
+        console.error('[Chatbot Settings] Failed to save page context:', error);
+        alert('❌ Error saving page context');
+    }
+}
+
+// ============================================
+// VOICE SETTINGS
+// ============================================
+
+async function loadVoiceSettings() {
+    try {
+        const db = firebase.firestore();
+        const doc = await db.collection('chatbotConfig').doc('default').get();
+
+        if (doc.exists) {
+            const config = doc.data();
+            const voiceInput = document.getElementById('voice-input-enabled');
+            const voiceOutput = document.getElementById('voice-output-enabled');
+
+            if (voiceInput) voiceInput.checked = config.voiceInputEnabled || false;
+            if (voiceOutput) voiceOutput.checked = config.voiceOutputEnabled || false;
+        }
+    } catch (error) {
+        console.error('[Chatbot Settings] Failed to load voice settings:', error);
+    }
+}
+
+async function saveVoiceSettings() {
+    try {
+        const db = firebase.firestore();
+        await db.collection('chatbotConfig').doc('default').update({
+            voiceEnabled: true,
+            voiceInputEnabled: document.getElementById('voice-input-enabled').checked,
+            voiceOutputEnabled: document.getElementById('voice-output-enabled').checked,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        alert('✅ Voice settings saved!');
+    } catch (error) {
+        console.error('[Chatbot Settings] Failed to save voice settings:', error);
+        alert('❌ Error saving voice settings');
+    }
+}
 
 // Load settings from Firestore or defaults
 async function loadSettings() {
