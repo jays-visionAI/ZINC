@@ -101,6 +101,7 @@ function bindTabEvents() {
     document.getElementById('btn-refresh-pages')?.addEventListener('click', loadPageContextList);
     document.getElementById('btn-add-tip')?.addEventListener('click', addTip);
     document.getElementById('btn-save-page-context')?.addEventListener('click', savePageContext);
+    document.getElementById('btn-seed-data')?.addEventListener('click', seedPageContextData);
 
     // Voice
     document.getElementById('btn-save-voice')?.addEventListener('click', saveVoiceSettings);
@@ -116,25 +117,171 @@ let currentTips = [];
 
 async function loadPageContextList() {
     const select = document.getElementById('page-context-select');
-    if (!select) return;
+    const emptyState = document.getElementById('page-context-empty');
+    const selectorContainer = document.getElementById('page-selector-container');
+    const editor = document.getElementById('page-context-editor');
+
+    if (!select) {
+        console.error('[Chatbot Settings] page-context-select not found');
+        return;
+    }
 
     select.innerHTML = '<option value="">-- Select a page --</option>';
 
     try {
         const db = firebase.firestore();
-        const snapshot = await db.collection('chatbotPageContext').orderBy('order').get();
+        // Remove orderBy to avoid index requirement
+        const snapshot = await db.collection('chatbotPageContext').get();
 
+        console.log(`[Chatbot Settings] Found ${snapshot.size} page contexts`);
+
+        if (snapshot.empty) {
+            // Show empty state
+            if (emptyState) emptyState.style.display = 'block';
+            if (selectorContainer) selectorContainer.style.display = 'none';
+            if (editor) editor.style.display = 'none';
+            return;
+        }
+
+        // Hide empty state, show selector
+        if (emptyState) emptyState.style.display = 'none';
+        if (selectorContainer) selectorContainer.style.display = 'block';
+
+        // Sort by order field in memory
+        const docs = [];
         snapshot.forEach(doc => {
-            const data = doc.data();
+            docs.push({ id: doc.id, data: doc.data() });
+        });
+        docs.sort((a, b) => (a.data.order || 0) - (b.data.order || 0));
+
+        docs.forEach(({ id, data }) => {
             const option = document.createElement('option');
-            option.value = doc.id;
-            option.textContent = `${data.name?.en || doc.id} (${data.isActive ? '✅' : '❌'})`;
+            option.value = id;
+            option.textContent = `${data.name?.en || id} (${data.isActive !== false ? '✅' : '❌'})`;
             select.appendChild(option);
         });
 
-        console.log(`[Chatbot Settings] Loaded ${snapshot.size} page contexts`);
+        console.log(`[Chatbot Settings] Loaded ${docs.length} page contexts`);
     } catch (error) {
         console.error('[Chatbot Settings] Failed to load page contexts:', error);
+        alert('Error loading page contexts: ' + error.message);
+    }
+}
+
+// Seed default page context data
+async function seedPageContextData() {
+    if (!confirm('This will create default page contexts. Existing data will NOT be overwritten. Continue?')) {
+        return;
+    }
+
+    const PAGE_CONTEXTS = [
+        {
+            pageId: 'command-center',
+            name: { en: 'Command Center', ko: '커맨드 센터' },
+            description: {
+                en: 'Your main dashboard to manage all projects.',
+                ko: '모든 프로젝트를 관리하는 메인 대시보드입니다.'
+            },
+            tips: [
+                { en: 'Click "Add Project" to create a new project', ko: '"프로젝트 추가" 버튼을 클릭하여 새 프로젝트를 만드세요' },
+                { en: 'Click on a project card to open Mission Control', ko: '프로젝트 카드를 클릭하면 Mission Control로 이동합니다' }
+            ],
+            order: 1, isActive: true
+        },
+        {
+            pageId: 'project-detail',
+            name: { en: 'Mission Control', ko: '미션 컨트롤' },
+            description: {
+                en: 'The central command hub for your project.',
+                ko: '프로젝트의 중앙 제어 허브입니다.'
+            },
+            tips: [
+                { en: 'Agent Team cards show live status and actions', ko: 'Agent Team 카드에서 실시간 상태와 액션을 볼 수 있습니다' }
+            ],
+            order: 2, isActive: true
+        },
+        {
+            pageId: 'brand-brain',
+            name: { en: 'Brand Brain', ko: '브랜드 브레인' },
+            description: {
+                en: 'Configure your brand identity, voice, and strategy.',
+                ko: '브랜드 아이덴티티, 보이스, 전략을 설정합니다.'
+            },
+            tips: [
+                { en: 'Fill in Core Identity with your brand basics', ko: 'Core Identity에 브랜드 기본 정보를 입력하세요' },
+                { en: 'Click "Sync with Hive Mind" to push to agents', ko: '"Sync with Hive Mind"를 클릭하면 에이전트에 전파됩니다' }
+            ],
+            order: 3, isActive: true
+        },
+        {
+            pageId: 'knowledge-hub',
+            name: { en: 'Knowledge Hub', ko: '지식 허브' },
+            description: { en: 'Store and manage brand knowledge.', ko: '브랜드 지식을 저장하고 관리합니다.' },
+            tips: [{ en: 'Upload documents for AI to reference', ko: 'AI가 참조할 문서를 업로드하세요' }],
+            order: 4, isActive: true
+        },
+        {
+            pageId: 'market-pulse',
+            name: { en: 'Market Pulse', ko: '마켓 펄스' },
+            description: { en: 'Monitor market trends and competitor activity.', ko: '시장 트렌드와 경쟁사 활동을 모니터링합니다.' },
+            tips: [{ en: 'View trending topics in your industry', ko: '업계의 트렌딩 토픽을 확인하세요' }],
+            order: 5, isActive: true
+        },
+        {
+            pageId: 'strategy-war-room',
+            name: { en: 'Strategy War Room', ko: '전략 상황실' },
+            description: { en: 'Plan and execute marketing campaigns.', ko: '마케팅 캠페인을 계획하고 실행합니다.' },
+            tips: [{ en: 'Create campaign objectives and KPIs', ko: '캠페인 목표와 KPI를 설정하세요' }],
+            order: 6, isActive: true
+        },
+        {
+            pageId: 'the-filter',
+            name: { en: 'The Filter', ko: '더 필터' },
+            description: { en: 'Review and approve AI-generated content.', ko: 'AI가 생성한 콘텐츠를 검토하고 승인합니다.' },
+            tips: [{ en: 'Review pending content in the queue', ko: '대기 중인 콘텐츠를 검토하세요' }],
+            order: 7, isActive: true
+        },
+        {
+            pageId: 'the-growth',
+            name: { en: 'The Growth', ko: '더 그로스' },
+            description: { en: 'Track your social media growth metrics.', ko: '소셜 미디어 성장 지표를 추적합니다.' },
+            tips: [{ en: 'View follower growth trends', ko: '팔로워 성장 추이를 확인하세요' }],
+            order: 8, isActive: true
+        },
+        {
+            pageId: 'studio',
+            name: { en: 'Hive Mind Studio', ko: '하이브 마인드 스튜디오' },
+            description: { en: 'Create content with AI agent workflows.', ko: 'AI 에이전트 워크플로우로 콘텐츠를 생성합니다.' },
+            tips: [{ en: 'Select a workflow template to start', ko: '워크플로우 템플릿을 선택하여 시작하세요' }],
+            order: 9, isActive: true
+        }
+    ];
+
+    try {
+        const db = firebase.firestore();
+        const batch = db.batch();
+        let created = 0;
+
+        for (const ctx of PAGE_CONTEXTS) {
+            const ref = db.collection('chatbotPageContext').doc(ctx.pageId);
+            const existing = await ref.get();
+
+            if (!existing.exists) {
+                batch.set(ref, {
+                    ...ctx,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                created++;
+            }
+        }
+
+        await batch.commit();
+        alert(`✅ Seeded ${created} page contexts! (${PAGE_CONTEXTS.length - created} already existed)`);
+        loadPageContextList();
+    } catch (error) {
+        console.error('[Chatbot Settings] Seed error:', error);
+        alert('❌ Error seeding data: ' + error.message);
     }
 }
 

@@ -158,13 +158,27 @@ ZYNK 사용에 관한 질문이 있으시면 편하게 물어보세요!
                         assistance.
                     </p>
                 </div>
-                <button id="btn-refresh-pages" class="admin-btn-secondary" style="padding: 8px 16px;">
-                    🔄 Refresh
-                </button>
+                <div style="display: flex; gap: 8px;">
+                    <button id="btn-seed-data" class="admin-btn-secondary" style="padding: 8px 16px;">
+                        🌱 Seed Default Data
+                    </button>
+                    <button id="btn-refresh-pages" class="admin-btn-secondary" style="padding: 8px 16px;">
+                        🔄 Refresh
+                    </button>
+                </div>
+            </div>
+
+            <!-- Empty State Message -->
+            <div id="page-context-empty"
+                style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5); display: none;">
+                <div style="font-size: 48px; margin-bottom: 16px;">📭</div>
+                <p style="margin: 0 0 16px 0;">No page contexts found in database.</p>
+                <p style="margin: 0; font-size: 13px;">Click <strong>"🌱 Seed Default Data"</strong> to initialize
+                    default page contexts.</p>
             </div>
 
             <!-- Page Selector -->
-            <div style="margin-bottom: 16px;">
+            <div id="page-selector-container" style="margin-bottom: 16px;">
                 <label style="display: block; margin-bottom: 6px; font-size: 13px; color: #ccc;">Select Page</label>
                 <select id="page-context-select" class="admin-input" style="width: 100%; max-width: 300px;">
                     <option value="">-- Select a page --</option>
