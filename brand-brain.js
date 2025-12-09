@@ -448,9 +448,9 @@ function populateUI(data) {
 
     // Core Identity
     const ci = data.coreIdentity || {};
-    document.getElementById('project-name').value = ci.projectName || '';
-    document.getElementById('mission').value = ci.description || '';
-    document.getElementById('website-url').value = ci.website || '';
+    if (document.getElementById('project-name')) document.getElementById('project-name').value = ci.projectName || '';
+    if (document.getElementById('mission')) document.getElementById('mission').value = ci.description || '';
+    if (document.getElementById('website-url')) document.getElementById('website-url').value = ci.website || '';
 
     // Industry - ensure the option exists before setting
     const industrySelect = document.getElementById('industry');
@@ -467,7 +467,7 @@ function populateUI(data) {
         industrySelect.value = ci.industry;
     }
 
-    document.getElementById('target').value = ci.targetAudience || '';
+    if (document.getElementById('target')) document.getElementById('target').value = ci.targetAudience || '';
 
     // Website Analysis Status
     if (ci.websiteAnalysis) {
@@ -490,10 +490,12 @@ function populateUI(data) {
     });
 
     // Writing Style
-    document.getElementById('writing-style').value = st.brandVoice?.writingStyle || '';
+
+    // Writing Style
+    if (document.getElementById('writing-style')) document.getElementById('writing-style').value = st.brandVoice?.writingStyle || '';
 
     // Current Focus
-    document.getElementById('focus-topic').value = st.currentFocus?.topic || '';
+    if (document.getElementById('focus-topic')) document.getElementById('focus-topic').value = st.currentFocus?.topic || '';
 
     // Keywords
     const keywords = st.currentFocus?.keywords || [];
@@ -501,8 +503,10 @@ function populateUI(data) {
 
     // Tone Intensity
     const toneSlider = document.getElementById('tone-slider');
-    toneSlider.value = (st.toneIntensity || 0.5) * 100;
-    updateToneLabel(toneSlider.value);
+    if (toneSlider) {
+        toneSlider.value = (st.toneIntensity || 0.5) * 100;
+        updateToneLabel(toneSlider.value);
+    }
 
     // Do's and Don'ts
     renderDosDonts(st.brandVoice?.dos || [], st.brandVoice?.donts || []);
@@ -906,6 +910,14 @@ async function addGoogleDriveSource(file) {
         };
 
         const db = firebase.firestore();
+        if (!currentProjectId) {
+            console.error('Cannot add source: Project ID is missing');
+            showNotification('Error: Project ID is missing', 'error');
+            return;
+        }
+
+        console.log(`[BrandBrain] Adding source to projects/${currentProjectId}/knowledgeSources`);
+
         await db.collection('projects')
             .doc(currentProjectId)
             .collection('knowledgeSources')
