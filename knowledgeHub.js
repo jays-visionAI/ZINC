@@ -458,7 +458,56 @@ function updateSummarySection() {
     } else {
         // Render Summary
         summaryTitle.textContent = summaryToShow.title || 'Brand Summary';
-        summaryContent.textContent = summaryToShow.content;
+
+        // If this is a source view, show additional metadata
+        if (summaryToShow.isSourceView && summaryToShow.sourceId) {
+            const importance = summaryToShow.importance || 2;
+            const summarizedAt = summaryToShow.summarizedAt || 'Not yet';
+
+            // Build star rating HTML
+            const starsHtml = [1, 2, 3].map(star => `
+                <span class="importance-star cursor-pointer text-lg transition-transform hover:scale-125 ${star <= importance ? 'text-yellow-400' : 'text-slate-600'}" 
+                      onclick="updateSourceImportance('${summaryToShow.sourceId}', ${star})"
+                      title="Set importance to ${star}">
+                    ${star <= importance ? '★' : '☆'}
+                </span>
+            `).join('');
+
+            // Update summary content to include metadata
+            summaryContent.innerHTML = `
+                <div class="flex items-center gap-4 mb-4 pb-4 border-b border-slate-700/50">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-slate-500">Importance:</span>
+                        <div class="flex gap-1">${starsHtml}</div>
+                    </div>
+                    <div class="text-xs text-slate-500">
+                        Summarized: <span class="text-slate-400">${summarizedAt}</span>
+                    </div>
+                </div>
+                <div class="text-base text-slate-300 leading-relaxed">
+                    ${summaryToShow.content || 'No summary available for this source.'}
+                </div>
+                <div class="mt-4 pt-4 border-t border-slate-700/50 flex gap-2">
+                    <button onclick="regenerateSourceSummary('${summaryToShow.sourceId}')" 
+                            class="px-3 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-all flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 12a9 9 0 0 0-9-9 9.75 9 0 0 0-6.74 2.74L3 8"/>
+                            <path d="M3 3v5h5"/>
+                        </svg>
+                        Regenerate Summary
+                    </button>
+                    <button onclick="confirmDeleteSource('${summaryToShow.sourceId}', '${escapeHtml(summaryToShow.title || 'this source')}')" 
+                            class="px-3 py-1.5 text-xs bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-lg transition-all flex items-center gap-2 border border-red-600/30">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                        </svg>
+                        Delete
+                    </button>
+                </div>
+            `;
+        } else {
+            summaryContent.textContent = summaryToShow.content;
+        }
 
         // Key Insights (Chips)
         if (summaryToShow.keyInsights && summaryToShow.keyInsights.length > 0) {
@@ -481,8 +530,7 @@ function updateSummarySection() {
                 if (questionsList) {
                     questionsList.innerHTML = summaryToShow.suggestedQuestions.map(q => `
                         <button class="suggested-question px-4 py-2 text-sm text-slate-300 bg-slate-800 rounded-full hover:bg-slate-700 hover:text-white transition-all border border-slate-700"
-                             onclick="setInput('${escapeHtml(q)}')">
-                            ${escapeHtml(q)}
+                             onclick="setInput('${escapeHtml(q)}')">${escapeHtml(q)}
                         </button>
                     `).join('');
                 }
@@ -1043,9 +1091,89 @@ async function updateSourceImportance(sourceId, importance) {
 
         showNotification(`Document importance set to ${'⭐'.repeat(validImportance)}`, 'success');
 
+        // Refresh the source view to show updated stars
+        if (selectedSourceId === sourceId) {
+            openSourceContent(sourceId);
+        }
+
     } catch (error) {
         console.error('Error updating importance:', error);
         showNotification('Failed to update importance', 'error');
+    }
+}
+
+// ============================================================
+// INDIVIDUAL SOURCE SUMMARY REGENERATION
+// ============================================================
+
+// Regenerate summary for a single source document
+async function regenerateSourceSummary(sourceId) {
+    if (!currentProjectId || !sourceId) return;
+
+    const source = sources.find(s => s.id === sourceId);
+    if (!source) {
+        showNotification('Source not found', 'error');
+        return;
+    }
+
+    showNotification('Generating summary...', 'info');
+
+    try {
+        // Get content to summarize based on source type
+        let contentToSummarize = '';
+
+        if (source.sourceType === 'note') {
+            contentToSummarize = source.note?.content || '';
+        } else if (source.sourceType === 'link') {
+            contentToSummarize = source.link?.extractedContent || source.link?.url || '';
+        } else if (source.sourceType === 'google_drive') {
+            contentToSummarize = source.googleDrive?.extractedContent || source.googleDrive?.fileName || '';
+        }
+
+        if (!contentToSummarize) {
+            showNotification('No content available to summarize', 'error');
+            return;
+        }
+
+        // Call AI to generate summary
+        const response = await callGeminiForChat(`
+            Please provide a concise summary (3-5 sentences) of the following document content. 
+            Focus on the key points and main takeaways.
+            
+            Document Title: ${source.title || 'Untitled'}
+            Document Type: ${source.sourceType}
+            Content:
+            ${contentToSummarize.substring(0, 5000)}
+        `);
+
+        if (response) {
+            // Save summary to Firestore
+            await firebase.firestore()
+                .collection('projects')
+                .doc(currentProjectId)
+                .collection('knowledgeSources')
+                .doc(sourceId)
+                .update({
+                    summary: response,
+                    summarizedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+            // Update local state
+            source.summary = response;
+            source.summarizedAt = { toDate: () => new Date() };
+
+            // Refresh the view
+            openSourceContent(sourceId);
+
+            showNotification('Summary generated successfully!', 'success');
+        } else {
+            showNotification('Failed to generate summary', 'error');
+        }
+
+    } catch (error) {
+        console.error('Error regenerating source summary:', error);
+        showNotification('Failed to generate summary', 'error');
     }
 }
 
@@ -2115,11 +2243,20 @@ async function generateSummary() {
     if (btnRegenerate) btnRegenerate.disabled = true;
 
     try {
-        // Call Cloud Function with target language
+        // Prepare source weights for AI (importance: 1=20%, 2=35%, 3=45%)
+        const sourceWeights = activeSources.map(s => ({
+            id: s.id,
+            title: s.title,
+            importance: s.importance || 2,
+            weightPercent: s.importance === 3 ? 45 : (s.importance === 1 ? 20 : 35)
+        }));
+
+        // Call Cloud Function with target language and weights
         const generateKnowledgeSummary = firebase.functions().httpsCallable('generateKnowledgeSummary');
         const result = await generateKnowledgeSummary({
             projectId: currentProjectId,
-            targetLanguage: targetLanguage
+            targetLanguage: targetLanguage,
+            sourceWeights: sourceWeights  // Pass weights to Cloud Function
         });
 
         if (result.data.success) {
