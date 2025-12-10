@@ -129,6 +129,54 @@
             background: rgba(99, 102, 241, 0.2);
             border-color: rgba(99, 102, 241, 0.5);
         }
+
+        /* Dynamic Sources Panel */
+        .sources-panel {
+            transition: width 0.3s ease;
+        }
+
+        .sources-panel.expanded {
+            width: 500px !important;
+        }
+
+        /* Source Detail View */
+        .source-detail-view {
+            display: none;
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        .sources-panel.expanded .source-detail-view {
+            display: block;
+        }
+
+        .source-detail-view .importance-stars {
+            display: flex;
+            gap: 4px;
+            cursor: pointer;
+        }
+
+        .source-detail-view .importance-star {
+            font-size: 16px;
+            transition: transform 0.1s;
+        }
+
+        .source-detail-view .importance-star:hover {
+            transform: scale(1.2);
+        }
+
+        .source-detail-view .importance-star.filled {
+            color: #fbbf24;
+        }
+
+        .source-detail-view .importance-star.empty {
+            color: #475569;
+        }
+
+        /* Delete button hover */
+        .delete-source-btn:hover {
+            background: rgba(239, 68, 68, 0.1);
+            border-radius: 4px;
+        }
     </style>
 </head>
 
@@ -219,7 +267,8 @@
     <main class="pt-20 pb-6 px-4 h-screen flex gap-4">
 
         <!-- LEFT PANEL: Sources -->
-        <div class="w-72 flex-shrink-0 flex flex-col bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+        <div id="sources-panel"
+            class="sources-panel w-72 flex-shrink-0 flex flex-col bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
             <!-- Sources Header -->
             <div class="p-4 border-b border-slate-800">
                 <div class="flex items-center justify-between mb-3">

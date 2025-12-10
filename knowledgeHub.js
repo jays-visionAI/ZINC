@@ -63,11 +63,15 @@ async function initializeKnowledgeHub() {
             initializeAddSourceModal();
             initializePlanCards();
             loadChatConfig(); // Load saved chat configuration
+            initializePanelClickOutside();  // Initialize panel collapse on outside click
         } else {
             window.location.href = 'index.html';
         }
     });
 }
+
+// Selected source state for panel expansion
+let selectedSourceId = null;
 
 // ============================================================
 // GOOGLE DRIVE INTEGRATION
@@ -565,6 +569,7 @@ function createSourceElement(source) {
 
     const icon = getSourceIcon(source.sourceType);
     const statusBadge = getStatusBadge(source.status);
+    const importanceStars = getImportanceIndicator(source.importance || 2);
 
     div.innerHTML = `
         <div class="flex items-start gap-3">
@@ -575,15 +580,25 @@ function createSourceElement(source) {
                 <div class="flex items-center gap-2 mb-1">
                     <span class="text-sm font-medium text-white truncate">${escapeHtml(source.title || 'Untitled')}</span>
                     ${statusBadge}
+                    ${importanceStars}
                 </div>
                 <p class="text-[11px] text-slate-500 truncate">${getSourceDescription(source)}</p>
             </div>
-            <div class="toggle-switch ${source.isActive !== false ? 'active' : ''}" data-source-id="${source.id}"></div>
+            <div class="flex items-center gap-2">
+                <div class="toggle-switch ${source.isActive !== false ? 'active' : ''}" data-source-id="${source.id}"></div>
+                <button class="delete-source-btn text-slate-500 hover:text-red-400 transition-colors p-1" data-source-id="${source.id}" title="Delete source">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                    </svg>
+                </button>
+            </div>
         </div>
     `;
 
     // Row Click - Open Source Summary/Content
-    div.addEventListener('click', () => {
+    div.addEventListener('click', (e) => {
+        // Don't trigger if clicking on delete or toggle
+        if (e.target.closest('.delete-source-btn') || e.target.closest('.toggle-switch')) return;
         openSourceContent(source.id);
     });
 
@@ -594,7 +609,26 @@ function createSourceElement(source) {
         toggleSourceActive(source.id, !toggle.classList.contains('active'));
     });
 
+    // Delete click handler
+    const deleteBtn = div.querySelector('.delete-source-btn');
+    deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        confirmDeleteSource(source.id, source.title);
+    });
+
     return div;
+}
+
+// Get importance indicator (dots for compact display)
+function getImportanceIndicator(importance) {
+    const level = importance || 2;
+    const colors = {
+        1: 'text-slate-500',
+        2: 'text-yellow-500',
+        3: 'text-red-500'
+    };
+    const dots = '●'.repeat(level) + '○'.repeat(3 - level);
+    return `<span class="text-[10px] ${colors[level]} ml-1" title="Importance: ${level}/3">${dots}</span>`;
 }
 
 function getSourceIcon(type) {
@@ -677,18 +711,26 @@ function openSourceContent(sourceId) {
     const source = sources.find(s => s.id === sourceId);
     if (!source) return;
 
+    // Track selected source for panel expansion
+    selectedSourceId = sourceId;
+    expandSourcesPanel();
+
     // Use source.summary if available, otherwise description or content
     // PRD says: Source Summary (3-5 sentences).
     const content = source.summary || source.description || source.content || 'No summary available for this source.';
+    const summarizedAt = source.summarizedAt ? new Date(source.summarizedAt.toDate()).toLocaleDateString() : 'Not yet';
+    const importance = source.importance || 2;
 
     // Create a temporary summary object for display
     const tempSummary = {
-        title: `Source: ${source.title}`,
+        title: `📄 ${source.title}`,
         content: content,
         keyInsights: source.keyInsights || [],
         suggestedQuestions: [], // Questions usually apply to global summary
         isSourceView: true,
-        sourceId: source.id
+        sourceId: source.id,
+        summarizedAt: summarizedAt,
+        importance: importance
     };
 
     currentDisplayedSummary = tempSummary;
@@ -877,6 +919,134 @@ function closeModal(modalId) {
     const modal = document.getElementById(modalId);
     modal.classList.add('hidden');
     modal.classList.remove('flex');
+}
+
+// ============================================================
+// DELETE SOURCE
+// ============================================================
+
+// Confirm delete with modal
+function confirmDeleteSource(sourceId, sourceTitle) {
+    const confirmed = confirm(`Delete "${sourceTitle || 'this source'}"?\n\nThis will remove it from your Knowledge Hub and may affect your Brand Summary.`);
+    if (confirmed) {
+        deleteSource(sourceId);
+    }
+}
+
+// Delete source from Firestore
+async function deleteSource(sourceId) {
+    if (!currentProjectId || !sourceId) return;
+
+    try {
+        // Delete from Firestore
+        await firebase.firestore()
+            .collection('projects')
+            .doc(currentProjectId)
+            .collection('knowledgeSources')
+            .doc(sourceId)
+            .delete();
+
+        // Remove from local state
+        sources = sources.filter(s => s.id !== sourceId);
+
+        // Re-render sources list
+        renderSources();
+
+        // If the deleted source was being displayed, clear the summary view
+        if (currentDisplayedSummary?.sourceId === sourceId) {
+            currentDisplayedSummary = null;
+            updateSummarySection();
+        }
+
+        showNotification('Source deleted successfully', 'success');
+        updateSourceCounts();
+
+    } catch (error) {
+        console.error('Error deleting source:', error);
+        showNotification('Failed to delete source', 'error');
+    }
+}
+
+// ============================================================
+// PANEL EXPANSION
+// ============================================================
+
+// Expand sources panel
+function expandSourcesPanel() {
+    const panel = document.getElementById('sources-panel');
+    if (panel) {
+        panel.classList.add('expanded');
+    }
+}
+
+// Collapse sources panel
+function collapseSourcesPanel() {
+    const panel = document.getElementById('sources-panel');
+    if (panel) {
+        panel.classList.remove('expanded');
+    }
+    selectedSourceId = null;
+}
+
+// Initialize click-outside detection for panel collapse
+function initializePanelClickOutside() {
+    document.addEventListener('click', (e) => {
+        const panel = document.getElementById('sources-panel');
+        if (!panel || !panel.classList.contains('expanded')) return;
+
+        // Check if click is outside the sources panel
+        if (!panel.contains(e.target)) {
+            collapseSourcesPanel();
+        }
+    });
+}
+
+// Select a source and expand panel with details
+function selectSourceForDetail(sourceId) {
+    const source = sources.find(s => s.id === sourceId);
+    if (!source) return;
+
+    selectedSourceId = sourceId;
+    expandSourcesPanel();
+
+    // Also show in right panel (Brand Intelligence)
+    openSourceContent(sourceId);
+}
+
+// ============================================================
+// SOURCE IMPORTANCE (WEIGHT)
+// ============================================================
+
+// Update source importance (1-3 stars)
+async function updateSourceImportance(sourceId, importance) {
+    if (!currentProjectId || !sourceId) return;
+
+    const validImportance = Math.max(1, Math.min(3, importance));
+
+    try {
+        await firebase.firestore()
+            .collection('projects')
+            .doc(currentProjectId)
+            .collection('knowledgeSources')
+            .doc(sourceId)
+            .update({
+                importance: validImportance,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+        // Update local state
+        const source = sources.find(s => s.id === sourceId);
+        if (source) source.importance = validImportance;
+
+        // Re-render sources list
+        renderSources();
+
+        showNotification(`Document importance set to ${'⭐'.repeat(validImportance)}`, 'success');
+
+    } catch (error) {
+        console.error('Error updating importance:', error);
+        showNotification('Failed to update importance', 'error');
+    }
 }
 
 // ============================================================
