@@ -24,7 +24,9 @@ let isLoading = false;
 let sourcesUnsubscribe = null;
 let targetLanguage = 'ko'; // Default target language for summaries
 let currentSummary = null; // Store current summary for save/copy
-const MAX_SUMMARY_HISTORY = 10; // Maximum number of summary notes to keep
+let brandSummaries = []; // Store brand summary history
+let currentDisplayedSummary = null; // Currently displayed summary (could be history or latest)
+const MAX_SUMMARY_HISTORY = 20; // Maximum number of summary notes to keep
 
 // Chat Configuration
 let chatConfig = {
@@ -330,6 +332,7 @@ async function selectProject(projectId) {
                 currentProject.name || currentProject.brandName || 'Brand Intelligence';
 
             await loadSources();
+            await loadBrandSummaries(); // Load summaries
             updateSourceCounts();
             loadSavedPlans(); // Load saved plans for sidebar
         }
@@ -376,81 +379,130 @@ async function loadSources() {
     }
 }
 
+// Load Brand Summaries (History)
+async function loadBrandSummaries() {
+    if (!currentProjectId) return;
+
+    try {
+        const snapshot = await firebase.firestore()
+            .collection('projects')
+            .doc(currentProjectId)
+            .collection('brandSummaries')
+            .orderBy('createdAt', 'desc')
+            .limit(MAX_SUMMARY_HISTORY)
+            .get();
+
+        brandSummaries = [];
+        snapshot.forEach(doc => {
+            brandSummaries.push({ id: doc.id, ...doc.data() });
+        });
+
+        // Loop to delete excess if any (though limit above handles fetch, we should cleanup DB if needed)
+        // For simplicity, we handle cleanup on save.
+
+        updateSummarySection();
+
+    } catch (error) {
+        console.error('Error loading brand summaries:', error);
+    }
+}
+
 function updateSummarySection() {
+    const summaryCard = document.getElementById('brand-summary-card');
     const summaryTitle = document.getElementById('summary-title');
     const summaryContent = document.getElementById('summary-content');
     const keyInsights = document.getElementById('key-insights');
     const insightsList = document.getElementById('insights-list');
+    const btnRegenerate = document.getElementById('btn-regenerate-summary');
 
-    const activeSources = sources.filter(s => s.isActive !== false);
+    // 1. Determine which summary to show
+    // Priority: currentDisplayedSummary (manual override) -> Latest from history -> Loading/Empty
 
-    if (activeSources.length === 0) {
-        summaryTitle.textContent = 'No active sources';
-        summaryContent.textContent = 'Add sources or enable existing ones to generate an AI summary.';
-        keyInsights.classList.add('hidden');
-        return;
+    let summaryToShow = currentDisplayedSummary;
+    if (!summaryToShow && brandSummaries.length > 0) {
+        summaryToShow = brandSummaries[0];
     }
 
-    // Check statuses
-    const analyzing = activeSources.filter(s => s.status === 'analyzing');
-    const completed = activeSources.filter(s => s.status === 'completed');
-    const failed = activeSources.filter(s => s.status === 'failed');
-
-    if (analyzing.length > 0) {
-        summaryTitle.textContent = 'Analyzing sources...';
-        summaryContent.innerHTML = `
-            <div class="flex items-center gap-2">
-                <span class="animate-spin h-4 w-4 border-2 border-indigo-500 border-t-transparent rounded-full"></span>
-                <span>Analyzing ${analyzing.length} source(s). Please wait...</span>
-            </div>
-        `;
+    if (!summaryToShow) {
+        // Initial State or No Summary
+        summaryTitle.textContent = 'Welcome to Brand Intelligence';
+        summaryContent.textContent = 'Add sources from the left panel to generate your Brand Summary.';
         keyInsights.classList.add('hidden');
-        return;
-    }
+        document.getElementById('summary-actions').classList.add('hidden');
+        // Hide card if no summary? Or show placeholder?
+        // User requested: "Chat starts with hidden slot, shown when source selected"
+        // But also "Brand Summary is history managed".
+        // Let's keep it visible but with welcome text if no history.
+    } else {
+        // Render Summary
+        summaryTitle.textContent = summaryToShow.title || 'Brand Summary';
+        summaryContent.textContent = summaryToShow.content;
 
-    if (completed.length === 0) {
-        if (failed.length > 0) {
-            summaryTitle.textContent = 'Analysis Failed';
-            summaryContent.textContent = 'Some sources failed to analyze. Please check the source list.';
+        // Key Insights (Chips)
+        if (summaryToShow.keyInsights && summaryToShow.keyInsights.length > 0) {
+            keyInsights.classList.remove('hidden');
+            insightsList.innerHTML = summaryToShow.keyInsights.map(insight => `
+                <span class="px-3 py-1 text-xs font-medium text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 rounded-full">
+                    ${escapeHtml(insight)}
+                </span>
+            `).join('');
         } else {
-            summaryTitle.textContent = 'Ready to analyze';
-            summaryContent.textContent = 'Sources are added but not yet analyzed.';
+            keyInsights.classList.add('hidden');
         }
-        keyInsights.classList.add('hidden');
-        return;
+
+        // Suggested Questions (Chips in Summary Card)
+        const questionsContainer = document.getElementById('suggested-questions-container');
+        if (questionsContainer) {
+            if (summaryToShow.suggestedQuestions && summaryToShow.suggestedQuestions.length > 0) {
+                questionsContainer.classList.remove('hidden');
+                const questionsList = questionsContainer.querySelector('.flex');
+                if (questionsList) {
+                    questionsList.innerHTML = summaryToShow.suggestedQuestions.map(q => `
+                        <button class="suggested-question px-4 py-2 text-sm text-slate-300 bg-slate-800 rounded-full hover:bg-slate-700 hover:text-white transition-all border border-slate-700"
+                             onclick="setInput('${escapeHtml(q)}')">
+                            ${escapeHtml(q)}
+                        </button>
+                    `).join('');
+                }
+            } else {
+                questionsContainer.classList.add('hidden');
+            }
+        }
+
+        document.getElementById('summary-actions').classList.remove('hidden');
+        currentSummary = summaryToShow; // Update global current for actions
     }
 
-    // Sort completed by analyzedAt desc to show latest info
-    completed.sort((a, b) => {
-        const dateA = a.analysis?.analyzedAt?.toDate?.() || new Date(0);
-        const dateB = b.analysis?.analyzedAt?.toDate?.() || new Date(0);
-        return dateB - dateA;
-    });
+    // 2. Logic for Regenerate Button
+    // Check if new sources added or updated since last summary
+    if (btnRegenerate) {
+        const activeSources = sources.filter(s => s.isActive !== false);
+        if (activeSources.length === 0) {
+            btnRegenerate.disabled = true;
+            btnRegenerate.classList.add('opacity-50', 'cursor-not-allowed');
+            return;
+        }
 
-    const primarySource = completed[0];
-    const analysis = primarySource.analysis || {};
+        btnRegenerate.disabled = false;
+        btnRegenerate.classList.remove('opacity-50', 'cursor-not-allowed');
 
-    // If multiple sources, we might want to hint at that
-    const suffix = completed.length > 1 ? ` (+${completed.length - 1} others)` : '';
-    summaryTitle.textContent = analysis.summary ? 'Brand Summary' : 'Summary Processing...';
+        // Optional: Highlight if new data available
+        // Find latest source update
+        const latestSourceUpdate = activeSources.reduce((latest, s) => {
+            const date = s.updatedAt?.toDate?.() || new Date(0);
+            return date > latest ? date : latest;
+        }, new Date(0));
 
-    if (analysis.summary) {
-        summaryContent.textContent = analysis.summary;
-    } else {
-        summaryContent.textContent = 'Summary extracted from ' + (primarySource.title || 'source') + suffix;
-    }
+        const lastSummaryDate = brandSummaries.length > 0 && brandSummaries[0].createdAt ?
+            brandSummaries[0].createdAt.toDate() : new Date(0);
 
-    // Key Insights
-    if (analysis.keyInsights && analysis.keyInsights.length > 0) {
-        keyInsights.classList.remove('hidden');
-        insightsList.innerHTML = analysis.keyInsights.map(insight => `
-            <div class="flex items-start gap-2 text-xs text-slate-400">
-                <span class="text-indigo-400 mt-0.5">•</span>
-                <span>${insight}</span>
-            </div>
-        `).join('');
-    } else {
-        keyInsights.classList.add('hidden');
+        if (latestSourceUpdate > lastSummaryDate) {
+            btnRegenerate.classList.add('ring-2', 'ring-indigo-500', 'animate-pulse');
+            btnRegenerate.textContent = 'Update Summary (New Data)';
+        } else {
+            btnRegenerate.classList.remove('ring-2', 'ring-indigo-500', 'animate-pulse');
+            btnRegenerate.textContent = 'Regenerate';
+        }
     }
 }
 
@@ -511,6 +563,11 @@ function createSourceElement(source) {
             <div class="toggle-switch ${source.isActive !== false ? 'active' : ''}" data-source-id="${source.id}"></div>
         </div>
     `;
+
+    // Row Click - Open Source Summary/Content
+    div.addEventListener('click', () => {
+        openSourceContent(source.id);
+    });
 
     // Toggle click handler
     const toggle = div.querySelector('.toggle-switch');
@@ -595,6 +652,42 @@ async function toggleSourceActive(sourceId, isActive) {
     } catch (error) {
         console.error('Error toggling source:', error);
         showNotification('Failed to update source', 'error');
+    }
+}
+
+function openSourceContent(sourceId) {
+    const source = sources.find(s => s.id === sourceId);
+    if (!source) return;
+
+    // Use source.summary if available, otherwise description or content
+    // PRD says: Source Summary (3-5 sentences).
+    const content = source.summary || source.description || source.content || 'No summary available for this source.';
+
+    // Create a temporary summary object for display
+    const tempSummary = {
+        title: `Source: ${source.title}`,
+        content: content,
+        keyInsights: source.keyInsights || [],
+        suggestedQuestions: [], // Questions usually apply to global summary
+        isSourceView: true,
+        sourceId: source.id
+    };
+
+    currentDisplayedSummary = tempSummary;
+    updateSummarySection();
+
+    // Scroll to top
+    const chatContent = document.getElementById('chat-content');
+    if (chatContent) {
+        chatContent.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Animation
+    const summaryCard = document.getElementById('brand-summary-card');
+    if (summaryCard) {
+        summaryCard.classList.remove('animate-slide-down');
+        void summaryCard.offsetWidth; // Trigger reflow
+        summaryCard.classList.add('animate-slide-down');
     }
 }
 
@@ -1822,15 +1915,16 @@ async function generateSummary() {
     const activeSources = sources.filter(s => s.isActive !== false && s.status === 'completed');
 
     if (activeSources.length === 0) {
-        document.getElementById('summary-title').textContent = 'No sources available';
-        document.getElementById('summary-content').textContent = 'Add sources to generate an AI summary of your brand data.';
-        document.getElementById('key-insights').classList.add('hidden');
+        // Fallback UI handled in updateSummarySection
+        showNotification('No active sources to analyze', 'warning');
         return;
     }
 
     // Show loading state
     document.getElementById('summary-title').textContent = 'Generating summary...';
     document.getElementById('summary-content').textContent = 'Analyzing your documents...';
+    const btnRegenerate = document.getElementById('btn-regenerate-summary');
+    if (btnRegenerate) btnRegenerate.disabled = true;
 
     try {
         // Call Cloud Function with target language
@@ -1841,47 +1935,158 @@ async function generateSummary() {
         });
 
         if (result.data.success) {
-            document.getElementById('summary-title').textContent = 'Brand Summary';
-            document.getElementById('summary-content').textContent = result.data.summary;
-
-            // Store current summary for save/copy functionality
-            currentSummary = {
+            // Create Summary Object
+            const newSummary = {
+                title: `Brand Summary - ${new Date().toLocaleDateString()}`,
                 content: result.data.summary,
                 suggestedQuestions: result.data.suggestedQuestions || [],
+                keyInsights: result.data.keyInsights || [], // Ensure cloud function returns this or we extract it
                 sourceCount: activeSources.length,
                 sourceNames: result.data.sourceNames || activeSources.map(s => s.title),
                 targetLanguage: targetLanguage,
-                generatedAt: new Date()
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                createdBy: currentUser?.uid
             };
 
-            // Show action buttons
-            document.getElementById('summary-actions').classList.remove('hidden');
+            // Save to brandSummaries collection
+            const docRef = await firebase.firestore()
+                .collection('projects')
+                .doc(currentProjectId)
+                .collection('brandSummaries')
+                .add(newSummary);
 
-            // Update suggested questions
-            if (result.data.suggestedQuestions && result.data.suggestedQuestions.length > 0) {
-                const questionsContainer = document.getElementById('suggested-questions').querySelector('.flex');
-                questionsContainer.innerHTML = result.data.suggestedQuestions.map(q => `
-                    <button class="suggested-question flex-shrink-0 px-4 py-2 text-xs text-slate-400 bg-slate-800/50 border border-slate-700/50 rounded-xl hover:text-white transition-all">
-                        ${escapeHtml(q)}
-                    </button>
-                `).join('');
+            // Fetch back to get valid timestamp
+            const savedDoc = await docRef.get();
+            const savedSummary = { id: savedDoc.id, ...savedDoc.data() };
 
-                // Re-attach click handlers
-                document.querySelectorAll('.suggested-question').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        document.getElementById('chat-input').value = btn.textContent.trim();
-                        sendChatMessage();
-                    });
-                });
+            // Update local state (prepend)
+            brandSummaries.unshift(savedSummary);
+            if (brandSummaries.length > MAX_SUMMARY_HISTORY) {
+                brandSummaries.pop();
             }
+
+            // Set as current display
+            currentDisplayedSummary = savedSummary;
+            updateSummarySection();
+
+            // Store current for actions
+            currentSummary = savedSummary;
+
+            // Update suggested questions (Chat UI)
+            if (result.data.suggestedQuestions && result.data.suggestedQuestions.length > 0) {
+                const questionsContainer = document.getElementById('suggested-questions');
+                if (questionsContainer) {
+                    const questionsList = questionsContainer.querySelector('.flex');
+                    if (questionsList) {
+                        questionsList.innerHTML = result.data.suggestedQuestions.map(q => `
+                            <button class="suggested-question flex-shrink-0 px-4 py-2 text-xs text-slate-400 bg-slate-800/50 border border-slate-700/50 rounded-xl hover:text-white transition-all"
+                                 onclick="setInput('${escapeHtml(q)}')">
+                                ${escapeHtml(q)}
+                            </button>
+                        `).join('');
+                    }
+                }
+            }
+            // Cleanup old summaries in DB (Async)
+            cleanupOldBrandSummaries();
 
             showNotification('Summary generated!', 'success');
         }
     } catch (error) {
         console.error('Error generating summary:', error);
-        document.getElementById('summary-title').textContent = 'Summary';
-        document.getElementById('summary-content').textContent = `Based on ${activeSources.length} active sources. (AI summary failed: ${error.message})`;
+        document.getElementById('summary-title').textContent = 'Summary Failed';
+        document.getElementById('summary-content').textContent = `Failed to generate summary: ${error.message}`;
+    } finally {
+        if (btnRegenerate) btnRegenerate.disabled = false;
     }
+}
+
+async function cleanupOldBrandSummaries() {
+    try {
+        const snapshot = await firebase.firestore()
+            .collection('projects')
+            .doc(currentProjectId)
+            .collection('brandSummaries')
+            .orderBy('createdAt', 'desc')
+            .get();
+
+        if (snapshot.size > MAX_SUMMARY_HISTORY) {
+            const batch = firebase.firestore().batch();
+            let count = 0;
+            snapshot.forEach(doc => {
+                count++;
+                if (count > MAX_SUMMARY_HISTORY) {
+                    batch.delete(doc.ref);
+                }
+            });
+            await batch.commit();
+        }
+    } catch (e) {
+        console.error('Cleanup error:', e);
+    }
+}
+
+function displaySummaryOverride(summaryId) {
+    const summary = brandSummaries.find(s => s.id === summaryId);
+    if (summary) {
+        currentDisplayedSummary = summary;
+        updateSummarySection();
+        // Scroll to top of chat to see summary
+        const chatContainer = document.getElementById('chat-content');
+        if (chatContainer) chatContainer.scrollTop = 0;
+    }
+}
+
+// History Modal Functions
+function openSummaryHistory() {
+    const modal = document.getElementById('summary-history-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        renderSummaryHistory();
+    }
+}
+
+function closeSummaryHistory() {
+    const modal = document.getElementById('summary-history-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+}
+
+function renderSummaryHistory() {
+    const container = document.getElementById('summary-history-list');
+    if (!container) return;
+
+    if (brandSummaries.length === 0) {
+        container.innerHTML = '<div class="text-center text-slate-500 py-10">No history available</div>';
+        return;
+    }
+
+    container.innerHTML = brandSummaries.map(summary => {
+        const date = summary.createdAt?.toDate ? summary.createdAt.toDate() : new Date();
+        const dateStr = date.toLocaleString();
+
+        return `
+            <div class="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 hover:border-indigo-500/50 transition-all cursor-pointer group" onclick="selectHistoryItem('${summary.id}')">
+                <div class="flex justify-between items-start mb-2">
+                    <h4 class="font-medium text-white">${summary.title || 'Brand Summary'}</h4>
+                    <span class="text-xs text-slate-500">${dateStr}</span>
+                </div>
+                <p class="text-sm text-slate-400 line-clamp-2 mb-2">${escapeHtml(summary.content)}</p>
+                <div class="flex items-center gap-2 text-xs text-slate-500">
+                    <span>${summary.sourceCount || 0} sources</span>
+                    <span class="text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity">Click to view</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function selectHistoryItem(summaryId) {
+    displaySummaryOverride(summaryId);
+    closeSummaryHistory();
 }
 
 // ============================================================
@@ -3709,3 +3914,19 @@ function openHistoryPlan(index) {
         closeHistoryModal(); // Stack modal behavior: close history, open plan view
     }
 }
+
+// Alias for HTML button
+window.regenerateSummary = generateSummary;
+
+/**
+ * Set input text from suggested question
+ */
+function setInput(text) {
+    const input = document.getElementById('chat-input');
+    if (input) {
+        input.value = text;
+        input.focus();
+    }
+}
+// Alias for HTML onclick
+window.setInput = setInput;

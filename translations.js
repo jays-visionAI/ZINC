@@ -90,7 +90,12 @@ const translations = {
         'dashboard.totalAgents': 'Total Agents',
         'dashboard.pendingApprovals': 'Portfolio Pending Approvals',
         'dashboard.noActions': 'No pending global actions.',
-        'dashboard.addNew': 'Add New Project'
+        'dashboard.addNew': 'Add New Project',
+
+        // Chat Suggestions
+        'chat.suggestion.differentiators': 'What are the key differentiators?',
+        'chat.suggestion.audience': 'Who is the target audience?',
+        'chat.suggestion.voice': 'Summarize brand voice'
     },
     ko: {
         // Navigation
@@ -182,7 +187,12 @@ const translations = {
         'dashboard.totalAgents': '총 에이전트',
         'dashboard.pendingApprovals': '승인 대기 중',
         'dashboard.noActions': '대기 중인 글로벌 작업이 없습니다.',
-        'dashboard.addNew': '새 프로젝트 추가'
+        'dashboard.addNew': '새 프로젝트 추가',
+
+        // Chat Suggestions
+        'chat.suggestion.differentiators': '주요 차별화 포인트는 무엇인가요?',
+        'chat.suggestion.audience': '타겟 고객은 누구인가요?',
+        'chat.suggestion.voice': '브랜드 보이스 요약해줘'
     }
 };
 

@@ -147,6 +147,13 @@ service cloud.firestore {
         allow create: if isAuthenticated() && isProjectOwner(projectId);
       }
 
+      // Brand Summaries (Knowledge Hub - Brand Intelligence)
+      match /brandSummaries/{summaryId} {
+        allow read: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
+        allow create: if isAuthenticated() && isProjectOwner(projectId);
+        allow delete: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
+      }
+
       // Generated Images (Knowledge Hub / Studio)
       match /generatedImages/{imageId} {
         allow read: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
