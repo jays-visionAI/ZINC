@@ -96,19 +96,37 @@ async function loadIndustries() {
  * Initialize Google APIs (GAPI + GIS)
  */
 function initializeGoogleAPIs() {
-    // Load GAPI
+    // Load GAPI with retry logic
     if (typeof gapi !== 'undefined') {
         gapi.load('client:picker', async () => {
-            try {
-                await gapi.client.init({
-                    apiKey: GOOGLE_API_KEY,
-                    discoveryDocs: GOOGLE_DISCOVERY_DOCS,
-                });
-                gapiInited = true;
-                console.log('GAPI initialized');
-            } catch (error) {
-                console.error('Error initializing GAPI:', error);
-            }
+            const maxRetries = 3;
+            let retryCount = 0;
+
+            const initGAPI = async () => {
+                try {
+                    await gapi.client.init({
+                        apiKey: GOOGLE_API_KEY,
+                        discoveryDocs: GOOGLE_DISCOVERY_DOCS,
+                    });
+                    gapiInited = true;
+                    console.log('GAPI initialized successfully');
+                } catch (error) {
+                    console.error('Error initializing GAPI (attempt ' + (retryCount + 1) + '):', error);
+
+                    // Retry on transient errors (502, 503, network errors)
+                    if (retryCount < maxRetries - 1) {
+                        retryCount++;
+                        const delay = Math.pow(2, retryCount) * 1000; // Exponential backoff: 2s, 4s, 8s
+                        console.log(`Retrying GAPI init in ${delay / 1000}s...`);
+                        setTimeout(initGAPI, delay);
+                    } else {
+                        console.error('GAPI initialization failed after ' + maxRetries + ' attempts');
+                        showNotification('Google API failed. Please refresh.', 'error');
+                    }
+                }
+            };
+
+            await initGAPI();
         });
     }
 
