@@ -506,7 +506,49 @@ function updateSummarySection() {
                 </div>
             `;
         } else {
-            summaryContent.textContent = summaryToShow.content;
+            // For Brand Summary, show content with weight breakdown
+            let weightBreakdownHtml = '';
+            if (summaryToShow.weightBreakdown && summaryToShow.weightBreakdown.length > 0) {
+                const maxPercent = Math.max(...summaryToShow.weightBreakdown.map(w => w.percent));
+                weightBreakdownHtml = `
+                    <div class="mb-4 p-3 bg-slate-800/50 rounded-xl border border-slate-700/50">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 3v18h18"/>
+                                    <path d="M7 16l4-8 4 4 5-9"/>
+                                </svg>
+                                Weight Distribution
+                            </h4>
+                            <button onclick="openWeightReport(currentDisplayedSummary?.weightBreakdown, currentDisplayedSummary?.title)" 
+                                    class="px-2 py-1 text-xs bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 rounded-lg transition-all flex items-center gap-1.5 border border-indigo-600/30">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 12a9 9 0 0 1-9 9m9-9a9 9 0 0 0-9-9m9 9H3m9 9a9 9 0 0 1-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 0 1 9-9"/>
+                                </svg>
+                                View Report
+                            </button>
+                        </div>
+                        <div class="space-y-2">
+                            ${summaryToShow.weightBreakdown.slice(0, 4).map(w => `
+                                <div class="flex items-center gap-3">
+                                    <span class="text-xs ${w.importance === 3 ? 'text-red-400' : (w.importance === 2 ? 'text-yellow-400' : 'text-slate-400')}">
+                                        ${'⭐'.repeat(w.importance)}
+                                    </span>
+                                    <span class="text-xs text-slate-300 truncate flex-1" title="${escapeHtml(w.title)}">${escapeHtml(w.title.substring(0, 30))}${w.title.length > 30 ? '...' : ''}</span>
+                                    <div class="w-20 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                                        <div class="h-full bg-indigo-500 rounded-full transition-all" style="width: ${(w.percent / maxPercent) * 100}%"></div>
+                                    </div>
+                                    <span class="text-xs text-indigo-400 font-medium w-8 text-right">${w.percent}%</span>
+                                </div>
+                            `).join('')}
+                            ${summaryToShow.weightBreakdown.length > 4 ? `
+                                <div class="text-xs text-slate-500 text-center pt-1">+${summaryToShow.weightBreakdown.length - 4} more documents • Click "View Report" for details</div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+            summaryContent.innerHTML = weightBreakdownHtml + `<div class="text-base text-slate-300 leading-relaxed">${summaryToShow.content}</div>`;
         }
 
         // Key Insights (Chips)
@@ -2262,6 +2304,19 @@ async function generateSummary() {
         });
 
         if (result.data.success) {
+            // Calculate total weight points and percentages
+            const totalWeightPoints = sourceWeights.reduce((sum, s) => sum + (s.importance === 3 ? 3 : (s.importance === 1 ? 1 : 2)), 0);
+            const weightBreakdown = sourceWeights.map(s => {
+                const points = s.importance === 3 ? 3 : (s.importance === 1 ? 1 : 2);
+                const percent = Math.round((points / totalWeightPoints) * 100);
+                return {
+                    id: s.id,
+                    title: s.title,
+                    importance: s.importance,
+                    percent: percent
+                };
+            }).sort((a, b) => b.importance - a.importance); // Sort by importance desc
+
             // Create Summary Object
             const newSummary = {
                 title: `Brand Summary - ${new Date().toLocaleDateString()}`,
@@ -2270,6 +2325,7 @@ async function generateSummary() {
                 keyInsights: result.data.keyInsights || [], // Ensure cloud function returns this or we extract it
                 sourceCount: activeSources.length,
                 sourceNames: result.data.sourceNames || activeSources.map(s => s.title),
+                weightBreakdown: weightBreakdown,  // Store weight breakdown for display
                 targetLanguage: targetLanguage,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                 createdBy: currentUser?.uid
@@ -4560,3 +4616,226 @@ function setInput(text) {
 }
 // Alias for HTML onclick
 window.setInput = setInput;
+
+// ============================================================
+// WEIGHT REPORT - CANVAS ANIMATION
+// ============================================================
+
+let weightReportAnimation = null;
+let weightReportData = null;
+
+// Open Weight Report modal
+function openWeightReport(weightBreakdown, resultTitle = 'Summary') {
+    if (!weightBreakdown || weightBreakdown.length === 0) {
+        showNotification('No weight data available', 'warning');
+        return;
+    }
+
+    // Check for missing documents
+    const enrichedBreakdown = weightBreakdown.map(w => ({
+        ...w,
+        missing: !sources.find(s => s.id === w.id)
+    }));
+
+    weightReportData = {
+        breakdown: enrichedBreakdown,
+        resultTitle: resultTitle
+    };
+
+    // Update subtitle
+    document.getElementById('weight-report-subtitle').textContent = `${resultTitle} - ${enrichedBreakdown.length} documents`;
+
+    // Show modal
+    const modal = document.getElementById('weight-report-modal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+
+    // Start animation
+    setTimeout(() => startWeightReportAnimation(), 100);
+}
+
+// Close Weight Report modal
+function closeWeightReport() {
+    const modal = document.getElementById('weight-report-modal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+
+    // Stop animation
+    if (weightReportAnimation) {
+        cancelAnimationFrame(weightReportAnimation);
+        weightReportAnimation = null;
+    }
+}
+
+// Particle class
+class WeightParticle {
+    constructor(startX, startY, endX, endY, importance, color) {
+        this.startX = startX;
+        this.startY = startY;
+        this.endX = endX;
+        this.endY = endY;
+        this.x = startX;
+        this.y = startY;
+        this.importance = importance;
+        this.color = color;
+        this.progress = Math.random() * 0.3; // Random start offset
+        this.speed = importance === 3 ? 0.008 : (importance === 2 ? 0.006 : 0.004);
+        this.size = importance === 3 ? 6 : (importance === 2 ? 4 : 2.5);
+        this.alpha = 1;
+    }
+
+    update() {
+        this.progress += this.speed;
+        if (this.progress >= 1) {
+            this.progress = 0;
+            this.alpha = 1;
+        }
+
+        // Ease-in-out interpolation
+        const t = this.progress;
+        const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
+        this.x = this.startX + (this.endX - this.startX) * ease;
+        this.y = this.startY + (this.endY - this.startY) * ease;
+
+        // Fade out near end
+        if (this.progress > 0.8) {
+            this.alpha = 1 - ((this.progress - 0.8) / 0.2);
+        }
+    }
+
+    draw(ctx) {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fillStyle = this.color.replace('1)', `${this.alpha})`);
+        ctx.fill();
+
+        // Glow effect for high importance
+        if (this.importance === 3) {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size * 2, 0, Math.PI * 2);
+            ctx.fillStyle = this.color.replace('1)', `${this.alpha * 0.3})`);
+            ctx.fill();
+        }
+    }
+}
+
+// Start Canvas animation
+function startWeightReportAnimation() {
+    const canvas = document.getElementById('weight-report-canvas');
+    if (!canvas || !weightReportData) return;
+
+    const ctx = canvas.getContext('2d');
+    const breakdown = weightReportData.breakdown;
+
+    // Layout calculations
+    const leftMargin = 50;
+    const rightMargin = 950;
+    const topMargin = 60;
+    const rowHeight = Math.min(70, (canvas.height - 150) / Math.max(breakdown.length, 1));
+
+    // Result node position
+    const resultX = rightMargin - 100;
+    const resultY = canvas.height / 2;
+
+    // Create particles
+    const particles = [];
+    breakdown.forEach((doc, index) => {
+        const docY = topMargin + index * rowHeight + rowHeight / 2;
+        const docX = leftMargin + 200;
+
+        let color;
+        if (doc.missing) {
+            color = 'rgba(239, 68, 68, 1)'; // Red for missing
+        } else if (doc.importance === 3) {
+            color = 'rgba(139, 92, 246, 1)'; // Purple
+        } else if (doc.importance === 2) {
+            color = 'rgba(251, 191, 36, 1)'; // Yellow
+        } else {
+            color = 'rgba(100, 116, 139, 1)'; // Slate
+        }
+
+        // Create multiple particles per document based on weight
+        const particleCount = doc.missing ? 0 : Math.ceil(doc.percent / 10);
+        for (let i = 0; i < particleCount; i++) {
+            setTimeout(() => {
+                particles.push(new WeightParticle(docX, docY, resultX - 40, resultY, doc.importance, color));
+            }, i * 200);
+        }
+    });
+
+    // Animation loop
+    function animate() {
+        // Clear canvas
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Draw connection lines
+        breakdown.forEach((doc, index) => {
+            const docY = topMargin + index * rowHeight + rowHeight / 2;
+            const docX = leftMargin + 200;
+
+            ctx.beginPath();
+            ctx.moveTo(docX, docY);
+            ctx.lineTo(resultX - 40, resultY);
+            ctx.strokeStyle = doc.missing ? 'rgba(239, 68, 68, 0.2)' : 'rgba(99, 102, 241, 0.15)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        });
+
+        // Draw document nodes
+        breakdown.forEach((doc, index) => {
+            const docY = topMargin + index * rowHeight + rowHeight / 2;
+
+            // Stars
+            const stars = '⭐'.repeat(doc.importance);
+            ctx.font = '14px sans-serif';
+            ctx.fillStyle = doc.missing ? '#ef4444' : (doc.importance === 3 ? '#a78bfa' : (doc.importance === 2 ? '#fbbf24' : '#64748b'));
+            ctx.fillText(stars, leftMargin, docY - 8);
+
+            // Document title
+            ctx.font = '13px Inter, sans-serif';
+            ctx.fillStyle = doc.missing ? '#ef4444' : '#e2e8f0';
+            const title = doc.title.length > 25 ? doc.title.substring(0, 25) + '...' : doc.title;
+            ctx.fillText(doc.missing ? `⚠️ ${title}` : title, leftMargin, docY + 12);
+
+            // Percentage
+            ctx.font = 'bold 14px Inter, sans-serif';
+            ctx.fillStyle = doc.missing ? '#ef4444' : '#6366f1';
+            ctx.fillText(`${doc.percent}%`, leftMargin + 210, docY + 4);
+        });
+
+        // Draw result node
+        ctx.beginPath();
+        ctx.roundRect(resultX - 40, resultY - 40, 80, 80, 12);
+        ctx.fillStyle = 'rgba(99, 102, 241, 0.2)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(99, 102, 241, 0.5)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Result icon (document)
+        ctx.font = '32px sans-serif';
+        ctx.fillStyle = '#6366f1';
+        ctx.fillText('📄', resultX - 18, resultY + 10);
+
+        // Result label
+        ctx.font = 'bold 12px Inter, sans-serif';
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText('Result', resultX - 18, resultY + 55);
+
+        // Update and draw particles
+        particles.forEach(p => {
+            p.update();
+            p.draw(ctx);
+        });
+
+        weightReportAnimation = requestAnimationFrame(animate);
+    }
+
+    animate();
+}
+
+// Expose to window
+window.openWeightReport = openWeightReport;
+window.closeWeightReport = closeWeightReport;
