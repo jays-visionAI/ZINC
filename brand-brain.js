@@ -7,7 +7,7 @@
 // These values are set in env-config.js (loaded before this script)
 const GOOGLE_CLIENT_ID = window.ENV_CONFIG?.GOOGLE_CLIENT_ID || '';
 const GOOGLE_API_KEY = window.ENV_CONFIG?.GOOGLE_API_KEY || '';
-const GOOGLE_DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'];
+// const GOOGLE_DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'];
 const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly';
 
 // State
@@ -106,8 +106,8 @@ function initializeGoogleAPIs() {
                 try {
                     await gapi.client.init({
                         apiKey: GOOGLE_API_KEY,
-                        discoveryDocs: GOOGLE_DISCOVERY_DOCS,
                     });
+                    await gapi.client.load('https://www.googleapis.com/discovery/v1/apis/drive/v3/rest');
                     gapiInited = true;
                     console.log('GAPI initialized successfully');
                 } catch (error) {
