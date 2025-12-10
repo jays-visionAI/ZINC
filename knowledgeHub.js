@@ -2550,14 +2550,320 @@ function openPlanModal(planType) {
 
 
 /**
- * Open creative studio modal (stub for 'create' category plans)
- * TODO: Implement full Creative Studio modal
+ * Creative Studio state
+ */
+let currentCreativeType = null;
+let currentCreativeData = {};
+
+/**
+ * Creative content type configurations
+ */
+const CREATIVE_CONFIGS = {
+    email_template: {
+        name: 'Email Template',
+        subtitle: 'Generate a professional marketing email',
+        buttonLabel: 'Email',
+        credits: 5,
+        controls: [
+            { id: 'email-type', type: 'select', label: 'Email Type', options: ['Newsletter', 'Promotional', 'Welcome', 'Follow-up', 'Announcement'] },
+            { id: 'email-subject', type: 'text', label: 'Subject Line (optional)', placeholder: 'e.g., Introducing our new feature...' },
+            { id: 'email-keypoints', type: 'textarea', label: 'Key Points', placeholder: 'Enter key points to include (one per line)' },
+            { id: 'email-cta', type: 'text', label: 'Call to Action', placeholder: 'e.g., Try it now, Learn more' },
+            { id: 'email-tone', type: 'select', label: 'Tone', options: ['Professional', 'Friendly', 'Urgent', 'Casual', 'Formal'] }
+        ]
+    },
+    press_release: {
+        name: 'Press Release',
+        subtitle: 'Generate a media-ready press release',
+        buttonLabel: 'Press Release',
+        credits: 10,
+        controls: [
+            { id: 'pr-headline', type: 'text', label: 'Headline', placeholder: 'Main announcement headline' },
+            { id: 'pr-subheadline', type: 'text', label: 'Subheadline (optional)', placeholder: 'Supporting detail' },
+            { id: 'pr-announcement', type: 'textarea', label: 'Announcement Details', placeholder: 'What are you announcing? Key facts and details...' },
+            { id: 'pr-quote', type: 'textarea', label: 'Quote (optional)', placeholder: 'A quote from the CEO or spokesperson' },
+            { id: 'pr-boilerplate', type: 'checkbox', label: 'Include company boilerplate' }
+        ]
+    },
+    product_brochure: {
+        name: 'Product Brochure',
+        subtitle: 'Generate a high-quality PDF brochure',
+        buttonLabel: 'Brochure',
+        credits: 20,
+        controls: [
+            { id: 'brochure-title', type: 'text', label: 'Title', placeholder: 'Brochure title' },
+            { id: 'brochure-sections', type: 'select', label: 'Sections', options: ['3 sections', '4 sections', '5 sections'] },
+            { id: 'brochure-content', type: 'textarea', label: 'Key Content Points', placeholder: 'Main features, benefits, use cases...' }
+        ]
+    },
+    promo_images: {
+        name: 'Promo Images',
+        subtitle: 'Generate promotional images',
+        buttonLabel: 'Images',
+        credits: 5,
+        controls: [
+            { id: 'promo-concept', type: 'textarea', label: 'Image Concept', placeholder: 'Describe the image you want...' },
+            { id: 'promo-style', type: 'select', label: 'Style', options: ['Modern', 'Minimalist', 'Bold', 'Corporate', 'Creative'] }
+        ]
+    },
+    one_pager: {
+        name: '1-Pager PDF',
+        subtitle: 'Generate a single-page summary document',
+        buttonLabel: '1-Pager',
+        credits: 15,
+        controls: [
+            { id: 'onepager-title', type: 'text', label: 'Document Title', placeholder: 'Title for the document' },
+            { id: 'onepager-content', type: 'textarea', label: 'Main Content', placeholder: 'Key information to include...' }
+        ]
+    },
+    pitch_deck: {
+        name: 'Pitch Deck Outline',
+        subtitle: 'Generate a presentation outline',
+        buttonLabel: 'Outline',
+        credits: 10,
+        controls: [
+            { id: 'pitch-topic', type: 'text', label: 'Topic', placeholder: 'What is this pitch about?' },
+            { id: 'pitch-slides', type: 'select', label: 'Number of Slides', options: ['5 slides', '8 slides', '10 slides', '12 slides'] },
+            { id: 'pitch-audience', type: 'text', label: 'Target Audience', placeholder: 'e.g., Investors, Partners, Customers' }
+        ]
+    }
+};
+
+/**
+ * Open creative studio modal
  */
 function openCreativeModal(planType) {
-    const planDef = PLAN_DEFINITIONS[planType];
-    const planName = planDef ? planDef.name : planType;
-    showNotification(`${planName} - Creative Studio coming soon!`, 'info');
-    console.log('[CreativeModal] Plan type:', planType, planDef);
+    const config = CREATIVE_CONFIGS[planType];
+    if (!config) {
+        showNotification('Unknown creative type: ' + planType, 'error');
+        return;
+    }
+
+    currentCreativeType = planType;
+    currentCreativeData = {};
+
+    // Update modal header
+    document.getElementById('creative-modal-title').textContent = config.name;
+    document.getElementById('creative-modal-subtitle').textContent = config.subtitle;
+    document.getElementById('creative-cost').textContent = config.credits + ' cr';
+    document.getElementById('btn-creative-generate-label').textContent = config.buttonLabel;
+
+    // Generate controls
+    const controlsContainer = document.getElementById('creative-controls-container');
+    controlsContainer.innerHTML = generateCreativeControls(config.controls);
+
+    // Reset preview area
+    document.getElementById('creative-placeholder').classList.remove('hidden');
+    document.getElementById('creative-loading').classList.add('hidden');
+    document.getElementById('creative-result-container').classList.add('hidden');
+    document.getElementById('btn-creative-download').classList.add('hidden');
+    document.getElementById('btn-creative-copy').classList.add('hidden');
+
+    // Show modal
+    document.getElementById('creative-modal').style.display = 'block';
+    console.log('[CreativeModal] Opened for:', planType);
+}
+
+/**
+ * Generate control inputs HTML
+ */
+function generateCreativeControls(controls) {
+    return controls.map(ctrl => {
+        let inputHTML = '';
+
+        switch (ctrl.type) {
+            case 'text':
+                inputHTML = `<input type="text" id="${ctrl.id}" placeholder="${ctrl.placeholder || ''}" 
+                    class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-indigo-500">`;
+                break;
+            case 'textarea':
+                inputHTML = `<textarea id="${ctrl.id}" placeholder="${ctrl.placeholder || ''}" rows="3"
+                    class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-indigo-500 resize-none"></textarea>`;
+                break;
+            case 'select':
+                const options = ctrl.options.map(opt => `<option value="${opt}">${opt}</option>`).join('');
+                inputHTML = `<select id="${ctrl.id}" 
+                    class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-indigo-500">
+                    ${options}
+                </select>`;
+                break;
+            case 'checkbox':
+                inputHTML = `<label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="${ctrl.id}" class="w-4 h-4 rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500">
+                    <span class="text-sm text-slate-300">${ctrl.label}</span>
+                </label>`;
+                return `<div class="space-y-1">${inputHTML}</div>`;
+        }
+
+        return `
+            <div class="space-y-1">
+                <label class="block text-xs text-slate-400 font-medium">${ctrl.label}</label>
+                ${inputHTML}
+            </div>
+        `;
+    }).join('');
+}
+
+/**
+ * Close creative modal
+ */
+function closeCreativeModal() {
+    document.getElementById('creative-modal').style.display = 'none';
+    currentCreativeType = null;
+    currentCreativeData = {};
+}
+
+/**
+ * Generate creative item (placeholder - will connect to backend)
+ */
+async function generateCreativeItem() {
+    if (!currentCreativeType) return;
+
+    const config = CREATIVE_CONFIGS[currentCreativeType];
+    if (!config) return;
+
+    // Collect input values
+    const inputs = {};
+    config.controls.forEach(ctrl => {
+        const el = document.getElementById(ctrl.id);
+        if (el) {
+            inputs[ctrl.id] = ctrl.type === 'checkbox' ? el.checked : el.value;
+        }
+    });
+
+    console.log('[CreativeModal] Generating with inputs:', inputs);
+
+    // Show loading
+    document.getElementById('creative-placeholder').classList.add('hidden');
+    document.getElementById('creative-loading').classList.remove('hidden');
+    document.getElementById('creative-loading').style.display = 'flex';
+
+    try {
+        // TODO: Replace with actual backend call
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API call
+
+        // Mock result for Email/Press Release (text-based)
+        let mockResult = '';
+        if (currentCreativeType === 'email_template') {
+            mockResult = generateMockEmail(inputs);
+        } else if (currentCreativeType === 'press_release') {
+            mockResult = generateMockPressRelease(inputs);
+        } else {
+            mockResult = `<p class="text-slate-400">Generation for ${config.name} coming soon!</p>`;
+        }
+
+        // Show result
+        document.getElementById('creative-loading').classList.add('hidden');
+        document.getElementById('creative-loading').style.display = 'none';
+        document.getElementById('creative-result-container').classList.remove('hidden');
+        document.getElementById('creative-result-container').innerHTML = `
+            <div class="prose prose-invert max-w-none h-full overflow-auto p-4 bg-slate-900 rounded-lg border border-slate-800">
+                ${mockResult}
+            </div>
+        `;
+
+        // Show action buttons
+        document.getElementById('btn-creative-copy').classList.remove('hidden');
+        document.getElementById('btn-creative-copy').style.display = 'flex';
+
+        showNotification(`${config.name} generated successfully!`, 'success');
+
+    } catch (error) {
+        console.error('[CreativeModal] Generation error:', error);
+        document.getElementById('creative-loading').classList.add('hidden');
+        document.getElementById('creative-placeholder').classList.remove('hidden');
+        showNotification('Generation failed: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Mock Email Template Generator
+ */
+function generateMockEmail(inputs) {
+    const type = inputs['email-type'] || 'Newsletter';
+    const subject = inputs['email-subject'] || 'Your Weekly Update';
+    const keypoints = inputs['email-keypoints'] || 'Our latest features and updates';
+    const cta = inputs['email-cta'] || 'Learn More';
+    const tone = inputs['email-tone'] || 'Professional';
+
+    return `
+        <div class="space-y-4">
+            <div class="border-b border-slate-700 pb-3">
+                <p class="text-xs text-slate-500">Subject:</p>
+                <p class="text-lg font-semibold text-white">${subject}</p>
+            </div>
+            <div class="space-y-3 text-slate-300">
+                <p>Dear valued customer,</p>
+                <p>We're excited to share some important updates with you.</p>
+                <p><strong>Key Highlights:</strong></p>
+                <ul class="list-disc list-inside space-y-1 text-slate-400">
+                    ${keypoints.split('\n').filter(p => p.trim()).map(p => `<li>${p.trim()}</li>`).join('')}
+                </ul>
+                <p>We value your continued support and look forward to serving you.</p>
+                <div class="pt-4">
+                    <a href="#" class="inline-block px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium">${cta}</a>
+                </div>
+                <p class="text-sm text-slate-500 pt-4">Best regards,<br>The Team</p>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Mock Press Release Generator
+ */
+function generateMockPressRelease(inputs) {
+    const headline = inputs['pr-headline'] || 'Company Announces Major Update';
+    const subheadline = inputs['pr-subheadline'] || '';
+    const announcement = inputs['pr-announcement'] || 'Details of the announcement...';
+    const quote = inputs['pr-quote'] || '';
+
+    return `
+        <div class="space-y-4">
+            <div class="text-center border-b border-slate-700 pb-4">
+                <p class="text-xs text-slate-500 uppercase tracking-wider">Press Release</p>
+                <p class="text-xs text-slate-600 mt-1">For Immediate Release</p>
+            </div>
+            <h1 class="text-2xl font-bold text-white text-center">${headline}</h1>
+            ${subheadline ? `<p class="text-lg text-slate-400 text-center">${subheadline}</p>` : ''}
+            <div class="space-y-3 text-slate-300 pt-4">
+                <p><strong>Seoul, Korea – ${new Date().toLocaleDateString()}</strong> – ${announcement}</p>
+                ${quote ? `
+                    <blockquote class="border-l-4 border-indigo-500 pl-4 italic text-slate-400 my-4">
+                        "${quote}"
+                    </blockquote>
+                ` : ''}
+                <p class="text-sm text-slate-500 pt-4">###</p>
+                <div class="mt-4 text-xs text-slate-600">
+                    <p><strong>Media Contact:</strong></p>
+                    <p>Email: press@company.com</p>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Copy creative result to clipboard
+ */
+function copyCreativeItem() {
+    const resultContainer = document.getElementById('creative-result-container');
+    if (!resultContainer) return;
+
+    const text = resultContainer.innerText;
+    navigator.clipboard.writeText(text).then(() => {
+        showNotification('Copied to clipboard!', 'success');
+    }).catch(err => {
+        console.error('Copy failed:', err);
+        showNotification('Failed to copy', 'error');
+    });
+}
+
+/**
+ * Download creative item (placeholder)
+ */
+function downloadCreativeItem() {
+    showNotification('Download feature coming soon!', 'info');
 }
 
 /**
