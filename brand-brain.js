@@ -339,6 +339,30 @@ async function loadBrandBrainForProject(userId, projectId) {
             // Load existing Brand Brain data
             currentProjectId = projectId;
             brandBrainData = brandBrainDoc.data();
+
+            // BACKFILL: Check if industry is missing and try to fetch from original project
+            if (!brandBrainData.coreIdentity?.industry) {
+                console.log('[BrandBrain] Industry missing, checking original project...');
+                const projectDoc = await db.collection('projects').doc(projectId).get();
+                if (projectDoc.exists) {
+                    const projectData = projectDoc.data();
+                    if (projectData.industry) {
+                        console.log('[BrandBrain] Found industry in project, backfilling:', projectData.industry);
+
+                        // Update local data
+                        if (!brandBrainData.coreIdentity) brandBrainData.coreIdentity = {};
+                        brandBrainData.coreIdentity.industry = projectData.industry;
+
+                        // Save to Firestore immediately
+                        await brandBrainRef.update({
+                            'coreIdentity.industry': projectData.industry,
+                            'updatedAt': firebase.firestore.FieldValue.serverTimestamp()
+                        });
+
+                        showNotification('Project industry synced automatically');
+                    }
+                }
+            }
         } else {
             // Create Brand Brain data from existing project
             const projectDoc = await db.collection('projects').doc(projectId).get();
@@ -1316,16 +1340,26 @@ async function addLink(url) {
 }
 
 /**
- * Add note (Unified)
+ * Add note (Unified) - Uses textarea instead of prompt
  */
 async function addNote() {
-    if (!currentProjectId) return;
+    if (!currentProjectId) {
+        showNotification('Please select a project first', 'error');
+        return;
+    }
 
-    const title = prompt('Note title:');
-    if (!title) return;
+    const textarea = document.getElementById('new-note-content');
+    if (!textarea) return;
 
-    const content = prompt('Note content:');
-    if (!content) return;
+    const content = textarea.value.trim();
+    if (!content) {
+        showNotification('Please enter note content', 'error');
+        return;
+    }
+
+    // Generate a title from the first line or first 50 chars
+    const firstLine = content.split('\n')[0];
+    const title = firstLine.length > 50 ? firstLine.substring(0, 50) + '...' : firstLine;
 
     try {
         const db = firebase.firestore();
@@ -1342,11 +1376,15 @@ async function addNote() {
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
 
+        // Clear textarea
+        textarea.value = '';
+
+        // Reload sources
         await loadKnowledgeSources(currentProjectId);
-        showNotification('Note added!');
+        showNotification('Note added successfully!', 'success');
     } catch (error) {
         console.error('Error adding note:', error);
-        showNotification('Failed to add note', 'error');
+        showNotification('Failed to add note: ' + error.message, 'error');
     }
 }
 
