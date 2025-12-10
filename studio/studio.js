@@ -85,6 +85,7 @@ let state = {
     currentAgent: 0,
     timerSeconds: 0,
     timerInterval: null,
+    planContext: null, // Context from Knowledge Hub
 };
 
 // ============================================
@@ -157,7 +158,7 @@ async function initProjectSelector() {
                         createdAt: data.createdAt
                     });
                 } else {
-                    console.log('[Studio] Skipping project without name:', doc.id);
+                    // Skipping project without name
                 }
             });
 
@@ -182,12 +183,39 @@ async function initProjectSelector() {
                 option.value = project.id;
                 option.textContent = project.displayName;
                 projectSelect.appendChild(option);
-                console.log('[Studio] Added project:', project.id, project.displayName);
+
             });
 
-            // If URL has project param, auto-select
+            // Check for Knowledge Hub Context first
+            const studioContextStr = localStorage.getItem('studioContext');
+            let contextProjectId = null;
+            let contextTeamId = null;
+
+            if (studioContextStr) {
+                try {
+                    const context = JSON.parse(studioContextStr);
+
+
+                    if (context.projectId) {
+                        contextProjectId = context.projectId;
+                        contextTeamId = context.agentTeamId;
+                        state.planContext = context;
+
+                        addLogEntry('📄 Loaded plan from Knowledge Hub', 'success');
+                        addLogEntry(`📝 Plan: ${context.planName}`, 'info');
+                    }
+
+                    // Clear after loading
+                    localStorage.removeItem('studioContext');
+                } catch (e) {
+                    console.error('Error parsing studioContext:', e);
+                }
+            }
+
+            // If URL has project param, auto-select (Context takes precedence if exists, else URL)
             const urlParams = new URLSearchParams(window.location.search);
-            const projectId = urlParams.get('project');
+            const projectId = contextProjectId || urlParams.get('project');
+
             if (projectId) {
                 projectSelect.value = projectId;
                 state.selectedProject = projectId;
@@ -200,12 +228,40 @@ async function initProjectSelector() {
 
                 await loadAgentTeams(projectId);
 
-                const teamId = urlParams.get('team');
+                const teamId = contextTeamId || urlParams.get('team');
                 if (teamId) {
-                    agentTeamSelect.value = teamId;
-                    state.selectedAgentTeam = teamId;
-                    await loadSubAgents(teamId);
-                    enableStartButton();
+                    const agentTeamSelect = document.getElementById('agentteam-select');
+                    if (agentTeamSelect) {
+                        agentTeamSelect.value = teamId;
+                        // Trigger change event manually or call handler
+                        agentTeamSelect.classList.remove('selection-highlight');
+                        state.selectedAgentTeam = teamId;
+
+                        const selectedTeamOption = agentTeamSelect.options[agentTeamSelect.selectedIndex];
+
+                        // Verify if the team was actually selected (exists in the list)
+                        if (!selectedTeamOption || agentTeamSelect.value !== teamId) {
+                            console.warn('[Studio] Target team ID not found in list:', teamId);
+                            addLogEntry('⚠️ Selected team not found in project', 'warning');
+                            state.selectedAgentTeam = null; // Reset if invalid
+                        } else {
+                            const teamName = selectedTeamOption.textContent || teamId;
+                            addLogEntry(`🤖 Selected team: ${teamName}`, 'info');
+                        }
+
+                        await loadSubAgents(teamId);
+                        enableStartButton();
+
+                        // If we have a context, we might want to auto-open the DAG or highlight start
+                        if (state.planContext) {
+                            const startBtn = document.getElementById('start-execution-btn');
+                            startBtn.classList.add('animate-pulse'); // Visual cue
+                        }
+
+                        if (typeof renderDAGPlaceholder === 'function') {
+                            renderDAGPlaceholder();
+                        }
+                    }
                 }
             }
 
@@ -875,7 +931,7 @@ function startExecution() {
 
     // Start execution
     const selectedAgents = getSelectedAgents();
-    executor.start(selectedAgents, state.selectedProject, state.selectedAgentTeam);
+    executor.start(selectedAgents, state.selectedProject, state.selectedAgentTeam, state.planContext);
 
     // Update footer progress
     updateFooterProgress();
@@ -884,7 +940,8 @@ function startExecution() {
         project: state.selectedProject,
         team: state.selectedAgentTeam,
         template: state.selectedTemplate,
-        agents: selectedAgents
+        agents: selectedAgents,
+        context: state.planContext
     });
 }
 

@@ -299,6 +299,15 @@
                         </svg>
                         Regenerate
                     </button>
+                    <button id="btn-configure-chat" onclick="openConfigModal()"
+                        class="text-xs text-slate-400 hover:text-white flex items-center gap-1 px-3 py-1.5 bg-slate-800/50 rounded-lg border border-slate-700/50 hover:bg-slate-700/50 transition-all">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path
+                                d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                            <circle cx="12" cy="12" r="3" />
+                        </svg>
+                    </button>
                 </div>
             </div>
 
@@ -337,6 +346,50 @@
                             <div id="insights-list" class="space-y-2">
                                 <!-- Insights will be rendered here -->
                             </div>
+                        </div>
+
+                        <!-- Action Buttons (NotebookLM Style) -->
+                        <div id="summary-actions"
+                            class="mt-4 pt-4 border-t border-slate-700/50 flex items-center gap-2 hidden">
+                            <button onclick="saveToNote()"
+                                class="flex items-center gap-2 px-3 py-1.5 text-xs text-slate-400 bg-slate-800/50 border border-slate-700/50 rounded-lg hover:text-white hover:bg-slate-700/50 transition-all">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                                    <polyline points="14,2 14,8 20,8" />
+                                    <line x1="16" y1="13" x2="8" y2="13" />
+                                    <line x1="16" y1="17" x2="8" y2="17" />
+                                </svg>
+                                Save to note
+                            </button>
+                            <button onclick="copySummary()"
+                                class="flex items-center gap-2 px-3 py-1.5 text-xs text-slate-400 bg-slate-800/50 border border-slate-700/50 rounded-lg hover:text-white hover:bg-slate-700/50 transition-all">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                                </svg>
+                                Copy
+                            </button>
+                            <div class="flex-1"></div>
+                            <button onclick="rateSummary('up')" id="summary-thumbs-up"
+                                class="p-1.5 text-slate-500 hover:text-green-400 transition-colors rounded-lg hover:bg-slate-700/50">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M7 10v12" />
+                                    <path
+                                        d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z" />
+                                </svg>
+                            </button>
+                            <button onclick="rateSummary('down')" id="summary-thumbs-down"
+                                class="p-1.5 text-slate-500 hover:text-red-400 transition-colors rounded-lg hover:bg-slate-700/50">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M17 14V2" />
+                                    <path
+                                        d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z" />
+                                </svg>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -393,160 +446,64 @@
         <div class="w-80 flex-shrink-0 flex flex-col bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
             <!-- Plans Header -->
             <div class="p-4 border-b border-slate-800">
-                <h2 class="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3">Content Plans</h2>
+                <h2 class="text-sm font-bold text-slate-300 uppercase tracking-wider mb-1">Content Plans</h2>
                 <p class="text-xs text-slate-500">Generate strategies and content from your sources</p>
             </div>
 
-            <!-- Plan Categories -->
-            <div class="flex-1 overflow-y-auto p-3 space-y-4">
+            <!-- 2x2 Category Grid -->
+            <div class="p-3">
+                <div class="grid grid-cols-2 gap-2">
+                    <!-- Knowledge -->
+                    <button
+                        class="plan-category-btn p-3 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 transition-all text-left"
+                        data-category="knowledge" onclick="selectPlanCategory('knowledge')">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-lg">📚</span>
+                            <span class="text-xs font-semibold text-amber-400">Knowledge</span>
+                        </div>
+                        <p class="text-[10px] text-slate-500">Brand insights & analysis</p>
+                    </button>
 
-                <!-- Strategic Plans -->
-                <div>
-                    <h3
-                        class="text-xs font-semibold text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                        <span>🎯</span> Strategic Plans
-                    </h3>
-                    <div class="space-y-2">
-                        <button
-                            class="plan-card w-full p-3 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 rounded-xl text-left transition-all"
-                            data-plan="campaign_brief">
-                            <div class="flex items-center justify-between mb-1">
-                                <span class="text-sm font-medium text-white">Campaign Brief</span>
-                                <span class="text-[10px] text-slate-500 bg-slate-700/50 px-1.5 py-0.5 rounded">10
-                                    cr</span>
-                            </div>
-                            <p class="text-xs text-slate-500">Full campaign strategy document</p>
-                        </button>
-                        <button
-                            class="plan-card w-full p-3 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 rounded-xl text-left transition-all"
-                            data-plan="content_calendar">
-                            <div class="flex items-center justify-between mb-1">
-                                <span class="text-sm font-medium text-white">Content Calendar</span>
-                                <span class="text-[10px] text-slate-500 bg-slate-700/50 px-1.5 py-0.5 rounded">10
-                                    cr</span>
-                            </div>
-                            <p class="text-xs text-slate-500">Monthly posting schedule</p>
-                        </button>
-                        <button
-                            class="plan-card w-full p-3 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 rounded-xl text-left transition-all"
-                            data-plan="channel_strategy">
-                            <div class="flex items-center justify-between mb-1">
-                                <span class="text-sm font-medium text-white">Channel Strategy</span>
-                                <span class="text-[10px] text-slate-500 bg-slate-700/50 px-1.5 py-0.5 rounded">10
-                                    cr</span>
-                            </div>
-                            <p class="text-xs text-slate-500">Platform-specific approach</p>
-                        </button>
-                    </div>
+                    <!-- Strategic Plans -->
+                    <button
+                        class="plan-category-btn p-3 rounded-xl border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 transition-all text-left"
+                        data-category="strategic" onclick="selectPlanCategory('strategic')">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-lg">🎯</span>
+                            <span class="text-xs font-semibold text-indigo-400">Strategic</span>
+                        </div>
+                        <p class="text-[10px] text-slate-500">Long-term planning</p>
+                    </button>
+
+                    <!-- Quick Actions -->
+                    <button
+                        class="plan-category-btn p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all text-left"
+                        data-category="quick" onclick="selectPlanCategory('quick')">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-lg">⚡</span>
+                            <span class="text-xs font-semibold text-emerald-400">Quick</span>
+                        </div>
+                        <p class="text-[10px] text-slate-500">Instant content ideas</p>
+                    </button>
+
+                    <!-- Create Now -->
+                    <button
+                        class="plan-category-btn p-3 rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 transition-all text-left"
+                        data-category="create" onclick="selectPlanCategory('create')">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-lg">🚀</span>
+                            <span class="text-xs font-semibold text-rose-400">Create</span>
+                        </div>
+                        <p class="text-[10px] text-slate-500">Ready-to-use assets</p>
+                    </button>
                 </div>
+            </div>
 
-                <!-- Quick Actions -->
-                <div>
-                    <h3
-                        class="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                        <span>⚡</span> Quick Actions
-                    </h3>
-                    <div class="space-y-2">
-                        <button
-                            class="plan-card w-full p-3 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 rounded-xl text-left transition-all"
-                            data-plan="social_post_ideas">
-                            <div class="flex items-center justify-between mb-1">
-                                <span class="text-sm font-medium text-white">Social Post Ideas</span>
-                                <span class="text-[10px] text-slate-500 bg-slate-700/50 px-1.5 py-0.5 rounded">1
-                                    cr</span>
-                            </div>
-                            <p class="text-xs text-slate-500">5-10 post concepts</p>
-                        </button>
-                        <button
-                            class="plan-card w-full p-3 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 rounded-xl text-left transition-all"
-                            data-plan="ad_copy">
-                            <div class="flex items-center justify-between mb-1">
-                                <span class="text-sm font-medium text-white">Ad Copy Variants</span>
-                                <span class="text-[10px] text-slate-500 bg-slate-700/50 px-1.5 py-0.5 rounded">1
-                                    cr</span>
-                            </div>
-                            <p class="text-xs text-slate-500">Multiple ad copy options</p>
-                        </button>
-                        <button
-                            class="plan-card w-full p-3 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 rounded-xl text-left transition-all"
-                            data-plan="trend_response">
-                            <div class="flex items-center justify-between mb-1">
-                                <span class="text-sm font-medium text-white">Trend Response</span>
-                                <span class="text-[10px] text-slate-500 bg-slate-700/50 px-1.5 py-0.5 rounded">1
-                                    cr</span>
-                            </div>
-                            <p class="text-xs text-slate-500">Quick trend-based content</p>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Knowledge Outputs -->
-                <div>
-                    <h3
-                        class="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                        <span>📚</span> Knowledge
-                    </h3>
-                    <div class="space-y-2">
-                        <button
-                            class="plan-card w-full p-3 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 rounded-xl text-left transition-all"
-                            data-plan="brand_mind_map">
-                            <div class="flex items-center justify-between mb-1">
-                                <span class="text-sm font-medium text-white">Brand Mind Map</span>
-                                <span class="text-[10px] text-slate-500 bg-slate-700/50 px-1.5 py-0.5 rounded">5
-                                    cr</span>
-                            </div>
-                            <p class="text-xs text-slate-500">Visual brand summary</p>
-                        </button>
-                        <button
-                            class="plan-card w-full p-3 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 rounded-xl text-left transition-all"
-                            data-plan="competitor_analysis">
-                            <div class="flex items-center justify-between mb-1">
-                                <span class="text-sm font-medium text-white">Competitor Analysis</span>
-                                <span class="text-[10px] text-slate-500 bg-slate-700/50 px-1.5 py-0.5 rounded">5
-                                    cr</span>
-                            </div>
-                            <p class="text-xs text-slate-500">Competitive landscape report</p>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Create Now -->
-                <div>
-                    <h3
-                        class="text-xs font-semibold text-rose-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                        <span>🚀</span> Create Now
-                    </h3>
-                    <div class="space-y-2">
-                        <button
-                            class="plan-card w-full p-3 bg-gradient-to-r from-rose-900/30 to-slate-800/50 hover:from-rose-900/50 border border-rose-500/20 rounded-xl text-left transition-all"
-                            data-plan="product_brochure">
-                            <div class="flex items-center justify-between mb-1">
-                                <span class="text-sm font-medium text-white">Product Brochure</span>
-                                <span class="text-[10px] text-rose-400 bg-rose-500/20 px-1.5 py-0.5 rounded">20
-                                    cr</span>
-                            </div>
-                            <p class="text-xs text-slate-400">PDF + Image brochure</p>
-                        </button>
-                        <button
-                            class="plan-card w-full p-3 bg-gradient-to-r from-rose-900/30 to-slate-800/50 hover:from-rose-900/50 border border-rose-500/20 rounded-xl text-left transition-all"
-                            data-plan="promo_images">
-                            <div class="flex items-center justify-between mb-1">
-                                <span class="text-sm font-medium text-white">Promo Images</span>
-                                <span class="text-[10px] text-rose-400 bg-rose-500/20 px-1.5 py-0.5 rounded">5 cr</span>
-                            </div>
-                            <p class="text-xs text-slate-400">AI-generated images</p>
-                        </button>
-                        <button
-                            class="plan-card w-full p-3 bg-gradient-to-r from-rose-900/30 to-slate-800/50 hover:from-rose-900/50 border border-rose-500/20 rounded-xl text-left transition-all"
-                            data-plan="one_pager">
-                            <div class="flex items-center justify-between mb-1">
-                                <span class="text-sm font-medium text-white">1-Pager PDF</span>
-                                <span class="text-[10px] text-rose-400 bg-rose-500/20 px-1.5 py-0.5 rounded">15
-                                    cr</span>
-                            </div>
-                            <p class="text-xs text-slate-400">Executive summary document</p>
-                        </button>
-                    </div>
+            <!-- Category Details (Shows items of selected category) -->
+            <div id="plan-category-details" class="flex-1 overflow-y-auto px-3 pb-3">
+                <!-- Default: Knowledge selected -->
+                <div id="plan-items-container" class="space-y-2">
+                    <p class="text-xs text-slate-500 text-center py-4">Select a category above</p>
                 </div>
             </div>
 
@@ -554,7 +511,8 @@
             <div class="border-t border-slate-800 p-3">
                 <div class="flex items-center justify-between mb-2">
                     <span class="text-xs font-semibold text-slate-400">Saved Plans</span>
-                    <a href="#saved-plans" class="text-[10px] text-indigo-400 hover:text-indigo-300">View All →</a>
+                    <a href="#" onclick="openHistoryModal(); return false;"
+                        class="text-[10px] text-indigo-400 hover:text-indigo-300">View All →</a>
                 </div>
                 <div id="saved-plans-list" class="space-y-1">
                     <p class="text-[11px] text-slate-600 text-center py-2">No saved plans yet</p>
@@ -881,7 +839,467 @@
         .channel-option.selected span:first-of-type {
             transform: scale(1.1);
         }
+
+        /* Configuration Modal Styles */
+        .config-option-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .config-option-btn {
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            border: 1px solid #334155;
+            background: transparent;
+            color: #94a3b8;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .config-option-btn:hover {
+            border-color: #6366f1;
+            color: #e2e8f0;
+        }
+
+        .config-option-btn.selected {
+            background: #6366f1;
+            border-color: #6366f1;
+            color: white;
+        }
+
+        .config-option-btn.selected::before {
+            content: '✓ ';
+        }
     </style>
+
+    <!-- Configuration Modal -->
+    <div id="config-modal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeConfigModal()"></div>
+        <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg">
+            <div class="bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl">
+                <!-- Modal Header -->
+                <div class="flex items-center justify-between p-5 border-b border-slate-700">
+                    <h3 class="text-lg font-semibold text-white">Configure Chat</h3>
+                    <button onclick="closeConfigModal()" class="text-slate-400 hover:text-white transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M18 6 6 18M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Modal Body -->
+                <div class="p-5">
+                    <p class="text-sm text-slate-400 mb-6">
+                        Customize your chat experience to achieve different goals: do research, learn, or brainstorm in
+                        various styles.
+                    </p>
+
+                    <!-- Conversational Style -->
+                    <div class="config-option-group">
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Define your conversational goal,
+                            style, or role</label>
+                        <div class="flex flex-wrap gap-2">
+                            <button class="config-option-btn selected" data-config="style"
+                                data-value="default">Default</button>
+                            <button class="config-option-btn" data-config="style" data-value="learning">Learning
+                                Guide</button>
+                            <button class="config-option-btn" data-config="style" data-value="custom">Custom</button>
+                        </div>
+                        <p id="style-description" class="text-xs text-slate-500 mt-2">Best for general purpose research
+                            and brainstorming tasks.</p>
+                    </div>
+
+                    <!-- Response Length -->
+                    <div class="config-option-group">
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Choose your response length</label>
+                        <div class="flex flex-wrap gap-2">
+                            <button class="config-option-btn selected" data-config="length"
+                                data-value="default">Default</button>
+                            <button class="config-option-btn" data-config="length" data-value="longer">Longer</button>
+                            <button class="config-option-btn" data-config="length" data-value="shorter">Shorter</button>
+                        </div>
+                    </div>
+
+                    <!-- Custom Prompt (shown when Custom is selected) -->
+                    <div id="custom-prompt-section" class="hidden">
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Custom instructions</label>
+                        <textarea id="custom-prompt-input"
+                            class="w-full h-24 bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                            placeholder="e.g., Act as a marketing strategist. Focus on actionable insights..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="flex justify-end gap-3 p-5 border-t border-slate-700">
+                    <button onclick="closeConfigModal()"
+                        class="px-4 py-2 text-sm text-slate-400 hover:text-white transition-colors">
+                        Cancel
+                    </button>
+                    <button onclick="saveConfig()"
+                        class="px-6 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-500 transition-colors">
+                        Save
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Plan Generation Modal -->
+    <div id="plan-modal" class="fixed inset-0 z-[100]" style="display: none;">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closePlanModal()"></div>
+        <div
+            class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl max-h-[85vh] flex flex-col">
+            <div class="bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl flex flex-col overflow-hidden">
+                <!-- Modal Header -->
+                <div class="flex items-center justify-between p-5 border-b border-slate-700 flex-shrink-0">
+                    <div>
+                        <h3 id="plan-modal-title" class="text-lg font-semibold text-white">Generate Plan</h3>
+                        <p id="plan-modal-subtitle" class="text-xs text-slate-500 mt-0.5"></p>
+                    </div>
+                    <button onclick="closePlanModal()" class="text-slate-400 hover:text-white transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M18 6 6 18M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Modal Body - Scrollable -->
+                <div class="flex-1 overflow-y-auto">
+                    <!-- Step 1: Options -->
+                    <div id="plan-step-options" class="p-5">
+                        <p class="text-sm text-slate-400 mb-6">
+                            Configure your plan based on your brand sources.
+                        </p>
+
+                        <!-- Note: Uses global language setting from header -->
+
+                        <!-- Additional Instructions -->
+                        <div class="mb-5">
+                            <label class="block text-sm font-medium text-slate-300 mb-2">Additional Instructions
+                                (Optional)</label>
+                            <textarea id="plan-instructions"
+                                class="w-full h-20 bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 resize-none"
+                                placeholder="e.g., Focus on B2B audience, emphasize technical features..."></textarea>
+                        </div>
+
+                        <!-- Source Summary -->
+                        <div class="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+                            <div class="flex items-center gap-2 text-sm text-slate-300 mb-2">
+                                <span>📚</span>
+                                <span>Sources to be used:</span>
+                            </div>
+                            <p id="plan-sources-summary" class="text-xs text-slate-500">Loading...</p>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Generating -->
+                    <div id="plan-step-generating" class="p-8 text-center hidden">
+                        <div
+                            class="w-16 h-16 mx-auto mb-4 rounded-full bg-indigo-500/20 flex items-center justify-center animate-pulse">
+                            <svg class="w-8 h-8 text-indigo-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                    stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor"
+                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                </path>
+                            </svg>
+                        </div>
+                        <h4 class="text-lg font-semibold text-white mb-2">Generating your plan...</h4>
+                        <p id="plan-progress-text" class="text-sm text-slate-400">Analyzing sources and crafting
+                            strategy</p>
+                    </div>
+
+                    <!-- Step 3: Result -->
+                    <div id="plan-step-result" class="p-5 hidden">
+                        <!-- Version Tabs -->
+                        <div id="plan-versions-tabs" class="flex gap-2 mb-4 overflow-x-auto pb-2">
+                            <!-- Version tabs will be added dynamically -->
+                        </div>
+
+                        <!-- Content Display -->
+                        <div id="plan-result-content"
+                            class="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 max-h-[40vh] overflow-y-auto">
+                            <div class="prose prose-invert prose-sm max-w-none">
+                                <!-- Generated content here -->
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons for Result -->
+                        <div class="flex items-center gap-2 mt-4 pt-4 border-t border-slate-700/50">
+                            <button onclick="copyPlanContent()"
+                                class="flex items-center gap-2 px-3 py-1.5 text-xs text-slate-400 bg-slate-800/50 border border-slate-700/50 rounded-lg hover:text-white transition-all">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                                </svg>
+                                Copy
+                            </button>
+                            <button onclick="savePlanToFirestore()"
+                                class="flex items-center gap-2 px-3 py-1.5 text-xs text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 rounded-lg hover:bg-indigo-500/20 transition-all">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                                    <polyline points="17,21 17,13 7,13 7,21" />
+                                    <polyline points="7,3 7,8 15,8" />
+                                </svg>
+                                Save Plan
+                            </button>
+                            <button onclick="useInStudio()"
+                                class="flex items-center gap-2 px-3 py-1.5 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg hover:bg-emerald-500/20 transition-all">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="m9 18 6-6-6-6" />
+                                </svg>
+                                Use in Studio
+                            </button>
+                            <div class="flex-1"></div>
+                            <span id="plan-credits-used" class="text-xs text-slate-500"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div id="plan-modal-footer"
+                    class="flex justify-between items-center gap-3 p-5 border-t border-slate-700 flex-shrink-0">
+                    <div class="flex items-center gap-2">
+                        <span id="plan-credit-cost" class="text-sm text-slate-400">Cost: <span
+                                class="text-white font-medium">10 cr</span></span>
+                    </div>
+                    <div class="flex gap-3">
+                        <button onclick="closePlanModal()"
+                            class="px-4 py-2 text-sm text-slate-400 hover:text-white transition-colors">
+                            Cancel
+                        </button>
+                        <button id="btn-generate-plan" onclick="generatePlan()"
+                            class="px-6 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-500 transition-colors flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2">
+                                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                            </svg>
+                            Generate
+                        </button>
+                        <button id="btn-generate-another" onclick="generateAnotherVersion()"
+                            class="hidden px-4 py-2 text-sm font-medium text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 rounded-lg hover:bg-indigo-500/20 transition-colors">
+                            + Another Version
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Saved Plans History Modal -->
+    <div id="history-modal" class="fixed inset-0 z-[100]" style="display: none;">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeHistoryModal()"></div>
+        <div
+            class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-4xl max-h-[85vh] flex flex-col">
+            <div
+                class="bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl flex flex-col overflow-hidden h-full">
+                <!-- Header -->
+                <div class="flex items-center justify-between p-5 border-b border-slate-700 flex-shrink-0">
+                    <div>
+                        <h3 class="text-lg font-semibold text-white">Saved Plans History</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">All generated content plans</p>
+                    </div>
+                    <button onclick="closeHistoryModal()" class="text-slate-400 hover:text-white transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M18 6 6 18M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Body -->
+                <div class="flex-1 overflow-hidden flex">
+                    <!-- Sidebar: Group by Plan Type -->
+                    <div class="w-64 border-r border-slate-800 bg-slate-900/50 p-4 overflow-y-auto"
+                        id="history-sidebar">
+                        <!-- Categories will be rendered here -->
+                        <div class="animate-pulse space-y-3">
+                            <div class="h-4 bg-slate-800 rounded w-3/4"></div>
+                            <div class="h-4 bg-slate-800 rounded w-1/2"></div>
+                        </div>
+                    </div>
+
+                    <!-- Content: List of Plans -->
+                    <div class="flex-1 p-6 overflow-y-auto bg-slate-950/30" id="history-content">
+                        <div id="history-list" class="space-y-3">
+                            <!-- Plan items will be rendered here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Agent Team Selection Modal -->
+    <div id="agent-selection-modal" class="fixed inset-0 z-[110]" style="display: none;">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeAgentSelectionModal()"></div>
+        <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md">
+            <div class="bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl p-6">
+                <h3 class="text-lg font-semibold text-white mb-2">Select Agent Team</h3>
+                <p class="text-sm text-slate-400 mb-6">Choose which agent team should execute this plan.</p>
+
+                <div id="agent-team-list" class="space-y-3 max-h-60 overflow-y-auto mb-6 custom-scrollbar">
+                    <!-- Teams will be loaded here -->
+                    <div class="text-center py-4 text-slate-500 text-sm">Loading teams...</div>
+                </div>
+
+                <div class="flex justify-end gap-3">
+                    <button onclick="closeAgentSelectionModal()"
+                        class="px-4 py-2 text-sm text-slate-400 hover:text-white transition-colors">
+                        Cancel
+                    </button>
+                    <button id="btn-confirm-studio" onclick="confirmUseInStudio()" disabled
+                        class="px-6 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        Continue to Studio
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Creative Studio Modal (New for Create items) -->
+    <div id="creative-modal" class="fixed inset-0 z-[60]" style="display: none;">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeCreativeModal()"></div>
+        <div
+            class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[95vw] h-[90vh] flex flex-col">
+            <div
+                class="bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl flex flex-col overflow-hidden h-full">
+                <!-- Header -->
+                <div class="flex items-center justify-between p-4 border-b border-slate-700 bg-slate-800/50">
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400">
+                            <!-- Icon Dynamic -->
+                            <svg id="creative-modal-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
+                                <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-7z"></path>
+                                <path d="M2 2l7.586 7.586"></path>
+                                <circle cx="11" cy="11" r="2"></circle>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 id="creative-modal-title" class="text-lg font-bold text-white">Product Brochure</h3>
+                            <p id="creative-modal-subtitle" class="text-sm text-slate-400">Generate a high-quality PDF
+                                brochure</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="px-3 py-1 bg-slate-800 rounded-full border border-slate-700 text-xs text-slate-400 flex items-center gap-2">
+                            Cost: <span id="creative-cost" class="text-white font-semibold">20 cr</span>
+                        </div>
+                        <button onclick="closeCreativeModal()"
+                            class="text-slate-400 hover:text-white transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Main Content (Split View) -->
+                <div class="flex-1 flex overflow-hidden">
+                    <!-- LEFT: Controls & Input -->
+                    <div class="w-[350px] flex-shrink-0 border-r border-slate-700 bg-slate-800/30 overflow-y-auto p-5">
+                        <div id="creative-controls-container" class="space-y-6">
+                            <!-- Dynamic controls will be injected here -->
+                        </div>
+                    </div>
+
+                    <!-- RIGHT: Preview & Results -->
+                    <div class="flex-1 bg-slate-900/50 p-6 overflow-hidden flex flex-col relative">
+                        <!-- Toolbar -->
+                        <div id="creative-preview-toolbar" class="flex justify-between items-center mb-4 min-h-[32px]">
+                            <div class="flex items-center gap-2">
+                                <!-- View Toggles (e.g. Grid vs List, Desktop vs Mobile) -->
+                                <div id="creative-view-toggles"
+                                    class="flex bg-slate-800 rounded-lg p-0.5 border border-slate-700 hidden">
+                                    <!-- Injected JS -->
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button id="btn-creative-download" onclick="downloadCreativeItem()"
+                                    class="hidden px-3 py-1.5 text-xs text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 rounded hover:bg-indigo-500/20 flex items-center gap-1.5">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                        <polyline points="7 10 12 15 17 10"></polyline>
+                                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                                    </svg>
+                                    Download
+                                </button>
+                                <button id="btn-creative-copy" onclick="copyCreativeItem()"
+                                    class="hidden px-3 py-1.5 text-xs text-slate-400 bg-slate-800 border border-slate-700 rounded hover:text-white flex items-center gap-1.5">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round">
+                                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                    </svg>
+                                    Copy
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Preview Area -->
+                        <div id="creative-preview-area"
+                            class="flex-1 bg-slate-950 rounded-xl border border-slate-800 overflow-auto flex items-center justify-center relative">
+                            <!-- Placeholder State -->
+                            <div id="creative-placeholder" class="text-center text-slate-500">
+                                <svg class="w-12 h-12 mx-auto mb-3 opacity-20" xmlns="http://www.w3.org/2000/svg"
+                                    width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                    <polyline points="21 15 16 10 5 21"></polyline>
+                                </svg>
+                                <p>Configure settings and generate preview</p>
+                            </div>
+
+                            <!-- Loading State -->
+                            <div id="creative-loading"
+                                class="hidden absolute inset-0 bg-slate-950/80 items-center justify-center z-10 flex-col">
+                                <div
+                                    class="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mb-4">
+                                </div>
+                                <p class="text-indigo-400 font-medium loading-text">Generating...</p>
+                            </div>
+
+                            <!-- Result Container -->
+                            <div id="creative-result-container" class="w-full h-full hidden p-4">
+                                <!-- Dynamic Result Content -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer: Action -->
+                <div class="p-4 border-t border-slate-700 bg-slate-800/50 flex justify-end">
+                    <button onclick="generateCreativeItem()"
+                        class="px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-500 hover:to-purple-500 transition-all font-medium shadow-lg shadow-indigo-500/20 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 12V7H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14"></path>
+                            <path d="M3 5v14a2 2 0 0 0 2 2h16v-5"></path>
+                            <path d="M18 12a2 2 0 0 0 0 4h4v-4Z"></path>
+                        </svg>
+                        Generate <span id="btn-creative-generate-label" class="ml-1">Brochure</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Google API (Drive + Picker) -->
     <script src="https://apis.google.com/js/api.js"></script>

@@ -23,6 +23,15 @@ let chatMessages = [];
 let isLoading = false;
 let sourcesUnsubscribe = null;
 let targetLanguage = 'ko'; // Default target language for summaries
+let currentSummary = null; // Store current summary for save/copy
+const MAX_SUMMARY_HISTORY = 10; // Maximum number of summary notes to keep
+
+// Chat Configuration
+let chatConfig = {
+    style: 'default',      // default, learning, custom
+    length: 'default',     // default, longer, shorter
+    customPrompt: ''
+};
 
 // Google API state
 let gapiInited = false;
@@ -51,6 +60,7 @@ async function initializeKnowledgeHub() {
             initializeSourceFilters();
             initializeAddSourceModal();
             initializePlanCards();
+            loadChatConfig(); // Load saved chat configuration
         } else {
             window.location.href = 'index.html';
         }
@@ -321,6 +331,7 @@ async function selectProject(projectId) {
 
             await loadSources();
             updateSourceCounts();
+            loadSavedPlans(); // Load saved plans for sidebar
         }
     } catch (error) {
         console.error('Error selecting project:', error);
@@ -760,20 +771,124 @@ function closeModal(modalId) {
 // ============================================================
 // CONTENT PLANS
 // ============================================================
-function initializePlanCards() {
-    const planCards = document.querySelectorAll('.plan-card');
 
-    planCards.forEach(card => {
-        card.addEventListener('click', () => {
-            const planType = card.dataset.plan;
-            handlePlanClick(planType);
+// Category items definitions
+const PLAN_CATEGORY_ITEMS = {
+    knowledge: [
+        { id: 'brand_mind_map', name: 'Brand Mind Map', desc: 'Visual brand summary', credits: 5 },
+        { id: 'competitor_analysis', name: 'Competitor Analysis', desc: 'Competitive landscape report', credits: 5 },
+        { id: 'audience_persona', name: 'Audience Persona', desc: 'Target customer profiles', credits: 5 },
+        { id: 'key_messages_bank', name: 'Key Messages Bank', desc: 'Core messaging library', credits: 5 }
+    ],
+    strategic: [
+        { id: 'campaign_brief', name: 'Campaign Brief', desc: 'Full campaign strategy document', credits: 10 },
+        { id: 'content_calendar', name: 'Content Calendar', desc: 'Monthly posting schedule', credits: 10 },
+        { id: 'channel_strategy', name: 'Channel Strategy', desc: 'Platform-specific approach', credits: 10 },
+        { id: 'messaging_framework', name: 'Messaging Framework', desc: 'Brand voice guidelines', credits: 10 }
+    ],
+    quick: [
+        { id: 'social_post_ideas', name: 'Social Post Ideas', desc: '5-10 post concepts', credits: 1 },
+        { id: 'ad_copy', name: 'Ad Copy Variants', desc: 'Multiple ad copy options', credits: 1 },
+        { id: 'trend_response', name: 'Trend Response', desc: 'Quick trend-based content', credits: 1 },
+        { id: 'action_items', name: 'Action Items', desc: 'Weekly task list', credits: 1 }
+    ],
+    create: [
+        { id: 'product_brochure', name: 'Product Brochure', desc: 'PDF + Image brochure', credits: 20 },
+        { id: 'promo_images', name: 'Promo Images', desc: 'AI-generated images', credits: 5 },
+        { id: 'one_pager', name: '1-Pager PDF', desc: 'Executive summary document', credits: 15 },
+        { id: 'email_template', name: 'Email Template', desc: 'Marketing email drafts', credits: 5 },
+        { id: 'press_release', name: 'Press Release', desc: 'Media announcement draft', credits: 10 }
+    ]
+};
+
+let selectedCategory = null;
+
+function initializePlanCards() {
+    // Select first category by default
+    selectPlanCategory('knowledge');
+
+    // Event delegation for dynamically rendered plan items
+    const container = document.getElementById('plan-items-container');
+    if (container) {
+        container.addEventListener('click', (e) => {
+            const planCard = e.target.closest('.plan-card');
+            if (planCard) {
+                const planType = planCard.dataset.plan;
+                if (planType) {
+                    openPlanModal(planType);
+                }
+            }
         });
-    });
+    }
 
     // Load saved plans and schedules
     loadSavedPlans();
     loadUpcomingSchedules();
 }
+
+/**
+ * Select a plan category and show its items
+ */
+function selectPlanCategory(category) {
+    selectedCategory = category;
+
+    // Update category button styles
+    document.querySelectorAll('.plan-category-btn').forEach(btn => {
+        const cat = btn.dataset.category;
+        if (cat === category) {
+            btn.classList.add('ring-2', 'ring-offset-2', 'ring-offset-slate-900');
+            // Add ring color based on category
+            if (cat === 'knowledge') btn.classList.add('ring-amber-500');
+            else if (cat === 'strategic') btn.classList.add('ring-indigo-500');
+            else if (cat === 'quick') btn.classList.add('ring-emerald-500');
+            else if (cat === 'create') btn.classList.add('ring-rose-500');
+        } else {
+            btn.classList.remove('ring-2', 'ring-offset-2', 'ring-offset-slate-900',
+                'ring-amber-500', 'ring-indigo-500', 'ring-emerald-500', 'ring-rose-500');
+        }
+    });
+
+    // Render category items
+    renderCategoryItems(category);
+}
+
+/**
+ * Render items for selected category
+ */
+function renderCategoryItems(category) {
+    const container = document.getElementById('plan-items-container');
+    const items = PLAN_CATEGORY_ITEMS[category] || [];
+
+    if (items.length === 0) {
+        container.innerHTML = '<p class="text-xs text-slate-500 text-center py-4">No items in this category</p>';
+        return;
+    }
+
+    // Get category color
+    const colorMap = {
+        knowledge: { text: 'text-amber-400', bg: 'bg-amber-500/20', border: 'border-amber-500/30' },
+        strategic: { text: 'text-indigo-400', bg: 'bg-indigo-500/20', border: 'border-indigo-500/30' },
+        quick: { text: 'text-emerald-400', bg: 'bg-emerald-500/20', border: 'border-emerald-500/30' },
+        create: { text: 'text-rose-400', bg: 'bg-rose-500/20', border: 'border-rose-500/30' }
+    };
+    const colors = colorMap[category] || colorMap.knowledge;
+
+    container.innerHTML = items.map(item => `
+        <button class="plan-card w-full p-3 bg-slate-800/50 hover:bg-slate-800 border ${colors.border} rounded-xl text-left transition-all group cursor-pointer"
+            data-plan="${item.id}" onclick="window.handlePlanItemClick('${item.id}')">
+            <div class="flex items-center justify-between mb-1 pointer-events-none">
+                <span class="text-sm font-medium text-white">${item.name}</span>
+                <span class="text-[10px] ${colors.text} ${colors.bg} px-1.5 py-0.5 rounded">${item.credits} cr</span>
+            </div>
+            <p class="text-xs text-slate-500 pointer-events-none">${item.desc}</p>
+        </button>
+    `).join('');
+}
+
+// Global function for plan item clicks
+window.handlePlanItemClick = function (planType) {
+    openPlanModal(planType);
+};
 
 async function handlePlanClick(planType) {
     const activeSources = sources.filter(s => s.isActive !== false && s.status === 'completed');
@@ -871,6 +986,311 @@ function getPlanIcon(category) {
         case 'create_now': return '🚀';
         default: return '📄';
     }
+}
+
+function generateMockCreativeResult(type) {
+    if (type === 'product_brochure') {
+        return `
+            <div class="w-full h-full overflow-y-auto bg-slate-900/50 p-4">
+                <div class="w-[210mm] bg-white text-slate-900 shadow-2xl mx-auto min-h-[297mm] flex flex-col relative overflow-hidden mb-8">
+                     <!-- Cover Page -->
+                    <div class="h-1/2 bg-slate-100 relative">
+                        <div class="absolute inset-0 flex items-center justify-center text-slate-300 bg-slate-200">
+                             <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                        </div>
+                        <div class="absolute bottom-8 left-8 p-6 bg-white/90 backdrop-blur-sm shadow-sm max-w-sm">
+                            <div class="text-xs font-bold text-indigo-600 tracking-wider uppercase mb-2">2025 Collection</div>
+                            <h1 class="text-4xl font-bold text-slate-900 leading-tight">Future of Innovation</h1>
+                        </div>
+                    </div>
+                    <div class="p-12 flex-1">
+                        <div class="flex gap-8 mb-8">
+                             <div class="flex-1">
+                                <h2 class="text-2xl font-bold text-indigo-900 mb-4">Redefining Possibilities</h2>
+                                <p class="text-slate-600 text-sm leading-relaxed mb-4">Our latest product line brings unprecedented efficiency to your workflow. Designed with the user in mind, every feature is tailored to enhance productivity and creativity.</p>
+                                <ul class="space-y-2 text-sm text-slate-700">
+                                    <li class="flex items-center gap-2"><div class="w-1.5 h-1.5 bg-indigo-500 rounded-full"></div>AI-Powered Analytics</li>
+                                    <li class="flex items-center gap-2"><div class="w-1.5 h-1.5 bg-indigo-500 rounded-full"></div>Real-time Collaboration</li>
+                                    <li class="flex items-center gap-2"><div class="w-1.5 h-1.5 bg-indigo-500 rounded-full"></div>Enterprise Security</li>
+                                </ul>
+                             </div>
+                             <div class="w-1/3 bg-slate-50 p-6 rounded-lg border border-slate-100">
+                                <h3 class="font-bold text-slate-900 mb-2">Key Specs</h3>
+                                <div class="space-y-3 text-xs">
+                                    <div class="flex justify-between border-b border-slate-200 pb-1"><span>Speed</span> <span class="font-medium">10x Faster</span></div>
+                                    <div class="flex justify-between border-b border-slate-200 pb-1"><span>Uptime</span> <span class="font-medium">99.99%</span></div>
+                                    <div class="flex justify-between border-b border-slate-200 pb-1"><span>Support</span> <span class="font-medium">24/7 Global</span></div>
+                                </div>
+                             </div>
+                        </div>
+                        <div class="border-t border-slate-200 pt-8 flex justify-between items-center text-xs text-slate-500">
+                            <div>www.company.com</div>
+                            <div>contact@company.com</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Page 2 (Mock) -->
+                <div class="w-[210mm] bg-white text-slate-900 shadow-2xl mx-auto min-h-[297mm] flex flex-col p-12 relative overflow-hidden opacity-50 hover:opacity-100 transition-opacity">
+                    <div class="absolute inset-0 flex items-center justify-center text-slate-300 font-bold text-4xl uppercase tracking-widest border-4 border-slate-200 border-dashed m-8">Second Page Preview</div>
+                </div>
+            </div>
+        `;
+    }
+    else if (type === 'one_pager') {
+        return `
+            <div class="w-full h-full overflow-y-auto bg-slate-900/50 p-4">
+                <div class="w-[210mm] bg-white text-slate-900 shadow-xl mx-auto min-h-[297mm] p-10 flex flex-col">
+                    <div class="flex justify-between items-start border-b-2 border-slate-900 pb-6 mb-8">
+                        <div>
+                            <h1 class="text-3xl font-bold text-slate-900">Project Alpha</h1>
+                            <p class="text-lg text-slate-500 font-light mt-1">Executive Strategy Overview</p>
+                        </div>
+                        <div class="w-12 h-12 bg-slate-900 rounded-full flex items-center justify-center text-white font-bold text-xl">A</div>
+                    </div>
+                    
+                    <div class="grid grid-cols-3 gap-8 flex-1">
+                        <div class="col-span-2 space-y-8">
+                            <section>
+                                <h3 class="text-sm font-bold text-indigo-600 uppercase tracking-wider mb-3">The Challenge</h3>
+                                <p class="text-sm text-slate-700 leading-relaxed">Current market solutions lack the scalability required for enterprise-level deployment, creating a significant bottleneck in operational efficiency.</p>
+                            </section>
+                            <section>
+                                <h3 class="text-sm font-bold text-indigo-600 uppercase tracking-wider mb-3">Our Approach</h3>
+                                <p class="text-sm text-slate-700 leading-relaxed mb-3">We propose a hybrid cloud architecture that leverages edge computing to minimize latency while maintaining data sovereignty.</p>
+                                <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-100 text-sm text-indigo-900">
+                                    "This solution reduces infrastructure costs by 40% while improving response times."
+                                </div>
+                            </section>
+                             <section>
+                                <h3 class="text-sm font-bold text-indigo-600 uppercase tracking-wider mb-3">Roadmap</h3>
+                                <div class="space-y-3">
+                                    <div class="flex gap-3 text-sm"><span class="font-bold w-12 text-slate-400">Q1</span> <span>Prototype Development & Internal Testing</span></div>
+                                    <div class="flex gap-3 text-sm"><span class="font-bold w-12 text-slate-400">Q2</span> <span>Beta Launch with Key Partners</span></div>
+                                    <div class="flex gap-3 text-sm"><span class="font-bold w-12 text-slate-400">Q3</span> <span>Global Rollout</span></div>
+                                </div>
+                            </section>
+                        </div>
+                        <div class="col-span-1 bg-slate-50 p-6 rounded-xl space-y-6">
+                            <div>
+                                <div class="text-xs text-slate-500 uppercase font-medium mb-1">Target Market</div>
+                                <div class="text-2xl font-bold text-slate-900">$4.5B</div>
+                            </div>
+                            <div>
+                                <div class="text-xs text-slate-500 uppercase font-medium mb-1">CAGR</div>
+                                <div class="text-2xl font-bold text-slate-900">12.5%</div>
+                            </div>
+                            <div class="h-px bg-slate-200 w-full"></div>
+                            <div>
+                                <div class="text-xs text-slate-500 uppercase font-medium mb-1">Team Size</div>
+                                <div class="text-lg font-semibold text-slate-900">12 Specialists</div>
+                            </div>
+                             <div>
+                                <div class="text-xs text-slate-500 uppercase font-medium mb-1">Timeline</div>
+                                <div class="text-lg font-semibold text-slate-900">6 Months</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-8 pt-6 border-t border-slate-200 text-center text-xs text-slate-400">
+                        Confidential & Proprietary - Do Not Distribute
+                    </div>
+                </div>
+            </div>
+         `;
+    }
+    else if (type === 'pitch_deck') {
+        return `
+            <div class="w-full h-full overflow-y-auto p-4">
+                <div class="grid grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Slide 1 -->
+                    <div class="aspect-video bg-white text-black p-5 rounded-lg shadow-lg flex flex-col relative group cursor-pointer hover:ring-2 ring-indigo-500 transition-all">
+                        <div class="absolute top-2 left-2 px-2 py-0.5 bg-slate-100 rounded text-[10px] text-slate-500 font-bold">01</div>
+                        <div class="flex-1 flex flex-col justify-center text-center">
+                            <h2 class="text-xl font-bold text-slate-900">Brand Name</h2>
+                            <p class="text-xs text-slate-500 mt-1">Investor Pitch 2025</p>
+                        </div>
+                        <div class="h-1 w-12 bg-indigo-500 mx-auto mt-4"></div>
+                    </div>
+                     <!-- Slide 2 -->
+                    <div class="aspect-video bg-white text-black p-5 rounded-lg shadow-lg flex flex-col relative group cursor-pointer hover:ring-2 ring-indigo-500 transition-all">
+                         <div class="absolute top-2 left-2 px-2 py-0.5 bg-slate-100 rounded text-[10px] text-slate-500 font-bold">02</div>
+                        <h3 class="text-sm font-bold text-indigo-600 uppercase tracking-wide mb-2">The Problem</h3>
+                        <ul class="list-disc pl-4 mt-1 text-[10px] space-y-1.5 text-slate-700 leading-snug">
+                            <li>Process inefficiencies costing $2B/year</li>
+                            <li>Legacy systems are incompatible</li>
+                            <li>Poor user experience drives churn</li>
+                        </ul>
+                         <div class="mt-auto flex justify-end">
+                            <div class="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center opacity-50">Icon</div>
+                         </div>
+                    </div>
+                    <!-- Slide 3 -->
+                    <div class="aspect-video bg-white text-black p-5 rounded-lg shadow-lg flex flex-col relative group cursor-pointer hover:ring-2 ring-indigo-500 transition-all">
+                        <div class="absolute top-2 left-2 px-2 py-0.5 bg-slate-100 rounded text-[10px] text-slate-500 font-bold">03</div>
+                        <h3 class="text-sm font-bold text-indigo-600 uppercase tracking-wide mb-2">The Solution</h3>
+                        <div class="flex-1 flex items-center justify-center bg-slate-50 rounded border border-dashed border-slate-200 mb-2">
+                            <span class="text-[10px] text-slate-400">Diagram Placeholder</span>
+                        </div>
+                        <p class="text-[10px] text-center text-slate-600 font-medium">Unified Platform Architecture</p>
+                    </div>
+                     <!-- Slide 4 -->
+                    <div class="aspect-video bg-white text-black p-5 rounded-lg shadow-lg flex flex-col relative group cursor-pointer hover:ring-2 ring-indigo-500 transition-all">
+                        <div class="absolute top-2 left-2 px-2 py-0.5 bg-slate-100 rounded text-[10px] text-slate-500 font-bold">04</div>
+                        <h3 class="text-sm font-bold text-indigo-600 uppercase tracking-wide mb-2">Market Size</h3>
+                        <div class="flex items-end gap-2 mt-2 h-16">
+                            <div class="w-1/3 bg-indigo-200 h-1/2 rounded-t flex items-end justify-center pb-1 text-[8px] font-bold">SAM</div>
+                            <div class="w-1/3 bg-indigo-400 h-3/4 rounded-t flex items-end justify-center pb-1 text-[8px] font-bold text-white">TAM</div>
+                            <div class="w-1/3 bg-indigo-600 h-full rounded-t flex items-end justify-center pb-1 text-[8px] font-bold text-white">SOM</div>
+                        </div>
+                    </div>
+                     <!-- Slide 5 -->
+                    <div class="aspect-video bg-white text-black p-5 rounded-lg shadow-lg flex flex-col relative group cursor-pointer hover:ring-2 ring-indigo-500 transition-all">
+                        <div class="absolute top-2 left-2 px-2 py-0.5 bg-slate-100 rounded text-[10px] text-slate-500 font-bold">05</div>
+                         <h3 class="text-sm font-bold text-indigo-600 uppercase tracking-wide mb-2">The Team</h3>
+                         <div class="flex justify-between gap-2 mt-2">
+                            <div class="text-center">
+                                <div class="w-8 h-8 bg-slate-200 rounded-full mx-auto mb-1"></div>
+                                <div class="text-[8px] font-bold">CEO</div>
+                            </div>
+                             <div class="text-center">
+                                <div class="w-8 h-8 bg-slate-200 rounded-full mx-auto mb-1"></div>
+                                <div class="text-[8px] font-bold">CTO</div>
+                            </div>
+                             <div class="text-center">
+                                <div class="w-8 h-8 bg-slate-200 rounded-full mx-auto mb-1"></div>
+                                <div class="text-[8px] font-bold">COO</div>
+                            </div>
+                         </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    else if (type === 'email_template') {
+        return `
+            <div class="w-full h-full overflow-y-auto bg-slate-900/50 p-6 flex justify-center">
+                <div class="w-full max-w-2xl bg-white rounded-xl shadow-xl overflow-hidden flex flex-col">
+                    <!-- Email Header -->
+                    <div class="bg-slate-50 p-4 border-b border-slate-100">
+                        <div class="flex gap-3 mb-2">
+                             <div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xs">JD</div>
+                             <div>
+                                <div class="text-sm font-bold text-slate-900">John Doe <span class="text-slate-400 font-normal">&lt;john@company.com&gt;</span></div>
+                                <div class="text-xs text-slate-500">To: Potential Client</div>
+                             </div>
+                        </div>
+                        <div class="text-sm font-medium text-slate-900 ml-11">Subject: Partnership Opportunity with [Company Name]</div>
+                    </div>
+                    
+                    <!-- Email Body -->
+                    <div class="p-8 text-slate-800 text-sm leading-relaxed space-y-4">
+                        <p>Hi [Name],</p>
+                        <p>I hope this email finds you well.</p>
+                        <p>I'm reaching out because I noticed that [Target Company] is looking to expand its capabilities in [Sector]. At [Our Company], we've developed a platform that specifically addresses these challenges.</p>
+                        
+                        <div class="my-6 p-4 bg-indigo-50 rounded-lg border border-indigo-100 flex gap-4 items-center">
+                            <div class="w-16 h-16 bg-white rounded flex-shrink-0 flex items-center justify-center border border-indigo-50 text-indigo-200">IMG</div>
+                            <div>
+                                <h4 class="font-bold text-indigo-900 mb-1">See it in action</h4>
+                                <p class="text-xs text-indigo-700">Watch our 2-minute demo video covering key features.</p>
+                            </div>
+                        </div>
+
+                        <p>Would you be open to a brief 15-minute call next Tuesday to discuss how we could help achieve your Q3 goals?</p>
+
+                        <p class="mt-8">Best regards,</p>
+                        <div class="font-bold">John Doe</div>
+                        <div class="text-xs text-slate-500">Head of Growth | Company Inc.</div>
+                        <div class="text-xs text-indigo-600 mt-1">www.company.com</div>
+                    </div>
+
+                    <!-- Email Footer -->
+                     <div class="bg-slate-50 p-4 text-center text-[10px] text-slate-400 border-t border-slate-100">
+                        You received this email because you signed up for our newsletter. <a href="#" class="underline">Unsubscribe</a>
+                     </div>
+                </div>
+            </div>
+        `;
+    }
+    else if (type === 'press_release') {
+        return `
+             <div class="w-full h-full overflow-y-auto bg-slate-900/50 p-4">
+                <div class="w-[210mm] bg-white text-slate-900 shadow-xl mx-auto min-h-[297mm] p-12 relative font-serif">
+                   <div class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-8 border-b border-black pb-2">For Immediate Release</div>
+                   
+                   <div class="mb-8">
+                       <h1 class="text-3xl font-bold text-slate-900 mb-4 leading-tight">Company Inc. Announces Revolutionary New AI Platform for Enterprise Creativity</h1>
+                       <div class="text-sm text-slate-600 italic">San Francisco, CA — October 24, 2025</div>
+                   </div>
+
+                   <div class="space-y-6 text-sm leading-relaxed text-slate-800">
+                       <p><span class="font-bold">Company Inc.</span>, a leader in digital innovation, today unveiled its latest platform designed to transform how enterprises manage creative workflows. This new solution integrates advanced AI agents directly into the design process.</p>
+                       
+                       <div class="pl-4 border-l-4 border-slate-200 my-6 italic text-slate-600">
+                           "This is not just an update; it's a fundamental shift in how we approach creative problem solving," said Jane Smith, CEO of Company Inc. "By empowering teams with intelligent agents, we unlock potential that was previously stifled by repetitive tasks."
+                       </div>
+
+                       <p>The platform features include:</p>
+                       <ul class="list-disc pl-6 space-y-2">
+                           <li>Automated asset generation using proprietary models</li>
+                           <li>Seamless integration with existing enterprise tools</li>
+                           <li>Real-time collaboration across distributed teams</li>
+                       </ul>
+
+                       <p>Industry analysts predict that adoption of such tools will increase operational efficiency by over 40% within the first year of deployment.</p>
+
+                       <div class="mt-12 text-center">
+                           <div class="font-bold mb-1">###</div>
+                       </div>
+                       
+                       <div class="mt-8 pt-8 border-t border-slate-200">
+                           <h4 class="font-bold mb-2 uppercase text-xs tracking-wider text-slate-500">Media Contact</h4>
+                           <div class="text-sm">
+                               <div class="font-bold">Media Relations Team</div>
+                               <div>media@company.com</div>
+                               <div>+1 (555) 0123-4567</div>
+                           </div>
+                       </div>
+                   </div>
+                </div>
+            </div>
+        `;
+    }
+    else if (type === 'promo_images') {
+        return `
+            <div class="w-full h-full p-6 overflow-y-auto">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="aspect-square bg-slate-800 rounded-xl overflow-hidden relative group cursor-pointer hover:ring-2 ring-indigo-500">
+                        <img src="https://picsum.photos/seed/promo1/800/800" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt="AI Generated Image 1">
+                        <div class="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button class="text-xs bg-white text-black px-2 py-1 rounded shadow hover:bg-slate-200">Download</button>
+                        </div>
+                    </div>
+                     <div class="aspect-square bg-slate-800 rounded-xl overflow-hidden relative group cursor-pointer hover:ring-2 ring-indigo-500">
+                        <img src="https://picsum.photos/seed/promo2/800/800" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt="AI Generated Image 2">
+                        <div class="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button class="text-xs bg-white text-black px-2 py-1 rounded shadow hover:bg-slate-200">Download</button>
+                        </div>
+                    </div>
+                     <div class="aspect-square bg-slate-800 rounded-xl overflow-hidden relative group cursor-pointer hover:ring-2 ring-indigo-500">
+                        <img src="https://picsum.photos/seed/promo3/800/800" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt="AI Generated Image 3">
+                        <div class="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button class="text-xs bg-white text-black px-2 py-1 rounded shadow hover:bg-slate-200">Download</button>
+                        </div>
+                    </div>
+                     <div class="aspect-square bg-slate-800 rounded-xl overflow-hidden relative group cursor-pointer hover:ring-2 ring-indigo-500">
+                        <img src="https://picsum.photos/seed/promo4/800/800" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt="AI Generated Image 4">
+                        <div class="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button class="text-xs bg-white text-black px-2 py-1 rounded shadow hover:bg-slate-200">Download</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    // Default
+    return `<div class="text-white p-4">Generated content for ${type}...</div>`;
 }
 
 function showPlanResultModal(plan, planId) {
@@ -1112,11 +1532,12 @@ async function sendChatMessage() {
     const typingId = addTypingIndicator();
 
     try {
-        // Call Cloud Function
+        // Call Cloud Function with target language for translation
         const askKnowledgeHub = firebase.functions().httpsCallable('askKnowledgeHub');
         const result = await askKnowledgeHub({
             projectId: currentProjectId,
-            question: message
+            question: message,
+            targetLanguage: targetLanguage || 'ko'  // Pass selected language
         });
 
         // Remove typing indicator
@@ -1139,6 +1560,165 @@ async function sendChatMessage() {
         removeTypingIndicator(typingId);
         addChatMessage(`Error: ${error.message || 'Failed to get response'}`, 'bot');
     }
+}
+
+function renderCreativeControls(type) {
+    const container = document.getElementById('creative-controls-container');
+    container.innerHTML = ''; // Clear
+
+    // Common: Topic/Context Input
+    const topicGroup = document.createElement('div');
+    topicGroup.innerHTML = `
+        <label class="block text-sm font-medium text-slate-400 mb-2">Topic / Focus</label>
+        <textarea id="creative-input-topic" rows="3" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white text-sm focus:border-indigo-500 focus:outline-none" placeholder="Describe the specific topic or focus for this content..."></textarea>
+    `;
+    container.appendChild(topicGroup);
+
+    // Common: Target Audience (New)
+    const audienceGroup = document.createElement('div');
+    audienceGroup.innerHTML = `
+        <label class="block text-sm font-medium text-slate-400 mb-2">Target Audience</label>
+        <input type="text" id="creative-input-audience" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white text-sm focus:border-indigo-500 focus:outline-none" placeholder="e.g. Investors, Gen Z, Enterprise CTOs">
+    `;
+    container.appendChild(audienceGroup);
+
+    // Common: Tone/Style
+    const toneGroup = document.createElement('div');
+    toneGroup.innerHTML = `
+        <label class="block text-sm font-medium text-slate-400 mb-2">Tone & Style</label>
+        <select id="creative-input-tone" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white text-sm focus:border-indigo-500 focus:outline-none">
+            <option value="professional">Professional & Corporate</option>
+            <option value="exciting">Exciting & High Energy</option>
+            <option value="persuasive">Persuasive / Sales-driven</option>
+            <option value="informative">Informative / Educational</option>
+            <option value="friendly">Friendly & Approachable</option>
+            <option value="luxury">Luxury & Premium</option>
+        </select>
+    `;
+    container.appendChild(toneGroup);
+
+    // --- Type Specifics ---
+
+    if (type === 'product_brochure') {
+        const layoutGroup = document.createElement('div');
+        layoutGroup.innerHTML = `
+            <label class="block text-sm font-medium text-slate-400 mb-2">Brochure Format</label>
+            <div class="grid grid-cols-2 gap-2">
+                <button type="button" class="ctrl-btn p-3 rounded-lg border border-indigo-500 bg-indigo-500/20 text-white text-sm font-medium text-center transition-all" onclick="selectControl(this, 'format')">Tri-Fold</button>
+                <button type="button" class="ctrl-btn p-3 rounded-lg border border-slate-700 bg-slate-800 text-slate-400 text-sm font-medium text-center hover:bg-slate-700 transition-all" onclick="selectControl(this, 'format')">Z-Fold</button>
+            </div>
+            
+            <label class="block text-sm font-medium text-slate-400 mt-4 mb-2">Visual Style</label>
+            <select class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white text-sm">
+                <option>Modern (Image Heavy)</option>
+                <option>Classic (Text Heavy)</option>
+                <option>Minimalist</option>
+            </select>
+        `;
+        container.appendChild(layoutGroup);
+    }
+    else if (type === 'one_pager') {
+        const typeGroup = document.createElement('div');
+        typeGroup.innerHTML = `
+            <label class="block text-sm font-medium text-slate-400 mb-2">Template Type</label>
+            <select class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white text-sm">
+                <option>Executive Summary</option>
+                <option>Technical Specification</option>
+                <option>Product Sheet</option>
+                <option>Investment Teaser</option>
+            </select>
+         `;
+        container.appendChild(typeGroup);
+    }
+    else if (type === 'pitch_deck') {
+        const pagesGroup = document.createElement('div');
+        pagesGroup.innerHTML = `
+            <label class="block text-sm font-medium text-slate-400 mb-2">Slide Count</label>
+            <div class="flex bg-slate-900 rounded-lg p-1 border border-slate-700">
+                <button class="flex-1 py-1.5 text-xs text-white bg-indigo-600 rounded">5 Slides</button>
+                <button class="flex-1 py-1.5 text-xs text-slate-400 hover:text-white">10 Slides</button>
+                <button class="flex-1 py-1.5 text-xs text-slate-400 hover:text-white">15 Slides</button>
+            </div>
+             <label class="block text-sm font-medium text-slate-400 mt-4 mb-2">Presentation Purpose</label>
+            <select class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white text-sm">
+                <option>Investor Pitch (Seed)</option>
+                <option>Sales Deck (B2B)</option>
+                <option>Internal Update</option>
+            </select>
+        `;
+        container.appendChild(pagesGroup);
+    }
+    else if (type === 'email_template') {
+        const emailGroup = document.createElement('div');
+        emailGroup.innerHTML = `
+            <label class="block text-sm font-medium text-slate-400 mb-2">Email Type</label>
+            <select class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white text-sm">
+                <option>Cold Outreach</option>
+                <option>Newsletter / Update</option>
+                <option>Welcome Sequence</option>
+                <option>Event Invitation</option>
+            </select>
+             <div class="mt-4">
+                <label class="block text-sm font-medium text-slate-400 mb-2">Sender Name</label>
+                <input type="text" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white text-sm" placeholder="e.g. John Doe">
+             </div>
+         `;
+        container.appendChild(emailGroup);
+    }
+    else if (type === 'press_release') {
+        const prGroup = document.createElement('div');
+        prGroup.innerHTML = `
+            <label class="block text-sm font-medium text-slate-400 mb-2">Announcement Type</label>
+            <select class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white text-sm">
+                <option>Product Launch</option>
+                <option>Partnership Announcement</option>
+                <option>Funding News</option>
+                <option>Executive Hire</option>
+            </select>
+            <div class="mt-4">
+                <label class="block text-sm font-medium text-slate-400 mb-2">Quote From (Role)</label>
+                <input type="text" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white text-sm" placeholder="e.g. CEO">
+             </div>
+         `;
+        container.appendChild(prGroup);
+    }
+    else if (type === 'promo_images') {
+        const ratioGroup = document.createElement('div');
+        ratioGroup.innerHTML = `
+            <label class="block text-sm font-medium text-slate-400 mb-2">Aspect Ratio</label>
+            <div class="grid grid-cols-3 gap-2">
+                <button type="button" class="ctrl-btn p-2 border border-indigo-500 bg-indigo-500/20 rounded text-xs text-white font-medium" onclick="selectControl(this, 'ratio')">Square (1:1)</button>
+                <button type="button" class="ctrl-btn p-2 border border-slate-700 bg-slate-800 rounded text-xs text-slate-400" onclick="selectControl(this, 'ratio')">Portrait (9:16)</button>
+                <button type="button" class="ctrl-btn p-2 border border-slate-700 bg-slate-800 rounded text-xs text-slate-400" onclick="selectControl(this, 'ratio')">Landscape</button>
+            </div>
+
+            <label class="block text-sm font-medium text-slate-400 mt-4 mb-2">Art Style</label>
+            <select class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white text-sm">
+                <option>Photorealistic</option>
+                <option>3D Render</option>
+                <option>Illustration / Vector</option>
+                <option>Pop Art</option>
+                <option>Cyberpunk / Neon</option>
+            </select>
+            
+            <div class="mt-4">
+                <label class="block text-sm font-medium text-slate-400 mb-2">Negative Prompt (Exclude)</label>
+                <input type="text" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white text-sm" placeholder="e.g. text, blur, distorted faces">
+             </div>
+        `;
+        container.appendChild(ratioGroup);
+    }
+}
+
+// Helper for selecting buttons
+function selectControl(btn, groupName) {
+    const parent = btn.parentElement;
+    parent.querySelectorAll('.ctrl-btn').forEach(b => {
+        b.classList.remove('border-indigo-500', 'bg-indigo-500/20', 'text-white');
+        b.classList.add('border-slate-700', 'bg-slate-800', 'text-slate-400');
+    });
+    btn.classList.remove('border-slate-700', 'bg-slate-800', 'text-slate-400');
+    btn.classList.add('border-indigo-500', 'bg-indigo-500/20', 'text-white');
 }
 
 function addTypingIndicator() {
@@ -1173,6 +1753,7 @@ function removeTypingIndicator(id) {
 
 function addChatMessage(content, type) {
     const container = document.getElementById('chat-messages');
+    const messageId = Date.now(); // Unique ID for this message
 
     const messageEl = document.createElement('div');
     messageEl.className = `chat-message flex gap-3 ${type === 'user' ? 'flex-row-reverse' : ''}`;
@@ -1191,8 +1772,44 @@ function addChatMessage(content, type) {
             <div class="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0">
                 <span class="text-lg">🤖</span>
             </div>
-            <div class="max-w-md bg-slate-800 rounded-2xl rounded-tl-md px-4 py-3">
-                <p class="text-sm text-slate-200">${escapeHtml(content)}</p>
+            <div class="flex-1 max-w-lg">
+                <div class="bg-slate-800 rounded-2xl rounded-tl-md px-4 py-3">
+                    <p class="text-sm text-slate-200 whitespace-pre-wrap">${escapeHtml(content)}</p>
+                </div>
+                <!-- Action Buttons (NotebookLM Style) -->
+                <div class="flex items-center gap-2 mt-2 ml-1">
+                    <button onclick="saveChatToNote('${messageId}', this)" 
+                        class="flex items-center gap-1.5 px-2 py-1 text-xs text-slate-500 hover:text-white hover:bg-slate-800/50 rounded-md transition-all"
+                        data-content="${escapeHtml(content).replace(/"/g, '&quot;')}">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                            <polyline points="14,2 14,8 20,8"/>
+                        </svg>
+                        Save to note
+                    </button>
+                    <button onclick="copyText(this)" 
+                        class="p-1 text-slate-500 hover:text-white hover:bg-slate-800/50 rounded-md transition-all"
+                        data-content="${escapeHtml(content).replace(/"/g, '&quot;')}">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                        </svg>
+                    </button>
+                    <button onclick="rateChatMessage('${messageId}', 'up', this)" 
+                        class="p-1 text-slate-500 hover:text-green-400 hover:bg-slate-800/50 rounded-md transition-all">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M7 10v12"/>
+                            <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/>
+                        </svg>
+                    </button>
+                    <button onclick="rateChatMessage('${messageId}', 'down', this)" 
+                        class="p-1 text-slate-500 hover:text-red-400 hover:bg-slate-800/50 rounded-md transition-all">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17 14V2"/>
+                            <path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"/>
+                        </svg>
+                    </button>
+                </div>
             </div>
         `;
     }
@@ -1227,6 +1844,19 @@ async function generateSummary() {
             document.getElementById('summary-title').textContent = 'Brand Summary';
             document.getElementById('summary-content').textContent = result.data.summary;
 
+            // Store current summary for save/copy functionality
+            currentSummary = {
+                content: result.data.summary,
+                suggestedQuestions: result.data.suggestedQuestions || [],
+                sourceCount: activeSources.length,
+                sourceNames: result.data.sourceNames || activeSources.map(s => s.title),
+                targetLanguage: targetLanguage,
+                generatedAt: new Date()
+            };
+
+            // Show action buttons
+            document.getElementById('summary-actions').classList.remove('hidden');
+
             // Update suggested questions
             if (result.data.suggestedQuestions && result.data.suggestedQuestions.length > 0) {
                 const questionsContainer = document.getElementById('suggested-questions').querySelector('.flex');
@@ -1252,6 +1882,1025 @@ async function generateSummary() {
         document.getElementById('summary-title').textContent = 'Summary';
         document.getElementById('summary-content').textContent = `Based on ${activeSources.length} active sources. (AI summary failed: ${error.message})`;
     }
+}
+
+// ============================================================
+// SUMMARY ACTION FUNCTIONS (NotebookLM Style)
+// ============================================================
+
+/**
+ * Save current summary to notes with history limit
+ */
+async function saveToNote() {
+    if (!currentSummary || !currentProjectId) {
+        showNotification('No summary to save', 'error');
+        return;
+    }
+
+    try {
+        const db = firebase.firestore();
+        const date = new Date();
+        const dateStr = date.toLocaleDateString('ko-KR', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
+        // Create note document
+        const noteData = {
+            title: `Brand Summary - ${dateStr}`,
+            sourceType: 'note',
+            noteType: 'summary', // Special type to identify summary notes
+            content: currentSummary.content,
+            suggestedQuestions: currentSummary.suggestedQuestions,
+            sourceNames: currentSummary.sourceNames,
+            sourceCount: currentSummary.sourceCount,
+            targetLanguage: currentSummary.targetLanguage,
+            isActive: true,
+            status: 'completed',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            createdBy: currentUser?.uid
+        };
+
+        // Add the new note
+        await db.collection('projects').doc(currentProjectId)
+            .collection('knowledgeSources').add(noteData);
+
+        // Cleanup: Delete oldest summary notes if exceeding limit
+        await cleanupOldSummaryNotes();
+
+        showNotification('Summary saved to notes!', 'success');
+    } catch (error) {
+        console.error('Error saving summary to note:', error);
+        showNotification('Failed to save: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Delete oldest summary notes if exceeding MAX_SUMMARY_HISTORY
+ */
+async function cleanupOldSummaryNotes() {
+    try {
+        const db = firebase.firestore();
+        const summaryNotes = await db.collection('projects').doc(currentProjectId)
+            .collection('knowledgeSources')
+            .where('noteType', '==', 'summary')
+            .orderBy('createdAt', 'desc')
+            .get();
+
+        if (summaryNotes.size > MAX_SUMMARY_HISTORY) {
+            const notesToDelete = [];
+            let count = 0;
+
+            summaryNotes.forEach(doc => {
+                count++;
+                if (count > MAX_SUMMARY_HISTORY) {
+                    notesToDelete.push(doc.ref);
+                }
+            });
+
+            // Delete excess notes
+            const batch = db.batch();
+            notesToDelete.forEach(ref => batch.delete(ref));
+            await batch.commit();
+
+            console.log(`Cleaned up ${notesToDelete.length} old summary notes`);
+        }
+    } catch (error) {
+        console.error('Error cleaning up old summary notes:', error);
+    }
+}
+
+/**
+ * Copy summary to clipboard
+ */
+async function copySummary() {
+    if (!currentSummary) {
+        showNotification('No summary to copy', 'error');
+        return;
+    }
+
+    try {
+        await navigator.clipboard.writeText(currentSummary.content);
+        showNotification('Summary copied to clipboard!', 'success');
+    } catch (error) {
+        // Fallback for older browsers
+        const textarea = document.createElement('textarea');
+        textarea.value = currentSummary.content;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        showNotification('Summary copied!', 'success');
+    }
+}
+
+/**
+ * Rate summary (thumbs up/down)
+ */
+async function rateSummary(rating) {
+    if (!currentSummary || !currentProjectId) return;
+
+    const thumbsUp = document.getElementById('summary-thumbs-up');
+    const thumbsDown = document.getElementById('summary-thumbs-down');
+
+    if (rating === 'up') {
+        thumbsUp.classList.add('text-green-400');
+        thumbsUp.classList.remove('text-slate-500');
+        thumbsDown.classList.remove('text-red-400');
+        thumbsDown.classList.add('text-slate-500');
+    } else {
+        thumbsDown.classList.add('text-red-400');
+        thumbsDown.classList.remove('text-slate-500');
+        thumbsUp.classList.remove('text-green-400');
+        thumbsUp.classList.add('text-slate-500');
+    }
+
+    // Optionally save rating to Firestore for analytics
+    try {
+        const db = firebase.firestore();
+        await db.collection('projects').doc(currentProjectId)
+            .collection('summaryFeedback').add({
+                rating: rating,
+                summaryContent: currentSummary.content.substring(0, 200), // First 200 chars
+                targetLanguage: currentSummary.targetLanguage,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                userId: currentUser?.uid
+            });
+    } catch (error) {
+        console.error('Error saving feedback:', error);
+    }
+
+    showNotification(rating === 'up' ? 'Thanks for your feedback! 👍' : 'Thanks for your feedback! We\'ll improve.', 'success');
+}
+
+// ============================================================
+// CHAT MESSAGE ACTION FUNCTIONS
+// ============================================================
+
+/**
+ * Save chat message to note
+ */
+async function saveChatToNote(messageId, btn) {
+    const content = btn.dataset.content;
+    if (!content || !currentProjectId) {
+        showNotification('Unable to save', 'error');
+        return;
+    }
+
+    try {
+        const db = firebase.firestore();
+        const date = new Date();
+        const dateStr = date.toLocaleDateString('ko-KR', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
+        await db.collection('projects').doc(currentProjectId)
+            .collection('knowledgeSources').add({
+                title: `Chat Response - ${dateStr}`,
+                sourceType: 'note',
+                noteType: 'chat',
+                content: content,
+                isActive: true,
+                status: 'completed',
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                createdBy: currentUser?.uid
+            });
+
+        showNotification('Saved to notes!', 'success');
+    } catch (error) {
+        console.error('Error saving to note:', error);
+        showNotification('Failed to save', 'error');
+    }
+}
+
+/**
+ * Copy text to clipboard
+ */
+async function copyText(btn) {
+    const content = btn.dataset.content;
+    if (!content) return;
+
+    try {
+        await navigator.clipboard.writeText(content);
+        showNotification('Copied!', 'success');
+    } catch (error) {
+        // Fallback
+        const textarea = document.createElement('textarea');
+        textarea.value = content;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        showNotification('Copied!', 'success');
+    }
+}
+
+/**
+ * Rate a chat message
+ */
+function rateChatMessage(messageId, rating, btn) {
+    const parent = btn.parentElement;
+    const thumbsUp = parent.querySelector('button:nth-child(3)');
+    const thumbsDown = parent.querySelector('button:nth-child(4)');
+
+    if (rating === 'up') {
+        thumbsUp.classList.add('text-green-400');
+        thumbsUp.classList.remove('text-slate-500');
+        thumbsDown.classList.remove('text-red-400');
+        thumbsDown.classList.add('text-slate-500');
+    } else {
+        thumbsDown.classList.add('text-red-400');
+        thumbsDown.classList.remove('text-slate-500');
+        thumbsUp.classList.remove('text-green-400');
+        thumbsUp.classList.add('text-slate-500');
+    }
+
+    showNotification(rating === 'up' ? '👍' : 'Thanks for feedback', 'success');
+}
+
+// ============================================================
+// CONFIGURATION MODAL FUNCTIONS
+// ============================================================
+
+/**
+ * Open the configuration modal
+ */
+function openConfigModal() {
+    const modal = document.getElementById('config-modal');
+    modal.classList.remove('hidden');
+
+    // Initialize button states from current config
+    document.querySelectorAll('.config-option-btn').forEach(btn => {
+        const configType = btn.dataset.config;
+        const value = btn.dataset.value;
+
+        if (chatConfig[configType] === value) {
+            btn.classList.add('selected');
+        } else {
+            btn.classList.remove('selected');
+        }
+    });
+
+    // Show/hide custom prompt section
+    updateCustomPromptVisibility();
+
+    // Set custom prompt value
+    const customInput = document.getElementById('custom-prompt-input');
+    if (customInput) {
+        customInput.value = chatConfig.customPrompt || '';
+    }
+
+    // Add event listeners for option buttons
+    document.querySelectorAll('.config-option-btn').forEach(btn => {
+        btn.onclick = () => selectConfigOption(btn);
+    });
+}
+
+/**
+ * Close the configuration modal
+ */
+function closeConfigModal() {
+    const modal = document.getElementById('config-modal');
+    modal.classList.add('hidden');
+}
+
+/**
+ * Select a configuration option
+ */
+function selectConfigOption(btn) {
+    const configType = btn.dataset.config;
+    const value = btn.dataset.value;
+
+    // Update selection UI
+    document.querySelectorAll(`.config-option-btn[data-config="${configType}"]`).forEach(b => {
+        b.classList.remove('selected');
+    });
+    btn.classList.add('selected');
+
+    // Update style description
+    if (configType === 'style') {
+        const descriptions = {
+            'default': 'Best for general purpose research and brainstorming tasks.',
+            'learning': 'Explains concepts step by step like a helpful tutor.',
+            'custom': 'Use your own custom instructions for personalized responses.'
+        };
+        document.getElementById('style-description').textContent = descriptions[value] || '';
+
+        // Show/hide custom prompt section
+        updateCustomPromptVisibility();
+    }
+}
+
+/**
+ * Toggle custom prompt section visibility
+ */
+function updateCustomPromptVisibility() {
+    const customSection = document.getElementById('custom-prompt-section');
+    const selectedStyle = document.querySelector('.config-option-btn[data-config="style"].selected');
+
+    if (selectedStyle && selectedStyle.dataset.value === 'custom') {
+        customSection.classList.remove('hidden');
+    } else {
+        customSection.classList.add('hidden');
+    }
+}
+
+/**
+ * Save configuration
+ */
+function saveConfig() {
+    // Get selected values
+    const styleBtn = document.querySelector('.config-option-btn[data-config="style"].selected');
+    const lengthBtn = document.querySelector('.config-option-btn[data-config="length"].selected');
+    const customPrompt = document.getElementById('custom-prompt-input')?.value || '';
+
+    chatConfig.style = styleBtn?.dataset.value || 'default';
+    chatConfig.length = lengthBtn?.dataset.value || 'default';
+    chatConfig.customPrompt = customPrompt;
+
+    // Save to localStorage
+    localStorage.setItem('knowledgeHub_chatConfig', JSON.stringify(chatConfig));
+
+    closeConfigModal();
+    showNotification('Configuration saved!', 'success');
+}
+
+/**
+ * Load configuration from localStorage
+ */
+function loadChatConfig() {
+    const saved = localStorage.getItem('knowledgeHub_chatConfig');
+    if (saved) {
+        try {
+            chatConfig = { ...chatConfig, ...JSON.parse(saved) };
+        } catch (e) {
+            console.error('Error loading chat config:', e);
+        }
+    }
+}
+
+// ============================================================
+// PLAN GENERATION FUNCTIONS
+// ============================================================
+
+// Plan definitions
+const PLAN_DEFINITIONS = {
+    // Strategic Plans
+    campaign_brief: { name: 'Campaign Brief', credits: 10, category: 'strategic' },
+    content_calendar: { name: 'Content Calendar', credits: 10, category: 'strategic' },
+    channel_strategy: { name: 'Channel Strategy', credits: 10, category: 'strategic' },
+    brand_positioning: { name: 'Brand Positioning', credits: 10, category: 'strategic' },
+    messaging_framework: { name: 'Messaging Framework', credits: 10, category: 'strategic' },
+
+    // Quick Actions
+    social_post_ideas: { name: 'Social Post Ideas', credits: 1, category: 'quick' },
+    ad_copy: { name: 'Ad Copy Variants', credits: 1, category: 'quick' },
+    trend_response: { name: 'Trend Response', credits: 1, category: 'quick' },
+    action_items: { name: 'Action Items', credits: 1, category: 'quick' },
+
+    // Knowledge
+    brand_mind_map: { name: 'Brand Mind Map', credits: 5, category: 'knowledge' },
+    competitor_analysis: { name: 'Competitor Analysis', credits: 5, category: 'knowledge' },
+    audience_persona: { name: 'Audience Persona', credits: 5, category: 'knowledge' },
+    key_messages_bank: { name: 'Key Messages Bank', credits: 5, category: 'knowledge' },
+
+    // Create Now
+    product_brochure: { name: 'Product Brochure', credits: 20, category: 'create' },
+    promo_images: { name: 'Promo Images', credits: 5, category: 'create' },
+    one_pager: { name: '1-Pager PDF', credits: 15, category: 'create' },
+    pitch_deck: { name: 'Pitch Deck Outline', credits: 10, category: 'create' },
+    email_template: { name: 'Email Template', credits: 5, category: 'create' },
+    press_release: { name: 'Press Release', credits: 10, category: 'create' }
+};
+
+// Note: Language is now handled by global targetLanguage
+
+/**
+ * Open plan generation modal
+ */
+function openPlanModal(planType) {
+    try {
+        const planDef = PLAN_DEFINITIONS[planType];
+        if (!planDef) {
+            showNotification('Unknown plan type', 'error');
+            return;
+        }
+
+        // NEW: Redirect 'create' category to Creative Studio Modal
+        if (planDef.category === 'create') {
+            openCreativeModal(planType);
+            return;
+        }
+
+        currentPlan = {
+            type: planType,
+            ...planDef,
+            sessionId: generateSessionId() // For version tracking
+        };
+        planVersions = [];
+
+        // Update modal UI
+        document.getElementById('plan-modal-title').textContent = planDef.name;
+        document.getElementById('plan-modal-subtitle').textContent = `${planDef.category.charAt(0).toUpperCase() + planDef.category.slice(1)} Plan`;
+        document.getElementById('plan-credit-cost').innerHTML = `Cost: <span class="text-white font-medium">${planDef.credits} cr</span>`;
+
+        // Update sources summary
+        const activeSources = sources.filter(s => s.isActive !== false);
+        document.getElementById('plan-sources-summary').textContent =
+            activeSources.length > 0
+                ? activeSources.map(s => s.title).join(', ')
+                : 'No active sources. Add sources for better results.';
+
+        // Reset to options step
+        showPlanStep('options');
+
+        // Reset buttons
+        document.getElementById('btn-generate-plan').classList.remove('hidden');
+        document.getElementById('btn-generate-another').classList.add('hidden');
+        document.getElementById('plan-instructions').value = '';
+
+        // Initialize language buttons
+        // Initialize language buttons - REMOVED (using global setting)
+        // initializePlanLangButtons();
+
+        // Show modal
+        const modal = document.getElementById('plan-modal');
+        modal.style.display = 'block';
+
+    } catch (error) {
+        console.error('Error opening plan modal:', error);
+        showNotification('Error opening modal: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Close plan modal
+ */
+function closePlanModal() {
+    const modal = document.getElementById('plan-modal');
+    modal.style.display = 'none';
+    currentPlan = null;
+}
+
+/**
+ * Show specific step in plan modal
+ */
+function showPlanStep(step) {
+    document.getElementById('plan-step-options').classList.add('hidden');
+    document.getElementById('plan-step-generating').classList.add('hidden');
+    document.getElementById('plan-step-result').classList.add('hidden');
+
+    document.getElementById(`plan-step-${step}`).classList.remove('hidden');
+
+    // Update footer visibility
+    const footer = document.getElementById('plan-modal-footer');
+    if (step === 'generating') {
+        footer.classList.add('hidden');
+    } else {
+        footer.classList.remove('hidden');
+    }
+}
+
+// ==========================================
+// CREATIVE STUDIO FUNCTIONS
+// ==========================================
+
+async function generateCreativeItem() {
+    if (!currentCreativeType) return;
+
+    // 1. Gather Inputs
+    const topic = document.getElementById('creative-input-topic')?.value || '';
+    const audience = document.getElementById('creative-input-audience')?.value || '';
+    const tone = document.getElementById('creative-input-tone')?.value || '';
+
+    // Construct specific inputs based on type
+    let specificInputs = {};
+    const container = document.getElementById('creative-controls-container');
+
+    if (currentCreativeType === 'product_brochure') {
+        // Find selected format button
+        const buttons = container.querySelectorAll('button');
+        let format = 'Tri-Fold';
+        buttons.forEach(btn => {
+            if (btn.classList.contains('border-indigo-500')) format = btn.textContent;
+        });
+        specificInputs.format = format;
+
+        const styleSelect = container.querySelectorAll('select')[1]; // Second select is style
+        specificInputs.style = styleSelect ? styleSelect.value : '';
+    }
+    else if (currentCreativeType === 'pitch_deck') {
+        const buttons = container.querySelectorAll('button');
+        let slideCount = '10';
+        buttons.forEach(btn => {
+            if (btn.classList.contains('border-indigo-500')) slideCount = btn.textContent.replace(' Slides', '');
+        });
+        specificInputs.slideCount = slideCount;
+
+        const purposeSelect = container.querySelectorAll('select')[1];
+        specificInputs.purpose = purposeSelect ? purposeSelect.value : '';
+    }
+    else if (currentCreativeType === 'promo_images') {
+        const buttons = container.querySelectorAll('button');
+        let ratio = 'Square (1:1)';
+        buttons.forEach(btn => {
+            if (btn.classList.contains('border-indigo-500')) ratio = btn.textContent;
+        });
+        specificInputs.ratio = ratio;
+
+        const styleSelect = container.querySelectorAll('select')[1];
+        specificInputs.style = styleSelect ? styleSelect.value : '';
+        const negInput = container.querySelector('input[placeholder*="text, blur"]');
+        specificInputs.negativePrompt = negInput ? negInput.value : '';
+    }
+    else if (currentCreativeType === 'email_template') {
+        const typeSelect = container.querySelectorAll('select')[1];
+        specificInputs.emailType = typeSelect ? typeSelect.value : '';
+        const senderInput = container.querySelector('input[placeholder*="John Doe"]');
+        specificInputs.senderName = senderInput ? senderInput.value : '';
+    }
+    else if (currentCreativeType === 'press_release') {
+        const typeSelect = container.querySelectorAll('select')[1];
+        specificInputs.announcementType = typeSelect ? typeSelect.value : '';
+        const quoteInput = container.querySelector('input[placeholder*="CEO"]');
+        specificInputs.quoteRole = quoteInput ? quoteInput.value : '';
+    }
+
+    // 2. Prepare Context (Active Sources)
+    const activeSources = sources.filter(s => s.isActive !== false);
+    const contextText = activeSources.map(s => `${s.title}: ${s.content ? s.content.substring(0, 500) : 'No content'}`).join('\n\n');
+
+    const requestData = {
+        type: currentCreativeType,
+        inputs: {
+            topic,
+            audience,
+            tone,
+            ...specificInputs
+        },
+        projectContext: contextText,
+        targetLanguage: targetLanguage || 'English'
+    };
+
+    // 3. UI Loading State
+    document.getElementById('creative-placeholder').style.display = 'none';
+    document.getElementById('creative-result-container').classList.add('hidden');
+    document.getElementById('creative-loading').style.display = 'flex';
+    document.querySelector('.loading-text').textContent = 'Generating with AI...';
+
+    try {
+        // 4. Call Cloud Function
+        const generateFn = firebase.functions().httpsCallable('generateCreativeContent');
+        const result = await generateFn(requestData);
+
+        if (result.data.success) {
+            currentCreativeData = result.data.type === 'image' ? result.data.data : result.data.content;
+
+            // 5. Render Real Result
+            if (result.data.type === 'image') {
+                renderCreativeImages(currentCreativeData);
+            } else {
+                renderCreativeResult(currentCreativeType, currentCreativeData);
+            }
+        } else {
+            throw new Error(result.data.error || 'Generation failed');
+        }
+
+    } catch (error) {
+        console.error('Generation Error:', error);
+        showNotification('Generation failed: ' + error.message, 'error');
+        document.getElementById('creative-placeholder').style.display = 'block';
+        document.getElementById('creative-placeholder').innerHTML = `<p class="text-red-400">Error: ${error.message}</p>`;
+    } finally {
+        document.getElementById('creative-loading').style.display = 'none';
+
+        // If success, show actions
+        if (currentCreativeData) {
+            document.getElementById('creative-result-container').style.display = 'block';
+            document.getElementById('creative-result-container').classList.remove('hidden');
+            document.getElementById('btn-creative-download').classList.remove('hidden');
+            document.getElementById('btn-creative-copy').classList.remove('hidden');
+        }
+    }
+}
+
+function renderCreativeImages(images) {
+    const container = document.getElementById('creative-result-container');
+    container.innerHTML = `
+        <div class="w-full h-full p-6 overflow-y-auto">
+            <div class="grid grid-cols-2 gap-4">
+                ${images.map((url, i) => `
+                    <div class="aspect-square bg-slate-800 rounded-xl overflow-hidden relative group cursor-pointer hover:ring-2 ring-indigo-500">
+                        <img src="${url}" class="w-full h-full object-cover" alt="Generated Image ${i + 1}">
+                        <div class="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex justify-between">
+                            <button onclick="window.open('${url}', '_blank')" class="text-xs bg-white text-black px-2 py-1 rounded shadow hover:bg-slate-200">Open</button>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Generate plan content
+ */
+async function generatePlan() {
+    if (!currentPlan || !currentProjectId) {
+        showNotification('Please select a project first', 'error');
+        return;
+    }
+
+    const activeSources = sources.filter(s => s.isActive !== false);
+    if (activeSources.length === 0) {
+        showNotification('Please add at least one source', 'error');
+        return;
+    }
+
+    showPlanStep('generating');
+
+    try {
+        const instructions = document.getElementById('plan-instructions').value.trim();
+
+        // Call Cloud Function (to be implemented)
+        const generateContentPlan = firebase.functions().httpsCallable('generateContentPlan');
+        const result = await generateContentPlan({
+            projectId: currentProjectId,
+            planType: currentPlan.type,
+            targetLanguage: targetLanguage,
+            additionalInstructions: instructions
+        });
+
+        if (result.data.success) {
+            const version = {
+                id: Date.now(),
+                content: result.data.content,
+                createdAt: new Date()
+            };
+            planVersions.push(version);
+
+            showPlanResult();
+            showNotification('Plan generated successfully!', 'success');
+        } else {
+            throw new Error(result.data.error || 'Generation failed');
+        }
+    } catch (error) {
+        console.error('Error generating plan:', error);
+        showPlanStep('options');
+        showNotification(`Error: ${error.message}`, 'error');
+    }
+}
+
+/**
+ * Generate another version
+ */
+async function generateAnotherVersion() {
+    if (planVersions.length >= 5) {
+        showNotification('Maximum 5 versions allowed', 'error');
+        return;
+    }
+
+    await generatePlan();
+}
+
+/**
+ * Show plan result with version tabs
+ */
+function showPlanResult() {
+    showPlanStep('result');
+
+    // Build version tabs
+    const tabsContainer = document.getElementById('plan-versions-tabs');
+    tabsContainer.innerHTML = planVersions.map((v, i) => `
+        <button class="plan-version-tab px-3 py-1.5 text-xs rounded-lg border transition-all ${i === planVersions.length - 1 ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'}"
+            onclick="selectPlanVersion(${i})">
+            Version ${i + 1}
+        </button>
+    `).join('');
+
+    // Show latest version
+    selectPlanVersion(planVersions.length - 1);
+
+    // Update buttons
+    document.getElementById('btn-generate-plan').classList.add('hidden');
+    document.getElementById('btn-generate-another').classList.remove('hidden');
+
+    // Show credits used
+    const totalCredits = planVersions.length * currentPlan.credits;
+    document.getElementById('plan-credits-used').textContent = `${totalCredits} credits used`;
+}
+
+/**
+ * Select a plan version to display
+ */
+function selectPlanVersion(index) {
+    const version = planVersions[index];
+    if (!version) return;
+
+    // Update tab styles
+    document.querySelectorAll('.plan-version-tab').forEach((tab, i) => {
+        if (i === index) {
+            tab.classList.add('bg-indigo-600', 'border-indigo-500', 'text-white');
+            tab.classList.remove('bg-slate-800', 'border-slate-700', 'text-slate-400');
+        } else {
+            tab.classList.remove('bg-indigo-600', 'border-indigo-500', 'text-white');
+            tab.classList.add('bg-slate-800', 'border-slate-700', 'text-slate-400');
+        }
+    });
+
+    // Display content (convert markdown to HTML if needed)
+    const contentDiv = document.getElementById('plan-result-content').querySelector('.prose');
+    contentDiv.innerHTML = formatPlanContent(version.content);
+}
+
+/**
+ * Format plan content (basic markdown to HTML)
+ */
+function formatPlanContent(content) {
+    if (!content) return '<p class="text-slate-400">No content generated</p>';
+
+    return content
+        .replace(/### (.*?)$/gm, '<h3 class="text-lg font-semibold text-white mt-4 mb-2">$1</h3>')
+        .replace(/## (.*?)$/gm, '<h2 class="text-xl font-bold text-white mt-5 mb-3">$1</h2>')
+        .replace(/# (.*?)$/gm, '<h1 class="text-2xl font-bold text-white mt-6 mb-4">$1</h1>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong class="text-white">$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/^\- (.*?)$/gm, '<li class="ml-4 text-slate-300">$1</li>')
+        .replace(/^\d+\. (.*?)$/gm, '<li class="ml-4 text-slate-300">$1</li>')
+        .replace(/\n\n/g, '</p><p class="text-slate-300 mb-3">')
+        .replace(/^/, '<p class="text-slate-300 mb-3">')
+        .replace(/$/, '</p>');
+}
+
+/**
+ * Copy plan content to clipboard
+ */
+async function copyPlanContent() {
+    const currentVersionIndex = document.querySelector('.plan-version-tab.bg-indigo-600')?.textContent.match(/\d+/) - 1 || 0;
+    const content = planVersions[currentVersionIndex]?.content;
+
+    if (!content) return;
+
+    try {
+        await navigator.clipboard.writeText(content);
+        showNotification('Copied to clipboard!', 'success');
+    } catch (error) {
+        showNotification('Failed to copy', 'error');
+    }
+}
+
+/**
+ * Save plan to Firestore with versioning
+ * Version format: vMajor.Minor.Patch
+ * - Major: Different plan type (topic)
+ * - Minor: Same plan type, new generation session
+ * - Patch: Regeneration (+Another Version)
+ */
+async function savePlanToFirestore() {
+    if (!currentPlan || planVersions.length === 0) return;
+
+    try {
+        const db = firebase.firestore();
+        const currentVersionIndex = document.querySelector('.plan-version-tab.bg-indigo-600')?.textContent.match(/\d+/) - 1 || 0;
+        const version = planVersions[currentVersionIndex];
+
+        // Get latest version for this plan type
+        const latestSnapshot = await db.collection('projects').doc(currentProjectId)
+            .collection('savedPlans')
+            .where('planType', '==', currentPlan.type)
+            .orderBy('createdAt', 'desc')
+            .limit(1)
+            .get();
+
+        let versionNumber = 'v1.0.0';
+
+        if (!latestSnapshot.empty) {
+            const latestPlan = latestSnapshot.docs[0].data();
+            const lastVersion = latestPlan.version || 'v1.0.0';
+            const [major, minor, patch] = lastVersion.replace('v', '').split('.').map(Number);
+
+            // Check if this is a regeneration (same session) or new session
+            const isRegeneration = currentPlan.sessionId === latestPlan.sessionId;
+
+            if (isRegeneration) {
+                // Patch increment for regeneration
+                versionNumber = `v${major}.${minor}.${patch + 1}`;
+            } else {
+                // Minor increment for new session of same plan type
+                versionNumber = `v${major}.${minor + 1}.0`;
+            }
+        }
+
+        await db.collection('projects').doc(currentProjectId)
+            .collection('savedPlans').add({
+                planType: currentPlan.type,
+                planName: currentPlan.name,
+                content: version.content,
+                language: targetLanguage,
+                creditsUsed: currentPlan.credits,
+                version: versionNumber,
+                sessionId: currentPlan.sessionId || generateSessionId(),
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                createdBy: currentUser?.uid
+            });
+
+        showNotification(`Plan saved as ${versionNumber}!`, 'success');
+        loadSavedPlans(); // Refresh saved plans list
+    } catch (error) {
+        console.error('Error saving plan:', error);
+        showNotification('Failed to save plan', 'error');
+    }
+}
+
+/**
+ * Generate unique session ID for plan generation session
+ */
+function generateSessionId() {
+    return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
+/**
+ * Use plan in Studio - Open Agent Selection
+ */
+function useInStudio() {
+    const currentVersionIndex = document.querySelector('.plan-version-tab.bg-indigo-600')?.textContent.match(/\d+/) - 1 || 0;
+    const version = planVersions[currentVersionIndex];
+
+    if (!version) {
+        showNotification('No plan content to send', 'error');
+        return;
+    }
+
+    openAgentSelectionModal();
+}
+
+// ============================================================
+// AGENT TEAM SELECTION
+// ============================================================
+let selectedAgentTeam = null;
+
+function openAgentSelectionModal() {
+    const modal = document.getElementById('agent-selection-modal');
+    if (!modal) return;
+
+    modal.style.display = 'block';
+    selectedAgentTeam = null;
+    document.getElementById('btn-confirm-studio').disabled = true;
+
+    loadAgentTeams();
+}
+
+function closeAgentSelectionModal() {
+    document.getElementById('agent-selection-modal').style.display = 'none';
+}
+
+async function loadAgentTeams() {
+    const list = document.getElementById('agent-team-list');
+    list.innerHTML = '<div class="text-center py-4 text-slate-500 text-sm">Loading teams...</div>';
+
+    try {
+        const db = firebase.firestore();
+        const snapshot = await db.collection('agentTeams')
+            .where('projectId', '==', currentProjectId)
+            .get();
+
+        if (snapshot.empty) {
+            list.innerHTML = `
+                <div class="text-center py-4 text-slate-500 text-sm">
+                    No agent teams found for this project.<br>
+                    <a href="admin-agentteams.html" class="text-indigo-400 hover:underline mt-2 inline-block">Create a Team</a>
+                </div>
+            `;
+            return;
+        }
+
+        list.innerHTML = snapshot.docs.map(doc => {
+            const team = doc.data();
+            return `
+                <div class="agent-team-option p-3 bg-slate-800 border border-slate-700 rounded-xl hover:border-indigo-500 cursor-pointer transition-all flex items-center justify-between"
+                    onclick="selectAgentTeam('${doc.id}', this)">
+                    <div>
+                        <div class="text-sm font-medium text-white">${team.name}</div>
+                        <div class="text-xs text-slate-500">${team.description || 'No description'}</div>
+                    </div>
+                    <div class="selection-indicator w-4 h-4 rounded-full border border-slate-600 flex items-center justify-center">
+                        <div class="w-2 h-2 rounded-full bg-indigo-500 opacity-0 transition-opacity"></div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+    } catch (error) {
+        console.error('Error loading agent teams:', error);
+        list.innerHTML = '<div class="text-center py-4 text-red-400 text-sm">Error loading teams.</div>';
+    }
+}
+
+function selectAgentTeam(teamId, element) {
+    selectedAgentTeam = teamId;
+
+    document.querySelectorAll('.agent-team-option').forEach(el => {
+        el.classList.remove('border-indigo-500', 'bg-indigo-500/10');
+        el.querySelector('.selection-indicator').className = 'selection-indicator w-4 h-4 rounded-full border border-slate-600 flex items-center justify-center';
+        el.querySelector('.selection-indicator div').classList.add('opacity-0');
+    });
+
+    element.classList.add('border-indigo-500', 'bg-indigo-500/10');
+    element.querySelector('.selection-indicator').className = 'selection-indicator w-4 h-4 rounded-full border border-indigo-500 flex items-center justify-center';
+    element.querySelector('.selection-indicator div').classList.remove('opacity-0');
+
+    document.getElementById('btn-confirm-studio').disabled = false;
+}
+
+function confirmUseInStudio() {
+    if (!selectedAgentTeam) return;
+
+    const currentVersionIndex = document.querySelector('.plan-version-tab.bg-indigo-600')?.textContent.match(/\d+/) - 1 || 0;
+    const version = planVersions[currentVersionIndex];
+
+    if (!version) return;
+
+    localStorage.setItem('studioContext', JSON.stringify({
+        type: 'plan',
+        planType: currentPlan.type,
+        planName: currentPlan.name,
+        content: version.content,
+        projectId: currentProjectId,
+        agentTeamId: selectedAgentTeam
+    }));
+
+    window.location.href = 'studio/index.html';
+}
+
+/**
+ * Load saved plans for sidebar
+ */
+async function loadSavedPlans() {
+    if (!currentProjectId) return;
+
+    try {
+        const db = firebase.firestore();
+        const snapshot = await db.collection('projects').doc(currentProjectId)
+            .collection('savedPlans')
+            .orderBy('createdAt', 'desc')
+            .limit(5)
+            .get();
+
+        const container = document.getElementById('saved-plans-list');
+
+        if (snapshot.empty) {
+            container.innerHTML = '<p class="text-[11px] text-slate-600 text-center py-2">No saved plans yet</p>';
+            return;
+        }
+
+        container.innerHTML = '';
+        snapshot.forEach(doc => {
+            const plan = doc.data();
+            const item = document.createElement('div');
+            item.className = 'p-2 bg-slate-800/30 rounded-lg hover:bg-slate-800/50 cursor-pointer transition-all';
+            item.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <p class="text-xs text-white font-medium truncate flex-1">${plan.planName}</p>
+                    ${plan.version ? `<span class="text-[9px] text-indigo-400 bg-indigo-500/20 px-1.5 py-0.5 rounded ml-2">${plan.version}</span>` : ''}
+                </div>
+                <p class="text-[10px] text-slate-500">${formatRelativeTime(plan.createdAt?.toDate())}</p>
+            `;
+            item.onclick = () => viewSavedPlan(doc.id, plan);
+            container.appendChild(item);
+        });
+    } catch (error) {
+        console.error('Error loading saved plans:', error);
+    }
+}
+
+/**
+ * View a saved plan
+ */
+function viewSavedPlan(id, plan) {
+    currentPlan = {
+        type: plan.planType,
+        name: plan.planName,
+        credits: plan.creditsUsed || 0
+    };
+    planVersions = [{
+        id: id,
+        content: plan.content,
+        createdAt: plan.createdAt?.toDate() || new Date()
+    }];
+
+    document.getElementById('plan-modal-title').textContent = plan.planName;
+    document.getElementById('plan-modal-subtitle').textContent = 'Saved Plan';
+
+    showPlanResult();
+    document.getElementById('btn-generate-another').classList.add('hidden');
+    document.getElementById('plan-modal').style.display = 'block';
 }
 
 // ============================================================
@@ -1307,6 +2956,23 @@ function getNotificationClass(type) {
         case 'info': return 'bg-blue-600 text-white';
         default: return 'bg-slate-700 text-white';
     }
+}
+
+function formatRelativeTime(date) {
+    if (!date) return '';
+
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+
+    return date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
 }
 
 // ============================================================
@@ -1904,4 +3570,142 @@ async function checkFeatureAccess(feature) {
         return false;
     }
     return true;
+}
+
+// ============================================================
+// HISTORY MODAL
+// ============================================================
+let historyFilter = null;
+let historyDocs = [];
+
+function openHistoryModal() {
+    const modal = document.getElementById('history-modal');
+    modal.style.display = 'block';
+
+    // Reset filter
+    historyFilter = null;
+
+    loadHistorySidebar();
+    loadHistoryItems();
+}
+
+function closeHistoryModal() {
+    document.getElementById('history-modal').style.display = 'none';
+}
+
+function loadHistorySidebar() {
+    const sidebar = document.getElementById('history-sidebar');
+
+    // Group PLAN_DEFINITIONS by category for filter buttons
+    const categories = {};
+    for (const [key, def] of Object.entries(PLAN_DEFINITIONS)) {
+        if (!categories[def.category]) {
+            categories[def.category] = [];
+        }
+        categories[def.category].push({ type: key, ...def });
+    }
+
+    let html = `
+        <div class="mb-4">
+            <button onclick="filterHistory(null)" class="w-full text-left px-3 py-2 rounded-lg text-sm font-medium ${historyFilter === null ? 'bg-indigo-600/20 text-indigo-400' : 'text-slate-400 hover:text-white hover:bg-slate-800'} transition-all">
+                All Plans
+            </button>
+        </div>
+    `;
+
+    const categoryLabels = {
+        quick: 'Quick Wins',
+        knowledge: 'Knowledge',
+        create: 'Create Now'
+    };
+
+    for (const [cat, plans] of Object.entries(categories)) {
+        html += `
+            <div class="mb-4">
+                <h4 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 px-3">${categoryLabels[cat] || cat}</h4>
+                <div class="space-y-1">
+                    ${plans.map(p => `
+                        <button onclick="filterHistory('${p.type}')" 
+                                class="w-full text-left px-3 py-1.5 rounded-lg text-xs ${historyFilter === p.type ? 'bg-indigo-600/20 text-indigo-400' : 'text-slate-400 hover:text-white hover:bg-slate-800'} transition-all">
+                            ${p.name}
+                        </button>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    sidebar.innerHTML = html;
+}
+
+function filterHistory(planType) {
+    historyFilter = planType;
+    loadHistorySidebar(); // Re-render sidebar to update active state
+    loadHistoryItems();
+}
+
+async function loadHistoryItems() {
+    const list = document.getElementById('history-list');
+    list.innerHTML = '<div class="text-center py-10 text-slate-500">Loading...</div>';
+
+    try {
+        const db = firebase.firestore();
+        let query = db.collection('projects').doc(currentProjectId)
+            .collection('savedPlans')
+            .orderBy('createdAt', 'desc');
+
+        if (historyFilter) {
+            query = query.where('planType', '==', historyFilter);
+        }
+
+        const snapshot = await query.limit(50).get();
+
+        if (snapshot.empty) {
+            list.innerHTML = '<div class="text-center py-10 text-slate-500">No saved plans found.</div>';
+            return;
+        }
+
+        historyDocs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        list.innerHTML = historyDocs.map((plan, index) => {
+            const planDef = PLAN_DEFINITIONS[plan.planType] || { name: plan.planType };
+            const langLabel = plan.language === 'ko' ? '🇰🇷 Korean' : plan.language === 'ja' ? '🇯🇵 Japanese' : plan.language ? '🇺🇸 English' : 'Unknown';
+            const dateStr = plan.createdAt?.toDate ? formatRelativeTime(plan.createdAt.toDate()) : 'Unknown date';
+            const contentPreview = plan.content ? plan.content.substring(0, 150) + '...' : 'No content';
+            const versionBadges = plan.version ? `<span class="px-1.5 py-0.5 rounded text-[10px] bg-indigo-500/20 text-indigo-300 font-mono ml-2">${plan.version}</span>` : '';
+
+            return `
+                <div class="p-4 bg-slate-800/50 border border-slate-700/50 rounded-xl hover:bg-slate-800 hover:border-indigo-500/30 transition-all cursor-pointer group"
+                    onclick="openHistoryPlan(${index})">
+                    <div class="flex items-start justify-between mb-2">
+                        <div class="flex items-center">
+                            <span class="text-sm font-semibold text-white group-hover:text-indigo-400 transition-colors">${plan.planName}</span>
+                            ${versionBadges}
+                        </div>
+                        <span class="text-xs text-slate-500">${dateStr}</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-xs text-slate-400 mb-2">
+                        <span class="px-2 py-0.5 rounded bg-slate-900 border border-slate-700 text-slate-500">${planDef.name}</span>
+                        <span>${langLabel}</span>
+                         <span>${plan.creditsUsed || 0} cr</span>
+                    </div>
+                    <div class="text-xs text-slate-500 line-clamp-2 font-mono bg-slate-900/50 p-2 rounded">
+                        ${escapeHtml(contentPreview)}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+    } catch (error) {
+        console.error('Error loading history:', error);
+        list.innerHTML = '<div class="text-center py-10 text-red-400">Error loading history.</div>';
+    }
+}
+
+function openHistoryPlan(index) {
+    const plan = historyDocs[index];
+    if (plan) {
+        viewSavedPlan(plan.id, plan);
+        closeHistoryModal(); // Stack modal behavior: close history, open plan view
+    }
 }

@@ -133,6 +133,20 @@ service cloud.firestore {
         allow delete: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
       }
 
+      // Saved Plans (Knowledge Hub - user generated plans)
+      match /savedPlans/{planId} {
+        allow read: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
+        allow create: if isAuthenticated() && isProjectOwner(projectId);
+        allow update: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
+        allow delete: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
+      }
+
+      // Summary Feedback (Knowledge Hub - user feedback on AI summaries)
+      match /summaryFeedback/{feedbackId} {
+        allow read: if isAdmin();
+        allow create: if isAuthenticated() && isProjectOwner(projectId);
+      }
+
       // Generated Images (Knowledge Hub / Studio)
       match /generatedImages/{imageId} {
         allow read: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());

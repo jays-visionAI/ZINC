@@ -99,7 +99,7 @@ class DAGExecutor {
     /**
      * Start workflow execution
      */
-    async start(selectedAgents, projectId, teamId) {
+    async start(selectedAgents, projectId, teamId, context = null) {
         if (this.state.isRunning) {
             console.warn('Execution already in progress');
             return;
@@ -116,8 +116,8 @@ class DAGExecutor {
             totalCost: 0,
             projectId,
             teamId,
-            teamId,
             selectedAgents,
+            context,
             executionResults: {}
         };
 
@@ -195,7 +195,7 @@ class DAGExecutor {
 
         try {
             // Simulate API call delay (replace with actual Cloud Function call)
-            const result = await this.invokeAgent(agentId);
+            const result = await this.invokeAgent(agentId, this.state.context);
 
             // Update metrics
             const meta = this.agentMeta[agentId] || { avgTokens: 100, avgCost: 0.01 };
@@ -231,90 +231,94 @@ class DAGExecutor {
     /**
      * Invoke agent (mock implementation - replace with Cloud Function call)
      */
-    async invokeAgent(agentId) {
+    async invokeAgent(agentId, context) {
         // Simulated processing time
         const processingTime = 1000 + Math.random() * 1500;
         await this.sleep(processingTime);
 
+        if (context && Math.random() > 0.7) {
+            this.emit('onLog', { message: `   Context applied: ${context.planName}`, type: 'info' });
+        }
+
         // Mock responses
         const mockResponses = {
             creator_text: {
-                content: "🚀 Exciting news! We're thrilled to announce our latest innovation that's changing the game.\n\nStay tuned for more updates. The future is here, and we're leading the way!\n\n#Innovation #Technology #Future #AI"
+                content: context ?
+                    `[Based on Plan: ${context.planName}]\n\n🚀 Exciting executed content based on your ${context.planType} plan.\n\nStrategy: ${context.content.substring(0, 50)}...\n\n#ZYNK #AI #Executed` :
+                    "🚀 Exciting news! We're thrilled to announce our latest innovation that's changing the game.\n\n#Innovation #Technology #Future"
             },
             creator_image: {
-                creator_image: {
-                    // Use Pollinations.ai for real-time AI image generation based on context
-                    imageUrl: `https://image.pollinations.ai/prompt/futuristic%20technology%20ai%20innovation%20cyberpunk?width=800&height=600&seed=${Math.floor(Math.random() * 1000)}&nologo=true`
-                },
-                seo_optimizer: {
-                    score: Math.floor(Math.random() * (98 - 85 + 1)) + 85, // Random 85-98
-                    details: "Keywords valid, H1 present"
-                },
-                compliance: {
-                    score: 100,
-                    status: 'Passed',
-                    checks: ['Copyright OK', 'Brand Voice Match', 'Safety Pass']
-                }
-            };
+                imageUrl: `https://image.pollinations.ai/prompt/${context ? encodeURIComponent(context.planType + ' ' + context.planName) : 'futuristic%20technology'}?width=800&height=600&nologo=true`
+            },
+            seo_optimizer: {
+                score: Math.floor(Math.random() * (98 - 85 + 1)) + 85,
+                details: "Keywords valid, H1 present"
+            },
+            compliance: {
+                score: 100,
+                status: 'Passed',
+                checks: ['Copyright OK', 'Brand Voice Match', 'Safety Pass']
+            }
+        };
 
-            return mockResponses[agentId] || { success: true };
-        }
+        return mockResponses[agentId] || { success: true };
+    }
 
     /**
      * Determine if agent should be retried
      */
     async shouldRetry(agentId, error) {
-            const retryCount = this.state.failedNodes.filter(id => id === agentId).length;
-            return retryCount < 3 && error.retryable !== false;
-        }
-
-        /**
-         * Pause execution
-         */
-        pause() {
-            this.state.isPaused = true;
-            this.emit('onLog', { message: '⏸ Execution paused', type: 'warning' });
-        }
-
-        /**
-         * Resume execution
-         */
-        resume() {
-            this.state.isPaused = false;
-            this.emit('onLog', { message: '▶ Execution resumed', type: 'info' });
-        }
-
-        /**
-         * Stop execution
-         */
-        stop() {
-            this.state.isRunning = false;
-            this.state.isPaused = false;
-            this.emit('onLog', { message: '⏹ Execution stopped', type: 'warning' });
-        }
-
-        /**
-         * Get current execution stats
-         */
-        getStats() {
-            return {
-                phase: this.state.currentPhase + 1,
-                totalPhases: this.phases.length,
-                completedAgents: this.state.completedNodes.length,
-                failedAgents: this.state.failedNodes.length,
-                duration: this.state.startTime ? Date.now() - this.state.startTime : 0,
-                totalTokens: this.state.totalTokens,
-                totalCost: this.state.totalCost.toFixed(4)
-            };
-        }
-
-        /**
-         * Sleep helper
-         */
-        sleep(ms) {
-            return new Promise(resolve => setTimeout(resolve, ms));
-        }
+        const retryCount = this.state.failedNodes.filter(id => id === agentId).length;
+        return retryCount < 3 && error.retryable !== false;
     }
+
+    /**
+     * Pause execution
+     */
+    pause() {
+        this.state.isPaused = true;
+        this.emit('onLog', { message: '⏸ Execution paused', type: 'warning' });
+    }
+
+    /**
+     * Resume execution
+     */
+    resume() {
+        this.state.isPaused = false;
+        this.emit('onLog', { message: '▶ Execution resumed', type: 'info' });
+    }
+
+    /**
+     * Stop execution
+     */
+    stop() {
+        this.state.isRunning = false;
+        this.state.isPaused = false;
+        this.emit('onLog', { message: '⏹ Execution stopped', type: 'warning' });
+    }
+
+    /**
+     * Get current execution stats
+     */
+    getStats() {
+        return {
+            phase: this.state.currentPhase + 1,
+            totalPhases: this.phases.length,
+            completedAgents: this.state.completedNodes.length,
+            failedAgents: this.state.failedNodes.length,
+            duration: this.state.startTime ? Date.now() - this.state.startTime : 0,
+            totalTokens: this.state.totalTokens,
+            totalCost: this.state.totalCost.toFixed(4)
+        };
+    }
+
+    /**
+     * Sleep helper
+     */
+    sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+}
 
 // Export for use in studio.js
 window.DAGExecutor = DAGExecutor;
