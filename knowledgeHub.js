@@ -1972,21 +1972,6 @@ async function generateSummary() {
             // Store current for actions
             currentSummary = savedSummary;
 
-            // Update suggested questions (Chat UI)
-            if (result.data.suggestedQuestions && result.data.suggestedQuestions.length > 0) {
-                const questionsContainer = document.getElementById('suggested-questions');
-                if (questionsContainer) {
-                    const questionsList = questionsContainer.querySelector('.flex');
-                    if (questionsList) {
-                        questionsList.innerHTML = result.data.suggestedQuestions.map(q => `
-                            <button class="suggested-question flex-shrink-0 px-4 py-2 text-xs text-slate-400 bg-slate-800/50 border border-slate-700/50 rounded-xl hover:text-white transition-all"
-                                 onclick="setInput('${escapeHtml(q)}')">
-                                ${escapeHtml(q)}
-                            </button>
-                        `).join('');
-                    }
-                }
-            }
             // Cleanup old summaries in DB (Async)
             cleanupOldBrandSummaries();
 
