@@ -1086,14 +1086,16 @@ async function updateSourceImportance(sourceId, importance) {
         const source = sources.find(s => s.id === sourceId);
         if (source) source.importance = validImportance;
 
-        // Re-render sources list
+        // Re-render sources list (updates the dots on cards)
         renderSources();
 
         showNotification(`Document importance set to ${'⭐'.repeat(validImportance)}`, 'success');
 
-        // Refresh the source view to show updated stars
-        if (selectedSourceId === sourceId) {
-            openSourceContent(sourceId);
+        // Force re-render the summary section with updated stars
+        // Check if current displayed summary is for this source
+        if (currentDisplayedSummary && currentDisplayedSummary.sourceId === sourceId) {
+            currentDisplayedSummary.importance = validImportance;
+            updateSummarySection();
         }
 
     } catch (error) {
