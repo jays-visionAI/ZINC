@@ -2548,6 +2548,18 @@ function openPlanModal(planType) {
     }
 }
 
+
+/**
+ * Open creative studio modal (stub for 'create' category plans)
+ * TODO: Implement full Creative Studio modal
+ */
+function openCreativeModal(planType) {
+    const planDef = PLAN_DEFINITIONS[planType];
+    const planName = planDef ? planDef.name : planType;
+    showNotification(`${planName} - Creative Studio coming soon!`, 'info');
+    console.log('[CreativeModal] Plan type:', planType, planDef);
+}
+
 /**
  * Close plan modal
  */
