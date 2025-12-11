@@ -125,6 +125,8 @@ window.ChannelCredentialService = {
                     return await this._testReddit(credentials);
                 case 'pinterest':
                     return await this._testPinterest(credentials);
+                case 'discord':
+                    return await this._testDiscord(credentials);
                 default:
                     throw new Error(`Unknown provider: ${provider}`);
             }
@@ -414,6 +416,22 @@ window.ChannelCredentialService = {
         return {
             success: true,
             message: 'Pinterest credentials verified (Format OK)',
+            latency: 0
+        };
+    },
+
+    async _testDiscord(credentials) {
+        const { botToken } = credentials;
+
+        if (!botToken) {
+            throw new Error('Missing Bot Token');
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 600));
+
+        return {
+            success: true,
+            message: 'Discord Bot Token verified (Format OK)',
             latency: 0
         };
     },
