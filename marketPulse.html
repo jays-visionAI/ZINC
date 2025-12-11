@@ -103,6 +103,25 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #475569;
         }
+
+        /* Glow effect for project selector */
+        .selection-highlight {
+            animation: glow-pulse 2s ease-in-out infinite;
+            border-color: #6366f1 !important;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3), 0 0 20px rgba(99, 102, 241, 0.4);
+        }
+
+        @keyframes glow-pulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3), 0 0 20px rgba(99, 102, 241, 0.4);
+            }
+
+            50% {
+                box-shadow: 0 0 0 5px rgba(99, 102, 241, 0.5), 0 0 30px rgba(99, 102, 241, 0.6);
+            }
+        }
     </style>
 </head>
 
@@ -169,6 +188,18 @@
                 <span class="text-[10px] text-slate-500 uppercase tracking-widest">Real-time Intelligence</span>
             </div>
         </div>
+
+        <!-- Center: Project Selector -->
+        <div class="flex items-center gap-4 bg-slate-900/80 rounded-xl px-4 py-2 border border-slate-800">
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-slate-500 uppercase">Project:</span>
+                <select id="project-select"
+                    class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-indigo-500 min-w-[180px]">
+                    <option value="">Loading...</option>
+                </select>
+            </div>
+        </div>
+
         <div class="ml-auto flex items-center gap-4">
             <span class="text-xs text-slate-500">Last updated: <span class="text-slate-300" id="last-updated">Just
                     now</span></span>
@@ -395,6 +426,12 @@
         </div>
 
     </main>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+    <script src="firebase-config.js"></script>
 
     <script src="marketPulse.js"></script>
 

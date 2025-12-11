@@ -60,7 +60,21 @@ const dom = {
 };
 
 // ========== INITIALIZATION ==========
-function init() {
+let currentProjectId = null;
+let currentUser = null;
+
+async function init() {
+    // Check auth first
+    firebase.auth().onAuthStateChanged(async (user) => {
+        if (user) {
+            currentUser = user;
+            await loadUserProjects();
+        } else {
+            // Redirect to login if not authenticated
+            window.location.href = 'index.html';
+        }
+    });
+
     renderTrendingKeywords();
     renderHeatmap();
     renderRecentMentions();
@@ -68,6 +82,72 @@ function init() {
     renderInvestigations();
     renderAIActions();
     setupEventListeners();
+}
+
+// ========== PROJECT SELECTOR ==========
+async function loadUserProjects() {
+    const projectSelect = document.getElementById('project-select');
+    if (!projectSelect) return;
+
+    try {
+        const snapshot = await firebase.firestore()
+            .collection('projects')
+            .where('userId', '==', currentUser.uid)
+            .orderBy('createdAt', 'desc')
+            .get();
+
+        const projects = [];
+        snapshot.forEach(doc => {
+            projects.push({ id: doc.id, ...doc.data() });
+        });
+
+        if (projects.length === 0) {
+            projectSelect.innerHTML = '<option value="">No projects</option>';
+            return;
+        }
+
+        // Populate dropdown
+        projectSelect.innerHTML = projects.map(p =>
+            `<option value="${p.id}">${p.name || 'Untitled Project'}</option>`
+        ).join('');
+
+        // Try to restore last selected project from localStorage
+        const lastProjectId = localStorage.getItem('marketPulse_lastProject');
+        if (lastProjectId && projects.find(p => p.id === lastProjectId)) {
+            projectSelect.value = lastProjectId;
+            currentProjectId = lastProjectId;
+        } else {
+            currentProjectId = projects[0].id;
+        }
+
+        // Highlight with glow if no project was selected before
+        if (!lastProjectId) {
+            projectSelect.classList.add('selection-highlight');
+        }
+
+        // Add change listener
+        projectSelect.addEventListener('change', () => {
+            const newProjectId = projectSelect.value;
+            if (newProjectId !== currentProjectId) {
+                currentProjectId = newProjectId;
+                localStorage.setItem('marketPulse_lastProject', newProjectId);
+                projectSelect.classList.remove('selection-highlight');
+
+                // Reload data for new project
+                onProjectChange();
+            }
+        });
+
+    } catch (error) {
+        console.error('Error loading projects:', error);
+        projectSelect.innerHTML = '<option value="">Error loading</option>';
+    }
+}
+
+function onProjectChange() {
+    // TODO: Reload market pulse data for selected project
+    console.log('Project changed to:', currentProjectId);
+    document.getElementById('last-updated').textContent = 'Just now';
 }
 
 // ========== RENDER FUNCTIONS ==========
