@@ -45,6 +45,9 @@ async function loadCredentials() {
         await loadConnectedTeamsForCredentials();
 
         renderCredentialsTable();
+
+        // ⚡️ Real-time Verification on Load
+        verifyAllCredentials();
     } catch (error) {
         console.error('Error loading credentials:', error);
         alert('Error loading credentials: ' + error.message);
@@ -191,18 +194,69 @@ function getProviderName(provider) {
 
 function getStatusBadge(status) {
     const colors = {
-        active: '#22c55e',
-        error: '#ef4444',
-        disabled: '#94a3b8'
+        active: '#22c55e',          // Green (Legacy)
+        connected: '#22c55e',       // Green
+        verifying: '#f59e0b',       // Amber/Yellow
+        error: '#ef4444',           // Red
+        disconnected: '#ef4444',    // Red
+        disabled: '#94a3b8'         // Gray
     };
     const color = colors[status] || '#94a3b8';
-    return `<span style="border: 1px solid ${color}; color: ${color}; padding: 2px 8px; border-radius: 12px; font-size: 11px; text-transform: capitalize;">${status}</span>`;
+
+    let label = status;
+    if (status === 'active') label = 'Connected';
+
+    return `<span style="border: 1px solid ${color}; color: ${color}; padding: 2px 8px; border-radius: 12px; font-size: 11px; text-transform: capitalize;">${label}</span>`;
 }
 
 function formatDate(timestamp) {
     if (!timestamp) return 'Never';
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
     return date.toLocaleDateString();
+}
+
+// 🚀 Verify all credentials on load
+async function verifyAllCredentials() {
+    console.log("Starting verification for all credentials...");
+
+    // 1. Set all to 'Verifying...' visually first
+    credentials.forEach(cred => {
+        cred.status = 'verifying';
+    });
+    renderCredentialsTable();
+
+    // 2. Trigger tests in parallel
+    const verificationPromises = credentials.map(async (cred) => {
+        try {
+            // Check if provider and credentials exist
+            if (!cred.provider || !cred.credentials) {
+                throw new Error('Invalid credential data');
+            }
+
+            // Call Service
+            const result = await window.ChannelCredentialService.testConnection(cred.provider, cred.credentials);
+
+            if (result.success) {
+                cred.status = 'connected';
+            } else {
+                cred.status = 'disconnected'; // or 'error'
+                console.warn(`Verification failed for ${cred.detailedName}:`, result.message);
+            }
+        } catch (error) {
+            console.error(`Verification error for ${cred.detailedName}:`, error);
+            cred.status = 'error';
+        }
+
+        // 3. Update UI individually (or re-render entire table for simplicity)
+        renderCredentialsTable();
+
+        // Optional: Update Firestore to reflect current status?
+        // For now, we only update UI as requested ("세팅메뉴에 유저가 진입할때 테스트").
+        // Updating DB might cause write frequency issues if many users enter.
+    });
+
+    await Promise.all(verificationPromises);
+    console.log("All verifications complete.");
 }
 
 // Channel Profile Cache (PRD 12.x)
