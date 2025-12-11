@@ -302,13 +302,13 @@ window.openCredentialModal = async function (credentialId = null) {
         { key: 'youtube', displayName: 'YouTube', order: 5 },
         { key: 'tiktok', displayName: 'TikTok', order: 6 },
         { key: 'discord', displayName: 'Discord', order: 7 },
-        { key: 'naver_blog', displayName: 'Naver Blog', order: 8 },
+        { key: 'naverBlog', displayName: 'Naver Blog', order: 8 },
         { key: 'reddit', displayName: 'Reddit', order: 9 },
         { key: 'kakaotalk', displayName: 'KakaoTalk', order: 10 },
         { key: 'line', displayName: 'Line', order: 11 },
         { key: 'telegram', displayName: 'Telegram', order: 12 },
         { key: 'whatsapp', displayName: 'WhatsApp', order: 13 },
-        { key: 'naver_smartstore', displayName: 'Naver Smart Store', order: 14 },
+        { key: 'naverSmartStore', displayName: 'Naver Smart Store', order: 14 },
         { key: 'coupang', displayName: 'Coupang', order: 15 }
     ];
 
