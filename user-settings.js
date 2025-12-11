@@ -220,19 +220,27 @@ const PROVIDER_CONFIG = {
     },
     instagram: {
         fields: [
-            { key: 'accessToken', label: 'Access Token', type: 'password', placeholder: 'Enter Access Token', required: true },
-            { key: 'pageId', label: 'Page ID', type: 'text', placeholder: 'Enter Facebook Page ID', required: true, help: 'Facebook Page ID connected to Instagram' }
+            { key: 'appId', label: 'App ID', type: 'text', placeholder: 'Facebook App ID', required: true },
+            { key: 'appSecret', label: 'App Secret', type: 'password', placeholder: 'Facebook App Secret', required: false },
+            { key: 'accessToken', label: 'Access Token (Optional if using App Secret)', type: 'password', placeholder: 'Long-lived Access Token', required: false },
+            { key: 'pageId', label: 'Instagram Business Account ID', type: 'text', placeholder: 'Instagram Account ID (not username)', required: true },
+            { key: 'fbPageId', label: 'Connected Facebook Page ID', type: 'text', placeholder: 'Facebook Page ID', required: false }
         ]
     },
     youtube: {
         fields: [
-            { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Enter YouTube API Key', required: true, help: 'From Google Cloud Console' }
+            { key: 'clientId', label: 'Client ID (OAuth 2.0)', type: 'text', placeholder: 'Google Cloud Client ID', required: true },
+            { key: 'clientSecret', label: 'Client Secret', type: 'password', placeholder: 'Google Cloud Client Secret', required: true },
+            { key: 'refreshToken', label: 'Refresh Token', type: 'password', placeholder: 'OAuth Refresh Token', required: false, help: 'Required for offline access' },
+            { key: 'apiKey', label: 'API Key (Public Data)', type: 'text', placeholder: 'Google Cloud API Key', required: false }
         ]
     },
     linkedin: {
         fields: [
-            { key: 'accessToken', label: 'Access Token', type: 'password', placeholder: 'Enter Access Token', required: true },
-            { key: 'urn', label: 'Organization URN', type: 'text', placeholder: 'urn:li:organization:12345', required: false }
+            { key: 'clientId', label: 'Client ID', type: 'text', placeholder: 'LinkedIn App Client ID', required: true },
+            { key: 'clientSecret', label: 'Client Secret', type: 'password', placeholder: 'LinkedIn App Client Secret', required: true },
+            { key: 'urn', label: 'Organization URN', type: 'text', placeholder: 'urn:li:organization:12345678', required: true, help: 'Found in LinkedIn Page URL' },
+            { key: 'accessToken', label: 'Access Token (Optional)', type: 'password', placeholder: 'Pre-generated Access Token', required: false }
         ]
     },
     tiktok: {
@@ -241,7 +249,14 @@ const PROVIDER_CONFIG = {
             { key: 'clientKey', label: 'Client Key', type: 'text', placeholder: 'Enter Client Key', required: true }
         ]
     },
-    facebook: { fields: [{ key: 'accessToken', label: 'Access Token', type: 'password', required: true }] },
+    facebook: {
+        fields: [
+            { key: 'appId', label: 'App ID', type: 'text', required: true },
+            { key: 'appSecret', label: 'App Secret', type: 'password', required: true },
+            { key: 'accessToken', label: 'Access Token', type: 'password', required: false },
+            { key: 'pageId', label: 'Page ID', type: 'text', required: true }
+        ]
+    },
     discord: { fields: [{ key: 'botToken', label: 'Bot Token', type: 'password', required: true }] },
     naver_blog: { fields: [{ key: 'clientId', label: 'Client ID', type: 'text', required: true }, { key: 'clientSecret', label: 'Client Secret', type: 'password', required: true }] },
     naver_smartstore: { fields: [{ key: 'apiKey', label: 'API Key', type: 'password', required: true }] },

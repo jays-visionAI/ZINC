@@ -205,49 +205,55 @@ window.ChannelCredentialService = {
     },
 
     async _testInstagram(credentials) {
-        const { accessToken } = credentials;
+        const { appId, pageId, accessToken } = credentials;
 
-        if (!accessToken) {
-            throw new Error('Missing access token');
+        if (!appId && !accessToken) {
+            throw new Error('Missing App ID or Access Token');
+        }
+        if (!pageId) {
+            throw new Error('Missing Page ID');
         }
 
         await new Promise(resolve => setTimeout(resolve, 800));
 
         return {
             success: true,
-            message: 'Token format verified (Ready to use)',
+            message: 'Credential format verified (Ready to use)',
             latency: 0
         };
     },
 
     async _testYouTube(credentials) {
-        const { apiKey } = credentials;
+        const { clientId, clientSecret, apiKey } = credentials;
 
-        if (!apiKey) {
-            throw new Error('Missing API key');
+        if ((!clientId || !clientSecret) && !apiKey) {
+            throw new Error('Missing Client ID/Secret or API Key');
         }
 
         await new Promise(resolve => setTimeout(resolve, 800));
 
         return {
             success: true,
-            message: 'Key format verified (Ready to use)',
+            message: 'Credential format verified (Ready to use)',
             latency: 0
         };
     },
 
     async _testLinkedIn(credentials) {
-        const { accessToken } = credentials;
+        const { clientId, clientSecret, urn, accessToken } = credentials;
 
-        if (!accessToken) {
-            throw new Error('Missing access token');
+        if ((!clientId || !clientSecret) && !accessToken) {
+            throw new Error('Missing Client ID/Secret or Access Token');
+        }
+        if (!urn) {
+            throw new Error('Missing Organization URN');
         }
 
         await new Promise(resolve => setTimeout(resolve, 800));
 
         return {
             success: true,
-            message: 'Token format verified (Ready to use)',
+            message: 'Credential format verified (Ready to use)',
             latency: 0
         };
     },
