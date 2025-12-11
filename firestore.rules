@@ -253,6 +253,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Channel Profile Versions: Admin can write, authenticated users can read
+    match /channelProfileVersions/{versionId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
     // System LLM Providers (OpenAI, etc.)
     // ⚠️ WORKAROUND: Allow all reads because Cloud Functions Admin SDK
     //    is failing to bypass security rules (PERMISSION_DENIED error).
