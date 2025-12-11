@@ -150,18 +150,56 @@
             // Handle PNG/JPG -> Convert to base64 wrapped in SVG
             const reader = new FileReader();
             reader.onload = function (e) {
-                const base64 = e.target.result;
-                // Create SVG wrapper
-                const svgString = `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><image href="${base64}" width="100" height="100" /></svg>`;
+                const img = new Image();
+                img.onload = function () {
+                    let finalBase64 = e.target.result;
+                    const removeBg = document.getElementById('remove-bg-checkbox')?.checked;
 
-                hiddenInput.value = svgString;
-                previewContainer.innerHTML = svgString;
-                // Force size in preview
-                const svg = previewContainer.querySelector('svg');
-                if (svg) {
-                    svg.setAttribute('width', '100%');
-                    svg.setAttribute('height', '100%');
-                }
+                    if (removeBg) {
+                        // Background Removal Logic
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0);
+
+                        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                        const data = imageData.data;
+
+                        // Sample top-left pixel for background color
+                        const rBg = data[0], gBg = data[1], bBg = data[2];
+                        const isWhite = (rBg > 240 && gBg > 240 && bBg > 240);
+                        const isBlack = (rBg < 15 && gBg < 15 && bBg < 15);
+
+                        // Only proceed if it looks like a solid background
+                        if (isWhite || isBlack) {
+                            const tolerance = 20;
+                            for (let i = 0; i < data.length; i += 4) {
+                                const r = data[i], g = data[i + 1], b = data[i + 2];
+                                if (Math.abs(r - rBg) < tolerance &&
+                                    Math.abs(g - gBg) < tolerance &&
+                                    Math.abs(b - bBg) < tolerance) {
+                                    data[i + 3] = 0; // Make transparent
+                                }
+                            }
+                            ctx.putImageData(imageData, 0, 0);
+                            finalBase64 = canvas.toDataURL('image/png');
+                        }
+                    }
+
+                    // Create SVG wrapper
+                    const svgString = `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><image href="${finalBase64}" width="100" height="100" /></svg>`;
+
+                    hiddenInput.value = svgString;
+                    previewContainer.innerHTML = svgString;
+                    // Force size in preview
+                    const svg = previewContainer.querySelector('svg');
+                    if (svg) {
+                        svg.setAttribute('width', '100%');
+                        svg.setAttribute('height', '100%');
+                    }
+                };
+                img.src = e.target.result;
             };
             reader.readAsDataURL(file);
         } else {
@@ -183,7 +221,9 @@
             <tr>
                 <td>
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        ${getChannelIcon(p.id, p)}
+                        <div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 6px; background: rgba(255,255,255,0.05); flex-shrink: 0;">
+                            ${getChannelIcon(p.id, p).replace('<svg', '<svg style="width:100%; height:100%;"')} 
+                        </div>
                         <strong>${p.name}</strong>
                     </div>
                 </td>

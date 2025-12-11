@@ -75,8 +75,14 @@
                         <div style="flex: 1;">
                             <input type="file" id="channel-icon-upload" accept=".svg,.png,.jpg,.jpeg"
                                 class="admin-form-input">
+                            <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="remove-bg-checkbox" checked>
+                                <label for="remove-bg-checkbox" style="font-size: 13px; color: #ddd; cursor: pointer;">
+                                    Auto-remove Background (White/Black)
+                                </label>
+                            </div>
                             <p style="font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 5px;">
-                                Upload <strong>SVG</strong> (recommended) or <strong>PNG/JPG</strong> (512x512px).<br>
+                                Upload <strong>SVG</strong> (recommended) or <strong>PNG/JPG</strong>.<br>
                                 Images will be auto-converted to SVG code for storage efficiency.
                             </p>
                             <!-- Hidden Textarea to store the final SVG string -->
