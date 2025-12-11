@@ -338,8 +338,17 @@ const PROVIDER_CONFIG = {
     discord: { fields: [{ key: 'botToken', label: 'Bot Token', type: 'password', required: true }] },
     coupang: { fields: [{ key: 'accessKey', label: 'Access Key', type: 'text', required: true }, { key: 'secretKey', label: 'Secret Key', type: 'password', required: true }] },
     reddit: { fields: [{ key: 'clientId', label: 'Client ID', type: 'text', required: true }, { key: 'clientSecret', label: 'Client Secret', type: 'password', required: true }] },
-    telegram: { fields: [{ key: 'botToken', label: 'Bot Token', type: 'password', required: true }] },
-    whatsapp: { fields: [{ key: 'accessToken', label: 'Access Token', type: 'password', required: true }] }
+    telegram: {
+        fields: [
+            { key: 'botToken', label: 'Bot Token', type: 'password', required: true, help: 'From @BotFather' }
+        ]
+    },
+    whatsapp: {
+        fields: [
+            { key: 'accessToken', label: 'System User Access Token', type: 'password', required: true, help: 'Permanent token recommended' },
+            { key: 'phoneNumberId', label: 'Phone Number ID', type: 'text', required: true, help: 'From WhatsApp Business API Setup' }
+        ]
+    }
 };
 
 // Modal Management

@@ -117,6 +117,10 @@ window.ChannelCredentialService = {
                     return await this._testKakaoTalk(credentials);
                 case 'line':
                     return await this._testLine(credentials);
+                case 'telegram':
+                    return await this._testTelegram(credentials);
+                case 'whatsapp':
+                    return await this._testWhatsApp(credentials);
                 default:
                     throw new Error(`Unknown provider: ${provider}`);
             }
@@ -342,6 +346,38 @@ window.ChannelCredentialService = {
         return {
             success: true,
             message: 'Token format verified (Ready to use)',
+            latency: 0
+        };
+    },
+
+    async _testTelegram(credentials) {
+        const { botToken } = credentials;
+
+        if (!botToken || !botToken.includes(':')) {
+            throw new Error('Invalid Bot Token format (should contain ":")');
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 600));
+
+        return {
+            success: true,
+            message: 'Telegram Bot Token verified (Format OK)',
+            latency: 0
+        };
+    },
+
+    async _testWhatsApp(credentials) {
+        const { accessToken, phoneNumberId } = credentials;
+
+        if (!accessToken || !phoneNumberId) {
+            throw new Error('Missing Access Token or Phone Number ID');
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 600));
+
+        return {
+            success: true,
+            message: 'WhatsApp credentials verified (Format OK)',
             latency: 0
         };
     },
