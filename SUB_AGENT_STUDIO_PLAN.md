@@ -1,232 +1,111 @@
-# Implementation Plan - Sub-Agent Studio Enhancement
+# Implementation Plan: The Filter (Quality Verification) Integration
 
-## 🎯 목표
-Sub-Agent Studio 섹션의 3-Column 레이아웃을 완전하게 구현하여, 서브 에이전트 선택 → 작업 이력 조회 → 콘텐츠 승인까지의 워크플로우를 완성합니다.
+## Goal
+Transition **"The Filter"** from a static mock-up to a fully functional module integrated with Firestore. This module serves as the quality control gate (Step 4) before content finds its way to "The Growth" (Step 5).
 
----
-
-## 📋 Phase 1: UI 제목 추가
-
-### 1.1 "Sub-Agent Studio" 섹션 타이틀 추가
-**위치**: Agent Team 카드와 3-Column 패널 사이
-
-**구현 내용**:
-```html
-<div class="section-header" style="same as Agent Swarm">
-    <h2>Sub-Agent Studio</h2>
-    <span class="info-icon">ⓘ</span>
-</div>
-```
-
-**스타일**: Agent Swarm 섹션 헤더와 동일한 폰트/크기/여백
+## Status
+- **UI**: Implementation complete (`theFilter.html`, `theFilter.js` with mock data).
+- **Draft Spec**: `THE_FILTER_DRAFT.md` (v1.0).
+- **Backend**: Not connected.
 
 ---
 
-## 📋 Phase 2: 서브에이전트 ↔ Recent Runs 연동
+## 1. Architecture & Data Flow
 
-### 2.1 데이터 구조
-```
-projects/{projectId}/agentRuns/{runId}
-├── team_instance_id: string
-├── sub_agent_id: string         // ← 추가: 어떤 서브에이전트가 실행했는지
-├── sub_agent_role: string       // ← 추가: 역할 표시용
-├── status: 'pending' | 'running' | 'completed' | 'failed'
-├── created_at: timestamp
-├── content_type: 'text' | 'image' | 'thread'
-├── output: { ... }              // 생성된 콘텐츠 데이터
-└── ...
-```
+### Workflow
+1.  **Content Import**: Load "Draft" content from `project/{id}/generated_content` (output from Studio).
+2.  **Analysis**: On load, run "AI Analysis" (simulated or real) to generate:
+    -   Quality Score
+    -   Red Pen Suggestions
+3.  **Review**: User accepts/rejects suggestions.
+4.  **Approval**: User clicks "Approve & Publish" -> Update status -> Trigger "The Growth" data recording.
 
-### 2.2 서브에이전트 선택 이벤트
-**파일**: `mission-control-view-history.js`
+### Firestore Schema (New)
+**Collection**: `projects/{projectId}/content_filter/{contentId}`
 
-```javascript
-// 서브에이전트 카드 클릭 시
-function selectSubAgent(subAgentId, subAgentRole) {
-    // 1. UI 선택 상태 업데이트
-    highlightSelectedSubAgent(subAgentId);
-    
-    // 2. 해당 서브에이전트의 Runs만 필터링하여 로드
-    loadRunsForSubAgent(subAgentId);
-    
-    // 3. Generated Content 초기화
-    clearGeneratedContent();
+```typescript
+interface FilterItem {
+  contentId: string;
+  projectId: string;
+  source: 'studio' | 'manual';
+  platform: 'instagram' | 'twitter' | 'linkedin';
+  status: 'draft' | 'reviewed' | 'approved' | 'rejected' | 'published';
+  
+  // Content Data
+  content: {
+    caption: string;
+    hashtags: string[];
+    mediaUrls: string[];
+  };
+
+  // AI Evaluation (The Scorecard)
+  evaluation: {
+    totalScore: number;
+    breakdown: {
+      brandVoice: { score: number; status: 'pass'|'warning'; detail: string };
+      grammar: { score: number; status: 'pass'|'warning'; detail: string };
+      seo: { score: number; status: 'pass'|'warning'; detail: string };
+      compliance: { score: number; status: 'pass'|'warning'; detail: string };
+    };
+  };
+
+  // AI Suggestions (The Red Pen)
+  suggestions: Array<{
+    id: string;
+    type: 'SEO' | 'Engagement' | 'Grammar';
+    priority: 'high' | 'medium' | 'low';
+    title: string;
+    description: string;
+    currentValue: string;
+    suggestedValue: string;
+    isApplied: boolean;
+  }>;
+
+  // Metadata
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }
 ```
 
-### 2.3 Recent Runs 필터링
-```javascript
-async function loadRunsForSubAgent(subAgentId) {
-    const runs = await db.collection('projects')
-        .doc(projectId)
-        .collection('agentRuns')
-        .where('sub_agent_id', '==', subAgentId)
-        .orderBy('created_at', 'desc')
-        .limit(20)
-        .get();
-    
-    renderRunsList(runs);
-}
-```
+---
+
+## 2. Implementation Steps
+
+### Phase 1: Service Layer Setup
+-   [ ] Create `services/filter-service.js`.
+-   [ ] Implement `FilterService.getContent(id)`: Fetch from Firestore or create/import from Studio if new.
+-   [ ] Implement `FilterService.saveContent(id, data)`: Save Draft/Status.
+
+### Phase 2: Logic Integration (`theFilter.js`)
+-   [ ] **Remove Mock Data**: Delete `SCORE_BREAKDOWN` and `SUGGESTIONS` constants.
+-   [ ] **Load Logic**: Fetch data via `FilterService` on init.
+-   [ ] **Save Logic**: "Save Draft" button writes to Firestore.
+-   [ ] **Suggestion Logic**: "Apply" button updates local state AND saves to Firestore.
+
+### Phase 3: AI Engine Stub
+-   [ ] Create `utils-ai-filter.js`.
+-   [ ] Implement `analyzeContent(text, platform)`:
+    -   For now, return **deterministic mock results** or simple heuristic-based results (e.g., check for hashtags, length) to simulate a "Real" analysis process.
+    -   Examples:
+        -   If `#tag` count < 3 -> Suggest "Add hashtags".
+        -   If text length < 20 -> Suggest "Too short".
+        -   Check "Dos/Donts" from Brand Brain (if connected).
+
+### Phase 4: Approval Workflow
+-   [ ] "Approve & Publish" button:
+    -   Update status to `approved`.
+    -   (Future) Trigger actual publishing API.
+    -   (Future) Create entry in "The Growth".
 
 ---
 
-## 📋 Phase 3: Recent Runs ↔ Generated Content 연동
-
-### 3.1 Run 선택 시 콘텐츠 표시
-```javascript
-function selectRun(runId) {
-    // 1. UI 선택 상태 업데이트
-    highlightSelectedRun(runId);
-    
-    // 2. Run 데이터 로드
-    const runData = await loadRunDetails(runId);
-    
-    // 3. Generated Content 패널에 표시
-    renderGeneratedContent(runData);
-}
-```
-
-### 3.2 Generated Content 렌더링
-```javascript
-function renderGeneratedContent(run) {
-    const container = document.getElementById('generated-content');
-    
-    container.innerHTML = `
-        <div class="content-preview">
-            <div class="content-header">
-                <span class="content-type-badge">${run.content_type}</span>
-                <span class="content-status">${run.status}</span>
-            </div>
-            
-            <div class="content-body">
-                ${renderContentByType(run)}
-            </div>
-            
-            <div class="content-actions">
-                <button class="btn-reject" onclick="rejectContent('${run.id}')">
-                    ✕ Reject
-                </button>
-                <button class="btn-edit" onclick="editContent('${run.id}')">
-                    ✎ Edit
-                </button>
-                <button class="btn-approve" onclick="approveContent('${run.id}')">
-                    ✓ Approve & Post
-                </button>
-            </div>
-        </div>
-    `;
-}
-```
-
-### 3.3 콘텐츠 액션 버튼
-| 버튼 | 동작 | Firestore 업데이트 |
-|------|------|-------------------|
-| **Reject** | 콘텐츠 거부 | `status: 'rejected'` |
-| **Edit** | 수정 모달 오픈 | - |
-| **Approve & Post** | 승인 후 채널에 게시 | `status: 'approved'`, API 호출 |
+## 3. User Review Required
+-   [ ] Is the "Simulated AI" approach acceptable for this phase? (Real LLM integration is a larger task).
+-   [ ] Should we "Draft" new content manually for testing, or assume Studio integration is ready? (Proposal: Add a "Demo Mode" to inject a sample draft).
 
 ---
 
-## 📋 Phase 4: UI 상태 관리
-
-### 4.1 선택 상태 흐름
-```
-[Sub-Agent 선택] 
-    → Recent Runs 필터링 
-    → Generated Content 초기화
-
-[Run 선택] 
-    → Generated Content 표시 
-    → 액션 버튼 활성화
-```
-
-### 4.2 빈 상태 처리
-```javascript
-// 서브에이전트 미선택 시
-"Select a sub-agent to view their recent runs"
-
-// Run 미선택 시  
-"Select a run to view generated content"
-
-// 콘텐츠 없을 시
-"No content generated yet"
-```
-
----
-
-## 🔧 수정 대상 파일
-
-| 파일 | 수정 내용 |
-|------|----------|
-| `project-detail.js` | "Sub-Agent Studio" 섹션 헤더 추가 |
-| `mission-control-view-history.js` | 서브에이전트 선택 로직, Runs 필터링 |
-| `admin-detail.css` | 콘텐츠 프리뷰 및 액션 버튼 스타일 |
-| `project-detail.html` | 콘텐츠 액션 버튼 추가 |
-
----
-
-## ✅ 작업 체크리스트
-
-### Phase 1: UI 제목 ✅
-- [x] "Sub-Agent Studio" 섹션 헤더 추가
-- [x] Agent Swarm과 동일한 스타일 적용
-
-### Phase 2: 서브에이전트 ↔ Recent Runs ✅
-- [x] 서브에이전트 클릭 이벤트 구현
-- [x] 선택된 서브에이전트 하이라이트
-- [x] Runs 필터링 쿼리 구현
-- [x] Recent Runs 목록 렌더링
-
-### Phase 3: Recent Runs ↔ Generated Content ✅
-- [x] Run 클릭 이벤트 구현
-- [x] 콘텐츠 상세 표시 렌더링
-- [x] Reject 버튼 기능
-- [x] Edit 버튼 (모달 placeholder)
-- [x] Approve & Post 버튼 + Firestore 업데이트
-
-### Phase 4: UX 개선 ✅
-- [x] 빈 상태 메시지 표시
-- [x] 로딩 상태 표시
-- [ ] 에러 처리 (기본 구현 완료)
-
----
-
-## 🎨 UI 미리보기
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│  Agent Swarm ◎                                                      │
-│  ┌─────────────────────────────────────────────────────────────┐   │
-│  │ [X]Vision Chain  ✓ ACTIVE        │  Deploy New Agent +       │   │
-│  │ ⚡ ACTIVE DIRECTIVE: ...         │                           │   │
-│  │ [ACTIVATE] [History] [⚙]        │                           │   │
-│  └─────────────────────────────────────────────────────────────┘   │
-│                                                                     │
-│  Sub-Agent Studio ◎                                                │
-│  ┌──────────────┐ ┌──────────────────┐ ┌──────────────────────────┐│
-│  │ ASSIGNED     │ │ RECENT RUNS      │ │ GENERATED CONTENT        ││
-│  │ SUB-AGENTS   │ │                  │ │                          ││
-│  │──────────────│ │──────────────────│ │  [Content Preview]       ││
-│  │ ▸ Planner    │ │ Run #5 - Success │ │  Type: Thread            ││
-│  │   Writer     │ │ Run #4 - Failed  │ │  Status: Pending         ││
-│  │   Reviewer   │ │ Run #3 - Success │ │                          ││
-│  │   Publisher  │ │                  │ │  ┌──────────────────────┐││
-│  │              │ │                  │ │  │ [Reject] [Edit]      │││
-│  │              │ │                  │ │  │ [✓ Approve & Post]   │││
-│  │              │ │                  │ │  └──────────────────────┘││
-│  └──────────────┘ └──────────────────┘ └──────────────────────────┘│
-└─────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 📅 예상 소요 시간
-
-| Phase | 작업 | 예상 시간 |
-|-------|------|----------|
-| 1 | UI 제목 추가 | 10분 |
-| 2 | 서브에이전트 ↔ Runs 연동 | 30분 |
-| 3 | Runs ↔ Content 연동 + 버튼 | 45분 |
-| 4 | UX 개선 | 15분 |
-| **Total** | | **~1시간 40분** |
+## 4. Verification Plan
+-   [ ] **Manual Import**: Open page with `?id=demo` -> verify it loads "Imported" content.
+-   [ ] **Analysis**: Verify "Score" changes based on content text (using heuristics).
+-   [ ] **Persistence**: Reload page -> verify suggestions remain applied/dismissed.

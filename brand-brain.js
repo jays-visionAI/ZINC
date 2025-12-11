@@ -52,6 +52,21 @@ document.addEventListener('DOMContentLoaded', () => {
  * Initialize Brand Brain
  */
 async function initializeBrandBrain() {
+    // Mobile Menu Toggle
+    const mobileToggle = document.getElementById('mobile-nav-toggle');
+    const mobileMenu = document.getElementById('mobile-nav-menu');
+    const mobileClose = document.getElementById('mobile-nav-close');
+
+    if (mobileToggle && mobileMenu && mobileClose) {
+        mobileToggle.addEventListener('click', () => {
+            mobileMenu.classList.remove('translate-x-full');
+        });
+
+        mobileClose.addEventListener('click', () => {
+            mobileMenu.classList.add('translate-x-full');
+        });
+    }
+
     // Initialize Google APIs
     initializeGoogleAPIs();
 

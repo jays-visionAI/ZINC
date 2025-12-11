@@ -46,6 +46,7 @@ let accessToken = null;
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
     initializeKnowledgeHub();
+    initializeMobileTabs();
 });
 
 async function initializeKnowledgeHub() {
@@ -4895,3 +4896,47 @@ function startWeightReportAnimation() {
 // Expose to window
 window.openWeightReport = openWeightReport;
 window.closeWeightReport = closeWeightReport;
+
+/**
+ * Initialize Mobile Tab Navigation
+ */
+function initializeMobileTabs() {
+    const tabs = document.querySelectorAll('.mobile-tab-btn');
+    const panels = {
+        'sources': document.getElementById('sources-panel'),
+        'chat': document.getElementById('chat-panel'),
+        'plans': document.getElementById('plans-panel')
+    };
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const target = tab.dataset.tab;
+
+            // 1. Update Tab Styles
+            tabs.forEach(t => {
+                const isActive = t.dataset.tab === target;
+                if (isActive) {
+                    t.classList.add('active', 'text-indigo-400');
+                    t.classList.remove('text-slate-500');
+                } else {
+                    t.classList.remove('active', 'text-indigo-400');
+                    t.classList.add('text-slate-500');
+                }
+            });
+
+            // 2. Update Panel Visibility
+            // Logic: Add 'hidden' to all panels on mobile (except target). 
+            // 'md:flex' ensures they remain visible on desktop.
+            Object.keys(panels).forEach(key => {
+                const panel = panels[key];
+                if (!panel) return;
+
+                if (key === target) {
+                    panel.classList.remove('hidden'); // Show on mobile
+                } else {
+                    panel.classList.add('hidden'); // Hide on mobile
+                }
+            });
+        });
+    });
+}

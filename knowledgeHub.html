@@ -256,7 +256,7 @@
 
         <!-- LEFT PANEL: Sources -->
         <div id="sources-panel"
-            class="sources-panel w-72 flex-shrink-0 flex flex-col bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+            class="hidden md:flex sources-panel w-72 flex-shrink-0 flex-col bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl h-full">
             <!-- Sources Header -->
             <div class="p-4 border-b border-slate-800">
                 <div class="flex items-center justify-between mb-3">
@@ -331,7 +331,8 @@
         </div>
 
         <!-- CENTER PANEL: Chat -->
-        <div class="flex-1 flex flex-col bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+        <div id="chat-panel"
+            class="flex-1 flex flex-col bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl w-full h-full">
             <!-- Chat Header -->
             <div class="p-4 border-b border-slate-800 flex items-center justify-between">
                 <div>
@@ -492,7 +493,8 @@
         </div>
 
         <!-- RIGHT PANEL: Content Plans -->
-        <div class="w-80 flex-shrink-0 flex flex-col bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+        <div id="plans-panel"
+            class="hidden md:flex w-80 flex-shrink-0 flex-col bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl h-full">
             <!-- Plans Header -->
             <div class="p-4 border-b border-slate-800">
                 <h2 class="text-sm font-bold text-slate-300 uppercase tracking-wider mb-1">Content Plans</h2>
@@ -1462,6 +1464,41 @@
             }
         });
     </script>
+    <!-- Mobile Tab Navigation Bar -->
+    <div id="mobile-tab-bar"
+        class="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-slate-950 border-t border-slate-800 flex items-center justify-around z-50 px-2 pb-safe">
+        <button
+            class="mobile-tab-btn flex flex-col items-center justify-center w-full h-full text-slate-500 hover:text-indigo-400 gap-1"
+            data-tab="sources">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                <polyline points="14 2 14 8 20 8" />
+            </svg>
+            <span class="text-[10px] font-medium">Sources</span>
+        </button>
+        <button
+            class="mobile-tab-btn flex flex-col items-center justify-center w-full h-full text-indigo-400 gap-1 active"
+            data-tab="chat">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            <span class="text-[10px] font-medium">Chat</span>
+        </button>
+        <button
+            class="mobile-tab-btn flex flex-col items-center justify-center w-full h-full text-slate-500 hover:text-indigo-400 gap-1"
+            data-tab="plans">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <line x1="12" y1="8" x2="12" y2="16" />
+                <line x1="8" y1="12" x2="16" y2="12" />
+            </svg>
+            <span class="text-[10px] font-medium">Plans</span>
+        </button>
+    </div>
+
 </body>
 
 </html>

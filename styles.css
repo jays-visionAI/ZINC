@@ -3770,3 +3770,113 @@ input:checked+.slider:before {
     background: rgba(255, 255, 255, 0.1);
     border-radius: 3px;
 }
+
+/* =========================================
+   Mobile Responsiveness (Command Center)
+   ========================================= */
+@media (max-width: 768px) {
+
+    /* 1. Layout Structure */
+    .dashboard-layout {
+        flex-direction: column;
+    }
+
+    /* 2. Sidebar (Off-canvas) */
+    .sidebar {
+        position: fixed;
+        left: -280px;
+        top: 0;
+        bottom: 0;
+        width: 280px;
+        height: 100vh;
+        z-index: 2000;
+        transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5);
+    }
+
+    .sidebar.active {
+        left: 0;
+    }
+
+    /* Overlay when sidebar is open */
+    .dashboard-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
+        z-index: 1900;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .dashboard-overlay.active {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    /* 3. Main Content */
+    .dashboard-main {
+        margin-left: 0;
+        width: 100%;
+        padding-top: 20px;
+    }
+
+    .dashboard-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+        padding: 0 0 20px 0;
+    }
+
+    .dashboard-header>div:first-child {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        width: 100%;
+    }
+
+    /* Hamburger Toggle */
+    .dashboard-toggle {
+        display: block !important;
+        /* Force show on mobile */
+        margin-right: 0;
+    }
+
+    .header-controls {
+        width: 100%;
+        justify-content: space-between;
+        margin-left: 0;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    /* 4. Grid Layouts -> Single Column */
+    .hive-grid {
+        grid-template-columns: 1fr;
+        /* Stack cards */
+    }
+
+    .dashboard-bottom-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* 5. Typography & Spacing */
+    .dashboard-header h1 {
+        font-size: 1.5rem;
+    }
+
+    .header-subtitle {
+        font-size: 0.875rem;
+        display: none;
+        /* Hide subtitle on mobile to save space */
+    }
+
+    .dashboard-content {
+        padding: 16px;
+    }
+}

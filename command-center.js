@@ -889,4 +889,47 @@ document.addEventListener("DOMContentLoaded", () => {
     // 🔹 Initial Render (Fallback)
     // Render the Add Project card immediately so it's visible even before auth/data loads
     renderAddProjectCard();
+
+    // 🔹 Mobile Sidebar Toggle Logic
+    const initMobileSidebar = () => {
+        const toggleBtn = document.getElementById('mobile-menu-toggle');
+        const sidebar = document.querySelector('.sidebar');
+
+        // Create Overlay if it doesn't exist
+        let overlay = document.querySelector('.dashboard-overlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.className = 'dashboard-overlay';
+            document.body.appendChild(overlay);
+        }
+
+        if (toggleBtn && sidebar) {
+            toggleBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                sidebar.classList.toggle('active');
+                overlay.classList.toggle('active');
+                toggleBtn.classList.toggle('active'); // Animate hamburger
+            });
+
+            // Close when clicking overlay
+            overlay.addEventListener('click', () => {
+                sidebar.classList.remove('active');
+                overlay.classList.remove('active');
+                toggleBtn.classList.remove('active');
+            });
+
+            // Close when clicking a menu item
+            // Using event delegation since menu items might be dynamic
+            sidebar.addEventListener('click', (e) => {
+                if (e.target.closest('a')) {
+                    sidebar.classList.remove('active');
+                    overlay.classList.remove('active');
+                    toggleBtn.classList.remove('active');
+                }
+            });
+        }
+    };
+
+    // Initialize Mobile Sidebar
+    initMobileSidebar();
 });
