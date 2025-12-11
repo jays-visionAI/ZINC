@@ -960,6 +960,10 @@ body {
     background: #25D366;
 }
 
+.pinterest {
+    background: #E60023;
+}
+
 .platform-card:hover .platform-icon {
     transform: scale(1.2) rotate(5deg);
 }

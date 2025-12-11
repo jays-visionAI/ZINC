@@ -316,6 +316,27 @@
             version: "1.0.0"
         },
         {
+            id: "pinterest",
+            key: "pinterest",
+            name: "Pinterest",
+            displayName: "Pinterest",
+            icon: "📌",
+            order: 14,
+            supportsApiConnection: true,
+            status: "active",
+            category: "social",
+            contentTypes: ["image", "video"],
+            interactionStyle: { tone: "Visual & Inspirational" },
+            apiCredentialConfig: {
+                fields: [
+                    { key: 'appId', label: 'App ID', type: 'text', required: true },
+                    { key: 'appSecret', label: 'App Secret', type: 'password', required: true },
+                    { key: 'accessToken', label: 'Access Token', type: 'password', required: true }
+                ]
+            },
+            version: "1.0.0"
+        },
+        {
             id: "coupang",
             key: "coupang",
             name: "Coupang",
