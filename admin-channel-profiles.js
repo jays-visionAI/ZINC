@@ -385,13 +385,19 @@
                 newVersion = `${major}.${minor}.${patch + 1}`;
 
                 // Backup
-                await db.collection('channelProfileVersions').add({
-                    profileId: id,
-                    version: currentProfile.version,
-                    data: currentProfile,
-                    archivedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    archivedBy: firebase.auth().currentUser?.email || 'unknown'
-                });
+                // Backup (Soft Fail)
+                try {
+                    await db.collection('channelProfileVersions').add({
+                        profileId: id,
+                        version: currentProfile.version,
+                        data: currentProfile,
+                        archivedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        archivedBy: firebase.auth().currentUser?.email || 'unknown'
+                    });
+                } catch (backupError) {
+                    console.warn("⚠️ Failed to create version backup (Permission Issue?):", backupError);
+                    // Continue to save profile anyway
+                }
             } else {
                 newVersion = '1.0.0'; // Default for new
             }
