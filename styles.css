@@ -964,20 +964,77 @@ body {
     background: #E60023;
 }
 
-.naver-smartstore {
+.naver-smartstore,
+.naver-searchad,
+.naver-map,
+.naver-navi {
     background: #03C75A;
-    width: auto !important;
-    padding: 0 15px;
 }
 
-.naver-smartstore svg {
-    width: 140px !important;
+.kakaotalk,
+.kakao-map,
+.kakao-navi {
+    background: #FEE500;
+}
+
+.tmap,
+.coupang,
+.eleven-st,
+.ssg,
+.gmarket {
+    background: #FFFFFF;
+}
+
+.gmarket {
+    background: linear-gradient(135deg, #00B900 0%, #00D000 100%);
+}
+
+.baemin {
+    background: #2AC1BC;
+}
+
+.yogiyo {
+    background: #FA0050;
+}
+
+.platform-icon {
+    position: relative;
+    /* Enable absolute positioning for overlay text */
+}
+
+.platform-icon svg {
+    width: 48px;
     height: 48px;
 }
 
+.overlay-text {
+    position: absolute;
+    bottom: 4px;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    color: white;
+    pointer-events: none;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Dark text for yellow/white backgrounds */
+.kakaotalk .overlay-text,
+.kakao-map .overlay-text,
+.kakao-navi .overlay-text,
+.tmap .overlay-text,
+.coupang .overlay-text,
+.eleven-st .overlay-text,
+.ssg .overlay-text {
+    color: #333;
+    text-shadow: none;
+}
+
 .platform-card:hover .platform-icon {
-    transform: scale(1.05) rotate(0deg);
-    /* Reduce hover effect for wide composite logos */
+    transform: scale(1.1) rotate(2deg);
 }
 
 .platform-card h3 {
