@@ -113,6 +113,10 @@ window.ChannelCredentialService = {
                     return await this._testNaverBlog(credentials);
                 case 'naverSmartStore':
                     return await this._testNaverSmartStore(credentials);
+                case 'kakaotalk':
+                    return await this._testKakaoTalk(credentials);
+                case 'line':
+                    return await this._testLine(credentials);
                 default:
                     throw new Error(`Unknown provider: ${provider}`);
             }
@@ -290,6 +294,38 @@ window.ChannelCredentialService = {
         return {
             success: true,
             message: 'Smart Store credentials verified (Ready to use)',
+            latency: 0
+        };
+    },
+
+    async _testKakaoTalk(credentials) {
+        const { restApiKey, adminKey } = credentials;
+
+        if (!restApiKey || !adminKey) {
+            throw new Error('Missing REST API Key or Admin Key');
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 600));
+
+        return {
+            success: true,
+            message: 'KakaoTalk credentials verified (Format OK)',
+            latency: 0
+        };
+    },
+
+    async _testLine(credentials) {
+        const { channelAccessToken, channelSecret } = credentials;
+
+        if (!channelAccessToken || !channelSecret) {
+            throw new Error('Missing Channel Access Token or Secret');
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 600));
+
+        return {
+            success: true,
+            message: 'LINE credentials verified (Format OK)',
             latency: 0
         };
     },

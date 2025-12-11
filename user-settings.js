@@ -323,11 +323,21 @@ const PROVIDER_CONFIG = {
             { key: 'applicationSecret', label: 'Application Secret', type: 'password', placeholder: 'Commerce API Secret', required: true }
         ]
     },
+    kakaotalk: {
+        fields: [
+            { key: 'adminKey', label: 'Admin Key', type: 'password', required: true, help: 'For sending messages' },
+            { key: 'restApiKey', label: 'REST API Key', type: 'text', required: true }
+        ]
+    },
+    line: {
+        fields: [
+            { key: 'channelAccessToken', label: 'Channel Access Token', type: 'password', required: true, help: 'Long-lived access token' },
+            { key: 'channelSecret', label: 'Channel Secret', type: 'password', required: true }
+        ]
+    },
     discord: { fields: [{ key: 'botToken', label: 'Bot Token', type: 'password', required: true }] },
     coupang: { fields: [{ key: 'accessKey', label: 'Access Key', type: 'text', required: true }, { key: 'secretKey', label: 'Secret Key', type: 'password', required: true }] },
     reddit: { fields: [{ key: 'clientId', label: 'Client ID', type: 'text', required: true }, { key: 'clientSecret', label: 'Client Secret', type: 'password', required: true }] },
-    kakaotalk: { fields: [{ key: 'apiKey', label: 'REST API Key', type: 'password', required: true }] },
-    line: { fields: [{ key: 'channelAccessToken', label: 'Channel Access Token', type: 'password', required: true }] },
     telegram: { fields: [{ key: 'botToken', label: 'Bot Token', type: 'password', required: true }] },
     whatsapp: { fields: [{ key: 'accessToken', label: 'Access Token', type: 'password', required: true }] }
 };
@@ -357,9 +367,9 @@ window.openCredentialModal = async function (credentialId = null) {
         { key: 'tiktok', displayName: 'TikTok', order: 6 },
         { key: 'discord', displayName: 'Discord', order: 7 },
         { key: 'naverBlog', displayName: 'Naver Blog', order: 8 },
-        { key: 'reddit', displayName: 'Reddit', order: 9 },
-        { key: 'kakaotalk', displayName: 'KakaoTalk', order: 10 },
-        { key: 'line', displayName: 'Line', order: 11 },
+        { key: 'kakaotalk', displayName: 'KakaoTalk', order: 9 },
+        { key: 'line', displayName: 'LINE', order: 10 },
+        { key: 'reddit', displayName: 'Reddit', order: 11 },
         { key: 'telegram', displayName: 'Telegram', order: 12 },
         { key: 'whatsapp', displayName: 'WhatsApp', order: 13 },
         { key: 'naverSmartStore', displayName: 'Naver Smart Store', order: 14 },
