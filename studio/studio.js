@@ -311,7 +311,13 @@ async function initProjectSelector() {
 
     // Event: Agent Team change
     agentTeamSelect.addEventListener('change', async (e) => {
-        agentTeamSelect.classList.remove('selection-highlight'); // Stop glowing
+        // Stop all glowing effects
+        agentTeamSelect.classList.remove('selection-highlight', 'urgent-highlight');
+
+        // Dismiss warning toast if present
+        const toast = document.getElementById('agent-team-warning-toast');
+        if (toast) toast.remove();
+
         state.selectedAgentTeam = e.target.value;
         const selectedOption = agentTeamSelect.options[agentTeamSelect.selectedIndex];
         const teamName = selectedOption?.textContent || e.target.value;

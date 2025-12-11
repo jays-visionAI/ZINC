@@ -102,6 +102,19 @@
     margin: 0;
 }
 
+.studio-title-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.studio-version {
+    font-size: 10px;
+    color: #6b7280;
+    font-weight: 400;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+}
+
 .studio-header-center {
     flex: 1;
     display: flex;
