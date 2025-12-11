@@ -8,8 +8,13 @@ const navLinks = document.querySelector('.nav-links');
 const provider = new firebase.auth.GoogleAuthProvider();
 
 // Login Function
-async function signInWithGoogle() {
-    if (loginBtn) {
+// Login Function
+async function signInWithGoogle(targetBtn = null) {
+    if (targetBtn) {
+        targetBtn.disabled = true;
+        targetBtn.style.opacity = '0.5';
+        targetBtn.style.cursor = 'not-allowed';
+    } else if (loginBtn) { // Fallback to global if no target provided
         loginBtn.disabled = true;
         loginBtn.style.opacity = '0.5';
         loginBtn.style.cursor = 'not-allowed';
@@ -59,7 +64,11 @@ async function signInWithGoogle() {
             alert(`Login failed: ${error.message}`);
         }
     } finally {
-        if (loginBtn) {
+        if (targetBtn) {
+            targetBtn.disabled = false;
+            targetBtn.style.opacity = '1';
+            targetBtn.style.cursor = 'pointer';
+        } else if (loginBtn) {
             loginBtn.disabled = false;
             loginBtn.style.opacity = '1';
             loginBtn.style.cursor = 'pointer';
@@ -164,17 +173,24 @@ if (auth) {
 }
 
 // Attach Event Listener to Login Button
+// Attach Event Listener to Login Buttons
 document.addEventListener('DOMContentLoaded', () => {
-    const loginBtn = document.querySelector('.nav-links .btn-primary');
-    if (loginBtn) {
-        // Only attach if it's the "Get Started" button intended for login
-        // We might need a more specific selector or ID if there are multiple primary buttons
-        loginBtn.addEventListener('click', (e) => {
+    // Select all buttons that should trigger login:
+    // 1. Navbar "Get Started" (.nav-links .btn-primary)
+    // 2. Hero "Start for Free" (.btn-hero)
+    // 3. CTA "Start for Free" (.btn-hero in .cta-buttons)
+    const loginButtons = document.querySelectorAll('.nav-links .btn-primary, .btn-hero');
+
+    loginButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
             // Check if we are already logged in (UI should handle this, but safety check)
             if (!auth.currentUser) {
                 e.preventDefault(); // Prevent default link behavior if it's an anchor
-                signInWithGoogle();
+                signInWithGoogle(e.currentTarget);
+            } else {
+                // If logged in, redirect to dashboard
+                window.location.href = 'command-center.html';
             }
         });
-    }
+    });
 });
