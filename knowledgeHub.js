@@ -3420,6 +3420,19 @@ async function generatePlan() {
     try {
         const instructions = document.getElementById('plan-instructions').value.trim();
 
+        // Calculate weight breakdown for sources
+        const totalWeightPoints = activeSources.reduce((sum, s) => sum + (s.importance === 3 ? 3 : (s.importance === 1 ? 1 : 2)), 0);
+        const weightBreakdown = activeSources.map(s => {
+            const points = s.importance === 3 ? 3 : (s.importance === 1 ? 1 : 2);
+            const percent = Math.round((points / totalWeightPoints) * 100);
+            return {
+                id: s.id,
+                title: s.title,
+                importance: s.importance || 2,
+                percent: percent
+            };
+        }).sort((a, b) => b.importance - a.importance);
+
         // Call Cloud Function (to be implemented)
         const generateContentPlan = firebase.functions().httpsCallable('generateContentPlan');
         const result = await generateContentPlan({
@@ -3433,7 +3446,8 @@ async function generatePlan() {
             const version = {
                 id: Date.now(),
                 content: result.data.content,
-                createdAt: new Date()
+                createdAt: new Date(),
+                weightBreakdown: weightBreakdown  // Store weight breakdown
             };
             planVersions.push(version);
 
@@ -3491,9 +3505,13 @@ function showPlanResult() {
 /**
  * Select a plan version to display
  */
+let currentPlanVersionIndex = 0;
+
 function selectPlanVersion(index) {
     const version = planVersions[index];
     if (!version) return;
+
+    currentPlanVersionIndex = index;
 
     // Update tab styles
     document.querySelectorAll('.plan-version-tab').forEach((tab, i) => {
@@ -3508,7 +3526,25 @@ function selectPlanVersion(index) {
 
     // Display content (convert markdown to HTML if needed)
     const contentDiv = document.getElementById('plan-result-content').querySelector('.prose');
-    contentDiv.innerHTML = formatPlanContent(version.content);
+
+    // Add Weight Report button if weightBreakdown exists
+    let weightReportBtn = '';
+    if (version.weightBreakdown && version.weightBreakdown.length > 0) {
+        weightReportBtn = `
+            <div class="mb-4 flex items-center justify-end">
+                <button onclick="openWeightReport(planVersions[${index}]?.weightBreakdown, '${currentPlan?.name || 'Content Plan'}')" 
+                        class="px-3 py-1.5 text-xs bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 rounded-lg transition-all flex items-center gap-2 border border-indigo-600/30">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 3v18h18"/>
+                        <path d="M7 16l4-8 4 4 5-9"/>
+                    </svg>
+                    📊 View Weight Report
+                </button>
+            </div>
+        `;
+    }
+
+    contentDiv.innerHTML = weightReportBtn + formatPlanContent(version.content);
 }
 
 /**
