@@ -964,8 +964,20 @@ body {
     background: #E60023;
 }
 
+.naver-smartstore {
+    background: #03C75A;
+    width: auto !important;
+    padding: 0 15px;
+}
+
+.naver-smartstore svg {
+    width: 140px !important;
+    height: 48px;
+}
+
 .platform-card:hover .platform-icon {
-    transform: scale(1.2) rotate(5deg);
+    transform: scale(1.05) rotate(0deg);
+    /* Reduce hover effect for wide composite logos */
 }
 
 .platform-card h3 {
