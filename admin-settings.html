@@ -399,6 +399,36 @@
             </tbody>
         </table>
     </div>
+
+    <!-- Credit Action Costs Section (Dynamic) -->
+    <div
+        style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05); margin-top: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h4 style="margin: 0; color: #fff;">Credit Action Costs</h4>
+            <button onclick="saveActionCosts()" class="admin-btn-primary" style="padding: 6px 16px;">Save Costs</button>
+        </div>
+        <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 16px;">
+            Adjust the credit cost for system actions. Changes apply immediately to all users.
+        </p>
+
+        <table class="admin-table" style="width: 100%;">
+            <thead>
+                <tr>
+                    <th style="width: 200px;">Action Name</th>
+                    <th>Category</th>
+                    <th>Description</th>
+                    <th style="width: 100px;">Cost (Credits)</th>
+                </tr>
+            </thead>
+            <tbody id="pricing-actions-body">
+                <!-- Populated by JS -->
+                <tr>
+                    <td colspan="4" style="text-align:center; padding: 20px;">Loading costs...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
 </div>
 </div>
 

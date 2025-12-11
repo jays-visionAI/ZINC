@@ -458,11 +458,90 @@ async function loadPricingData() {
             packsBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px;">No packs found. Run seed script.</td></tr>';
         }
 
+        // 3. Fetch Action Costs
+        await loadActionCosts();
+
     } catch (error) {
         console.error("Error loading pricing data:", error);
         plansBody.innerHTML = `<tr><td colspan="6" style="color:red; text-align:center;">Error: ${error.message}</td></tr>`;
     }
 }
+
+let creditCosts = [];
+
+async function loadActionCosts() {
+    const tbody = document.getElementById('pricing-actions-body');
+    if (!tbody) return;
+
+    try {
+        const db = firebase.firestore();
+        const snapshot = await db.collection('system_credit_costs').orderBy('category').get();
+
+        creditCosts = [];
+        if (!snapshot.empty) {
+            snapshot.forEach(doc => {
+                creditCosts.push({ id: doc.id, ...doc.data() });
+            });
+            renderActionsTable();
+        } else {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 20px;">No costs defined. Run seed script.</td></tr>';
+        }
+
+    } catch (error) {
+        console.error("Error loading costs:", error);
+        tbody.innerHTML = `<tr><td colspan="4" style="color:red; text-align:center;">Error: ${error.message}</td></tr>`;
+    }
+}
+
+function renderActionsTable() {
+    const tbody = document.getElementById('pricing-actions-body');
+    if (!tbody) return;
+
+    tbody.innerHTML = creditCosts.map(action => `
+        <tr>
+            <td>
+                <strong style="color: #fff;">${action.name}</strong>
+                <div style="font-size: 11px; color: rgba(255,255,255,0.4); font-family: monospace;">${action.id}</div>
+            </td>
+            <td><span style="background:rgba(255,255,255,0.1); padding:4px 8px; border-radius:4px; font-size:11px;">${action.category}</span></td>
+            <td style="font-size: 13px; color: rgba(255,255,255,0.7);">${action.description}</td>
+            <td>
+                <input type="number" id="cost-${action.id}" value="${action.cost}" class="admin-input" style="width: 100px;">
+            </td>
+        </tr>
+    `).join('');
+}
+
+window.saveActionCosts = async function () {
+    const db = firebase.firestore();
+    const btn = document.querySelector('button[onclick="saveActionCosts()"]');
+    if (btn) { btn.textContent = "Saving..."; btn.disabled = true; }
+
+    try {
+        const batch = db.batch();
+
+        creditCosts.forEach(action => {
+            const input = document.getElementById(`cost-${action.id}`);
+            if (input) {
+                const newCost = parseInt(input.value);
+                if (!isNaN(newCost)) {
+                    const ref = db.collection('system_credit_costs').doc(action.id);
+                    batch.update(ref, { cost: newCost });
+                    action.cost = newCost; // Update local state
+                }
+            }
+        });
+
+        await batch.commit();
+        alert("✅ Credit Costs Updated Successfully!");
+
+    } catch (error) {
+        console.error("Save costs failed:", error);
+        alert("Error saving costs: " + error.message);
+    } finally {
+        if (btn) { btn.textContent = "Save Costs"; btn.disabled = false; }
+    }
+};
 
 function renderPlansTable() {
     const tbody = document.getElementById('pricing-plans-body');
