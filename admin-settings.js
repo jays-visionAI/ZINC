@@ -433,10 +433,10 @@ async function loadPricingData() {
 
     if (!plansBody || !packsBody) return;
 
-    try {
-        const db = firebase.firestore();
+    const db = firebase.firestore();
 
-        // 1. Fetch Plans
+    // 1. Fetch Plans
+    try {
         const plansSnapshot = await db.collection('system_pricing_plans').get();
         pricingPlans = {};
         if (!plansSnapshot.empty) {
@@ -447,8 +447,13 @@ async function loadPricingData() {
         } else {
             plansBody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px;">No plans found. Run seed script.</td></tr>';
         }
+    } catch (error) {
+        console.error("Error loading plans:", error);
+        plansBody.innerHTML = `<tr><td colspan="6" style="color:red; text-align:center;">Error loading plans: ${error.message}<br>Check Firestore Rules.</td></tr>`;
+    }
 
-        // 2. Fetch Packs
+    // 2. Fetch Packs
+    try {
         const packsSnapshot = await db.collection('system_topup_packs').orderBy('order').get();
         topupPacks = [];
         if (!packsSnapshot.empty) {
@@ -457,14 +462,13 @@ async function loadPricingData() {
         } else {
             packsBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px;">No packs found. Run seed script.</td></tr>';
         }
-
-        // 3. Fetch Action Costs
-        await loadActionCosts();
-
     } catch (error) {
-        console.error("Error loading pricing data:", error);
-        plansBody.innerHTML = `<tr><td colspan="6" style="color:red; text-align:center;">Error: ${error.message}</td></tr>`;
+        console.error("Error loading packs:", error);
+        packsBody.innerHTML = `<tr><td colspan="5" style="color:red; text-align:center;">Error loading packs: ${error.message}</td></tr>`;
     }
+
+    // 3. Fetch Action Costs (Always try to load this)
+    await loadActionCosts();
 }
 
 let creditCosts = [];
