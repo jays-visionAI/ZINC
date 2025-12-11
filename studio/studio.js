@@ -212,13 +212,19 @@ async function initProjectSelector() {
                 }
             }
 
-            // If URL has project param, auto-select (Context takes precedence if exists, else URL)
+            // Priority: 1) studioContext, 2) URL param, 3) global localStorage
             const urlParams = new URLSearchParams(window.location.search);
-            const projectId = contextProjectId || urlParams.get('project');
+            const globalProjectId = localStorage.getItem('currentProjectId');
+            const projectId = contextProjectId || urlParams.get('project') ||
+                (globalProjectId && projects.find(p => p.id === globalProjectId) ? globalProjectId : null);
 
             if (projectId) {
                 projectSelect.value = projectId;
+                projectSelect.classList.remove('selection-highlight');
                 state.selectedProject = projectId;
+
+                // Sync to global state
+                localStorage.setItem('currentProjectId', projectId);
 
                 // Update Preview Profile for auto-selected project
                 const selectedOption = Array.from(projectSelect.options).find(opt => opt.value === projectId);
@@ -262,6 +268,9 @@ async function initProjectSelector() {
                             renderDAGPlaceholder();
                         }
                     }
+                } else {
+                    // Project auto-selected but no agent team - show prominent warning
+                    showAgentTeamRequiredWarning();
                 }
             }
 
@@ -282,6 +291,9 @@ async function initProjectSelector() {
         state.selectedProject = projectId;
 
         if (projectId) {
+            // Sync to global state
+            localStorage.setItem('currentProjectId', projectId);
+
             addLogEntry(`📁 Selected project: ${projectName}`, 'info');
 
             // Update Preview Profile
@@ -316,6 +328,104 @@ async function initProjectSelector() {
             disableStartButton();
         }
     });
+}
+
+/**
+ * Show prominent warning when agent team is not selected after project auto-load
+ */
+function showAgentTeamRequiredWarning() {
+    const agentTeamSelect = document.getElementById('agentteam-select');
+
+    // Enhanced glow effect on the agent team selector
+    if (agentTeamSelect) {
+        agentTeamSelect.classList.add('selection-highlight', 'urgent-highlight');
+    }
+
+    // Create toast notification
+    const existingToast = document.getElementById('agent-team-warning-toast');
+    if (existingToast) existingToast.remove();
+
+    const toast = document.createElement('div');
+    toast.id = 'agent-team-warning-toast';
+    toast.className = 'agent-team-warning-toast';
+    toast.innerHTML = `
+        <div class="toast-icon">⚠️</div>
+        <div class="toast-content">
+            <div class="toast-title">Agent Team Required</div>
+            <div class="toast-message">Please select an Agent Team to start content generation</div>
+        </div>
+        <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+    `;
+
+    // Add styles if not already present
+    if (!document.getElementById('agent-team-toast-styles')) {
+        const style = document.createElement('style');
+        style.id = 'agent-team-toast-styles';
+        style.textContent = `
+            .agent-team-warning-toast {
+                position: fixed;
+                top: 80px;
+                left: 50%;
+                transform: translateX(-50%);
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+                color: white;
+                padding: 16px 20px;
+                border-radius: 12px;
+                box-shadow: 0 8px 32px rgba(255, 107, 53, 0.4);
+                z-index: 10000;
+                animation: toastSlideIn 0.4s ease-out, toastPulse 2s ease-in-out infinite;
+            }
+            @keyframes toastSlideIn {
+                from { transform: translateX(-50%) translateY(-20px); opacity: 0; }
+                to { transform: translateX(-50%) translateY(0); opacity: 1; }
+            }
+            @keyframes toastPulse {
+                0%, 100% { box-shadow: 0 8px 32px rgba(255, 107, 53, 0.4); }
+                50% { box-shadow: 0 8px 48px rgba(255, 107, 53, 0.7); }
+            }
+            .toast-icon { font-size: 24px; }
+            .toast-title { font-weight: bold; font-size: 14px; }
+            .toast-message { font-size: 12px; opacity: 0.9; margin-top: 2px; }
+            .toast-close {
+                background: rgba(255,255,255,0.2);
+                border: none;
+                color: white;
+                width: 24px;
+                height: 24px;
+                border-radius: 50%;
+                cursor: pointer;
+                font-size: 16px;
+                line-height: 1;
+            }
+            .toast-close:hover { background: rgba(255,255,255,0.3); }
+            
+            /* Enhanced urgent glow for agent team selector */
+            .urgent-highlight {
+                animation: urgentGlow 1.5s ease-in-out infinite !important;
+                border-color: #ff6b35 !important;
+            }
+            @keyframes urgentGlow {
+                0%, 100% { box-shadow: 0 0 8px #ff6b35, 0 0 16px #ff6b35; }
+                50% { box-shadow: 0 0 16px #ff6b35, 0 0 32px #f7931e, 0 0 48px #ff6b35; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    document.body.appendChild(toast);
+
+    // Auto-remove after 8 seconds
+    setTimeout(() => {
+        if (toast.parentElement) {
+            toast.style.animation = 'toastSlideIn 0.3s ease-in reverse forwards';
+            setTimeout(() => toast.remove(), 300);
+        }
+    }, 8000);
+
+    addLogEntry('⚠️ Please select an Agent Team', 'warning');
 }
 
 async function loadAgentTeams(projectId) {
