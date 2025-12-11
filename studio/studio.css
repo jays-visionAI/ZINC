@@ -97,22 +97,56 @@
 .studio-title {
     font-family: var(--font-display);
     font-size: 1.25rem;
-    font-weight: 600;
+    font-weight: 700;
     color: var(--color-text-primary);
+    line-height: 1;
     margin: 0;
 }
 
-.studio-title-group {
+.studio-brand-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.studio-brand-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #10B981 0%, #00FFA3 100%);
+    color: #000;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+}
+
+.studio-brand-text {
     display: flex;
     flex-direction: column;
 }
 
+.studio-subtitle-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.studio-subtitle {
+    font-size: 10px;
+    color: #94a3b8;
+    /* slate-400 equivalent */
+    font-weight: 500;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
+
 .studio-version {
     font-size: 10px;
-    color: #6b7280;
+    color: #64748b;
+    /* slate-500 */
     font-weight: 400;
-    letter-spacing: 0.5px;
-    margin-top: 2px;
 }
 
 .studio-header-center {
