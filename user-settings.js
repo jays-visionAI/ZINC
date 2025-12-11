@@ -348,6 +348,13 @@ const PROVIDER_CONFIG = {
             { key: 'accessToken', label: 'System User Access Token', type: 'password', required: true, help: 'Permanent token recommended' },
             { key: 'phoneNumberId', label: 'Phone Number ID', type: 'text', required: true, help: 'From WhatsApp Business API Setup' }
         ]
+    },
+    pinterest: {
+        fields: [
+            { key: 'appId', label: 'App ID', type: 'text', required: true, placeholder: 'Pinterest App ID' },
+            { key: 'appSecret', label: 'App Secret', type: 'password', required: true, placeholder: 'Pinterest App Secret' },
+            { key: 'accessToken', label: 'Access Token', type: 'password', required: true, placeholder: 'OAuth Access Token' }
+        ]
     }
 };
 
@@ -381,8 +388,9 @@ window.openCredentialModal = async function (credentialId = null) {
         { key: 'reddit', displayName: 'Reddit', order: 11 },
         { key: 'telegram', displayName: 'Telegram', order: 12 },
         { key: 'whatsapp', displayName: 'WhatsApp', order: 13 },
-        { key: 'naverSmartStore', displayName: 'Naver Smart Store', order: 14 },
-        { key: 'coupang', displayName: 'Coupang', order: 15 }
+        { key: 'pinterest', displayName: 'Pinterest', order: 14 },
+        { key: 'naverSmartStore', displayName: 'Naver Smart Store', order: 15 },
+        { key: 'coupang', displayName: 'Coupang', order: 16 }
     ];
 
     let channels = [];
@@ -627,34 +635,39 @@ async function testCredential() {
         // Build multi-line result display
         let resultHtml = '';
 
-        // Step 1 result
-        if (result.step1?.success) {
-            resultHtml += `<div style="color: #22c55e; margin-bottom: 4px;">${result.step1.message}</div>`;
-        } else {
-            resultHtml += `<div style="color: #ef4444; margin-bottom: 4px;">${result.step1?.message || '❌ Step 1: Format check failed'}</div>`;
-        }
-
-        // Step 2 result
-        if (result.step2) {
-            if (result.step2.success) {
-                resultHtml += `<div style="color: #22c55e; margin-bottom: 4px;">${result.step2.message}</div>`;
-
-                // Show account info if available
-                if (result.accountInfo) {
-                    const info = result.accountInfo;
-                    resultHtml += `<div style="color: #3b82f6; margin-top: 8px; padding: 8px; background: rgba(59, 130, 246, 0.1); border-radius: 6px; border: 1px solid rgba(59, 130, 246, 0.2);">
-                        <strong>🎉 Account Connected:</strong><br>
-                        <span style="font-size: 16px; font-weight: 600;">${info.handle}</span> (${info.name})
-                    </div>`;
-
-                    // Store account info for saving
-                    lastTestResult.accountHandle = info.handle;
-                    lastTestResult.accountName = info.name;
-                    lastTestResult.accountUsername = info.username;
-                    lastTestResult.profileImageUrl = info.profileImageUrl;
-                }
+        // Check if result has step details (like Twitter) or simple result (others)
+        if (result.step1) {
+            // Complex result (Twitter)
+            if (result.step1.success) {
+                resultHtml += `<div style="color: #22c55e; margin-bottom: 4px;">${result.step1.message}</div>`;
             } else {
-                resultHtml += `<div style="color: #f59e0b;">${result.step2.message}</div>`;
+                resultHtml += `<div style="color: #ef4444; margin-bottom: 4px;">${result.step1.message || '❌ Step 1: Format check failed'}</div>`;
+            }
+
+            if (result.step2) {
+                if (result.step2.success) {
+                    resultHtml += `<div style="color: #22c55e; margin-bottom: 4px;">${result.step2.message}</div>`;
+
+                    if (result.accountInfo) {
+                        const info = result.accountInfo;
+                        resultHtml += `<div style="color: #3b82f6; margin-top: 8px; padding: 8px; background: rgba(59, 130, 246, 0.1); border-radius: 6px; border: 1px solid rgba(59, 130, 246, 0.2);">
+                            <strong>🎉 Account Connected:</strong><br>
+                            <span style="font-size: 16px; font-weight: 600;">${info.handle}</span> (${info.name})
+                        </div>`;
+
+                        lastTestResult.accountHandle = info.handle;
+                        lastTestResult.accountName = info.name;
+                    }
+                } else {
+                    resultHtml += `<div style="color: #f59e0b;">${result.step2.message}</div>`;
+                }
+            }
+        } else {
+            // Simple result (Others)
+            if (result.success) {
+                resultHtml += `<div style="color: #22c55e; margin-bottom: 4px;">✅ ${result.message}</div>`;
+            } else {
+                resultHtml += `<div style="color: #ef4444; margin-bottom: 4px;">❌ ${result.message}</div>`;
             }
         }
 

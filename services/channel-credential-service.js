@@ -121,6 +121,10 @@ window.ChannelCredentialService = {
                     return await this._testTelegram(credentials);
                 case 'whatsapp':
                     return await this._testWhatsApp(credentials);
+                case 'reddit':
+                    return await this._testReddit(credentials);
+                case 'pinterest':
+                    return await this._testPinterest(credentials);
                 default:
                     throw new Error(`Unknown provider: ${provider}`);
             }
@@ -378,6 +382,38 @@ window.ChannelCredentialService = {
         return {
             success: true,
             message: 'WhatsApp credentials verified (Format OK)',
+            latency: 0
+        };
+    },
+
+    async _testReddit(credentials) {
+        const { clientId, clientSecret } = credentials;
+
+        if (!clientId || !clientSecret) {
+            throw new Error('Missing Client ID or Secret');
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 600));
+
+        return {
+            success: true,
+            message: 'Reddit credentials verified (Format OK)',
+            latency: 0
+        };
+    },
+
+    async _testPinterest(credentials) {
+        const { appId, appSecret, accessToken } = credentials;
+
+        if ((!appId || !appSecret) && !accessToken) {
+            throw new Error('Missing App ID/Secret or Access Token');
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 600));
+
+        return {
+            success: true,
+            message: 'Pinterest credentials verified (Format OK)',
             latency: 0
         };
     },
