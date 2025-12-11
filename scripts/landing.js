@@ -14,7 +14,7 @@
             console.log("📡 Fetching channel profiles...");
             const snapshot = await db.collection('channelProfiles')
                 .where('status', '==', 'active')
-                .orderBy('order', 'asc')
+                // .orderBy('order', 'asc') // Commented out until 'order' field is populated
                 .get();
 
             if (snapshot.empty) {

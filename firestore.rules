@@ -247,9 +247,9 @@ service cloud.firestore {
       }
     }
 
-    // Channel Profiles: Admin can write, authenticated users can read
+    // Channel Profiles: Admin can write, Public can read (for Landing Page)
     match /channelProfiles/{profileId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin();
     }
 
