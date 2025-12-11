@@ -188,6 +188,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     
+    // System Config (UI Layouts, etc.) - Public Read, Admin Write
+    match /system_config/{configId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
     // Industries collection
     match /industries/{industryId} {
       allow read: if isAuthenticated();

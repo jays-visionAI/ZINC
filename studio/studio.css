@@ -120,13 +120,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    background: linear-gradient(135deg, #10B981 0%, #00FFA3 100%);
-    color: #000;
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
-    /* Icon style preserved as requested */
+    /* width/height handles by inline loader styles */
+    /* Remove background to match other pages */
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
 }
 
 .studio-brand-text {

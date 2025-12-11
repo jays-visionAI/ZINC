@@ -128,16 +128,8 @@
             </svg>
         </a>
         <div class="flex items-center gap-3">
-            <div class="bg-emerald-900/30 p-2 rounded-lg text-emerald-400">
-                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                </svg>
-            </div>
-            <div>
-                <h1 class="text-lg font-bold leading-none">The Growth</h1>
-                <span class="text-[10px] text-slate-500 uppercase tracking-widest">ROI & Learning</span>
-            </div>
+            <!-- DYNAMIC HEADER CONTAINER -->
+            <div id="the-growth-header-container"></div>
         </div>
         <div class="ml-auto flex items-center gap-4">
             <select id="period-select"
@@ -471,6 +463,17 @@
     </div>
 
     <script src="theGrowth.js"></script>
+    <script src="utils-ui-config.js"></script>
+    <script src="utils-ui-loader.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Explicitly render header to ensure it loads
+            if (typeof UI !== 'undefined') {
+                console.log('Rendering The Growth Header...');
+                UI.renderHeader('the-growth-header-container', 'the_growth');
+            }
+        });
+    </script>
 
     <!-- ZYNK AI Chatbot -->
     <link rel="stylesheet" href="chatbot.css">

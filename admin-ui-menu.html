@@ -1,0 +1,154 @@
+<div class="admin-page-header">
+    <h2 class="admin-page-title">UI & Menu Management</h2>
+    <div class="admin-page-actions">
+        <button id="btn-reset-ui" class="admin-btn-secondary">Reset to Defaults</button>
+        <button id="btn-save-ui" class="admin-btn-primary">Save Changes</button>
+    </div>
+</div>
+
+<div class="admin-grid">
+    <!-- Page Headers Section -->
+    <div class="admin-card">
+        <div class="admin-card-header">
+            <h3>Page Header Configuration</h3>
+        </div>
+        <div class="admin-card-body">
+
+            <!-- Brand Brain Header Config -->
+            <div class="form-group-container"
+                style="border-bottom: 1px solid #334155; padding-bottom: 2rem; margin-bottom: 2rem;">
+                <h4
+                    style="color: #94a3b8; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem;">
+                    Brand Brain</h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Title</label>
+                        <input type="text" id="input-brand-title" class="admin-input">
+                    </div>
+                    <div class="form-group">
+                        <label>Subtitle</label>
+                        <input type="text" id="input-brand-subtitle" class="admin-input">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Gradient From</label>
+                        <div class="color-input-wrapper" style="display: flex; align-items: center; gap: 8px;">
+                            <input type="color" id="input-brand-grad-from-picker"
+                                style="width: 40px; height: 38px; padding: 0; border: none; background: none; cursor: pointer;">
+                            <input type="text" id="input-brand-grad-from" class="admin-input" placeholder="#4F46E5">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Gradient To</label>
+                        <div class="color-input-wrapper" style="display: flex; align-items: center; gap: 8px;">
+                            <input type="color" id="input-brand-grad-to-picker"
+                                style="width: 40px; height: 38px; padding: 0; border: none; background: none; cursor: pointer;">
+                            <input type="text" id="input-brand-grad-to" class="admin-input" placeholder="#7C3AED">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Studio Header Config -->
+            <div class="form-group-container">
+                <h4
+                    style="color: #94a3b8; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem;">
+                    Studio</h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Title</label>
+                        <input type="text" id="input-studio-title" class="admin-input">
+                    </div>
+                    <div class="form-group">
+                        <label>Subtitle</label>
+                        <input type="text" id="input-studio-subtitle" class="admin-input">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Version</label>
+                        <input type="text" id="input-studio-version" class="admin-input">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Gradient From</label>
+                        <div class="color-input-wrapper" style="display: flex; align-items: center; gap: 8px;">
+                            <input type="color" id="input-studio-grad-from-picker"
+                                style="width: 40px; height: 38px; padding: 0; border: none; background: none; cursor: pointer;">
+                            <input type="text" id="input-studio-grad-from" class="admin-input" placeholder="#10B981">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Gradient To</label>
+                        <div class="color-input-wrapper" style="display: flex; align-items: center; gap: 8px;">
+                            <input type="color" id="input-studio-grad-to-picker"
+                                style="width: 40px; height: 38px; padding: 0; border: none; background: none; cursor: pointer;">
+                            <input type="text" id="input-studio-grad-to" class="admin-input" placeholder="#00FFA3">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    <!-- Sidebar Menu Section -->
+    <div class="admin-card">
+        <div class="admin-card-header">
+            <h3>Sidebar Menu Configuration</h3>
+            <p style="color: #64748b; font-size: 0.875rem; margin-top: 4px;">Manage the left-hand navigation items.
+                Order determines position.</p>
+        </div>
+        <div class="admin-card-body">
+            <div class="sidebar-config-grid" style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
+
+                <!-- Left: Editor -->
+                <div class="sidebar-editor-col">
+                    <div id="sidebar-items-container">
+                        <!-- Dynamic Items will be loaded here via JS -->
+                        <div style="text-align: center; color: #64748b; padding: 2rem;">Loading Sidebar Items...</div>
+                    </div>
+                </div>
+
+                <!-- Right: Live Preview -->
+                <div class="sidebar-preview-col">
+                    <div style="position: sticky; top: 1rem;">
+                        <h4
+                            style="color: #94a3b8; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 1rem;">
+                            Live Preview</h4>
+                        <div class="preview-mockup"
+                            style="background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; overflow: hidden; height: 600px; display: flex;">
+                            <!-- Sidebar Mockup -->
+                            <div id="sidebar-preview-mockup"
+                                style="width: 240px; background: #0f172a; border-right: 1px solid #1e293b; display: flex; flex-direction: column; padding: 1rem;">
+                                <!-- Logo Placeholder -->
+                                <div
+                                    style="display: flex; align-items: center; gap: 8px; margin-bottom: 2rem; padding-left: 0.5rem;">
+                                    <div
+                                        style="width: 24px; height: 24px; background: linear-gradient(135deg, #8B5CF6, #3B82F6); border-radius: 4px;">
+                                    </div>
+                                    <span style="font-weight: 800; font-size: 1.1rem; color: #fff;">ZYNK</span>
+                                </div>
+
+                                <!-- Menu Items Container -->
+                                <div id="preview-menu-content" class="sidebar-menu" style="flex: 1; overflow-y: auto;">
+                                    <!-- Rendered Content -->
+                                </div>
+                            </div>
+
+                            <!-- Main Content Placeholder -->
+                            <div style="flex: 1; background: #020617; padding: 1.5rem;">
+                                <div style="height: 64px; border-bottom: 1px solid #1e293b; margin-bottom: 1.5rem;">
+                                </div>
+                                <div style="height: 200px; background: #1e293b; border-radius: 8px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+</div>
