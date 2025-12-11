@@ -42,6 +42,9 @@
 
         const iconUpload = document.getElementById("channel-icon-upload");
         if (iconUpload) iconUpload.addEventListener('change', handleIconUpload);
+
+        const addBtn = document.getElementById("add-channel-btn");
+        if (addBtn) addBtn.addEventListener('click', openAddChannelModal);
     }
 
     function loadProfiles() {
@@ -254,31 +257,42 @@
     }
 
     // Modal Functions
+    // Modal Functions
+    function openAddChannelModal() {
+        const modal = document.getElementById('channel-modal');
+        if (!modal) return;
+
+        // Reset form
+        document.getElementById('channel-form').reset();
+        document.getElementById('channel-id').value = ''; // Empty for new
+        document.getElementById('channel-id-input').value = '';
+        document.getElementById('channel-icon-svg').value = '';
+        document.getElementById('icon-preview-container').innerHTML = '<span style="font-size: 24px;">🌐</span>';
+
+        // UI State for Add
+        document.getElementById('modal-title').textContent = 'Add Channel Profile';
+        document.getElementById('channel-id-group').style.display = 'block'; // Show ID input
+
+        modal.style.display = 'flex';
+        modal.classList.add('open');
+    }
+
     window.editProfile = function (id) {
-        console.log("🔹 editProfile called with id:", id);
-        console.log("🔹 profiles array:", profiles);
+        // ... (logging omitted)
         const profile = profiles.find(p => p.id === id);
-        console.log("🔹 found profile:", profile);
-        if (!profile) {
-            console.error("❌ Profile not found for id:", id);
-            return;
-        }
+        if (!profile) return;
 
-        // Check if modal exists
         let modal = document.getElementById('channel-modal');
-        console.log("🔹 Modal element:", modal);
+        if (!modal) return;
 
-        if (!modal) {
-            console.error("❌ Modal element not found in DOM!");
-            alert("Error: Modal not found. Please refresh the page.");
-            return;
-        }
-
-        // Ensure modal is in body (not inside admin-content)
+        // Ensure modal is in body
         if (modal.parentElement.id === 'admin-content') {
-            console.log("🔹 Moving modal to body...");
             document.body.appendChild(modal);
         }
+
+        // UI State for Edit
+        document.getElementById('modal-title').textContent = 'Edit Channel Profile';
+        document.getElementById('channel-id-group').style.display = 'none'; // Hide ID input (use hidden field)
 
         document.getElementById('channel-id').value = profile.id;
         document.getElementById('channel-name').value = profile.name;
@@ -325,35 +339,52 @@
     }
 
     async function saveProfile() {
-        const id = document.getElementById('channel-id').value;
+        let id = document.getElementById('channel-id').value;
+        const newIdInput = document.getElementById('channel-id-input').value;
+
+        // If no hidden ID, use the manual input (Creation Mode)
+        if (!id && newIdInput) {
+            id = newIdInput.trim();
+        }
+
+        if (!id) {
+            alert("Channel ID is required!");
+            return;
+        }
+
         const saveBtn = document.getElementById('modal-save');
 
         try {
             saveBtn.disabled = true;
             saveBtn.textContent = 'Saving...';
 
+            const name = document.getElementById('channel-name').value;
             const contentTypes = document.getElementById('channel-content-types').value.split(',').map(s => s.trim()).filter(Boolean);
             const currentVersion = document.getElementById('channel-version').value;
 
             // Parse JSON fields
-            const lengthRules = JSON.parse(document.getElementById('channel-length-rules').value);
-            const interactionStyle = JSON.parse(document.getElementById('channel-interaction-style').value);
-            const seoRules = JSON.parse(document.getElementById('channel-seo-rules').value);
-            const kpiWeights = JSON.parse(document.getElementById('channel-kpi-weights').value);
+            let lengthRules = {}, interactionStyle = {}, seoRules = {}, kpiWeights = {};
+            try { lengthRules = JSON.parse(document.getElementById('channel-length-rules').value || '{}'); } catch (e) { }
+            try { interactionStyle = JSON.parse(document.getElementById('channel-interaction-style').value || '{}'); } catch (e) { }
+            try { seoRules = JSON.parse(document.getElementById('channel-seo-rules').value || '{}'); } catch (e) { }
+            try { kpiWeights = JSON.parse(document.getElementById('channel-kpi-weights').value || '{}'); } catch (e) { }
 
-            // Get current profile for backup
-            const currentProfileDoc = await db.collection('channelProfiles').doc(id).get();
-            const currentProfile = currentProfileDoc.data();
+            // Get current profile for backup (if exists)
+            const docRef = db.collection('channelProfiles').doc(id);
+            const currentProfileDoc = await docRef.get();
+            const currentProfile = currentProfileDoc.exists ? currentProfileDoc.data() : null;
 
-            // Auto-increment version (patch version)
-            const versionParts = currentVersion.split('.');
-            const major = parseInt(versionParts[0]) || 1;
-            const minor = parseInt(versionParts[1]) || 0;
-            const patch = parseInt(versionParts[2]) || 0;
-            const newVersion = `${major}.${minor}.${patch + 1}`;
-
-            // Backup current version to history
+            // Versioning Logic
+            let newVersion = currentVersion;
             if (currentProfile) {
+                // Auto-increment version for updates
+                const versionParts = (currentVersion || '1.0.0').split('.');
+                const major = parseInt(versionParts[0]) || 1;
+                const minor = parseInt(versionParts[1]) || 0;
+                const patch = parseInt(versionParts[2]) || 0;
+                newVersion = `${major}.${minor}.${patch + 1}`;
+
+                // Backup
                 await db.collection('channelProfileVersions').add({
                     profileId: id,
                     version: currentProfile.version,
@@ -361,23 +392,32 @@
                     archivedAt: firebase.firestore.FieldValue.serverTimestamp(),
                     archivedBy: firebase.auth().currentUser?.email || 'unknown'
                 });
+            } else {
+                newVersion = '1.0.0'; // Default for new
             }
 
-            // Update profile with new version
-            await db.collection('channelProfiles').doc(id).update({
+            // Construct Data
+            const profileData = {
+                id: id,
+                name: name,
+                displayName: name,
                 contentTypes,
                 lengthRules,
                 interactionStyle,
                 seoRules,
                 kpiWeights,
-                icon: document.getElementById('channel-icon-svg').value, // Save the SVG string
+                icon: document.getElementById('channel-icon-svg').value,
                 version: newVersion,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                updatedBy: firebase.auth().currentUser?.email || 'unknown'
-            });
+                updatedBy: firebase.auth().currentUser?.email || 'unknown',
+                status: 'active' // Default active
+            };
 
-            console.log(`✅ Profile updated: ${currentVersion} → ${newVersion}`);
-            alert(`Profile updated successfully!\nVersion: ${currentVersion} → ${newVersion}`);
+            // Use set with merge
+            await docRef.set(profileData, { merge: true });
+
+            console.log(`✅ Profile saved: ${id} (v${newVersion})`);
+            alert(`Channel Profile '${id}' saved successfully!`);
             closeModal();
 
         } catch (error) {

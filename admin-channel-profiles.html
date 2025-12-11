@@ -8,7 +8,9 @@
     </div>
 
     <div class="admin-filters">
-        <!-- Future filters can go here -->
+        <button id="add-channel-btn" class="admin-btn-primary" style="padding: 8px 16px; font-size: 13px;">
+            + Add Channel
+        </button>
     </div>
 </div>
 
@@ -46,9 +48,14 @@
             <form id="channel-form">
                 <input type="hidden" id="channel-id">
 
+                <div class="admin-form-group" id="channel-id-group" style="display: none;">
+                    <label class="admin-form-label">Channel ID (Unique Key, e.g., 'naver_blog')</label>
+                    <input type="text" id="channel-id-input" class="admin-form-input" placeholder="Enter unique ID">
+                </div>
+
                 <div class="admin-form-group">
                     <label class="admin-form-label">Platform Name</label>
-                    <input type="text" id="channel-name" class="admin-form-input" readonly
+                    <input type="text" id="channel-name" class="admin-form-input"
                         style="background: rgba(255,255,255,0.05);">
                 </div>
 
