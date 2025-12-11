@@ -89,46 +89,59 @@ async function loadUserProjects() {
     const projectSelect = document.getElementById('project-select');
     if (!projectSelect) return;
 
+    // Add glow highlight initially to guide user
+    projectSelect.classList.add('selection-highlight');
+
     try {
+        // Load projects without orderBy (requires no index)
         const snapshot = await firebase.firestore()
             .collection('projects')
             .where('userId', '==', currentUser.uid)
-            .orderBy('createdAt', 'desc')
             .get();
 
         const projects = [];
         snapshot.forEach(doc => {
-            projects.push({ id: doc.id, ...doc.data() });
+            const data = doc.data();
+            // Only include non-draft projects
+            if (data.isDraft !== true) {
+                projects.push({ id: doc.id, ...data });
+            }
+        });
+
+        // Sort client-side by createdAt descending
+        projects.sort((a, b) => {
+            const tA = a.createdAt ? a.createdAt.seconds : 0;
+            const tB = b.createdAt ? b.createdAt.seconds : 0;
+            return tB - tA;
         });
 
         if (projects.length === 0) {
-            projectSelect.innerHTML = '<option value="">No projects</option>';
+            projectSelect.innerHTML = '<option value="" disabled selected>⚠️ Create a Project in Command Center</option>';
+            projectSelect.classList.remove('selection-highlight');
             return;
         }
 
-        // Populate dropdown
-        projectSelect.innerHTML = projects.map(p =>
-            `<option value="${p.id}">${p.name || 'Untitled Project'}</option>`
-        ).join('');
+        // Populate dropdown with placeholder first
+        projectSelect.innerHTML = '<option value="">Select Project...</option>';
+        projects.forEach(p => {
+            const option = document.createElement('option');
+            option.value = p.id;
+            option.textContent = p.projectName || p.name || 'Untitled Project';
+            projectSelect.appendChild(option);
+        });
 
         // Try to restore last selected project from localStorage
         const lastProjectId = localStorage.getItem('marketPulse_lastProject');
         if (lastProjectId && projects.find(p => p.id === lastProjectId)) {
             projectSelect.value = lastProjectId;
             currentProjectId = lastProjectId;
-        } else {
-            currentProjectId = projects[0].id;
-        }
-
-        // Highlight with glow if no project was selected before
-        if (!lastProjectId) {
-            projectSelect.classList.add('selection-highlight');
+            projectSelect.classList.remove('selection-highlight');
         }
 
         // Add change listener
         projectSelect.addEventListener('change', () => {
             const newProjectId = projectSelect.value;
-            if (newProjectId !== currentProjectId) {
+            if (newProjectId) {
                 currentProjectId = newProjectId;
                 localStorage.setItem('marketPulse_lastProject', newProjectId);
                 projectSelect.classList.remove('selection-highlight');
@@ -141,6 +154,7 @@ async function loadUserProjects() {
     } catch (error) {
         console.error('Error loading projects:', error);
         projectSelect.innerHTML = '<option value="">Error loading</option>';
+        projectSelect.classList.remove('selection-highlight');
     }
 }
 
