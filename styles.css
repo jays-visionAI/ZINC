@@ -1033,6 +1033,17 @@ body {
     text-shadow: none;
 }
 
+/* Specific Style for Naver Smart Store, SearchAD, Map (Dark Bottom Bar) */
+.naver-smartstore .overlay-text,
+.naver-searchad .overlay-text,
+.naver-map .overlay-text {
+    background: rgba(0, 0, 0, 0.2);
+    bottom: 0;
+    padding: 6px 0;
+    border-bottom-left-radius: 20px;
+    border-bottom-right-radius: 20px;
+}
+
 .platform-card:hover .platform-icon {
     transform: scale(1.1) rotate(2deg);
 }
