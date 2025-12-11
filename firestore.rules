@@ -65,6 +65,35 @@ service cloud.firestore {
     }
 
     // ============================================
+    // Pricing & Credits System
+    // ============================================
+
+    // Pricing Plans: Admin write, Authenticated read
+    match /system_pricing_plans/{planId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Top-up Packs: Admin write, Authenticated read
+    match /system_topup_packs/{packId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    // Credit Action Costs: Admin write, Authenticated read
+    match /system_credit_costs/{costId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Credit Transactions: User can create their own records
+    match /credit_transactions/{transactionId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      // No update/delete allowed for audit trail
+    }
+
+    // ============================================
     // Existing Collections (기존 규칙 유지)
     // ============================================
     
