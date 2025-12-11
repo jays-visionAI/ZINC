@@ -380,13 +380,13 @@ function renderAIActions() {
             ${action.bestTime ? `<div class="text-[10px] text-slate-500 mb-3">⏰ Best posting time: ${action.bestTime}</div>` : ''}
             
             <div class="flex flex-wrap gap-2">
-                <button class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg transition-colors">
+                <button class="action-btn px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg transition-colors" data-action="meme" data-cost="20">
                     🐝 Quick Meme
                 </button>
-                <button class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition-colors">
+                <button class="action-btn px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition-colors" data-action="blog" data-cost="50">
                     📝 Blog Post
                 </button>
-                <button class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition-colors">
+                <button class="action-btn px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition-colors" data-action="campaign" data-cost="80">
                     📢 Campaign
                 </button>
             </div>
@@ -399,12 +399,143 @@ function setupEventListeners() {
     if (dom.refreshBtn) {
         dom.refreshBtn.addEventListener('click', () => {
             dom.refreshBtn.classList.add('animate-spin');
-            setTimeout(() => {
-                dom.refreshBtn.classList.remove('animate-spin');
-                document.getElementById('last-updated').textContent = 'Just now';
-            }, 1000);
+            setTimeout(() => dom.refreshBtn.classList.remove('animate-spin'), 1000);
+            renderTrendingKeywords(); // Mock refresh
         });
     }
+
+    // Deploy Web Agent Button
+    const btnDeploy = document.getElementById('btn-deploy-agent');
+    if (btnDeploy) {
+        btnDeploy.addEventListener('click', handleDeployAgent);
+    }
+
+    // AI Actions (Event Delegation)
+    if (dom.aiActions) {
+        dom.aiActions.addEventListener('click', (e) => {
+            const btn = e.target.closest('.action-btn');
+            if (btn) {
+                const actionType = btn.dataset.action;
+                const actionId = actionType === 'meme' ? 'market_meme_generation' :
+                    actionType === 'blog' ? 'market_blog_post' : 'market_campaign';
+                handleAIAction(btn, actionId);
+            }
+        });
+    }
+}
+
+/**
+ * Handle Deploy Web Agent
+ */
+async function handleDeployAgent() {
+    const userId = firebase.auth().currentUser?.uid;
+    if (!userId) return;
+
+    if (typeof CreditService === 'undefined') {
+        alert('Credit Service not loaded');
+        return;
+    }
+
+    const ACTION_ID = 'market_investigation';
+    const btn = document.getElementById('btn-deploy-agent');
+    const originalText = btn.innerHTML;
+
+    try {
+        const cost = await CreditService.getCost(ACTION_ID);
+
+        if (cost > 0) {
+            if (!confirm(`Deploy Web Intelligence Agent?\nCost: ${cost} credits`)) return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = 'Deploying Agent...';
+
+        const result = await CreditService.deductCredits(userId, ACTION_ID, {
+            projectId: currentProjectId,
+            type: 'web_investigation'
+        });
+
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        showNotification(`Agent Deployed (-${result.cost} Credits)`);
+
+        // Mock result
+        const investigations = document.getElementById('investigations');
+        if (investigations) {
+            const el = document.createElement('div');
+            el.className = "p-3 bg-slate-950 border border-slate-800 rounded-lg animate-pulse";
+            el.innerHTML = `<div class="text-xs text-cyan-400">🚀 Agent deployed. Gathering intelligence...</div>`;
+            investigations.insertBefore(el, investigations.firstChild);
+        }
+
+    } catch (error) {
+        if (error.message === 'Insufficient credits') {
+            alert("⚠️ Insufficient Credits!");
+        } else {
+            alert("Action failed: " + error.message);
+        }
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+/**
+ * Handle AI Action (Meme/Blog/Campaign)
+ */
+async function handleAIAction(btn, actionId) {
+    const userId = firebase.auth().currentUser?.uid;
+    if (!userId) return;
+
+    const originalText = btn.innerHTML;
+
+    try {
+        const cost = await CreditService.getCost(actionId);
+
+        if (cost > 0) {
+            if (!confirm(`Generate Content?\nCost: ${cost} credits`)) return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = 'Generating...';
+
+        const result = await CreditService.deductCredits(userId, actionId, { projectId: currentProjectId });
+
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
+        showNotification(`Content Generated (-${result.cost} Credits)`);
+        btn.innerHTML = '✅ Done';
+        btn.classList.remove('bg-indigo-600', 'bg-slate-800');
+        btn.classList.add('bg-emerald-600', 'text-white');
+
+    } catch (error) {
+        console.error(error);
+        if (error.message === 'Insufficient credits') {
+            alert("⚠️ Insufficient Credits!");
+        } else {
+            alert("Failed: " + error.message);
+        }
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+// Helper Notification (from Brand Brain)
+function showNotification(message, type = 'success') {
+    const div = document.createElement('div');
+    div.className = `fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-xl text-white font-medium z-50 transform transition-all duration-300 translate-y-10 opacity-0 ${type === 'error' ? 'bg-red-600' : 'bg-emerald-600'
+        }`;
+    div.textContent = message;
+    document.body.appendChild(div);
+
+    setTimeout(() => {
+        div.classList.remove('translate-y-10', 'opacity-0');
+    }, 10);
+
+    setTimeout(() => {
+        div.classList.add('translate-y-10', 'opacity-0');
+        setTimeout(() => div.remove(), 300);
+    }, 3000);
 }
 
 // ========== BOOTSTRAP ==========

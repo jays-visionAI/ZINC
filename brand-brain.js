@@ -649,6 +649,18 @@ function renderDosDonts(dos, donts) {
  * Initialize event listeners
  */
 function initializeEventListeners() {
+    // Auto Analyze Button
+    const btnAnalyze = document.getElementById('btn-auto-analyze');
+    if (btnAnalyze) {
+        btnAnalyze.addEventListener('click', handleAutoAnalyze);
+    }
+
+    // Health Optimize Button
+    const btnOptimize = document.getElementById('health-optimize-btn');
+    if (btnOptimize) {
+        btnOptimize.addEventListener('click', handleHealthOptimize);
+    }
+
     // Auto-save for text inputs
     const textInputs = ['project-name', 'mission', 'website-url', 'industry', 'target', 'writing-style', 'focus-topic'];
     textInputs.forEach(id => {
@@ -1779,5 +1791,119 @@ function updateAutoSyncStatusText(syncStatus) {
         statusEl.textContent = 'Ready to sync with Hive Mind';
         statusEl.classList.remove('text-slate-500');
         statusEl.classList.add('text-indigo-200/60');
+    }
+}
+
+/**
+ * Handle Auto Analyze Action with Credit Deduction
+ */
+async function handleAutoAnalyze() {
+    const userId = firebase.auth().currentUser?.uid;
+    if (!userId) return;
+
+    const ACTION_ID = 'brand_brain_analyze';
+    const btn = document.getElementById('btn-auto-analyze');
+    const originalText = btn.innerHTML;
+
+    if (typeof CreditService === 'undefined') {
+        console.error('CreditService not loaded');
+        alert('System Error: Credit Service unavailable.');
+        return;
+    }
+
+    try {
+        // 1. Get Cost
+        const cost = await CreditService.getCost(ACTION_ID);
+
+        // 2. Confirm
+        if (cost > 0) {
+            const confirmed = confirm(`This AI analysis costs ${cost} credits.\nProceed?`);
+            if (!confirmed) return;
+        }
+
+        // 3. Deduct
+        btn.disabled = true;
+        btn.innerHTML = `<svg class="animate-spin h-3 w-3 mr-1" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Processing...`;
+
+        const result = await CreditService.deductCredits(userId, ACTION_ID, {
+            projectId: currentProjectId,
+            projectName: document.getElementById('project-name').value
+        });
+
+        // 4. Execute Action (Simulation)
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API call
+
+        // Mock Updating UI based on analysis
+        const statusEl = document.getElementById('website-analysis-status');
+        if (statusEl) {
+            statusEl.innerHTML = `✅ Analysis Complete: ${Math.floor(Math.random() * 10) + 5} pages parsed (Credits used: ${result.cost})`;
+        }
+
+        showNotification(`Analysis Complete (-${result.cost} Credits)`);
+
+        // Update local data structure
+        if (!brandBrainData.coreIdentity) brandBrainData.coreIdentity = {};
+        brandBrainData.coreIdentity.websiteAnalysis = { pageCount: 12, completedAt: new Date() };
+        saveData();
+
+    } catch (error) {
+        console.error("Analysis failed:", error);
+        if (error.message === 'Insufficient credits') {
+            alert("⚠️ Insufficient Credits! Please top up in Settings.");
+        } else {
+            showNotification("Analysis failed: " + error.message, 'error');
+        }
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+/**
+ * Handle Health Optimize Action with Credit Deduction
+ */
+async function handleHealthOptimize() {
+    const userId = firebase.auth().currentUser?.uid;
+    if (!userId) return;
+
+    const ACTION_ID = 'brand_brain_generate_voice';
+    const btn = document.getElementById('health-optimize-btn');
+    const originalText = btn.innerHTML;
+
+    if (typeof CreditService === 'undefined') {
+        console.error('CreditService not loaded');
+        alert('System Error: Credit Service unavailable.');
+        return;
+    }
+
+    try {
+        const cost = await CreditService.getCost(ACTION_ID);
+
+        if (cost > 0) {
+            if (!confirm(`Optimize Brand Health using AI?\nCost: ${cost} credits`)) return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = 'Optimizing...';
+
+        const result = await CreditService.deductCredits(userId, ACTION_ID, { projectId: currentProjectId });
+
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
+        showNotification(`Optimization Complete (-${result.cost} Credits)`);
+
+        // Mock optimization
+        document.getElementById('health-score').innerText = Math.min(100, parseInt(document.getElementById('health-score').innerText || 0) + 15);
+        saveData();
+
+    } catch (error) {
+        if (error.message === 'Insufficient credits') {
+            alert("⚠️ Insufficient Credits!");
+        } else {
+            showNotification("Optimization failed", 'error');
+        }
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
     }
 }
