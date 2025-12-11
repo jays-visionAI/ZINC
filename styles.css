@@ -893,60 +893,43 @@ body {
 }
 
 .platform-icon {
-    width: 80px;
-    height: 80px;
+    width: 60px;
+    height: 60px;
     margin: 0 auto var(--spacing-md);
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 20px;
+    background: transparent !important;
+    /* Force transparent */
+    border: none !important;
+    border-radius: 16px;
+    /* Optional rounded corners for the image itself */
     transition: all var(--transition-base);
 }
 
-.platform-icon svg {
-    width: 48px;
-    height: 48px;
+.platform-icon svg,
+.platform-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    /* Ensure full visibility */
+    display: block;
+    /* Remove inline spacing */
 }
 
-.instagram {
-    background: linear-gradient(135deg, #833AB4 0%, #FD1D1D 50%, #FCAF45 100%);
-}
-
-.x-twitter {
-    background: #000000;
-}
-
-.facebook {
-    background: #1877F2;
-}
-
-.linkedin {
-    background: #0A66C2;
-}
-
-.youtube {
-    background: #FF0000;
-}
-
-.tiktok {
-    background: linear-gradient(135deg, #00F2EA 0%, #FF0050 100%);
-}
-
-.discord {
-    background: #5865F2;
-}
-
-.naver {
-    background: #03C75A;
-}
-
-.reddit {
-    background: #FF4500;
-}
-
-.kakaotalk {
-    background: #FEE500;
-}
+/* Brand backgrounds removed to allow custom icons to shine */
+/*
+.instagram { background: linear-gradient(135deg, #833AB4 0%, #FD1D1D 50%, #FCAF45 100%); }
+.x-twitter { background: #000000; }
+.facebook { background: #1877F2; }
+.linkedin { background: #0A66C2; }
+.youtube { background: #FF0000; }
+.tiktok { background: linear-gradient(135deg, #00F2EA 0%, #FF0050 100%); }
+.discord { background: #5865F2; }
+.naver { background: #03C75A; }
+.reddit { background: #FF4500; }
+.kakaotalk { background: #FEE500; }
+*/
 
 .line {
     background: #00B900;
