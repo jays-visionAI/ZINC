@@ -39,6 +39,9 @@
         if (modalClose) modalClose.addEventListener('click', closeModal);
         if (modalCancel) modalCancel.addEventListener('click', closeModal);
         if (modalSave) modalSave.addEventListener('click', saveProfile);
+
+        const iconUpload = document.getElementById("channel-icon-upload");
+        if (iconUpload) iconUpload.addEventListener('change', handleIconUpload);
     }
 
     function loadProfiles() {
@@ -116,6 +119,52 @@
             p.id.toLowerCase().includes(searchTerm)
         );
         renderTable(filtered);
+    }
+
+    async function handleIconUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const previewContainer = document.getElementById('icon-preview-container');
+        const hiddenInput = document.getElementById('channel-icon-svg');
+
+        // Show loading state
+        previewContainer.innerHTML = '<span style="font-size: 12px; color: #aaa;">Processing...</span>';
+
+        if (file.type === 'image/svg+xml') {
+            // Handle SVG
+            const text = await file.text();
+            // Basic sanitization/validation could go here
+            hiddenInput.value = text;
+            previewContainer.innerHTML = text;
+            // Force size in preview
+            const svg = previewContainer.querySelector('svg');
+            if (svg) {
+                svg.setAttribute('width', '100%');
+                svg.setAttribute('height', '100%');
+            }
+        } else if (file.type.startsWith('image/')) {
+            // Handle PNG/JPG -> Convert to base64 wrapped in SVG
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const base64 = e.target.result;
+                // Create SVG wrapper
+                const svgString = `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><image href="${base64}" width="100" height="100" /></svg>`;
+
+                hiddenInput.value = svgString;
+                previewContainer.innerHTML = svgString;
+                // Force size in preview
+                const svg = previewContainer.querySelector('svg');
+                if (svg) {
+                    svg.setAttribute('width', '100%');
+                    svg.setAttribute('height', '100%');
+                }
+            };
+            reader.readAsDataURL(file);
+        } else {
+            alert("Please upload an SVG, PNG, or JPG file.");
+            previewContainer.innerHTML = '❌';
+        }
     }
 
     function renderTable(data) {
@@ -236,6 +285,26 @@
         document.getElementById('channel-content-types').value = (profile.contentTypes || []).join(', ');
         document.getElementById('channel-version').value = profile.version || '1.0.0';
 
+        // Preload Icon
+        const hiddenInput = document.getElementById('channel-icon-svg');
+        const previewContainer = document.getElementById('icon-preview-container');
+        const fileInput = document.getElementById('channel-icon-upload');
+
+        fileInput.value = ''; // Reset file input
+        hiddenInput.value = profile.icon || '';
+
+        if (profile.icon && profile.icon.trim().startsWith('<svg')) {
+            previewContainer.innerHTML = profile.icon;
+            // Force size in preview
+            const svg = previewContainer.querySelector('svg');
+            if (svg) {
+                svg.setAttribute('width', '100%');
+                svg.setAttribute('height', '100%');
+            }
+        } else {
+            previewContainer.innerHTML = '<span style="font-size: 24px;">🌐</span>';
+        }
+
         // JSON fields
         document.getElementById('channel-length-rules').value = JSON.stringify(profile.lengthRules || {}, null, 2);
         document.getElementById('channel-interaction-style').value = JSON.stringify(profile.interactionStyle || {}, null, 2);
@@ -301,6 +370,7 @@
                 interactionStyle,
                 seoRules,
                 kpiWeights,
+                icon: document.getElementById('channel-icon-svg').value, // Save the SVG string
                 version: newVersion,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
                 updatedBy: firebase.auth().currentUser?.email || 'unknown'

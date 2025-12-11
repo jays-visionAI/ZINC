@@ -58,6 +58,26 @@
                         placeholder="image, short_video, story...">
                 </div>
 
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Channel Icon (SVG Code or Image Upload)</label>
+                    <div style="display: flex; gap: 20px; align-items: start;">
+                        <div id="icon-preview-container"
+                            style="width: 80px; height: 80px; background: rgba(255,255,255,0.05); border-radius: 20px; display: flex; align-items: center; justify-content: center; border: 1px dashed rgba(255,255,255,0.2);">
+                            <span style="font-size: 24px;">🌐</span>
+                        </div>
+                        <div style="flex: 1;">
+                            <input type="file" id="channel-icon-upload" accept=".svg,.png,.jpg,.jpeg"
+                                class="admin-form-input">
+                            <p style="font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 5px;">
+                                Upload <strong>SVG</strong> (recommended) or <strong>PNG/JPG</strong> (512x512px).<br>
+                                Images will be auto-converted to SVG code for storage efficiency.
+                            </p>
+                            <!-- Hidden Textarea to store the final SVG string -->
+                            <textarea id="channel-icon-svg" style="display:none;"></textarea>
+                        </div>
+                    </div>
+                </div>
+
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                     <div class="admin-form-group">
                         <label class="admin-form-label">Length Rules (JSON)</label>
