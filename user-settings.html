@@ -458,8 +458,16 @@
                         style="display: block; margin-bottom: 8px; color: rgba(255,255,255,0.8); font-size: 14px;">Channel
                         *</label>
                     <select id="credential-provider" class="admin-form-input" required
-                        onchange="updateCredentialFields()">
-                        <option value="">Loading...</option>
+                        onchange="renderCredentialFields(this.value)">
+                        <option value="" disabled selected>Select Platform</option>
+                        <option value="linkedin">LinkedIn</option>
+                        <option value="youtube">YouTube</option>
+                        <option value="instagram">Instagram</option>
+                        <option value="facebook">Facebook</option>
+                        <option value="x">X (Twitter)</option>
+                        <option value="tiktok">TikTok</option>
+                        <option value="naverBlog">Naver Blog</option>
+                        <option value="naverSmartStore">Naver Smart Store</option>
                     </select>
                 </div>
 

@@ -253,13 +253,23 @@ const PROVIDER_CONFIG = {
         fields: [
             { key: 'appId', label: 'App ID', type: 'text', required: true },
             { key: 'appSecret', label: 'App Secret', type: 'password', required: true },
-            { key: 'accessToken', label: 'Access Token', type: 'password', required: false },
-            { key: 'pageId', label: 'Page ID', type: 'text', required: true }
+            { key: 'pageId', label: 'Page ID', type: 'text', required: true },
+            { key: 'accessToken', label: 'Access Token (Optional)', type: 'password', required: false }
+        ]
+    },
+    naverBlog: {
+        fields: [
+            { key: 'clientId', label: 'Client ID', type: 'text', placeholder: 'Naver Client ID', required: true },
+            { key: 'clientSecret', label: 'Client Secret', type: 'password', placeholder: 'Naver Client Secret', required: true }
+        ]
+    },
+    naverSmartStore: {
+        fields: [
+            { key: 'applicationId', label: 'Application ID', type: 'text', placeholder: 'Commerce API Application ID', required: true },
+            { key: 'applicationSecret', label: 'Application Secret', type: 'password', placeholder: 'Commerce API Secret', required: true }
         ]
     },
     discord: { fields: [{ key: 'botToken', label: 'Bot Token', type: 'password', required: true }] },
-    naver_blog: { fields: [{ key: 'clientId', label: 'Client ID', type: 'text', required: true }, { key: 'clientSecret', label: 'Client Secret', type: 'password', required: true }] },
-    naver_smartstore: { fields: [{ key: 'apiKey', label: 'API Key', type: 'password', required: true }] },
     coupang: { fields: [{ key: 'accessKey', label: 'Access Key', type: 'text', required: true }, { key: 'secretKey', label: 'Secret Key', type: 'password', required: true }] },
     reddit: { fields: [{ key: 'clientId', label: 'Client ID', type: 'text', required: true }, { key: 'clientSecret', label: 'Client Secret', type: 'password', required: true }] },
     kakaotalk: { fields: [{ key: 'apiKey', label: 'REST API Key', type: 'password', required: true }] },
