@@ -20,6 +20,10 @@
             style="padding-bottom: 12px; cursor: pointer; border-bottom: 2px solid transparent; color: rgba(255,255,255,0.5);">
             ⚙️ System
         </div>
+        <div class="settings-tab" onclick="switchSettingsTab('pricing')" id="tab-btn-pricing"
+            style="padding-bottom: 12px; cursor: pointer; border-bottom: 2px solid transparent; color: rgba(255,255,255,0.5);">
+            💰 Pricing & Credits
+        </div>
     </div>
 
     <!-- LLM Providers Tab -->
@@ -327,6 +331,75 @@
             </div>
         </div>
     </div>
+</div>
+
+<!-- Pricing & Credits Tab -->
+<div id="tab-pricing" class="settings-tab-content" style="display: none;">
+
+    <!-- Subscription Plans Section -->
+    <div
+        style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h4 style="margin: 0; color: #fff;">Subscription Plans (Monthly)</h4>
+            <button onclick="savePricingData()" class="admin-btn-primary" style="padding: 6px 16px;">Save
+                Changes</button>
+        </div>
+        <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 16px;">
+            Configure the monthly subscription tiers. The 'Bonus Rate' applies to extra credit top-ups.
+        </p>
+
+        <div style="overflow-x: auto;">
+            <table class="admin-table" style="width: 100%; min-width: 600px;">
+                <thead>
+                    <tr>
+                        <th style="width: 150px;">Plan (ID)</th>
+                        <th>Price ($)</th>
+                        <th>Base Credits</th>
+                        <th>Seats</th>
+                        <th>Agents</th>
+                        <th>Top-up Bonus (%)</th>
+                    </tr>
+                </thead>
+                <tbody id="pricing-plans-body">
+                    <!-- Populated by JS -->
+                    <tr>
+                        <td colspan="6" style="text-align:center; padding: 20px;">Loading plans...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Top-up Packs Section -->
+    <div
+        style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h4 style="margin: 0; color: #fff;">Credit Top-up Packs</h4>
+            <!-- Packs are less frequently changed, no global save needed here yet -->
+        </div>
+        <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 16px;">
+            One-time credit purchases. Final credits received depend on the user's plan bonus.
+        </p>
+
+        <table class="admin-table" style="width: 100%;">
+            <thead>
+                <tr>
+                    <th>Pack Name</th>
+                    <th>Price ($)</th>
+                    <th>Base Credits</th>
+                    <th>Preview (Starter)</th>
+                    <th>Preview (Enterprise +30%)</th>
+                </tr>
+            </thead>
+            <tbody id="pricing-packs-body">
+                <!-- Populated by JS -->
+                <tr>
+                    <td colspan="5" style="text-align:center; padding: 20px;">Loading packs...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
 </div>
 
 <!-- Add/Edit Provider Modal -->

@@ -416,4 +416,185 @@ window.switchSettingsTab = function (tabId) {
     if (tabId === 'channel-api') {
         loadSettingsChannels();
     }
+    // Load Pricing data when switching to Pricing tab
+    if (tabId === 'pricing') {
+        loadPricingData();
+    }
+};
+
+// --- Pricing & Credits Interface ---
+
+let pricingPlans = {}; // Store loaded plans
+let topupPacks = [];   // Store loaded packs
+
+async function loadPricingData() {
+    const plansBody = document.getElementById('pricing-plans-body');
+    const packsBody = document.getElementById('pricing-packs-body');
+
+    if (!plansBody || !packsBody) return;
+
+    try {
+        const db = firebase.firestore();
+
+        // 1. Fetch Plans
+        const plansSnapshot = await db.collection('system_pricing_plans').get();
+        pricingPlans = {};
+        if (!plansSnapshot.empty) {
+            plansSnapshot.forEach(doc => {
+                pricingPlans[doc.id] = doc.data();
+            });
+            renderPlansTable();
+        } else {
+            plansBody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px;">No plans found. Run seed script.</td></tr>';
+        }
+
+        // 2. Fetch Packs
+        const packsSnapshot = await db.collection('system_topup_packs').orderBy('order').get();
+        topupPacks = [];
+        if (!packsSnapshot.empty) {
+            packsSnapshot.forEach(doc => topupPacks.push(doc.data()));
+            renderPacksTable();
+        } else {
+            packsBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px;">No packs found. Run seed script.</td></tr>';
+        }
+
+    } catch (error) {
+        console.error("Error loading pricing data:", error);
+        plansBody.innerHTML = `<tr><td colspan="6" style="color:red; text-align:center;">Error: ${error.message}</td></tr>`;
+    }
+}
+
+function renderPlansTable() {
+    const tbody = document.getElementById('pricing-plans-body');
+    if (!tbody) return;
+
+    // Fixed order: starter, growth, scale, enterprise
+    const order = ['starter', 'growth', 'scale', 'enterprise'];
+
+    tbody.innerHTML = order.map(planId => {
+        const plan = pricingPlans[planId];
+        if (!plan) return '';
+
+        const isEnterprise = plan.id === 'enterprise';
+
+        return `
+        <tr>
+            <td>
+                <strong style="color: #fff; text-transform: capitalize;">${plan.name}</strong>
+                <div style="font-size: 11px; color: rgba(255,255,255,0.4); font-family: monospace;">${plan.id}</div>
+            </td>
+            <td>
+                ${isEnterprise ?
+                '<span style="color:rgba(255,255,255,0.5); font-style:italic;">Custom</span>' :
+                `<input type="number" id="price-${plan.id}" value="${plan.price}" class="admin-input" style="width: 80px;">`
+            }
+            </td>
+            <td>
+                ${isEnterprise ?
+                '<span style="color:rgba(255,255,255,0.5); font-style:italic;">Custom</span>' :
+                `<input type="number" id="credits-${plan.id}" value="${plan.baseCredits}" class="admin-input" style="width: 100px;">`
+            }
+            </td>
+            <td>
+                ${isEnterprise ?
+                '9999+' :
+                `<input type="number" id="seats-${plan.id}" value="${plan.seats}" class="admin-input" style="width: 60px;">`
+            }
+            </td>
+             <td>
+                ${isEnterprise ?
+                'Custom' :
+                `<input type="number" id="agents-${plan.id}" value="${plan.agentLimit || 1}" class="admin-input" style="width: 60px;">`
+            }
+            </td>
+            <td>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                    <input type="number" step="0.01" id="bonus-${plan.id}" value="${plan.bonusRate}" class="admin-input" style="width: 70px;" onchange="renderPacksTable()">
+                    <span style="font-size: 11px; color: rgba(255,255,255,0.5);">(${Math.round(plan.bonusRate * 100)}%)</span>
+                </div>
+            </td>
+        </tr>
+        `;
+    }).join('');
+}
+
+function renderPacksTable() {
+    const tbody = document.getElementById('pricing-packs-body');
+    if (!tbody) return;
+
+    // Get current bonus rates from Inputs (for real-time preview) or Fallback to state
+    const getRate = (id) => {
+        const input = document.getElementById(`bonus-${id}`);
+        return input ? parseFloat(input.value) : (pricingPlans[id]?.bonusRate || 0);
+    };
+
+    const starterRate = getRate('starter');
+    const enterpriseRate = getRate('enterprise');
+
+    tbody.innerHTML = topupPacks.map(pack => {
+        const starterTotal = Math.floor(pack.baseCredits * (1 + starterRate));
+        const enterpriseTotal = Math.floor(pack.baseCredits * (1 + enterpriseRate));
+        const enterpriseBonus = enterpriseTotal - pack.baseCredits;
+
+        return `
+        <tr>
+            <td>
+                <strong style="color: #fff;">${pack.name}</strong>
+            </td>
+            <td>$${pack.price}</td>
+            <td>${pack.baseCredits.toLocaleString()}</td>
+            <td>
+                <span style="color: #16e0bd;">${starterTotal.toLocaleString()}</span>
+                ${starterRate > 0 ? `<div style="font-size: 10px; color: #16e0bd;">+${starterRate * 100}% Bonus</div>` : ''}
+            </td>
+             <td>
+                <span style="color: #fbbf24;">${enterpriseTotal.toLocaleString()}</span>
+                <div style="font-size: 10px; color: #fbbf24;">+${enterpriseBonus.toLocaleString()} Bonus</div>
+            </td>
+        </tr>
+        `;
+    }).join('');
+}
+
+window.savePricingData = async function () {
+    const db = firebase.firestore();
+    const btn = document.querySelector('button[onclick="savePricingData()"]');
+    if (btn) { btn.textContent = "Saving..."; btn.disabled = true; }
+
+    try {
+        const batch = db.batch();
+        const order = ['starter', 'growth', 'scale', 'enterprise'];
+
+        order.forEach(planId => {
+            const planRef = db.collection('system_pricing_plans').doc(planId);
+
+            // Collect logic
+            const updates = {
+                bonusRate: parseFloat(document.getElementById(`bonus-${planId}`).value || 0)
+            };
+
+            // Enterprise doesn't have editable base price/credits details in this UI version
+            if (planId !== 'enterprise') {
+                updates.price = parseInt(document.getElementById(`price-${planId}`).value || 0);
+                updates.baseCredits = parseInt(document.getElementById(`credits-${planId}`).value || 0);
+                updates.seats = parseInt(document.getElementById(`seats-${planId}`).value || 1);
+                updates.agentLimit = parseInt(document.getElementById(`agents-${planId}`).value || 1);
+            }
+
+            batch.set(planRef, updates, { merge: true });
+
+            // Update local state
+            pricingPlans[planId] = { ...pricingPlans[planId], ...updates };
+        });
+
+        await batch.commit();
+        alert("✅ Pricing Plans Updated Successfully!");
+        renderPacksTable(); // Re-render packs to ensure consistent state
+
+    } catch (error) {
+        console.error("Save failed:", error);
+        alert("Error saving data: " + error.message);
+    } finally {
+        if (btn) { btn.textContent = "Save Changes"; btn.disabled = false; }
+    }
 };
