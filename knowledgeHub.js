@@ -319,17 +319,37 @@ async function loadUserProjects() {
             projectSelector.appendChild(option);
         });
 
-        // Check URL param for project ID
+        // Priority: 1) URL param, 2) Global localStorage, 3) First project
         const urlParams = new URLSearchParams(window.location.search);
         const projectIdFromUrl = urlParams.get('projectId');
+        const globalProjectId = localStorage.getItem('currentProjectId');
+
+        let selectedProjectId = null;
 
         if (projectIdFromUrl && projects.find(p => p.id === projectIdFromUrl)) {
-            projectSelector.value = projectIdFromUrl;
-            await selectProject(projectIdFromUrl);
+            selectedProjectId = projectIdFromUrl;
+            // Also save to global state
+            localStorage.setItem('currentProjectId', projectIdFromUrl);
+        } else if (globalProjectId && projects.find(p => p.id === globalProjectId)) {
+            selectedProjectId = globalProjectId;
         } else if (projects.length > 0) {
-            projectSelector.value = projects[0].id;
-            await selectProject(projects[0].id);
+            selectedProjectId = projects[0].id;
+            localStorage.setItem('currentProjectId', selectedProjectId);
         }
+
+        if (selectedProjectId) {
+            projectSelector.value = selectedProjectId;
+            await selectProject(selectedProjectId);
+        }
+
+        // Add change listener to sync to global state
+        projectSelector.addEventListener('change', async (e) => {
+            const newProjectId = e.target.value;
+            if (newProjectId) {
+                localStorage.setItem('currentProjectId', newProjectId);
+                await selectProject(newProjectId);
+            }
+        });
 
     } catch (error) {
         console.error('Error loading projects:', error);

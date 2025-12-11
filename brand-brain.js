@@ -234,12 +234,27 @@ async function loadUserProjects(userId) {
             projectSelect.appendChild(option);
         });
 
-        // Event: Project change
+        // Check for global project ID from localStorage (set by Command Center)
+        const globalProjectId = localStorage.getItem('currentProjectId');
+        if (globalProjectId && allProjects.find(p => p.id === globalProjectId)) {
+            projectSelect.value = globalProjectId;
+            projectSelect.classList.remove('selection-highlight');
+            // Auto-load data for the global project
+            await loadBrandBrainForProject(userId, globalProjectId);
+            if (agentTeamSelect) {
+                await loadAgentTeams(globalProjectId);
+            }
+        }
+
+        // Event: Project change - also update global state
         projectSelect.addEventListener('change', async (e) => {
             projectSelect.classList.remove('selection-highlight'); // Stop glowing
             const selectedId = e.target.value;
 
             if (selectedId) {
+                // Update global project ID
+                localStorage.setItem('currentProjectId', selectedId);
+
                 await loadBrandBrainForProject(userId, selectedId);
                 // Only load agent teams if the select exists
                 if (agentTeamSelect) {

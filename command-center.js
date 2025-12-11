@@ -803,7 +803,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 </div>
 
                 <div class="card-actions">
-                    <button class="btn-mission" onclick="window.location.href='project-detail.html?id=${p.id}'">Jump to Mission Control</button>
+                    <button class="btn-mission" onclick="localStorage.setItem('currentProjectId', '${p.id}'); window.location.href='project-detail.html?id=${p.id}'">Jump to Mission Control</button>
                     <button class="btn-settings">⚙️</button>
                 </div>
             `;

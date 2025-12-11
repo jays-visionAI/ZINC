@@ -130,20 +130,23 @@ async function loadUserProjects() {
             projectSelect.appendChild(option);
         });
 
-        // Try to restore last selected project from localStorage
-        const lastProjectId = localStorage.getItem('marketPulse_lastProject');
-        if (lastProjectId && projects.find(p => p.id === lastProjectId)) {
-            projectSelect.value = lastProjectId;
-            currentProjectId = lastProjectId;
+        // Use global project ID from localStorage (shared across all pages)
+        const globalProjectId = localStorage.getItem('currentProjectId');
+        if (globalProjectId && projects.find(p => p.id === globalProjectId)) {
+            projectSelect.value = globalProjectId;
+            currentProjectId = globalProjectId;
             projectSelect.classList.remove('selection-highlight');
+            // Auto-load data for the project
+            onProjectChange();
         }
 
-        // Add change listener
+        // Add change listener - sync to global state
         projectSelect.addEventListener('change', () => {
             const newProjectId = projectSelect.value;
             if (newProjectId) {
                 currentProjectId = newProjectId;
-                localStorage.setItem('marketPulse_lastProject', newProjectId);
+                // Sync to global state
+                localStorage.setItem('currentProjectId', newProjectId);
                 projectSelect.classList.remove('selection-highlight');
 
                 // Reload data for new project
