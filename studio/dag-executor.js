@@ -248,7 +248,9 @@ class DAGExecutor {
                     "🚀 Exciting news! We're thrilled to announce our latest innovation that's changing the game.\n\n#Innovation #Technology #Future"
             },
             creator_image: {
-                imageUrl: `https://image.pollinations.ai/prompt/${context ? encodeURIComponent(context.planType + ' ' + context.planName) : 'futuristic%20technology'}?width=800&height=600&nologo=true`
+                imageUrl: context ?
+                    `https://image.pollinations.ai/prompt/${encodeURIComponent(context.planName || 'professional business content')}?width=800&height=600&nologo=true` :
+                    `https://image.pollinations.ai/prompt/modern%20professional%20business%20technology?width=800&height=600&nologo=true`
             },
             seo_optimizer: {
                 score: Math.floor(Math.random() * (98 - 85 + 1)) + 85,
