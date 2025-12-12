@@ -232,7 +232,12 @@ class DAGExecutor {
      * Invoke agent (mock implementation - replace with Cloud Function call)
      */
     async invokeAgent(agentId, context) {
-        // Simulated processing time
+        // For creator_image, call real Cloud Function
+        if (agentId === 'creator_image') {
+            return await this.invokeImageGenerator(context);
+        }
+
+        // Simulated processing time for other agents
         const processingTime = 1000 + Math.random() * 1500;
         await this.sleep(processingTime);
 
@@ -240,17 +245,12 @@ class DAGExecutor {
             this.emit('onLog', { message: `   Context applied: ${context.planName}`, type: 'info' });
         }
 
-        // Mock responses
+        // Mock responses for non-image agents
         const mockResponses = {
             creator_text: {
                 content: context ?
                     `[Based on Plan: ${context.planName}]\n\n🚀 Exciting executed content based on your ${context.planType} plan.\n\nStrategy: ${context.content.substring(0, 50)}...\n\n#ZYNK #AI #Executed` :
                     "🚀 Exciting news! We're thrilled to announce our latest innovation that's changing the game.\n\n#Innovation #Technology #Future"
-            },
-            creator_image: {
-                // Using Picsum for reliable placeholder (Pollinations can be slow/unreliable)
-                // Random seed based on context for variety
-                imageUrl: `https://picsum.photos/seed/${context?.planName?.replace(/\s/g, '') || 'zynkdefault'}/800/600`
             },
             seo_optimizer: {
                 score: Math.floor(Math.random() * (98 - 85 + 1)) + 85,
@@ -264,6 +264,41 @@ class DAGExecutor {
         };
 
         return mockResponses[agentId] || { success: true };
+    }
+
+    /**
+     * Invoke Image Generator using DALL-E via Cloud Function
+     */
+    async invokeImageGenerator(context) {
+        try {
+            this.emit('onLog', { message: '   🎨 Generating image with DALL-E...', type: 'info' });
+
+            const generateFn = firebase.functions().httpsCallable('generateCreativeContent');
+            const result = await generateFn({
+                type: 'promo_images',
+                inputs: {
+                    topic: context?.planName || 'professional business content',
+                    audience: 'general',
+                    tone: 'professional'
+                },
+                projectContext: context?.content || '',
+                targetLanguage: 'English',
+                mode: 'balanced'
+            });
+
+            if (result.data.success && result.data.data && result.data.data.length > 0) {
+                return { imageUrl: result.data.data[0] };
+            } else {
+                throw new Error('No image generated');
+            }
+        } catch (error) {
+            console.error('[DAGExecutor] Image generation failed:', error);
+            this.emit('onLog', { message: `   ⚠️ DALL-E failed, using placeholder`, type: 'warning' });
+            // Fallback to placeholder
+            return {
+                imageUrl: `https://picsum.photos/seed/${context?.planName?.replace(/\s/g, '') || 'zynkdefault'}/800/600`
+            };
+        }
     }
 
     /**
