@@ -1081,17 +1081,23 @@ function startExecution() {
             addLogEntry(message, type);
         })
         .on('onContentGenerated', ({ agentId, content }) => {
+            console.log('[Studio] Content Generated:', agentId, content);
+
             if (agentId === 'creator_text') {
                 streamTextContent(content.content);
             } else if (agentId === 'creator_image') {
+                console.log('[Studio] Image URL:', content?.imageUrl);
                 const imageContainer = document.getElementById('twitter-image');
-                if (imageContainer) {
-                    imageContainer.style.display = 'block'; // Ensure it's visible
-                    imageContainer.innerHTML = `<img src="${content.imageUrl}" alt="Generated Content" style="width:100%; height:100%; object-fit:cover; border-radius: 12px; border: 1px solid var(--color-border);">`;
 
-                    // Add log with image link
+                if (imageContainer && content?.imageUrl) {
+                    imageContainer.style.display = 'block';
+                    imageContainer.innerHTML = `<img src="${content.imageUrl}" alt="Generated Content" style="width:100%; height:100%; object-fit:cover; border-radius: 12px; border: 1px solid var(--color-border);" onerror="console.error('Image load failed:', this.src)">`;
+
                     const shortUrl = content.imageUrl.length > 50 ? 'View Generated Image' : content.imageUrl;
                     addLogEntry(`🖼️ Image generated: <a href="${content.imageUrl}" target="_blank" style="color:#3b82f6;text-decoration:underline;">${shortUrl}</a>`, 'success');
+                } else {
+                    console.error('[Studio] Image container not found or imageUrl missing', { imageContainer: !!imageContainer, imageUrl: content?.imageUrl });
+                    addLogEntry('⚠️ Image generation returned no URL', 'warning');
                 }
             }
         })
