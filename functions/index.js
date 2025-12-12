@@ -85,7 +85,12 @@ exports.callOpenAI = functions.https.onCall(async (data, context) => {
  * Execute a single sub-agent
  * Called from the frontend AgentExecutionService
  */
-exports.executeSubAgent = functions.https.onCall(async (data, context) => {
+exports.executeSubAgent = onCall({
+    cors: true,
+    timeoutSeconds: 300,
+    memory: '1GiB'
+}, async (request) => {
+    const data = request.data;
     // Check authentication - [DISABLED for Testing]
     // if (!context.auth) {
     //     throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
