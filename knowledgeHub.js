@@ -3483,6 +3483,30 @@ function renderCreativeImages(images) {
 }
 
 /**
+ * Render creative text/HTML result
+ */
+function renderCreativeResult(type, content) {
+    const container = document.getElementById('creative-result-container');
+
+    // Clean up content - remove markdown code blocks if present
+    let cleanContent = content;
+    if (typeof content === 'string') {
+        cleanContent = content.replace(/```html?\n?/gi, '').replace(/```\n?/g, '');
+    }
+
+    container.innerHTML = `
+        <div class="w-full h-full overflow-y-auto bg-white text-slate-800 rounded-lg">
+            <div class="prose max-w-none p-6">
+                ${cleanContent}
+            </div>
+        </div>
+    `;
+
+    container.style.display = 'block';
+    container.classList.remove('hidden');
+}
+
+/**
  * Generate plan content
  */
 async function generatePlan() {
