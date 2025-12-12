@@ -104,7 +104,7 @@ window.initSettings = function (currentUser) {
 
         form.reset();
         document.getElementById('provider-doc-id-settings').value = '';
-        testResultDiv.innerHTML = '';
+        if (testResultDiv) testResultDiv.innerHTML = '';
 
         if (providerId) {
             const p = providers.find(item => item.id === providerId);
