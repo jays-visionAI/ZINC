@@ -112,7 +112,11 @@ document.addEventListener('DOMContentLoaded', () => {
  * Resets the DAG visualization to its initial state.
  * This is called when a new agent team is selected.
  */
-function renderDAGPlaceholder() {
+/**
+ * Resets the DAG visualization to its initial state.
+ * This is called when a new agent team is selected.
+ */
+window.renderDAGPlaceholder = function () {
     // Reset all DAG nodes to 'waiting' state
     const nodes = document.querySelectorAll('.dag-node');
     nodes.forEach(node => {
@@ -134,8 +138,8 @@ function renderDAGPlaceholder() {
         particleGroup.innerHTML = '';
     }
 
-    console.log('[Studio] DAG visualization reset.');
-}
+    console.log('[Studio] DAG visualization reset (Global).');
+};
 
 async function initProjectSelector() {
     const projectSelect = document.getElementById('project-select');
