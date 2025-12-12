@@ -26,6 +26,10 @@ const { StrategyPlanner } = require('./zyncCore/cognitiveRouter');
 const { AdversarialLoop } = require('./zyncCore/theArena');
 const { FeedbackLoop } = require('./zyncCore/feedbackLoop');
 
+// LLM SDKs
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const Anthropic = require('@anthropic-ai/sdk');
+
 /**
  * Call OpenAI Chat Completions API
  * This function securely proxies requests to OpenAI from the frontend
@@ -142,18 +146,9 @@ exports.executeSubAgent = onCall({
         // Add the task prompt
         messages.push({ role: 'user', content: taskPrompt || 'Please generate content.' });
 
-        // Call OpenAI
-        const OpenAI = require('openai');
-        const openai = new OpenAI({ apiKey });
-
-        const response = await openai.chat.completions.create({
-            model: model || 'gpt-4',
-            messages: messages,
-            temperature: temperature || 0.7,
-            max_tokens: 2000
-        });
-
-        const output = response.choices[0]?.message?.content || '';
+        // Call LLM based on provider
+        const llmResult = await callLLM(provider || 'openai', model, messages, temperature);
+        const output = llmResult.content;
 
         // Log execution to Firestore (optional)
         await db.collection('projects').doc(projectId)
@@ -162,16 +157,17 @@ exports.executeSubAgent = onCall({
                 subAgentId,
                 status: 'completed',
                 output,
-                model: response.model,
-                usage: response.usage,
+                provider: provider || 'openai',
+                model: llmResult.model,
+                usage: llmResult.usage,
                 executedAt: admin.firestore.FieldValue.serverTimestamp()
             });
 
         return {
             success: true,
             output,
-            usage: response.usage,
-            model: response.model
+            usage: llmResult.usage,
+            model: llmResult.model
         };
 
     } catch (error) {
@@ -251,6 +247,138 @@ function getApiKeyFromData(data) {
         return data.credentialRef.apiKeyEncrypted || data.credentialRef.apiKey || null;
     }
     return null;
+}
+
+/**
+ * Unified LLM Call Function
+ * Supports: OpenAI, Gemini, Anthropic (Claude)
+ */
+async function callLLM(provider, model, messages, temperature = 0.7) {
+    const apiKey = await getSystemApiKey(provider);
+
+    if (!apiKey) {
+        throw new Error(`API key not configured for provider: ${provider}`);
+    }
+
+    console.log(`[callLLM] Calling ${provider} with model ${model}`);
+
+    switch (provider.toLowerCase()) {
+        case 'openai':
+            return await callOpenAIInternal(apiKey, model || 'gpt-4o-mini', messages, temperature);
+
+        case 'gemini':
+        case 'google':
+            return await callGeminiInternal(apiKey, model || 'gemini-2.0-flash-exp', messages, temperature);
+
+        case 'anthropic':
+        case 'claude':
+            return await callClaudeInternal(apiKey, model || 'claude-3-5-sonnet-20241022', messages, temperature);
+
+        default:
+            // Fallback to OpenAI
+            console.warn(`[callLLM] Unknown provider ${provider}, falling back to OpenAI`);
+            return await callOpenAIInternal(apiKey, model || 'gpt-4o-mini', messages, temperature);
+    }
+}
+
+/**
+ * OpenAI Internal Call
+ */
+async function callOpenAIInternal(apiKey, model, messages, temperature) {
+    const OpenAI = require('openai');
+    const openai = new OpenAI({ apiKey });
+
+    const response = await openai.chat.completions.create({
+        model,
+        messages,
+        temperature,
+        max_tokens: 4000
+    });
+
+    return {
+        content: response.choices[0]?.message?.content || '',
+        model: response.model,
+        usage: response.usage,
+        provider: 'openai'
+    };
+}
+
+/**
+ * Gemini Internal Call
+ */
+async function callGeminiInternal(apiKey, model, messages, temperature) {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const geminiModel = genAI.getGenerativeModel({ model });
+
+    // Convert OpenAI message format to Gemini format
+    const systemMessage = messages.find(m => m.role === 'system')?.content || '';
+    const userMessages = messages.filter(m => m.role !== 'system');
+
+    // Build conversation history
+    const history = [];
+    for (let i = 0; i < userMessages.length - 1; i++) {
+        const msg = userMessages[i];
+        history.push({
+            role: msg.role === 'assistant' ? 'model' : 'user',
+            parts: [{ text: msg.content }]
+        });
+    }
+
+    // Get the last user message
+    const lastMessage = userMessages[userMessages.length - 1];
+    const prompt = systemMessage ? `${systemMessage}\n\n${lastMessage.content}` : lastMessage.content;
+
+    const chat = geminiModel.startChat({
+        history,
+        generationConfig: {
+            temperature,
+            maxOutputTokens: 4000
+        }
+    });
+
+    const result = await chat.sendMessage(prompt);
+    const response = await result.response;
+
+    return {
+        content: response.text(),
+        model,
+        usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }, // Gemini doesn't return token counts in same way
+        provider: 'gemini'
+    };
+}
+
+/**
+ * Claude (Anthropic) Internal Call
+ */
+async function callClaudeInternal(apiKey, model, messages, temperature) {
+    const anthropic = new Anthropic({ apiKey });
+
+    // Convert OpenAI format to Anthropic format
+    const systemMessage = messages.find(m => m.role === 'system')?.content || '';
+    const anthropicMessages = messages
+        .filter(m => m.role !== 'system')
+        .map(m => ({
+            role: m.role === 'assistant' ? 'assistant' : 'user',
+            content: m.content
+        }));
+
+    const response = await anthropic.messages.create({
+        model,
+        max_tokens: 4000,
+        system: systemMessage,
+        messages: anthropicMessages
+    });
+
+    return {
+        content: response.content[0]?.text || '',
+        model: response.model,
+        usage: {
+            prompt_tokens: response.usage?.input_tokens || 0,
+            completion_tokens: response.usage?.output_tokens || 0,
+            total_tokens: (response.usage?.input_tokens || 0) + (response.usage?.output_tokens || 0)
+        },
+        provider: 'anthropic'
+    };
 }
 
 /**
