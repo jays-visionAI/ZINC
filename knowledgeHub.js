@@ -3433,6 +3433,23 @@ async function generateCreativeItem() {
             document.getElementById('creative-result-container').style.display = 'block';
             document.getElementById('creative-result-container').classList.remove('hidden');
             document.getElementById('btn-creative-download').classList.remove('hidden');
+
+            // Setup Download Button
+            const downloadBtn = document.getElementById('btn-creative-download');
+            downloadBtn.onclick = () => {
+                if (currentCreativeType === 'promo_images' && currentCreativeData && currentCreativeData.length > 0) {
+                    window.open(currentCreativeData[0], '_blank');
+                } else {
+                    // For text content
+                    const blob = new Blob([currentCreativeData], { type: 'text/html' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `zynk-creative-${Date.now()}.html`;
+                    a.click();
+                }
+            };
+
             document.getElementById('btn-creative-copy').classList.remove('hidden');
         }
     }

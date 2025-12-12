@@ -3711,28 +3711,59 @@ exports.generateCreativeContent = onCall({ cors: true }, async (request) => {
         };
 
         // 3. Handle Image Generation (Bypass Arena for now, logic kept simple)
+        // 3. Handle Image Generation (Smart Route for Text)
         if (type === 'promo_images') {
-            // ... (Existing Image Logic - Omitted for brevity, kept strictly same flow as actual code below)
-            // Try Nanobananana (Flux) first
-            try {
-                const bananaResult = await callNanobananana({
-                    prompt: topic + ' ' + style,
-                    negative_prompt: negativePrompt || 'text, blurry, low quality',
-                    width: 1024,
-                    height: 1024,
-                    num_inference_steps: 30 // Good balance for Flux
-                });
+            console.log('[generateCreativeContent] Image gen requested. Routing...');
 
-                if (bananaResult && bananaResult.length > 0) {
-                    return {
-                        success: true,
-                        type: 'image',
-                        data: bananaResult // Expecting array of URLs
-                    };
+            // Check for text requirements to prioritize Ideogram
+            const hasTextRequirement = /logo|text|banner|title|headline|caption|font|typography/i.test(topic + ' ' + style);
+
+            // Get available providers
+            const providersDoc = await db.collection('systemSettings').doc('imageProviders').get();
+            const providers = providersDoc.exists ? providersDoc.data() : {};
+
+            // Priority: Ideogram (if text) > Flux (Performance) > DALL-E (Fallback)
+            let selectedProvider = 'dalle';
+
+            if (hasTextRequirement && providers.ideogram?.apiKey && providers.ideogram?.enabled !== false) {
+                selectedProvider = 'ideogram';
+            } else if (providers.flux?.apiKey && providers.flux?.enabled !== false) {
+                selectedProvider = 'flux';
+            } else if (providers.ideogram?.apiKey && providers.ideogram?.enabled !== false) {
+                // Even if no text, Ideogram is often better for "Promo" than DALL-E
+                selectedProvider = 'ideogram';
+            }
+
+            console.log(`[generateCreativeContent] Selected Provider: ${selectedProvider} (Text Req: ${hasTextRequirement})`);
+
+            // Use Smart Image Logic
+            // Note: We duplicate logic slightly to avoid cloud function self-invocation latency/complexity
+            if (selectedProvider === 'ideogram') {
+                try {
+                    const ideogramResult = await generateWithIdeogram(
+                        topic + ' ' + style + (projectContext ? ` Context: ${projectContext.substring(0, 200)}` : ''),
+                        await getImageApiKey('ideogram')
+                    );
+                    return { success: true, type: 'image', data: [ideogramResult] };
+                } catch (err) { console.error('Ideogram failed', err); /* Fallback */ }
+            }
+
+            // Fallback to Nanobananana (Flux)
+            if (selectedProvider === 'flux' || selectedProvider === 'dalle') { // Attempt Flux first if selected or fallback for Ideogram
+                try {
+                    const bananaResult = await callNanobananana({
+                        prompt: topic + ' ' + style,
+                        negative_prompt: negativePrompt || 'text, blurry, low quality',
+                        width: 1024,
+                        height: 1024,
+                        num_inference_steps: 30
+                    });
+                    if (bananaResult && bananaResult.length > 0) {
+                        return { success: true, type: 'image', data: bananaResult };
+                    }
+                } catch (bananaError) {
+                    console.warn('Flux failed, falling back to DALL-E');
                 }
-            } catch (bananaError) {
-                console.warn('Nanobananana failed, falling back to DALL-E:', bananaError);
-                // Fallthrough to DALL-E
             }
 
             const imagePrompt = `High quality, professional promotional image. Topic: ${topic}. Style: ${style}. Context: ${projectContext}. Negative prompt: ${negativePrompt || 'text, blurry, low quality'}.`;
@@ -3754,16 +3785,7 @@ exports.generateCreativeContent = onCall({ cors: true }, async (request) => {
                 };
             } catch (imgError) {
                 console.error('Image Gen Error:', imgError);
-                // Fallback Mock for Demo if API fails (e.g. rate limit / cost)
-                return {
-                    success: true,
-                    type: 'image',
-                    isMock: true,
-                    data: [
-                        'https://picsum.photos/seed/fallback1/1024/1024',
-                        'https://picsum.photos/seed/fallback2/1024/1024'
-                    ]
-                };
+                return { success: false, error: 'Image generation failed: ' + imgError.message };
             }
         }
 

@@ -498,35 +498,53 @@ async function loadAgentTeams(projectId) {
  */
 async function loadSubAgents(teamId) {
     try {
-        // Fetch sub-agents from projectAgentTeamInstances/{teamId}/subAgents
-        const subAgentsSnapshot = await db.collection('projectAgentTeamInstances')
+        // 1. Try projectAgentTeamInstances subcollection (Live Instances)
+        let subAgentsSnapshot = await db.collection('projectAgentTeamInstances')
             .doc(teamId)
             .collection('subAgents')
             .orderBy('display_order', 'asc')
             .get();
 
-        if (subAgentsSnapshot.empty) {
-            console.log('No sub-agents found for team:', teamId);
-            // Use default template selection
-            const template = WORKFLOW_TEMPLATES[state.selectedTemplate];
-            if (template) {
-                applyTemplate(template);
-            }
+        if (!subAgentsSnapshot.empty) {
+            const subAgents = [];
+            subAgentsSnapshot.forEach(doc => {
+                subAgents.push({ id: doc.id, ...doc.data() });
+            });
+
+            console.log('Loaded sub-agents from Instance:', subAgents);
+            updateAgentRosterUI(subAgents);
+            await updatePreviewChannel(teamId);
             return;
         }
 
-        const subAgents = [];
-        subAgentsSnapshot.forEach(doc => {
-            subAgents.push({ id: doc.id, ...doc.data() });
-        });
+        // 2. Fallback: Try agentTeams collection (Structure with 'roles' array)
+        console.log('No sub-agents in Instance, checking agentTeams...');
+        const teamDoc = await db.collection('agentTeams').doc(teamId).get();
 
-        console.log('Loaded sub-agents:', subAgents);
+        if (teamDoc.exists) {
+            const teamData = teamDoc.data();
+            if (teamData.roles && Array.isArray(teamData.roles)) {
+                // Map roles to sub-agent format
+                const subAgents = teamData.roles.map(role => ({
+                    id: role.type,
+                    role_type: role.type,
+                    name: role.name,
+                    // Add other necessary fields if needed
+                }));
 
-        // Update Agent Roster UI
-        updateAgentRosterUI(subAgents);
+                console.log('Loaded sub-agents from Team Template:', subAgents);
+                updateAgentRosterUI(subAgents);
+                await updatePreviewChannel(teamId);
+                return;
+            }
+        }
 
-        // Update preview channel based on team configuration
-        await updatePreviewChannel(teamId);
+        console.log('No sub-agents found for team:', teamId);
+        // Use default template selection
+        const template = WORKFLOW_TEMPLATES[state.selectedTemplate];
+        if (template) {
+            applyTemplate(template);
+        }
 
     } catch (error) {
         console.error('Error loading sub-agents:', error);
@@ -550,15 +568,25 @@ async function updatePreviewChannel(teamId) {
     if (!channelIcon || !channelName) return;
 
     try {
-        // Fetch the Agent Team document to get channel config
-        const teamDoc = await db.collection('projectAgentTeamInstances').doc(teamId).get();
+        // Try projectAgentTeamInstances first
+        let teamDoc = await db.collection('projectAgentTeamInstances').doc(teamId).get();
+        let team = null;
 
-        if (!teamDoc.exists) {
+        if (teamDoc.exists) {
+            team = teamDoc.data();
+        } else {
+            // Fallback to agentTeams
+            teamDoc = await db.collection('agentTeams').doc(teamId).get();
+            if (teamDoc.exists) {
+                team = teamDoc.data();
+            }
+        }
+
+        if (!team) {
             channelName.textContent = 'Team not found';
             return;
         }
 
-        const team = teamDoc.data();
         const channels = team.channels || [];
         const bindings = team.channelBindings || {};
 
@@ -596,6 +624,8 @@ async function updatePreviewChannel(teamId) {
                 provider = primaryChannel.provider || primaryChannel.key || primaryChannel.id;
             }
         } else {
+            // If checking agentSetTemplate/agentTeams, channels might not be defined or different
+            // Templates are usually channel-agnostic, but we can check if they have a default
             console.log('No channels configured for team, defaulting to X');
         }
 
