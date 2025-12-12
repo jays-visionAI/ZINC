@@ -248,9 +248,9 @@ class DAGExecutor {
                     "🚀 Exciting news! We're thrilled to announce our latest innovation that's changing the game.\n\n#Innovation #Technology #Future"
             },
             creator_image: {
-                imageUrl: context ?
-                    `https://image.pollinations.ai/prompt/${encodeURIComponent(context.planName || 'professional business content')}?width=800&height=600&nologo=true` :
-                    `https://image.pollinations.ai/prompt/modern%20professional%20business%20technology?width=800&height=600&nologo=true`
+                // Using Picsum for reliable placeholder (Pollinations can be slow/unreliable)
+                // Random seed based on context for variety
+                imageUrl: `https://picsum.photos/seed/${context?.planName?.replace(/\s/g, '') || 'zynkdefault'}/800/600`
             },
             seo_optimizer: {
                 score: Math.floor(Math.random() * (98 - 85 + 1)) + 85,
