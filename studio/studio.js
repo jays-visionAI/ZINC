@@ -1748,3 +1748,32 @@ function initTooltip() {
         });
     }
 }
+
+/**
+ * Resets the DAG visualization to its initial state.
+ * This is called when a new agent team is selected.
+ */
+function renderDAGPlaceholder() {
+    // Reset all DAG nodes to 'waiting' state
+    const nodes = document.querySelectorAll('.dag-node');
+    nodes.forEach(node => {
+        node.classList.remove('running', 'completed', 'failed');
+        node.classList.add('waiting');
+    });
+
+    // Reset all paths
+    const paths = document.querySelectorAll('.dag-path');
+    paths.forEach(path => {
+        path.classList.remove('active');
+        path.style.strokeDasharray = '';
+        path.style.strokeDashoffset = '';
+    });
+
+    // Clear any particles
+    const particleGroup = document.getElementById('dag-particles');
+    if (particleGroup) {
+        particleGroup.innerHTML = '';
+    }
+
+    console.log('[Studio] DAG visualization reset.');
+}
