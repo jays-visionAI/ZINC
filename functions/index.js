@@ -364,15 +364,17 @@ exports.postToTwitter = functions.https.onCall(async (data, context) => {
 
         console.log(`[postToTwitter] Tweet posted successfully: ${tweet.data.id}`);
 
-        // 4. Update content status in Firestore
+        // 4. Update content status in Firestore (create if not exists)
         await db.collection('projects').doc(projectId)
             .collection('generatedContents').doc(contentId)
-            .update({
+            .set({
                 status: 'published',
                 published_at: admin.firestore.FieldValue.serverTimestamp(),
                 tweet_id: tweet.data.id,
-                tweet_url: `https://twitter.com/user/status/${tweet.data.id}`
-            });
+                tweet_url: `https://twitter.com/user/status/${tweet.data.id}`,
+                content: tweetText,
+                projectId: projectId
+            }, { merge: true });
 
         return {
             success: true,
