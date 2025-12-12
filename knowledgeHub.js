@@ -3767,11 +3767,40 @@ async function loadAgentTeams() {
 
     try {
         const db = firebase.firestore();
-        const snapshot = await db.collection('agentTeams')
-            .where('projectId', '==', currentProjectId)
-            .get();
+        let teams = [];
 
-        if (snapshot.empty) {
+        // 1. Try projectAgentTeamInstances (New Architecture)
+        try {
+            const instancesSnapshot = await db.collection('projectAgentTeamInstances')
+                .where('projectId', '==', currentProjectId)
+                .get();
+
+            instancesSnapshot.forEach(doc => {
+                teams.push({ id: doc.id, ...doc.data(), source: 'instance' });
+            });
+            console.log(`[KnowledgeHub] Loaded ${instancesSnapshot.size} teams from Instances.`);
+        } catch (e) {
+            console.warn('[KnowledgeHub] Failed to load instances:', e);
+            // Continue to fallback
+        }
+
+        // 2. Fallback: Try agentTeams (Legacy Architecture) if we have very experienced users or valid configurations
+        if (teams.length === 0) {
+            try {
+                const legacySnapshot = await db.collection('agentTeams')
+                    .where('projectId', '==', currentProjectId)
+                    .get();
+
+                legacySnapshot.forEach(doc => {
+                    teams.push({ id: doc.id, ...doc.data(), source: 'legacy' });
+                });
+                console.log(`[KnowledgeHub] Loaded ${legacySnapshot.size} teams from Legacy agentTeams.`);
+            } catch (e) {
+                console.warn('[KnowledgeHub] Failed to load legacy teams:', e);
+            }
+        }
+
+        if (teams.length === 0) {
             list.innerHTML = `
                 <div class="text-center py-4 text-slate-500 text-sm">
                     No agent teams found for this project.<br>
@@ -3781,11 +3810,10 @@ async function loadAgentTeams() {
             return;
         }
 
-        list.innerHTML = snapshot.docs.map(doc => {
-            const team = doc.data();
+        list.innerHTML = teams.map(team => {
             return `
                 <div class="agent-team-option p-3 bg-slate-800 border border-slate-700 rounded-xl hover:border-indigo-500 cursor-pointer transition-all flex items-center justify-between"
-                    onclick="selectAgentTeam('${doc.id}', this)">
+                    onclick="selectAgentTeam('${team.id}', this)">
                     <div>
                         <div class="text-sm font-medium text-white">${team.name}</div>
                         <div class="text-xs text-slate-500">${team.description || 'No description'}</div>

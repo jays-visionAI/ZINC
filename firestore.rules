@@ -259,6 +259,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Agent Teams (Legacy/Simple): Admin can write, authenticated users can read
+    match /agentTeams/{teamId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
     // Project Agent Team Instances: Admin can write, authenticated users can read
     match /projectAgentTeamInstances/{instanceId} {
       allow read: if isAuthenticated();
