@@ -334,13 +334,14 @@ exports.testXConnection = onRequest({ cors: true }, async (req, res) => {
 exports.postToTwitter = functions.https.onCall(async (data, context) => {
     // Normalize data payload
     const payload = (data && data.data) ? data.data : data;
-    const { projectId, contentId, tweetText, userId } = payload;
+    const { projectId, contentId, tweetText, userId, imageUrl } = payload;
 
     if (!projectId || !contentId || !tweetText) {
         throw new functions.https.HttpsError('invalid-argument', 'Missing required parameters: projectId, contentId, tweetText');
     }
 
     console.log(`[postToTwitter] Posting content ${contentId} for project ${projectId}`);
+    console.log(`[postToTwitter] Has image: ${!!imageUrl}`);
 
     try {
         // 1. Get X API credentials from user's channel credentials
@@ -359,8 +360,38 @@ exports.postToTwitter = functions.https.onCall(async (data, context) => {
             accessSecret: credentials.access_token_secret
         });
 
-        // 3. Post tweet
-        const tweet = await client.v2.tweet(tweetText);
+        let tweet;
+
+        // 3. Upload image if provided
+        if (imageUrl) {
+            try {
+                console.log('[postToTwitter] Downloading image from:', imageUrl);
+
+                // Download image
+                const axios = require('axios');
+                const imageResponse = await axios.get(imageUrl, {
+                    responseType: 'arraybuffer',
+                    timeout: 30000
+                });
+                const imageBuffer = Buffer.from(imageResponse.data);
+
+                console.log('[postToTwitter] Image downloaded, size:', imageBuffer.length);
+
+                // Upload to Twitter
+                const mediaId = await client.v1.uploadMedia(imageBuffer, { mimeType: 'image/png' });
+                console.log('[postToTwitter] Image uploaded to Twitter, mediaId:', mediaId);
+
+                // Post tweet with media
+                tweet = await client.v2.tweet(tweetText, { media: { media_ids: [mediaId] } });
+            } catch (imageError) {
+                console.error('[postToTwitter] Image upload failed, posting without image:', imageError.message);
+                // Fallback to text-only tweet
+                tweet = await client.v2.tweet(tweetText);
+            }
+        } else {
+            // Post text-only tweet
+            tweet = await client.v2.tweet(tweetText);
+        }
 
         console.log(`[postToTwitter] Tweet posted successfully: ${tweet.data.id}`);
 
@@ -373,6 +404,7 @@ exports.postToTwitter = functions.https.onCall(async (data, context) => {
                 tweet_id: tweet.data.id,
                 tweet_url: `https://twitter.com/user/status/${tweet.data.id}`,
                 content: tweetText,
+                imageUrl: imageUrl || null,
                 projectId: projectId
             }, { merge: true });
 

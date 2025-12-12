@@ -1677,9 +1677,15 @@ function approveContent() {
     const contentId = state.currentContentId || `content_${Date.now()}`;
     const userId = firebase.auth().currentUser?.uid;
 
+    // Get image URL if available
+    const imageContainer = document.getElementById('twitter-image');
+    const imageEl = imageContainer?.querySelector('img');
+    const imageUrl = imageEl?.src || null;
+
+    console.log('[Studio] Posting with image:', imageUrl);
     addLogEntry('📤 Posting to X (Twitter)...', 'info');
 
-    postToTwitter({ projectId, contentId, tweetText, userId })
+    postToTwitter({ projectId, contentId, tweetText, userId, imageUrl })
         .then((result) => {
             console.log('[Studio] Posted to Twitter:', result);
             addLogEntry(`✅ Posted to X! Tweet ID: ${result.data.tweetId}`, 'success');
