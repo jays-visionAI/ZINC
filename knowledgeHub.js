@@ -1231,16 +1231,25 @@ async function regenerateSourceSummary(sourceId) {
             return;
         }
 
-        // Call AI to generate summary
-        const response = await callGeminiForChat(`
-            Please provide a concise summary (3-5 sentences) of the following document content. 
-            Focus on the key points and main takeaways.
+        // Call AI to generate summary via Cloud Function
+        const callOpenAI = firebase.functions().httpsCallable('callOpenAI');
+        const result = await callOpenAI({
+            messages: [
+                { role: 'system', content: 'You are a helpful assistant that creates concise document summaries.' },
+                {
+                    role: 'user', content: `Please provide a concise summary (3-5 sentences) of the following document content. Focus on the key points and main takeaways.
             
-            Document Title: ${source.title || 'Untitled'}
-            Document Type: ${source.sourceType}
-            Content:
-            ${contentToSummarize.substring(0, 5000)}
-        `);
+Document Title: ${source.title || 'Untitled'}
+Document Type: ${source.sourceType}
+Content:
+${contentToSummarize.substring(0, 5000)}`
+                }
+            ],
+            model: 'gpt-4o-mini',
+            temperature: 0.5
+        });
+
+        const response = result.data?.response;
 
         if (response) {
             // Save summary to Firestore
