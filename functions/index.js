@@ -3864,7 +3864,7 @@ exports.generateCreativeContent = onCall({ cors: true }, async (request) => {
             meta: {
                 mode: plan.mode,
                 logs: debugLogs,
-                drafts: resultData === arenaResult.finalOutput ? arenaResult.agents : null // Return drafts if available
+                drafts: null // Drafts from Arena are captured in debugLogs if needed
             }
         };
 
