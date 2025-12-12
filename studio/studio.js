@@ -1637,13 +1637,71 @@ function approveContent() {
     const approveBtn = document.getElementById('btn-approve');
     if (approveBtn) {
         approveBtn.classList.add('approved');
+        approveBtn.disabled = true;
         approveBtn.innerHTML = `
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="20 6 9 17 4 12"></polyline>
             </svg>
-            Approved!
+            Publishing...
         `;
     }
+
+    // Get generated content from preview
+    const twitterContent = document.getElementById('twitter-content');
+    const tweetText = twitterContent ? twitterContent.textContent.trim() : '';
+
+    if (!tweetText || tweetText === 'Your generated tweet will appear here...') {
+        addLogEntry('❌ No content to publish', 'error');
+        if (approveBtn) {
+            approveBtn.disabled = false;
+            approveBtn.innerHTML = `
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                Approve
+            `;
+            approveBtn.classList.remove('approved');
+        }
+        return;
+    }
+
+    // Call postToTwitter Cloud Function
+    const postToTwitter = firebase.functions().httpsCallable('postToTwitter');
+    const projectId = state.selectedProject;
+    const contentId = state.currentContentId || `content_${Date.now()}`;
+    const userId = firebase.auth().currentUser?.uid;
+
+    addLogEntry('📤 Posting to X (Twitter)...', 'info');
+
+    postToTwitter({ projectId, contentId, tweetText, userId })
+        .then((result) => {
+            console.log('[Studio] Posted to Twitter:', result);
+            addLogEntry(`✅ Posted to X! Tweet ID: ${result.data.tweetId}`, 'success');
+
+            if (approveBtn) {
+                approveBtn.innerHTML = `
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                    Published!
+                `;
+            }
+        })
+        .catch((error) => {
+            console.error('[Studio] Failed to post to Twitter:', error);
+            addLogEntry(`❌ Failed to post: ${error.message}`, 'error');
+
+            if (approveBtn) {
+                approveBtn.disabled = false;
+                approveBtn.innerHTML = `
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                    Retry
+                `;
+                approveBtn.classList.remove('approved');
+            }
+        });
 }
 
 // Helper: sleep function
