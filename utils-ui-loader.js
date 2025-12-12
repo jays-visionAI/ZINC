@@ -23,6 +23,9 @@
             }
             this.config = JSON.parse(JSON.stringify(window.DEFAULT_UI_CONFIG)); // Deep copy
 
+            // Render Default UI Immediately (Fixes Race Condition)
+            this.refreshUI();
+
             // 2. Load Firestore Overrides (Phase 4 Implementation)
             if (typeof db !== 'undefined') {
                 try {
@@ -168,6 +171,16 @@
         renderHeader: function (containerId, pageKey) {
             const container = document.getElementById(containerId);
             if (!container) return;
+
+            // Safety check: Initialize config if missing (Race condition fix)
+            if (!this.config) {
+                if (window.DEFAULT_UI_CONFIG) {
+                    this.config = JSON.parse(JSON.stringify(window.DEFAULT_UI_CONFIG));
+                } else {
+                    console.warn(`[UI Loader] Config not ready for renderHeader('${pageKey}')`);
+                    return;
+                }
+            }
 
             const headerConfig = this.config.headers[pageKey];
             if (!headerConfig) {

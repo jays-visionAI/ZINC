@@ -47,6 +47,7 @@ let accessToken = null;
 document.addEventListener('DOMContentLoaded', () => {
     initializeKnowledgeHub();
     initializeMobileTabs();
+    setPerformanceMode('balanced'); // Init UI
 });
 
 async function initializeKnowledgeHub() {
@@ -71,8 +72,38 @@ async function initializeKnowledgeHub() {
     });
 }
 
-// Selected source state for panel expansion
-let selectedSourceId = null;
+// Performance Elasticity Logic
+function setPerformanceMode(mode) {
+    currentUserPerformanceMode = mode;
+
+    // Update UI Toggles
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+        if (btn.dataset.mode === mode) {
+            // Active Styles
+            if (mode === 'eco') btn.className = 'mode-btn px-3 py-1.5 text-xs font-medium rounded-md transition-all text-emerald-400 bg-emerald-500/10 border border-emerald-500/20';
+            if (mode === 'balanced') btn.className = 'mode-btn px-3 py-1.5 text-xs font-medium rounded-md transition-all text-indigo-400 bg-indigo-500/10 border border-indigo-500/20';
+            if (mode === 'pro') btn.className = 'mode-btn px-3 py-1.5 text-xs font-medium rounded-md transition-all text-rose-400 bg-rose-500/10 border border-rose-500/20';
+        } else {
+            // Inactive Styles
+            btn.className = 'mode-btn px-3 py-1.5 text-xs font-medium rounded-md transition-all text-slate-400 hover:text-white';
+        }
+    });
+
+    // Update Cost Estimation in UI (Visual feedback)
+    const costEl = document.getElementById('creative-cost');
+    if (costEl) {
+        let baseCost = 10;
+        if (currentCreativeType && CREATIVE_CONFIGS[currentCreativeType]) {
+            baseCost = CREATIVE_CONFIGS[currentCreativeType].credits;
+        }
+
+        let multiplier = 1;
+        if (mode === 'eco') multiplier = 0.5;
+        if (mode === 'pro') multiplier = 3; // Arena is expensive
+
+        costEl.textContent = `${Math.ceil(baseCost * multiplier)} cr`;
+    }
+}
 
 // ============================================================
 // GOOGLE DRIVE INTEGRATION
@@ -1275,7 +1306,7 @@ const PLAN_CATEGORY_ITEMS = {
     ]
 };
 
-let selectedCategory = null;
+// let selectedCategory = null; // Replaced by currentPlanCategory
 
 function initializePlanCards() {
     // Select first category by default
@@ -1304,7 +1335,7 @@ function initializePlanCards() {
  * Select a plan category and show its items
  */
 function selectPlanCategory(category) {
-    selectedCategory = category;
+    currentPlanCategory = category;
 
     // Update category button styles
     document.querySelectorAll('.plan-category-btn').forEach(btn => {
@@ -2400,12 +2431,12 @@ async function cleanupOldBrandSummaries() {
             .get();
 
         if (snapshot.size > MAX_SUMMARY_HISTORY) {
-            const batch = firebase.firestore().batch();
+            const notesToDelete = [];
             let count = 0;
             snapshot.forEach(doc => {
                 count++;
                 if (count > MAX_SUMMARY_HISTORY) {
-                    batch.delete(doc.ref);
+                    notesToDelete.push(doc.ref);
                 }
             });
             await batch.commit();
@@ -3358,7 +3389,9 @@ async function generateCreativeItem() {
             ...specificInputs
         },
         projectContext: contextText,
-        targetLanguage: targetLanguage || 'English'
+        projectContext: contextText,
+        targetLanguage: targetLanguage || 'English',
+        mode: currentUserPerformanceMode // Pass Eco/Balanced/Pro mode
     };
 
     // 3. UI Loading State
@@ -3380,6 +3413,8 @@ async function generateCreativeItem() {
                 renderCreativeImages(currentCreativeData);
             } else {
                 renderCreativeResult(currentCreativeType, currentCreativeData);
+                // Inject Feedback UI
+                setTimeout(renderFeedbackUI, 100);
             }
         } else {
             throw new Error(result.data.error || 'Generation failed');
@@ -4213,6 +4248,62 @@ async function confirmSchedule() {
     } catch (error) {
         console.error('Error scheduling content:', error);
         showNotification('Failed to schedule: ' + error.message, 'error');
+    }
+}
+
+// ============================================================
+// FEEDBACK LOOP UI
+// ============================================================
+function renderFeedbackUI() {
+    const container = document.getElementById('creative-result-container');
+    if (!container) return;
+
+    // Check if feedback already exists
+    if (document.getElementById('feedback-ui-section')) return;
+
+    const feedbackHtml = `
+        <div id="feedback-ui-section" class="mt-6 pt-4 border-t border-slate-700/50">
+            <div class="flex items-center justify-between">
+                <span class="text-xs text-slate-500">How was this result?</span>
+                <div class="flex gap-2">
+                    <button onclick="submitFeedback('good')" class="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-emerald-400 transition-colors" title="Good">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
+                    </button>
+                    <button onclick="submitFeedback('bad')" class="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-red-400 transition-colors" title="Bad">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Append to the content container (assuming standard layout)
+    // Try to find the inner content wrapper first
+    const contentWrapper = container.querySelector('.prose') ? container : container.firstElementChild;
+    if (contentWrapper) {
+        contentWrapper.insertAdjacentHTML('beforeend', feedbackHtml);
+    } else {
+        container.insertAdjacentHTML('beforeend', feedbackHtml);
+    }
+}
+
+async function submitFeedback(rating) {
+    const feedbackSection = document.getElementById('feedback-ui-section');
+    if (feedbackSection) {
+        feedbackSection.innerHTML = `<span class="text-xs text-emerald-400">Thanks for your feedback!</span>`;
+    }
+
+    try {
+        const submitFeedbackFn = firebase.functions().httpsCallable('submitFeedback');
+        await submitFeedbackFn({
+            rating: rating, // 'good' or 'bad'
+            projectId: currentProjectId,
+            mode: currentUserPerformanceMode,
+            planType: currentCreativeType
+        });
+        console.log('Feedback submitted');
+    } catch (error) {
+        console.error('Error submitting feedback:', error);
     }
 }
 

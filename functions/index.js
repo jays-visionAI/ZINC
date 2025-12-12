@@ -21,6 +21,11 @@ admin.initializeApp({
 
 const db = admin.firestore();
 
+// ZYNK Core Modules (Instances)
+const { StrategyPlanner } = require('./zyncCore/cognitiveRouter');
+const { AdversarialLoop } = require('./zyncCore/theArena');
+const { FeedbackLoop } = require('./zyncCore/feedbackLoop');
+
 /**
  * Call OpenAI Chat Completions API
  * This function securely proxies requests to OpenAI from the frontend
@@ -3675,27 +3680,39 @@ Create a comprehensive, well-structured output. Use markdown formatting with hea
     }
 });
 
-exports.generateCreativeContent = functions.https.onCall(async (data, context) => {
-    // 1. Auth Check
-    if (!context.auth) {
+exports.generateCreativeContent = onCall({ cors: true }, async (request) => {
+    // 1. Auth Check - moved inside try to ensure valid logging if needed, but keeping simple return for now
+    if (!request.auth) {
         return { success: false, error: 'Unauthenticated' };
     }
 
-    const { type, inputs, projectContext, targetLanguage = 'English' } = data;
-    const { topic, tone, format, audience, slideCount, ratio, style, negativePrompt } = inputs;
-
     try {
-        // 2. Get OpenAI Key
+        const { type, inputs = {}, projectContext, targetLanguage = 'English', mode = 'balanced' } = request.data || {};
+        const { topic, tone, format, audience, slideCount, ratio, style, negativePrompt } = inputs;
+        const startTime = Date.now();
+
+        console.log(`[generateCreativeContent] Starting: ${type}, Mode: ${mode}`);
+
+        // 2. Get OpenAI Key (for both Router and Arena)
         const apiKey = await getSystemApiKey('openai');
-        if (!apiKey) {
-            throw new Error('OpenAI API key not configured');
-        }
+        if (!apiKey) throw new Error('OpenAI API key not configured');
 
         const { OpenAI } = require('openai');
         const openai = new OpenAI({ apiKey });
 
-        // 3. Handle Image Generation
+        // Helper: Model Agnostic Execution
+        const executeLLM = async (messages, config) => {
+            const completion = await openai.chat.completions.create({
+                model: config.model || 'gpt-4o',
+                messages: messages,
+                temperature: config.temperature || 0.7
+            });
+            return completion.choices[0].message.content;
+        };
+
+        // 3. Handle Image Generation (Bypass Arena for now, logic kept simple)
         if (type === 'promo_images') {
+            // ... (Existing Image Logic - Omitted for brevity, kept strictly same flow as actual code below)
             // Try Nanobananana (Flux) first
             try {
                 const bananaResult = await callNanobananana({
@@ -3750,45 +3767,100 @@ exports.generateCreativeContent = functions.https.onCall(async (data, context) =
             }
         }
 
-        // 4. Handle Text Generation
+        // 4. ZYNK Core Routing (Text Generation)
+        // Plan the strategy
+        const plan = StrategyPlanner.plan({ mode, taskType: type });
+        console.log(`[ZYNK Core] Strategy Planned: ${plan.mode} (Arena: ${plan.useArena})`);
+
+        let resultData = '';
+        let debugLogs = '';
+
+        // Formulate Base Prompt
         let systemPrompt = `You are an expert creative content generator. Create content in ${targetLanguage}. Return ONLY valid HTML code inside a div. No markdown fences.`;
         let userPrompt = `Context: ${projectContext}\nTopic: ${topic}\nTone: ${tone}\nTarget Audience: ${audience}\n`;
 
+        // Type-specific additions
         if (type === 'product_brochure') {
-            userPrompt += `Create a specialized Product Brochure in ${format} layout.
-            Structure the HTML to fit an A4 page. Use Tailwind CSS classes for styling.
-            Include specific sections: Cover, Problem, Solution, Key Features.`;
+            userPrompt += `Create a specialized Product Brochure in ${format} layout. Structure HTML for A4. Use Tailwind CSS. Sections: Cover, Problem, Solution, Key Features.`;
         } else if (type === 'one_pager') {
-            userPrompt += `Create a high-density One-Pager Executive Summary.
-            Include rigid sections: The Challenge, Our Approach, Roadmap, Key Metrics.`;
+            userPrompt += `Create a high-density One-Pager Executive Summary. Sections: Challenge, Approach, Roadmap, Metrics.`;
         } else if (type === 'pitch_deck') {
-            userPrompt += `Create content for a ${slideCount} slide Pitch Deck.
-            Return an HTML structure with a grid of cards, each representing a slide.
-            Each slide should have a Title, Image Placeholder, and Bullet points.`;
+            userPrompt += `Create content for a ${slideCount} slide Pitch Deck. Return HTML grid of cards.`;
         } else if (type === 'email_template') {
-            userPrompt += `Create a professional Email Template for ${inputs.emailType}.
-            Include Subject Line, Body, and Signature.`;
+            userPrompt += `Create a professional Email Template for ${inputs.emailType}. Include Subject, Body, Signature.`;
         } else if (type === 'press_release') {
-            userPrompt += `Create a formal Press Release for ${inputs.announcementType}.
-            Follow standard PR format: FOR IMMEDIATE RELEASE, Dateline, Body, Quote, Boilerplate to Media Contact.`;
+            userPrompt += `Create a formal Press Release for ${inputs.announcementType}. Format: FOR IMMEDIATE RELEASE, Dateline, Body, Quote, Boilerplate.`;
         }
 
-        const completion = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: userPrompt }
-            ]
+        if (plan.useArena) {
+            // === ADVERSARIAL MODE ===
+            const arena = new AdversarialLoop(executeLLM);
+            const arenaResult = await arena.run(
+                userPrompt, // Task
+                projectContext || "No context provided",
+                { rounds: plan.rounds, models: { pro: plan.modelConfig, balanced: plan.modelConfig } }
+            );
+
+            // The Arena returns pure text/markdown, we might need to wrap it in HTML if the prompt didn't enforce it perfectly.
+            // But 'The Judge' usually standardizes it.
+            resultData = arenaResult.finalOutput;
+            debugLogs = arenaResult.logs;
+
+        } else {
+            // === FAST PATH (Eco/Simple) ===
+            const completion = await openai.chat.completions.create({
+                model: plan.modelConfig.model,
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: userPrompt }
+                ],
+                temperature: plan.modelConfig.temperature
+            });
+            resultData = completion.choices[0].message.content;
+            debugLogs = "Fast Path Execution (No Debate)";
+        }
+
+        const endTime = Date.now();
+        const latencyMs = endTime - startTime;
+
+        // 5. Log Execution (Async)
+        await FeedbackLoop.logExecution({
+            userId: request.auth.uid,
+            taskType: type,
+            inputs: inputs,
+            mode: plan.mode,
+            modelConfig: plan.modelConfig,
+            output: resultData,
+            latencyMs: latencyMs,
+            status: 'success'
         });
 
         return {
             success: true,
             type: 'html',
-            content: completion.choices[0].message.content
+            content: resultData,
+            meta: {
+                mode: plan.mode,
+                logs: debugLogs,
+                drafts: resultData === arenaResult.finalOutput ? arenaResult.agents : null // Return drafts if available
+            }
         };
 
     } catch (error) {
         console.error('[generateCreativeContent] Error:', error);
+
+        // Log Failure
+        try {
+            await FeedbackLoop.logExecution({
+                userId: request.auth ? request.auth.uid : 'anonymous',
+                taskType: type,
+                inputs: inputs,
+                mode: mode || 'balanced',
+                latencyMs: 0,
+                status: 'error: ' + error.message
+            });
+        } catch (logErr) { console.error('Log failed', logErr); }
+
         return { success: false, error: error.message };
     }
 });
@@ -3868,3 +3940,40 @@ async function pollBananaResult(callID, apiKey) {
     }
     throw new Error("Timeout waiting for Banana");
 }
+
+/**
+ * Submit User Feedback for ZYNK Core
+ * Updates the Taste Matrix
+ */
+exports.submitFeedback = onCall({ cors: true }, async (request) => {
+    // 1. Verify Auth
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'User must be logged in.');
+    }
+
+    const { projectId, rating, mode, planType, feedbackText } = request.data;
+    const userId = request.auth.uid;
+
+    try {
+        // Construct feedback data for Taste Matrix
+        const feedbackData = {
+            decision: null, // 'disruptor' | 'purist' (implied by content choice, but here we just have rating)
+            mode: mode,
+            rating: rating, // 'good' | 'bad'
+            timestamp: admin.firestore.FieldValue.serverTimestamp()
+        };
+
+        // Heuristic: If they liked 'Pro' (Arena) output, maybe they are risk tolerant?
+        // If they liked 'Eco', maybe they value speed/efficiency?
+        // For now, valid 'decision' updating requires explicit choice UI (Expert Mode).
+        // Here we just log the rating.
+
+        await FeedbackLoop.updateTaste(userId, feedbackData);
+
+        return { success: true };
+
+    } catch (error) {
+        console.error('[submitFeedback] Error:', error);
+        return { success: false, error: error.message };
+    }
+});

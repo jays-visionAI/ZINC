@@ -1336,7 +1336,26 @@
                 </div>
 
                 <!-- Footer: Action -->
-                <div class="p-4 border-t border-slate-700 bg-slate-800/50 flex justify-end">
+                <div class="p-4 border-t border-slate-700 bg-slate-800/50 flex justify-between items-center">
+                    <!-- Mode Selector -->
+                    <div class="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700">
+                        <button
+                            class="mode-btn px-3 py-1.5 text-xs font-medium rounded-md transition-all text-emerald-400 bg-emerald-500/10 border border-emerald-500/20"
+                            data-mode="eco" onclick="setPerformanceMode('eco')">
+                            ⚡️ Eco
+                        </button>
+                        <button
+                            class="mode-btn px-3 py-1.5 text-xs font-medium rounded-md transition-all text-slate-400 hover:text-white"
+                            data-mode="balanced" onclick="setPerformanceMode('balanced')">
+                            ⚖️ Balanced
+                        </button>
+                        <button
+                            class="mode-btn px-3 py-1.5 text-xs font-medium rounded-md transition-all text-slate-400 hover:text-white"
+                            data-mode="pro" onclick="setPerformanceMode('pro')">
+                            🚀 Pro
+                        </button>
+                    </div>
+
                     <button onclick="generateCreativeItem()"
                         class="px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-500 hover:to-purple-500 transition-all font-medium shadow-lg shadow-indigo-500/20 flex items-center gap-2">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -1453,15 +1472,13 @@
     <script src="firebase-config.js"></script>
     <script src="env-config.js"></script>
     <script src="translations.js"></script>
-    <script src="knowledgeHub.js"></script>
     <!-- UI Loader Dependencies -->
     <script src="utils-ui-config.js"></script>
-    <script src="utils-ui-loader.js"></script>
+    <script src="utils-ui-loader.js?v=2"></script>
+    <script src="knowledgeHub.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            if (typeof UI !== 'undefined') {
-                UI.renderHeader('knowledge-hub-header-container', 'knowledge_hub');
-            }
+            // UI Loader now handles initialization automatically
         });
     </script>
     <!-- Mobile Tab Navigation Bar -->

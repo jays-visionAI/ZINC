@@ -2,23 +2,15 @@
     <div style="margin-bottom: 24px;">
         <h3 style="margin: 0;">System Settings</h3>
         <p style="margin: 4px 0 0 0; color: rgba(255,255,255,0.5); font-size: 14px;">
-            Configure global system settings, API keys, and AI providers.
+            Configure global system settings, API keys, and pricing.
         </p>
     </div>
 
-    <!-- Tabs -->
+    <!-- Main Tabs -->
     <div style="display: flex; gap: 24px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 24px;">
-        <div class="settings-tab active" onclick="switchSettingsTab('llm')" id="tab-btn-llm"
+        <div class="settings-tab active" onclick="switchSettingsTab('system')" id="tab-btn-system"
             style="padding-bottom: 12px; cursor: pointer; border-bottom: 2px solid #16e0bd; color: #fff; font-weight: 600;">
-            🤖 LLM Providers
-        </div>
-        <div class="settings-tab" onclick="switchSettingsTab('genai')" id="tab-btn-genai"
-            style="padding-bottom: 12px; cursor: pointer; border-bottom: 2px solid transparent; color: rgba(255,255,255,0.5);">
-            🎨 Gen AI (Images)
-        </div>
-        <div class="settings-tab" onclick="switchSettingsTab('system')" id="tab-btn-system"
-            style="padding-bottom: 12px; cursor: pointer; border-bottom: 2px solid transparent; color: rgba(255,255,255,0.5);">
-            ⚙️ System
+            🛠️ System (API)
         </div>
         <div class="settings-tab" onclick="switchSettingsTab('pricing')" id="tab-btn-pricing"
             style="padding-bottom: 12px; cursor: pointer; border-bottom: 2px solid transparent; color: rgba(255,255,255,0.5);">
@@ -26,27 +18,35 @@
         </div>
     </div>
 
-    <!-- LLM Providers Tab -->
-    <div id="tab-llm" class="settings-tab-content">
-        <div
-            style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05);">
+    <!-- ========================================== -->
+    <!-- TAB 1: SYSTEM (LLM, GenAI, Maintenance)    -->
+    <!-- ========================================== -->
+    <div id="tab-system" class="settings-tab-content">
+
+        <!-- Internal Sub-Tabs for System -->
+        <div style="display: flex; gap: 16px; margin-bottom: 20px;">
+            <button class="admin-btn-secondary"
+                onclick="document.getElementById('sys-sub-llm').scrollIntoView({behavior: 'smooth'})">LLM
+                Providers</button>
+            <button class="admin-btn-secondary"
+                onclick="document.getElementById('sys-sub-genai').scrollIntoView({behavior: 'smooth'})">Gen AI</button>
+            <button class="admin-btn-secondary"
+                onclick="document.getElementById('sys-sub-main').scrollIntoView({behavior: 'smooth'})">Maintenance</button>
+        </div>
+
+        <!-- 1.1 LLM Providers -->
+        <div id="sys-sub-llm"
+            style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 24px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                 <h4 style="margin: 0; color: #fff;">LLM Providers</h4>
                 <button id="btn-add-provider-settings" class="admin-btn-primary" style="padding: 8px 16px;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        style="vertical-align: middle; margin-right: 4px;">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
-                    Add Provider
+                    + Add Provider
                 </button>
             </div>
-
             <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 16px;">
-                Manage LLM API keys for text generation (GPT, Claude, Gemini). Used by agents and content generation.
+                Manage LLM API keys for text generation (GPT, Claude, Gemini).
             </p>
-
-            <div id="providers-table-container" style="margin-top: 16px;">
+            <div id="providers-table-container">
                 <table class="admin-table" style="width: 100%;">
                     <thead>
                         <tr>
@@ -59,223 +59,142 @@
                     </thead>
                     <tbody id="providers-table-body-settings">
                         <tr>
-                            <td colspan="5" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">
-                                Loading providers...
-                            </td>
+                            <td colspan="5" style="text-align: center; padding: 20px;">Loading...</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
         </div>
-    </div>
 
-    <!-- Gen AI (Images) Tab -->
-    <div id="tab-genai" class="settings-tab-content" style="display: none;">
-        <div
-            style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05);">
+        <!-- 1.2 Gen AI Providers -->
+        <div id="sys-sub-genai"
+            style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 24px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                 <div>
                     <h4 style="margin: 0; color: #fff;">Image Generation Providers</h4>
                     <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin: 4px 0 0 0;">
-                        Configure AI image generation services for Knowledge Hub and Studio.
+                        Configure AI image generation services.
                     </p>
                 </div>
-                <button id="btn-refresh-genai" class="admin-btn-secondary" style="padding: 8px 16px;">
-                    🔄 Refresh
-                </button>
+                <button id="btn-refresh-genai" class="admin-btn-secondary">🔄 Refresh</button>
             </div>
 
-            <div id="genai-providers-container" style="margin-top: 20px;">
-                <!-- Provider Cards -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px;">
-
-                    <!-- Flux Pro -->
-                    <div class="genai-provider-card" data-provider="flux"
-                        style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px;">
-                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
-                            <div
-                                style="width: 40px; height: 40px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">
-                                🚀</div>
-                            <div>
-                                <h5 style="margin: 0; color: #fff;">Flux Pro</h5>
-                                <p style="margin: 0; font-size: 11px; color: rgba(255,255,255,0.4);">via Replicate</p>
-                            </div>
-                            <div id="flux-status"
-                                style="margin-left: auto; padding: 4px 10px; border-radius: 20px; font-size: 11px; background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.5);">
-                                Not configured</div>
-                        </div>
+            <div id="genai-providers-container"
+                style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px;">
+                <!-- Provider Cards (Flux, Stability, DALL-E, Ideogram, Imagen) -->
+                <!-- Flux Pro -->
+                <div class="genai-provider-card" data-provider="flux"
+                    style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
                         <div
-                            style="display: flex; gap: 12px; font-size: 11px; color: rgba(255,255,255,0.5); margin-bottom: 16px;">
-                            <span>💰 $0.003/image</span>
-                            <span>📐 1024x1024</span>
-                            <span>✓ Text Support</span>
+                            style="width: 40px; height: 40px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                            🚀</div>
+                        <div>
+                            <h5 style="margin: 0; color: #fff;">Flux Pro</h5>
+                            <p style="margin: 0; font-size: 11px; color: rgba(255,255,255,0.4);">via Replicate</p>
                         </div>
-                        <div style="margin-bottom: 12px;">
-                            <label style="font-size: 12px; color: #888; display: block; margin-bottom: 4px;">API Key
-                                (Replicate)</label>
-                            <input type="password" id="genai-flux-key" class="admin-input" placeholder="r8_xxxxx..."
-                                style="font-size: 13px;">
-                        </div>
-                        <div style="display: flex; gap: 8px;">
-                            <button onclick="saveGenAIProvider('flux')" class="admin-btn-primary"
-                                style="flex: 1; padding: 8px;">Save</button>
-                            <button onclick="testGenAIProvider('flux')" class="admin-btn-secondary"
-                                style="padding: 8px;">Test</button>
-                        </div>
+                        <div id="flux-status"
+                            style="margin-left: auto; padding: 4px 10px; border-radius: 20px; font-size: 11px; background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.5);">
+                            Not configured</div>
                     </div>
-
-                    <!-- Stability AI -->
-                    <div class="genai-provider-card" data-provider="stability"
-                        style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px;">
-                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
-                            <div
-                                style="width: 40px; height: 40px; background: linear-gradient(135deg, #ec4899, #f43f5e); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">
-                                🎨</div>
-                            <div>
-                                <h5 style="margin: 0; color: #fff;">Stability AI</h5>
-                                <p style="margin: 0; font-size: 11px; color: rgba(255,255,255,0.4);">SDXL 1.0</p>
-                            </div>
-                            <div id="stability-status"
-                                style="margin-left: auto; padding: 4px 10px; border-radius: 20px; font-size: 11px; background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.5);">
-                                Not configured</div>
-                        </div>
-                        <div
-                            style="display: flex; gap: 12px; font-size: 11px; color: rgba(255,255,255,0.5); margin-bottom: 16px;">
-                            <span>💰 $0.003/image</span>
-                            <span>📐 1024x1024</span>
-                            <span>✗ No Text</span>
-                        </div>
-                        <div style="margin-bottom: 12px;">
-                            <label style="font-size: 12px; color: #888; display: block; margin-bottom: 4px;">API
-                                Key</label>
-                            <input type="password" id="genai-stability-key" class="admin-input"
-                                placeholder="sk-xxxxx..." style="font-size: 13px;">
-                        </div>
-                        <div style="display: flex; gap: 8px;">
-                            <button onclick="saveGenAIProvider('stability')" class="admin-btn-primary"
-                                style="flex: 1; padding: 8px;">Save</button>
-                            <button onclick="testGenAIProvider('stability')" class="admin-btn-secondary"
-                                style="padding: 8px;">Test</button>
-                        </div>
+                    <div style="margin-bottom: 12px;">
+                        <input type="password" id="genai-flux-key" class="admin-input" placeholder="API Key (Replicate)"
+                            style="font-size: 13px;">
                     </div>
-
-                    <!-- DALL-E 3 -->
-                    <div class="genai-provider-card" data-provider="dalle"
-                        style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px;">
-                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
-                            <div
-                                style="width: 40px; height: 40px; background: linear-gradient(135deg, #10b981, #14b8a6); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">
-                                🖼️</div>
-                            <div>
-                                <h5 style="margin: 0; color: #fff;">DALL-E 3</h5>
-                                <p style="margin: 0; font-size: 11px; color: rgba(255,255,255,0.4);">OpenAI</p>
-                            </div>
-                            <div id="dalle-status"
-                                style="margin-left: auto; padding: 4px 10px; border-radius: 20px; font-size: 11px; background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.5);">
-                                Uses LLM Key</div>
-                        </div>
-                        <div
-                            style="display: flex; gap: 12px; font-size: 11px; color: rgba(255,255,255,0.5); margin-bottom: 16px;">
-                            <span>💰 $0.04/image</span>
-                            <span>📐 1792x1024</span>
-                            <span>✓ Text Support</span>
-                        </div>
-                        <div
-                            style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 12px; font-size: 12px; color: #10b981;">
-                            ✓ Uses OpenAI key from LLM Providers. No additional configuration needed.
-                        </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button onclick="saveGenAIProvider('flux')" class="admin-btn-primary"
+                            style="flex: 1;">Save</button>
+                        <button onclick="testGenAIProvider('flux')" class="admin-btn-secondary">Test</button>
                     </div>
-
-                    <!-- Ideogram -->
-                    <div class="genai-provider-card" data-provider="ideogram"
-                        style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px;">
-                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
-                            <div
-                                style="width: 40px; height: 40px; background: linear-gradient(135deg, #f59e0b, #eab308); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">
-                                ✨</div>
-                            <div>
-                                <h5 style="margin: 0; color: #fff;">Ideogram</h5>
-                                <p style="margin: 0; font-size: 11px; color: rgba(255,255,255,0.4);">Best for Text</p>
-                            </div>
-                            <div id="ideogram-status"
-                                style="margin-left: auto; padding: 4px 10px; border-radius: 20px; font-size: 11px; background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.5);">
-                                Not configured</div>
-                        </div>
+                </div>
+                <!-- Stability -->
+                <div class="genai-provider-card" data-provider="stability"
+                    style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
                         <div
-                            style="display: flex; gap: 12px; font-size: 11px; color: rgba(255,255,255,0.5); margin-bottom: 16px;">
-                            <span>💰 $0.05/image</span>
-                            <span>📐 1024x1024</span>
-                            <span>✓✓ Best Text</span>
+                            style="width: 40px; height: 40px; background: linear-gradient(135deg, #ec4899, #f43f5e); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                            🎨</div>
+                        <div>
+                            <h5 style="margin: 0; color: #fff;">Stability AI</h5>
+                            <p style="margin: 0; font-size: 11px; color: rgba(255,255,255,0.4);">SDXL 1.0</p>
                         </div>
-                        <div style="margin-bottom: 12px;">
-                            <label style="font-size: 12px; color: #888; display: block; margin-bottom: 4px;">API
-                                Key</label>
-                            <input type="password" id="genai-ideogram-key" class="admin-input"
-                                placeholder="api_xxxxx..." style="font-size: 13px;">
-                        </div>
-                        <div style="display: flex; gap: 8px;">
-                            <button onclick="saveGenAIProvider('ideogram')" class="admin-btn-primary"
-                                style="flex: 1; padding: 8px;">Save</button>
-                            <button onclick="testGenAIProvider('ideogram')" class="admin-btn-secondary"
-                                style="padding: 8px;">Test</button>
-                        </div>
+                        <div id="stability-status"
+                            style="margin-left: auto; padding: 4px 10px; border-radius: 20px; font-size: 11px; background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.5);">
+                            Not configured</div>
                     </div>
-
-                    <!-- Google Imagen -->
-                    <div class="genai-provider-card" data-provider="imagen"
-                        style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px;">
-                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
-                            <div
-                                style="width: 40px; height: 40px; background: linear-gradient(135deg, #4285f4, #34a853); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">
-                                🔷</div>
-                            <div>
-                                <h5 style="margin: 0; color: #fff;">Google Imagen 3</h5>
-                                <p style="margin: 0; font-size: 11px; color: rgba(255,255,255,0.4);">Vertex AI</p>
-                            </div>
-                            <div id="imagen-status"
-                                style="margin-left: auto; padding: 4px 10px; border-radius: 20px; font-size: 11px; background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.5);">
-                                Requires Setup</div>
-                        </div>
-                        <div
-                            style="display: flex; gap: 12px; font-size: 11px; color: rgba(255,255,255,0.5); margin-bottom: 16px;">
-                            <span>💰 $0.03/image</span>
-                            <span>📐 2048x2048</span>
-                            <span>✓ Text Support</span>
-                        </div>
-                        <div
-                            style="background: rgba(66, 133, 244, 0.1); border: 1px solid rgba(66, 133, 244, 0.3); border-radius: 8px; padding: 12px; font-size: 12px; color: #4285f4;">
-                            ⚠️ Requires Vertex AI setup in Google Cloud Console. Coming soon.
-                        </div>
+                    <div style="margin-bottom: 12px;">
+                        <input type="password" id="genai-stability-key" class="admin-input" placeholder="API Key"
+                            style="font-size: 13px;">
                     </div>
-
+                    <div style="display: flex; gap: 8px;">
+                        <button onclick="saveGenAIProvider('stability')" class="admin-btn-primary"
+                            style="flex: 1;">Save</button>
+                        <button onclick="testGenAIProvider('stability')" class="admin-btn-secondary">Test</button>
+                    </div>
+                </div>
+                <!-- DALL-E -->
+                <div class="genai-provider-card" data-provider="dalle"
+                    style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                        <div
+                            style="width: 40px; height: 40px; background: linear-gradient(135deg, #10b981, #14b8a6); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                            🖼️</div>
+                        <div>
+                            <h5 style="margin: 0; color: #fff;">DALL-E 3</h5>
+                            <p style="margin: 0; font-size: 11px; color: rgba(255,255,255,0.4);">Use LLM Key</p>
+                        </div>
+                        <div id="dalle-status"
+                            style="margin-left: auto; padding: 4px 10px; border-radius: 20px; font-size: 11px; background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.5);">
+                            Auto</div>
+                    </div>
+                    <div
+                        style="font-size: 12px; color: #10b981; padding: 10px; background: rgba(16,185,129,0.1); border-radius: 6px;">
+                        Uses OpenAI key from LLM Providers.
+                    </div>
+                </div>
+                <!-- Ideogram -->
+                <div class="genai-provider-card" data-provider="ideogram"
+                    style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                        <div
+                            style="width: 40px; height: 40px; background: linear-gradient(135deg, #f59e0b, #eab308); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                            ✨</div>
+                        <div>
+                            <h5 style="margin: 0; color: #fff;">Ideogram</h5>
+                            <p style="margin: 0; font-size: 11px; color: rgba(255,255,255,0.4);">Best for Text</p>
+                        </div>
+                        <div id="ideogram-status"
+                            style="margin-left: auto; padding: 4px 10px; border-radius: 20px; font-size: 11px; background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.5);">
+                            Not configured</div>
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <input type="password" id="genai-ideogram-key" class="admin-input" placeholder="API Key"
+                            style="font-size: 13px;">
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button onclick="saveGenAIProvider('ideogram')" class="admin-btn-primary"
+                            style="flex: 1;">Save</button>
+                        <button onclick="testGenAIProvider('ideogram')" class="admin-btn-secondary">Test</button>
+                    </div>
                 </div>
             </div>
 
-            <!-- Default Provider Selection -->
-            <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.1);">
+            <div style="margin-top: 24px;">
                 <h5 style="margin: 0 0 12px 0; color: #fff;">Default Image Provider</h5>
-                <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 12px;">
-                    Select which provider to use by default for image generation.
-                </p>
-                <select id="default-genai-provider" class="admin-input" style="max-width: 300px;">
-                    <option value="flux">Flux Pro (Recommended - Best Value)</option>
-                    <option value="stability">Stability AI (Budget)</option>
-                    <option value="dalle">DALL-E 3 (High Quality)</option>
-                    <option value="ideogram">Ideogram (Best for Text)</option>
-                    <option value="imagen">Google Imagen 3</option>
-                </select>
-                <button onclick="saveDefaultProvider()" class="admin-btn-primary"
-                    style="margin-left: 12px; padding: 8px 16px;">Save Default</button>
+                <div style="display:flex; gap:12px;">
+                    <select id="default-genai-provider" class="admin-input" style="max-width: 300px;">
+                        <option value="flux">Flux Pro (Recommended)</option>
+                        <option value="stability">Stability AI</option>
+                        <option value="dalle">DALL-E 3</option>
+                        <option value="ideogram">Ideogram</option>
+                    </select>
+                    <button onclick="saveDefaultProvider()" class="admin-btn-primary">Save Default</button>
+                </div>
             </div>
         </div>
-    </div>
 
-
-
-    <!-- System Tab -->
-    <div id="tab-system" class="settings-tab-content" style="display: none;">
-        <!-- Maintenance Section -->
-        <div
+        <!-- 1.3 System Maintenance -->
+        <div id="sys-sub-main"
             style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05);">
             <h4 style="margin: 0 0 16px 0; color: #fff;">System Maintenance</h4>
 
@@ -283,289 +202,169 @@
                 <div>
                     <strong style="display: block; color: #e2e8f0; margin-bottom: 4px;">Update Sub-Agent
                         Prompts</strong>
-                    <p style="margin: 0; font-size: 12px; color: rgba(255,255,255,0.4);">
-                        Injects high-quality system prompts for Planner, Creator, and Manager.
-                    </p>
+                    <p style="margin: 0; font-size: 12px; color: rgba(255,255,255,0.4);">Injects high-quality system
+                        prompts for Planner, Creator, and Manager.</p>
                 </div>
-                <button id="update-prompts-btn" class="admin-btn-secondary">
-                    Update Prompts
-                </button>
+                <button id="update-prompts-btn" class="admin-btn-secondary">Update Prompts</button>
             </div>
-        </div>
 
-        <!-- System Prompt Templates Section -->
-        <div style="margin-top: 24px; background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05); cursor: pointer; transition: all 0.2s;"
-            onclick="window.location.href='admin-prompt-templates.html'"
-            onmouseover="this.style.background='rgba(255,255,255,0.05)'"
-            onmouseout="this.style.background='rgba(255,255,255,0.03)'">
-            <div style="display: flex; align-items: center; gap: 16px;">
-                <div style="font-size: 24px;">📝</div>
-                <div>
-                    <h4 style="margin: 0 0 4px 0; color: #fff;">System Prompt Templates</h4>
-                    <p style="margin: 0; font-size: 13px; color: rgba(255,255,255,0.5);">
-                        Manage and version control system prompts for all agents.
-                    </p>
-                </div>
-                <div style="margin-left: auto; color: rgba(255,255,255,0.3);">
-                    →
+            <!-- System Prompt Templates Section -->
+            <div style="margin-top: 24px; background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05); cursor: pointer; transition: all 0.2s;"
+                onclick="window.location.href='admin-prompt-templates.html'"
+                onmouseover="this.style.background='rgba(255,255,255,0.05)'"
+                onmouseout="this.style.background='rgba(255,255,255,0.03)'">
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <div style="font-size: 24px;">📝</div>
+                    <div>
+                        <h4 style="margin: 0 0 4px 0; color: #fff;">System Prompt Templates</h4>
+                        <p style="margin: 0; font-size: 13px; color: rgba(255,255,255,0.5);">Manage and version control
+                            system prompts for all agents.</p>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Chatbot Settings Link -->
-        <div style="margin-top: 16px; background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05); cursor: pointer; transition: all 0.2s;"
-            onclick="window.location.href='admin-chatbot.html'"
-            onmouseover="this.style.background='rgba(255,255,255,0.05)'"
-            onmouseout="this.style.background='rgba(255,255,255,0.03)'">
-            <div style="display: flex; align-items: center; gap: 16px;">
-                <div style="font-size: 24px;">💬</div>
-                <div>
-                    <h4 style="margin: 0 0 4px 0; color: #fff;">Chatbot Configuration</h4>
-                    <p style="margin: 0; font-size: 13px; color: rgba(255,255,255,0.5);">
-                        Configure chatbot behavior, page context, and voice settings.
-                    </p>
-                </div>
-                <div style="margin-left: auto; color: rgba(255,255,255,0.3);">
-                    →
+            <!-- Chatbot Configuration Link (Restored) -->
+            <div style="margin-top: 16px; background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05); cursor: pointer; transition: all 0.2s;"
+                onclick="window.location.href='#chatbot'" onmouseover="this.style.background='rgba(255,255,255,0.05)'"
+                onmouseout="this.style.background='rgba(255,255,255,0.03)'">
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <div style="font-size: 24px;">🤖</div>
+                    <div>
+                        <h4 style="margin: 0 0 4px 0; color: #fff;">Chatbot Configuration</h4>
+                        <p style="margin: 0; font-size: 13px; color: rgba(255,255,255,0.5);">Go to separate Chatbot
+                            Settings page.</p>
+                    </div>
                 </div>
             </div>
+
         </div>
     </div>
-</div>
 
-<!-- Pricing & Credits Tab -->
-<div id="tab-pricing" class="settings-tab-content" style="display: none;">
-
-    <!-- Subscription Plans Section -->
-    <div
-        style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 24px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-            <h4 style="margin: 0; color: #fff;">Subscription Plans (Monthly)</h4>
-            <button onclick="savePricingData()" class="admin-btn-primary" style="padding: 6px 16px;">Save
-                Changes</button>
+    <!-- ========================================== -->
+    <!-- TAB 4: PRICING & CREDITS                   -->
+    <!-- ========================================== -->
+    <div id="tab-pricing" class="settings-tab-content" style="display: none;">
+        <!-- Subscription Plans Section -->
+        <div
+            style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h4 style="margin: 0; color: #fff;">Subscription Plans (Monthly)</h4>
+                <button onclick="savePricingData()" class="admin-btn-primary" style="padding: 6px 16px;">Save
+                    Changes</button>
+            </div>
+            <div style="overflow-x: auto;">
+                <table class="admin-table" style="width: 100%; min-width: 600px;">
+                    <thead>
+                        <tr>
+                            <th>Plan (ID)</th>
+                            <th>Price ($)</th>
+                            <th>Base Credits</th>
+                            <th>Seats</th>
+                            <th>Agents</th>
+                            <th>Top-up Bonus (%)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pricing-plans-body">
+                        <tr>
+                            <td colspan="6" style="text-align:center;">Loading plans...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
-        <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 16px;">
-            Configure the monthly subscription tiers. The 'Bonus Rate' applies to extra credit top-ups.
-        </p>
 
-        <div style="overflow-x: auto;">
-            <table class="admin-table" style="width: 100%; min-width: 600px;">
+        <!-- Top-up Packs Section -->
+        <div
+            style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h4 style="margin: 0; color: #fff;">Credit Top-up Packs</h4>
+            </div>
+            <table class="admin-table" style="width: 100%;">
                 <thead>
                     <tr>
-                        <th style="width: 150px;">Plan (ID)</th>
+                        <th>Pack Name</th>
                         <th>Price ($)</th>
                         <th>Base Credits</th>
-                        <th>Seats</th>
-                        <th>Agents</th>
-                        <th>Top-up Bonus (%)</th>
+                        <th>Preview (Starter)</th>
+                        <th>Preview (Enterprise +30%)</th>
                     </tr>
                 </thead>
-                <tbody id="pricing-plans-body">
-                    <!-- Populated by JS -->
+                <tbody id="pricing-packs-body">
                     <tr>
-                        <td colspan="6" style="text-align:center; padding: 20px;">Loading plans...</td>
+                        <td colspan="5" style="text-align:center;">Loading packs...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Credit Action Costs Section -->
+        <div
+            style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05); margin-top: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h4 style="margin: 0; color: #fff;">Credit Action Costs</h4>
+                <div style="display: flex; gap: 8px;">
+                    <button onclick="if(confirm('Reset all costs to system defaults?')) seedCreditCosts()"
+                        class="admin-btn-secondary">Reset Defaults</button>
+                    <button onclick="saveActionCosts()" class="admin-btn-primary">Save Costs</button>
+                </div>
+            </div>
+            <table class="admin-table" style="width: 100%;">
+                <thead>
+                    <tr>
+                        <th>Action Name</th>
+                        <th>Category</th>
+                        <th>Description</th>
+                        <th>Cost (Credits)</th>
+                    </tr>
+                </thead>
+                <tbody id="pricing-actions-body">
+                    <tr>
+                        <td colspan="4" style="text-align:center;">Loading costs...</td>
                     </tr>
                 </tbody>
             </table>
         </div>
     </div>
 
-    <!-- Top-up Packs Section -->
-    <div
-        style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-            <h4 style="margin: 0; color: #fff;">Credit Top-up Packs</h4>
-            <!-- Packs are less frequently changed, no global save needed here yet -->
-        </div>
-        <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 16px;">
-            One-time credit purchases. Final credits received depend on the user's plan bonus.
-        </p>
-
-        <table class="admin-table" style="width: 100%;">
-            <thead>
-                <tr>
-                    <th>Pack Name</th>
-                    <th>Price ($)</th>
-                    <th>Base Credits</th>
-                    <th>Preview (Starter)</th>
-                    <th>Preview (Enterprise +30%)</th>
-                </tr>
-            </thead>
-            <tbody id="pricing-packs-body">
-                <!-- Populated by JS -->
-                <tr>
-                    <td colspan="5" style="text-align:center; padding: 20px;">Loading packs...</td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-
-    <!-- Credit Action Costs Section (Dynamic) -->
-    <div
-        style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05); margin-top: 24px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-            <h4 style="margin: 0; color: #fff;">Credit Action Costs</h4>
-            <div style="display: flex; gap: 8px;">
-                <button onclick="if(confirm('Reset all costs to system defaults?')) seedCreditCosts()"
-                    class="admin-btn-secondary" style="padding: 6px 16px;">Reset Defaults</button>
-                <button onclick="saveActionCosts()" class="admin-btn-primary" style="padding: 6px 16px;">Save
-                    Costs</button>
-            </div>
-        </div>
-        <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 16px;">
-            Adjust the credit cost for system actions. Changes apply immediately to all users.
-        </p>
-
-        <table class="admin-table" style="width: 100%;">
-            <thead>
-                <tr>
-                    <th style="width: 200px;">Action Name</th>
-                    <th>Category</th>
-                    <th>Description</th>
-                    <th style="width: 100px;">Cost (Credits)</th>
-                </tr>
-            </thead>
-            <tbody id="pricing-actions-body">
-                <!-- Populated by JS -->
-                <tr>
-                    <td colspan="4" style="text-align:center; padding: 20px;">Loading costs...</td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-</div>
-</div>
 </div>
 
-<script src="scripts/seed-credit-costs.js"></script>
-<!-- Add/Edit Provider Modal -->
+<!-- Provider Modal -->
 <div id="provider-modal-settings" class="modal-overlay" style="display: none;">
     <div class="modal-container" style="max-width: 600px;">
         <div class="modal-header">
-            <h3 id="provider-modal-title-settings">Add LLM Provider</h3>
-            <button class="modal-close" onclick="closeProviderModalSettings()">×</button>
+            <h3 id="provider-modal-title-settings">Add LLM Provider</h3><button class="modal-close"
+                onclick="closeProviderModalSettings()">×</button>
         </div>
         <div class="modal-body">
             <form id="provider-form-settings">
                 <input type="hidden" id="provider-doc-id-settings">
-
-                <div class="form-group">
-                    <label>Provider Type</label>
-                    <select id="provider-type-settings" class="admin-input" required>
+                <div class="form-group"><label>Provider Type</label><select id="provider-type-settings"
+                        class="admin-input">
                         <option value="openai">OpenAI</option>
                         <option value="anthropic">Anthropic</option>
                         <option value="gemini">Google Gemini</option>
-                        <option value="custom">Custom / Other</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label>Name</label>
-                    <input type="text" id="provider-name-settings" class="admin-input" placeholder="e.g. ZYNK OpenAI #1"
-                        required>
-                </div>
-
-                <div class="form-group">
-                    <label>API Key</label>
-                    <div style="display: flex; gap: 8px;">
-                        <input type="password" id="provider-api-key-settings" class="admin-input" placeholder="sk-..."
-                            required>
-                        <button type="button" id="btn-test-connection-settings" class="admin-btn-secondary"
-                            style="white-space: nowrap;">
-                            Test Connection
-                        </button>
-                    </div>
-                    <div id="connection-test-result-settings" style="margin-top: 5px; font-size: 12px;"></div>
-                </div>
-
-                <div class="form-group">
-                    <label>Models (comma separated)</label>
-                    <input type="text" id="provider-models-settings" class="admin-input"
-                        placeholder="gpt-4o, gpt-4o-mini" required>
-                    <small style="color: rgba(255,255,255,0.5);">List the models this key has access to.</small>
-                </div>
-
-                <div class="form-group">
-                    <label>Status</label>
-                    <select id="provider-status-settings" class="admin-input">
+                        <option value="custom">Custom</option>
+                    </select></div>
+                <div class="form-group"><label>Name</label><input type="text" id="provider-name-settings"
+                        class="admin-input"></div>
+                <div class="form-group"><label>API Key</label><input type="password" id="provider-api-key-settings"
+                        class="admin-input"></div>
+                <div class="form-group"><label>Models</label><input type="text" id="provider-models-settings"
+                        class="admin-input" placeholder="gpt-4o, ..."></div>
+                <div class="form-group"><label>Status</label><select id="provider-status-settings" class="admin-input">
                         <option value="active">Active</option>
                         <option value="disabled">Disabled</option>
-                    </select>
-                </div>
+                    </select></div>
             </form>
         </div>
-        <div class="modal-footer">
-            <button class="admin-btn-secondary" onclick="closeProviderModalSettings()">Cancel</button>
-            <button class="admin-btn-primary" id="btn-save-provider-settings">Save Provider</button>
-        </div>
+        <div class="modal-footer"><button class="admin-btn-secondary"
+                onclick="closeProviderModalSettings()">Cancel</button><button class="admin-btn-primary"
+                id="btn-save-provider-settings">Save Provider</button></div>
     </div>
 </div>
 
 <style>
-    /* Modal Styles */
-    .modal-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.7);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 1000;
-        backdrop-filter: blur(4px);
-        opacity: 1 !important;
-        pointer-events: auto !important;
-    }
-
-    .modal-container {
-        background: #1e1e24;
-        border: 1px solid #333;
-        border-radius: 8px;
-        width: 90%;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-    }
-
-    .modal-header {
-        padding: 16px 20px;
-        border-bottom: 1px solid #333;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .modal-body {
-        padding: 20px;
-    }
-
-    .modal-footer {
-        padding: 16px 20px;
-        border-top: 1px solid #333;
-        display: flex;
-        justify-content: flex-end;
-        gap: 10px;
-    }
-
-    .modal-close {
-        background: none;
-        border: none;
-        color: #888;
-        font-size: 24px;
-        cursor: pointer;
-    }
-
-    .form-group {
-        margin-bottom: 16px;
-    }
-
-    .form-group label {
-        display: block;
-        margin-bottom: 6px;
-        font-size: 13px;
-        color: #ccc;
-    }
-
+    /* Shared Settings Styles */
     .admin-input {
         width: 100%;
         padding: 8px 12px;
@@ -573,18 +372,33 @@
         border: 1px solid #444;
         border-radius: 4px;
         color: white;
-        font-size: 14px;
+        margin-bottom: 8px;
     }
 
-    .admin-input:focus {
-        border-color: #16e0bd;
-        outline: none;
+    .color-input-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 8px;
     }
 
-    .genai-provider-card:hover {
-        border-color: rgba(255, 255, 255, 0.2);
-        transform: translateY(-2px);
-        transition: all 0.2s;
+    .color-input-wrapper input[type="color"] {
+        width: 32px;
+        height: 32px;
+        border: none;
+        background: none;
+        cursor: pointer;
+    }
+
+    .admin-table th {
+        text-align: left;
+        padding: 10px;
+        color: #888;
+        border-bottom: 1px solid #333;
+    }
+
+    .admin-table td {
+        padding: 10px;
+        border-bottom: 1px solid #222;
     }
 </style>
 
@@ -596,12 +410,14 @@
             btn.style.borderBottomColor = 'transparent';
             btn.style.color = 'rgba(255,255,255,0.5)';
             btn.style.fontWeight = 'normal';
+            btn.classList.remove('active');
         });
         const activeBtn = document.getElementById('tab-btn-' + tabId);
         if (activeBtn) {
             activeBtn.style.borderBottomColor = '#16e0bd';
             activeBtn.style.color = '#fff';
             activeBtn.style.fontWeight = '600';
+            activeBtn.classList.add('active');
         }
 
         // Show/hide content
@@ -613,114 +429,21 @@
             activeContent.style.display = 'block';
         }
 
-        // Load Gen AI providers when that tab is selected
-        if (tabId === 'genai') {
+        // Initialize Module if needed
+        if (tabId === 'genai') { // (Old, now part of system)
             loadGenAIProviders();
         }
-    }
-
-    // Load Gen AI provider status
-    async function loadGenAIProviders() {
-        try {
-            const getImageProviders = firebase.functions().httpsCallable('getImageProviders');
-            const result = await getImageProviders({});
-
-            if (result.data.success) {
-                result.data.providers.forEach(provider => {
-                    const statusEl = document.getElementById(`${provider.id}-status`);
-                    if (statusEl) {
-                        if (provider.isConfigured) {
-                            statusEl.textContent = provider.isEnabled ? 'Active' : 'Disabled';
-                            statusEl.style.background = provider.isEnabled ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)';
-                            statusEl.style.color = provider.isEnabled ? '#10b981' : '#ef4444';
-                        }
-                    }
-                });
-
-                // Set default provider
-                const defaultSelect = document.getElementById('default-genai-provider');
-                if (defaultSelect && result.data.defaultProvider) {
-                    defaultSelect.value = result.data.defaultProvider;
-                }
-            }
-        } catch (error) {
-            console.error('Error loading Gen AI providers:', error);
+        if (tabId === 'system') {
+            // Re-init system tab stuff if needed
+            if (window.loadGenAIProviders) window.loadGenAIProviders();
+        }
+        else if (tabId === 'pricing') {
+            if (window.loadPricingData) window.loadPricingData();
         }
     }
 
-    // Save Gen AI provider
-    async function saveGenAIProvider(providerId) {
-        const keyInput = document.getElementById(`genai-${providerId}-key`);
-        if (!keyInput) return;
-
-        const apiKey = keyInput.value.trim();
-        if (!apiKey) {
-            alert('Please enter an API key');
-            return;
-        }
-
-        try {
-            const configureImageProvider = firebase.functions().httpsCallable('configureImageProvider');
-            const result = await configureImageProvider({
-                provider: providerId,
-                apiKey: apiKey,
-                enabled: true
-            });
-
-            if (result.data.success) {
-                alert(result.data.message);
-                keyInput.value = '';
-                loadGenAIProviders();
-            }
-        } catch (error) {
-            console.error('Error saving provider:', error);
-            alert('Error: ' + error.message);
-        }
-    }
-
-    // Test Gen AI provider
-    async function testGenAIProvider(providerId) {
-        try {
-            alert(`Testing ${providerId}... This will generate a test image.`);
-
-            const generateImage = firebase.functions().httpsCallable('generateImage');
-            const result = await generateImage({
-                prompt: 'A simple blue circle on white background',
-                provider: providerId
-            });
-
-            if (result.data.success) {
-                alert(`✅ Success! Image generated: ${result.data.imageUrl.substring(0, 50)}...`);
-            }
-        } catch (error) {
-            console.error('Test failed:', error);
-            alert('❌ Test failed: ' + error.message);
-        }
-    }
-
-    // Save default provider
-    async function saveDefaultProvider() {
-        const select = document.getElementById('default-genai-provider');
-        const provider = select.value;
-
-        try {
-            const configureImageProvider = firebase.functions().httpsCallable('configureImageProvider');
-            await configureImageProvider({
-                provider: provider,
-                setAsDefault: true
-            });
-            alert('Default provider updated to: ' + provider);
-        } catch (error) {
-            console.error('Error saving default:', error);
-            alert('Error: ' + error.message);
-        }
-    }
-
-    // Auto-initialize Settings page
+    // Auto-initialize
     if (typeof window.initSettings === 'function') {
-        console.log('[Settings] Auto-initializing...');
         window.initSettings();
-    } else {
-        console.error('[Settings] initSettings function not found');
     }
 </script>
