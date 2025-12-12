@@ -59,7 +59,7 @@ window.initSettings = function (currentUser) {
         const saveBtn = document.getElementById('btn-save-provider-settings');
         const testBtn = document.getElementById('btn-test-connection-settings');
 
-        if (addBtn) addBtn.addEventListener('click', () => openProviderModal());
+        if (addBtn) addBtn.addEventListener('click', () => window.openProviderModal());
         if (saveBtn) saveBtn.addEventListener('click', saveProvider);
         if (testBtn) testBtn.addEventListener('click', testConnection);
     }
