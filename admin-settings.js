@@ -1050,31 +1050,6 @@ function renderFeaturePoliciesTable() {
     }).join('');
 }
 
-/**
- * Edit LLM Model (placeholder for modal)
- */
-window.editLLMModel = function (modelId) {
-    const model = llmModels.find(m => m.id === modelId);
-    if (!model) return;
-
-    // For now, just show info. Full edit modal can be added later.
-    const info = `
-Model: ${model.displayName}
-ID: ${model.modelId}
-Provider: ${model.provider}
-Tier: ${model.tier}
-
-Cost (per 1K tokens):
-- Input: $${model.costPer1kInputTokens}
-- Output: $${model.costPer1kOutputTokens}
-
-Credit Multiplier: ${model.creditPer1kTokens}x
-
-To edit, modify the systemLLMModels collection directly in Firestore.
-    `;
-    alert(info);
-};
-
 // Auto-load LLM Models and Feature Policies when System tab is shown
 (function () {
     // Override switchSettingsTab to also load LLM data
