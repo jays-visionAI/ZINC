@@ -182,9 +182,8 @@ function update(source) {
             d3.select(event.sourceEvent.target.parentNode)
                 .attr("transform", `translate(${d.y},${d.x})`);
 
-            // Update Links (Using object comparison)
+            // Update Links (Update ALL links to be safe)
             g.selectAll('path.link')
-                .filter(l => l.source === d || l.target === d)
                 .attr('d', l => diagonal(l.source, l.target));
         });
 
