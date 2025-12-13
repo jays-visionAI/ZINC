@@ -155,12 +155,19 @@ class LLMRouter {
             return policy.forceTier;
         }
 
-        // Otherwise, use the requested tier
+        let selectedTier = policy.defaultTier || DEFAULT_MODELS.default;
+
         if (qualityTier === 'BOOST' && policy.boostTier) {
-            return policy.boostTier;
+            selectedTier = policy.boostTier;
         }
 
-        return policy.defaultTier || DEFAULT_MODELS.default;
+        // Emergency Override: Downgrade 2.0 Flash Exp to 1.5 Flash to prevent 429 Quota errors
+        if (selectedTier && selectedTier.model === 'gemini-2.0-flash-exp') {
+            // Create a shallow copy to avoid mutating cache
+            selectedTier = { ...selectedTier, model: 'gemini-1.5-flash' };
+        }
+
+        return selectedTier;
     }
 
     /**
