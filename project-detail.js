@@ -322,7 +322,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                     const slug = channel.slug || channel.channel_type;
                     const option = document.createElement('option');
                     option.value = JSON.stringify({ id: channel.id, name: channel.name, slug: slug, icon: channel.icon || '📺' });
-                    option.textContent = `${channel.icon || '📺'} ${channel.name}`;
+                    // Fix: Check if icon is SVG/HTML and exclude it from textContent if so
+                    const iconStr = channel.icon || '📺';
+                    const isHtml = iconStr.trim().startsWith('<');
+                    option.textContent = isHtml ? channel.name : `${iconStr} ${channel.name}`;
                     selectElement.appendChild(option);
                 });
 
