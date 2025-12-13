@@ -126,11 +126,15 @@ window.initSettings = function (currentUser) {
             document.getElementById('provider-status-settings').value = 'active';
         }
 
+        modal.classList.add('open');
         modal.style.display = 'flex';
     };
 
     window.closeProviderModalSettings = function () {
-        if (modal) modal.style.display = 'none';
+        if (modal) {
+            modal.classList.remove('open');
+            modal.style.display = 'none';
+        }
     };
 
     window.editProviderSettings = function (id) {
