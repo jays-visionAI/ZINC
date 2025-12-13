@@ -504,12 +504,20 @@ async function callGeminiInternal(apiKey, model, messages, temperature) {
     const lastMessage = userMessages[userMessages.length - 1];
     const prompt = systemMessage ? `${systemMessage}\n\n${lastMessage.content}` : lastMessage.content;
 
+    const config = {
+        maxOutputTokens: 4000
+    };
+
+    // Special handling for models that enforce default temperature (e.g. Gemini 3.0 Preview, Thinking models)
+    // Error observed: "temperature does not support 0.7 with this model. Only the default (1) value is supported."
+    const isRestrictedModel = model.includes('gemini-3') || model.includes('thinking');
+    if (!isRestrictedModel && temperature != null) {
+        config.temperature = temperature;
+    }
+
     const chat = geminiModel.startChat({
         history,
-        generationConfig: {
-            temperature,
-            maxOutputTokens: 4000
-        }
+        generationConfig: config
     });
 
     const result = await chat.sendMessage(prompt);
