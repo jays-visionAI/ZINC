@@ -170,19 +170,21 @@ function update(source) {
             d3.select(event.sourceEvent.target.parentNode).raise(); // Bring to front
         })
         .on("drag", (event, d) => {
-            // Update coordinates (Horizontal Tree: x is vertical, y is horizontal in data)
-            // But 'event.dx/dy' are screen coordinates.
-            // Screen X = d.y, Screen Y = d.x
-            d.y += event.dx;
-            d.x += event.dy;
+            // Get current zoom transform to adjust drag sensitivity
+            const transform = d3.zoomTransform(svg.node());
+            const scale = transform.k || 1;
+
+            // Update coordinates with scale correction
+            d.y += event.dx / scale;
+            d.x += event.dy / scale;
 
             // Move Node
             d3.select(event.sourceEvent.target.parentNode)
                 .attr("transform", `translate(${d.y},${d.x})`);
 
-            // Update Links (Incoming & Outgoing)
+            // Update Links (Using object comparison)
             g.selectAll('path.link')
-                .filter(l => l.source.id === d.id || l.target.id === d.id)
+                .filter(l => l.source === d || l.target === d)
                 .attr('d', l => diagonal(l.source, l.target));
         });
 
