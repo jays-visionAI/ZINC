@@ -161,7 +161,32 @@ function update(source) {
         .style('fill', d => d._children ? CONFIG.colors.leaf : CONFIG.colors.bg)
         .style('stroke', d => getNodeColor(d))
         .style('stroke-width', '2px')
-        .style('cursor', 'pointer');
+        .style('cursor', 'move'); // Changed to move cursor
+
+    // --- Drag Behavior ---
+    const dragBehavior = d3.drag()
+        .on("start", (event, d) => {
+            if (event.active) return; // Ignore if already active
+            d3.select(event.sourceEvent.target.parentNode).raise(); // Bring to front
+        })
+        .on("drag", (event, d) => {
+            // Update coordinates (Horizontal Tree: x is vertical, y is horizontal in data)
+            // But 'event.dx/dy' are screen coordinates.
+            // Screen X = d.y, Screen Y = d.x
+            d.y += event.dx;
+            d.x += event.dy;
+
+            // Move Node
+            d3.select(event.sourceEvent.target.parentNode)
+                .attr("transform", `translate(${d.y},${d.x})`);
+
+            // Update Links (Incoming & Outgoing)
+            g.selectAll('path.link')
+                .filter(l => l.source.id === d.id || l.target.id === d.id)
+                .attr('d', l => diagonal(l.source, l.target));
+        });
+
+    nodeEnter.call(dragBehavior);
 
     // Labels
     nodeEnter.append('text')
