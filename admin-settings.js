@@ -738,15 +738,29 @@ function renderLLMModelsTable() {
     tbody.innerHTML = llmModels.map(model => {
         const tierColor = tierColors[model.tier] || '#888';
         const providerIcon = providerIcons[model.provider] || '⚪';
-        const statusBadge = model.isActive
-            ? '<span style="color: #22c55e; border: 1px solid #22c55e; padding: 2px 8px; border-radius: 12px; font-size: 10px;">Active</span>'
-            : '<span style="color: #6b7280; border: 1px solid #6b7280; padding: 2px 8px; border-radius: 12px; font-size: 10px;">Disabled</span>';
         const defaultBadge = model.isDefault
             ? '<span style="background: #16e0bd; color: #000; padding: 2px 6px; border-radius: 4px; font-size: 9px; margin-left: 4px;">DEFAULT</span>'
             : '';
 
+        // Check if model is actually available (not future models like GPT-5)
+        const unavailableModels = ['gpt-5', 'gpt-5.2', 'gpt-5-turbo'];
+        const isUnavailable = unavailableModels.includes(model.modelId);
+
+        // Code Ready status
+        const codeReadyBadge = '<span style="color: #22c55e; border: 1px solid #22c55e; padding: 2px 8px; border-radius: 12px; font-size: 10px;">Ready</span>';
+
+        // Status badge - show Inactive for unavailable models
+        let statusBadge;
+        if (isUnavailable) {
+            statusBadge = '<span style="color: #f59e0b; border: 1px solid #f59e0b; padding: 2px 8px; border-radius: 12px; font-size: 10px;">Inactive</span>';
+        } else if (model.isActive) {
+            statusBadge = '<span style="color: #22c55e; border: 1px solid #22c55e; padding: 2px 8px; border-radius: 12px; font-size: 10px;">Active</span>';
+        } else {
+            statusBadge = '<span style="color: #6b7280; border: 1px solid #6b7280; padding: 2px 8px; border-radius: 12px; font-size: 10px;">Disabled</span>';
+        }
+
         return `
-        <tr>
+        <tr style="${isUnavailable ? 'opacity: 0.6;' : ''}">
             <td>
                 <strong style="color: #fff;">${model.displayName}</strong>${defaultBadge}
                 <div style="font-size: 11px; color: rgba(255,255,255,0.4); font-family: monospace;">${model.modelId}</div>
@@ -761,6 +775,7 @@ function renderLLMModelsTable() {
                 </span>
             </td>
             <td style="font-size: 11px; color: rgba(255,255,255,0.6);">${formatContextSize(model.maxContextTokens)}</td>
+            <td>${codeReadyBadge}</td>
             <td>${statusBadge}</td>
             <td>
                 <button class="admin-btn-secondary" style="padding: 4px 8px; font-size: 10px;" onclick="editLLMModel('${model.id}')">Edit</button>
