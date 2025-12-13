@@ -109,6 +109,21 @@ window.seedLLMRouterData = async function () {
             isDefault: false
         },
         {
+            id: 'gemini-1.5-flash',
+            provider: 'gemini',
+            modelId: 'gemini-1.5-flash',
+            displayName: 'Gemini 1.5 Flash',
+            description: 'Fast and cost-effective Gemini model',
+            tier: 'economy',
+            costPer1kInputTokens: 0.000075,
+            costPer1kOutputTokens: 0.0003,
+            creditPer1kTokens: 0.15,
+            maxContextTokens: 1000000,
+            capabilities: ['chat', 'vision'],
+            isActive: true,
+            isDefault: true
+        },
+        {
             id: 'gemini-2.0-flash',
             provider: 'gemini',
             modelId: 'gemini-2.0-flash-exp',
@@ -239,7 +254,7 @@ window.seedLLMRouterData = async function () {
             description: 'Brand document analysis',
             defaultTier: {
                 provider: 'gemini',
-                model: 'gemini-2.0-flash-exp',
+                model: 'gemini-1.5-flash',
                 creditMultiplier: 0.5
             },
             boostTier: {
