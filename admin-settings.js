@@ -474,6 +474,11 @@ window.switchSettingsTab = function (tabId) {
     if (tabId === 'channel-api') {
         loadSettingsChannels();
     }
+    // Load LLM Models and Policies when switching to LLM tab
+    if (tabId === 'llm') {
+        refreshLLMModels();
+        refreshFeaturePolicies();
+    }
     // Load Pricing data when switching to Pricing tab
     if (tabId === 'pricing') {
         loadPricingData();
@@ -1051,26 +1056,5 @@ function renderFeaturePoliciesTable() {
 }
 
 // Auto-load LLM Models and Feature Policies when System tab is shown
-(function () {
-    // Override switchSettingsTab to also load LLM data
-    const originalSwitch = window.switchSettingsTab;
-    window.switchSettingsTab = function (tabId) {
-        originalSwitch(tabId);
-
-        if (tabId === 'system') {
-            // Load LLM Models and Feature Policies
-            if (typeof refreshLLMModels === 'function') refreshLLMModels();
-            if (typeof refreshFeaturePolicies === 'function') refreshFeaturePolicies();
-        }
-    };
-
-    // Also load on initial page load if System tab is active
-    setTimeout(() => {
-        const systemTab = document.getElementById('tab-system');
-        if (systemTab && systemTab.style.display !== 'none') {
-            if (typeof refreshLLMModels === 'function') refreshLLMModels();
-            if (typeof refreshFeaturePolicies === 'function') refreshFeaturePolicies();
-        }
-    }, 500);
-})();
+// LLM Auto-load simplified via main switchSettingsTab logic
 
