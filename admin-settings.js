@@ -743,7 +743,7 @@ function renderLLMModelsTable() {
             : '';
 
         // Check if model is actually available (not future models like GPT-5)
-        const unavailableModels = ['gpt-5', 'gpt-5.2', 'gpt-5-turbo'];
+        const unavailableModels = ['gpt-5', 'gpt-5.2', 'gpt-5-turbo', 'gemini-2.0-pro', 'gemini-3.0-pro'];
         const isUnavailable = unavailableModels.includes(model.modelId);
 
         // Code Ready status
