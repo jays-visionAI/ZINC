@@ -166,8 +166,8 @@ window.seedLLMRouterData = async function () {
                 creditMultiplier: 1.0
             },
             boostTier: {
-                provider: 'openai',
-                model: 'gpt-5.2',
+                provider: 'gemini',
+                model: 'gemini-3-pro-preview',
                 creditMultiplier: 2.5
             },
             forceTier: null, // No forced model
@@ -243,9 +243,9 @@ window.seedLLMRouterData = async function () {
                 creditMultiplier: 0.5
             },
             boostTier: {
-                provider: 'openai',
-                model: 'gpt-5',
-                creditMultiplier: 1.0
+                provider: 'gemini',
+                model: 'gemini-3-pro-preview',
+                creditMultiplier: 2.5
             },
             forceTier: null,
             isActive: true
@@ -280,9 +280,9 @@ window.seedLLMRouterData = async function () {
                 creditMultiplier: 0.5
             },
             boostTier: {
-                provider: 'openai',
-                model: 'gpt-5',
-                creditMultiplier: 1.0
+                provider: 'gemini',
+                model: 'gemini-3-pro-preview',
+                creditMultiplier: 2.5
             },
             forceTier: null,
             isActive: true
