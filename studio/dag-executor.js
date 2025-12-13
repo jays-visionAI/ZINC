@@ -448,11 +448,11 @@ class DAGExecutor {
             if (result.data.success && result.data.data && result.data.data.length > 0) {
                 return { imageUrl: result.data.data[0] };
             } else {
-                throw new Error('No image generated');
+                throw new Error(result.data.error || 'No image generated from provider');
             }
         } catch (error) {
-            console.error('[DAGExecutor] Image generation failed:', error);
-            this.emit('onLog', { message: `   ⚠️ DALL-E failed, using placeholder`, type: 'warning' });
+            console.warn('[DAGExecutor] Image generation failed, fallback to placeholder:', error.message);
+            this.emit('onLog', { message: `   ⚠️ Image Gen failed (${error.message}), using placeholder`, type: 'warning' });
             // Fallback to placeholder
             return {
                 imageUrl: `https://picsum.photos/seed/${context?.planName?.replace(/\s/g, '') || 'zynkdefault'}/800/600`
