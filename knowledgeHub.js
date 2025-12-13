@@ -3623,13 +3623,9 @@ async function generatePlan() {
         const boostActive = document.getElementById('plan-boost-active')?.value === 'true';
         const qualityTier = boostActive ? 'BOOST' : 'DEFAULT';
 
-        // Call routeLLM instead of generateContentPlan
-        const routeLLM = firebase.functions().httpsCallable('routeLLM');
-        const result = await routeLLM({
-            feature: 'studio.content_gen', // Use content generation policy
-            qualityTier: qualityTier,
-            systemPrompt: `You are an expert content strategist. Create a detailed ${currentPlan.name} based on the provided brand sources.`,
-            userPrompt: `Generate a ${currentPlan.name} (${currentPlan.category}).
+        // Prompt Construction
+        let sysPrompt = `You are an expert content strategist. Create a detailed ${currentPlan.name} based on the provided brand sources.`;
+        let usrPrompt = `Generate a ${currentPlan.name} (${currentPlan.category}).
             
 Context/Instructions:
 ${document.getElementById('plan-instructions').value}
@@ -3637,9 +3633,43 @@ ${document.getElementById('plan-instructions').value}
 Target Language: ${targetLanguage === 'ko' ? 'Korean' : 'English'}
 
 Sources:
-${activeSources.map(s => `- ${s.title}`).join('\n')}
+${activeSources.map(s => `- ${s.title}`).join('\n')}`;
 
-Format the output in clear, structured Markdown.`
+        // Special handling for Brand Mind Map
+        if (currentPlan.type === 'brand_mind_map') {
+            sysPrompt = `You are an expert brand strategist. Generate a structured JSON mind map.`;
+            usrPrompt += `\n\nIMPORTANT: Return VALID JSON ONLY wrapped in \`\`\`json\`\`\`.
+Structure:
+{
+  "name": "Brand Name",
+  "children": [
+    {
+      "name": "Category",
+      "children": [
+        {
+          "name": "Concept",
+          "description": "Short explanation",
+          "sourceReference": {
+            "title": "Exact Source Document Title",
+            "snippet": "Relevant text excerpt (approx 200 chars)..."
+          }
+        }
+      ]
+    }
+  ]
+}
+Ensure at least 3 levels of depth. Coverage: Core Identity, Products, Audience, Values, Channels.`;
+        } else {
+            usrPrompt += `\n\nFormat the output in clear, structured Markdown.`;
+        }
+
+        // Call routeLLM
+        const routeLLM = firebase.functions().httpsCallable('routeLLM');
+        const result = await routeLLM({
+            feature: 'studio.content_gen', // Use content generation policy
+            qualityTier: qualityTier,
+            systemPrompt: sysPrompt,
+            userPrompt: usrPrompt
         });
 
         // routeLLM returns { content: "...", ... }
@@ -3650,17 +3680,32 @@ Format the output in clear, structured Markdown.`
             document.getElementById('plan-step-generating').classList.add('hidden');
             document.getElementById('plan-step-result').classList.remove('hidden');
 
-            // Render Markdown
-            const resultContainer = document.querySelector('#plan-result-content .prose');
-            // Simple markdown rendering or just text
-            resultContainer.innerHTML = generatedContent.replace(/\n/g, '<br>'); // Basic formatting
-
             // Store versions
+            let parsedMindMapData = null;
+            if (currentPlan.type === 'brand_mind_map') {
+                try {
+                    // Try removing markdown code blocks
+                    let jsonStr = generatedContent;
+                    const mbMatch = generatedContent.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+                    if (mbMatch) jsonStr = mbMatch[1].trim();
+                    // Basic cleanup
+                    const firstBrace = jsonStr.indexOf('{');
+                    const lastBrace = jsonStr.lastIndexOf('}');
+                    if (firstBrace !== -1 && lastBrace !== -1) {
+                        jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);
+                    }
+                    parsedMindMapData = JSON.parse(jsonStr);
+                } catch (e) {
+                    console.warn('[MindMap] JSON Parsing failed:', e);
+                }
+            }
+
             const newVersion = {
                 id: Date.now().toString(),
                 content: generatedContent,
                 createdAt: new Date(),
-                weightBreakdown: weightBreakdown
+                weightBreakdown: weightBreakdown,
+                mindMapData: parsedMindMapData
             };
             planVersions.push(newVersion);
             renderPlanVersions();
@@ -3729,7 +3774,7 @@ function renderPlanVersions() {
 
     tabsContainer.innerHTML = planVersions.map((v, i) => `
         <button class="plan-version-tab px-3 py-1.5 text-xs rounded-lg border transition-all ${i === planVersions.length - 1 ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'}"
-            onclick="selectPlanVersion(${i})">
+            onclick="selectPlanVersion(${i})" data-index="${i}">
             Version ${i + 1}
         </button>
     `).join('');
@@ -3756,26 +3801,55 @@ function selectPlanVersion(index) {
     });
 
     // Display content (convert markdown to HTML if needed)
-    const contentDiv = document.getElementById('plan-result-content').querySelector('.prose');
+    const resultContainer = document.querySelector('#plan-result-content .prose');
+    let contentHtml = '';
 
-    // Add Weight Report button if weightBreakdown exists
-    let weightReportBtn = '';
-    if (version.weightBreakdown && version.weightBreakdown.length > 0) {
-        weightReportBtn = `
-            <div class="mb-4 flex items-center justify-end">
-                <button onclick="openWeightReport(planVersions[${index}]?.weightBreakdown, '${currentPlan?.name || 'Content Plan'}')" 
-                        class="px-3 py-1.5 text-xs bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 rounded-lg transition-all flex items-center gap-2 border border-indigo-600/30">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M3 3v18h18"/>
-                        <path d="M7 16l4-8 4 4 5-9"/>
-                    </svg>
-                    📊 View Weight Report
+    // Check for Mind Map Data (Always show for Brand Mind Map plan)
+    if (currentPlan.type === 'brand_mind_map') {
+        const hasData = version.mindMapData && Object.keys(version.mindMapData).length > 0;
+        contentHtml += `
+            <div class="mb-4 p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-xl flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400">🧠</div>
+                    <div>
+                        <h4 class="text-sm font-bold text-white">Interactive Mind Map</h4>
+                        <p class="text-xs text-slate-400">${hasData ? 'Explore brand connections visually.' : 'Text preview only. Open to see demo/structure.'}</p>
+                    </div>
+                </div>
+                <button onclick="openMindMapWindow(${index})" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-lg transition-colors shadow-lg shadow-indigo-500/20">
+                    Open Mind Map ↗
                 </button>
-            </div>
-        `;
+            </div>`;
     }
 
-    contentDiv.innerHTML = weightReportBtn + formatPlanContent(version.content);
+    // Show Weight Report Button if data exists
+    if (version.weightBreakdown && version.weightBreakdown.length > 0) {
+        contentHtml += `
+            <div class="mb-6 flex justify-end">
+                <button onclick="openWeightReport(planVersions[${index}]?.weightBreakdown, '${currentPlan?.name || 'Content Plan'}')" class="text-xs text-indigo-400 hover:text-white flex items-center gap-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 px-3 py-1.5 rounded-lg border border-indigo-500/20 transition-all">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                    View Source Weights
+                </button>
+            </div>`;
+    }
+
+    contentHtml += formatPlanContent(version.content); // Simple replace or use marked() if available
+
+    resultContainer.innerHTML = contentHtml;
+}
+
+// Function to open the standalone mindmap viewer
+function openMindMapWindow(versionIndex) {
+    const version = planVersions[versionIndex];
+    if (version) {
+        // Safe storage in localStorage to pass data to new window
+        const dataKey = `mindmap_${Date.now()}`;
+        if (version.mindMapData) {
+            localStorage.setItem(dataKey, JSON.stringify(version.mindMapData));
+        }
+        // Open window regardless of data (viewer handles missing data with mock)
+        window.open(`brand-mindmap.html?dataKey=${dataKey}`, '_blank');
+    }
 }
 
 /**
@@ -3866,6 +3940,7 @@ async function savePlanToFirestore() {
                 version: versionNumber,
                 sessionId: currentPlan.sessionId || generateSessionId(),
                 weightBreakdown: version.weightBreakdown || [],
+                mindMapData: version.mindMapData || null, // Add mindMapData
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                 createdBy: currentUser?.uid
             });
@@ -4080,7 +4155,8 @@ function viewSavedPlan(id, plan) {
         id: id,
         content: plan.content,
         createdAt: plan.createdAt?.toDate() || new Date(),
-        weightBreakdown: plan.weightBreakdown || []
+        weightBreakdown: plan.weightBreakdown || [],
+        mindMapData: plan.mindMapData || null
     }];
 
     document.getElementById('plan-modal-title').textContent = plan.planName;
@@ -5237,4 +5313,244 @@ function initializeMobileTabs() {
             });
         });
     });
+}
+/* --- Brand Mind Map Implementation (D3.js) --- */
+let activeMindMapData = null;
+let mindMapSimulation = null; // Store simulation/zoom instance if needed
+
+function openMindMapModal(data) {
+    activeMindMapData = data;
+    document.getElementById('mindmap-modal').style.display = 'block';
+
+    // Slight delay to ensure DOM is ready
+    setTimeout(() => {
+        renderMindMap(data);
+    }, 100);
+}
+
+function closeMindMapModal() {
+    document.getElementById('mindmap-modal').style.display = 'none';
+    document.getElementById('mindmap-canvas-container').innerHTML = ''; // Clear SVG
+}
+
+function renderMindMap(rootData) {
+    const container = document.getElementById('mindmap-canvas-container');
+    container.innerHTML = '';
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+
+    // Zoom behavior
+    const zoom = d3.zoom()
+        .scaleExtent([0.1, 4])
+        .on('zoom', (event) => {
+            g.attr('transform', event.transform);
+        });
+
+    const svg = d3.select(container).append('svg')
+        .attr('width', width)
+        .attr('height', height)
+        .call(zoom)
+        .on('dblclick.zoom', null); // Disable double click zoom
+
+    const g = svg.append('g');
+
+    // Button controls
+    d3.select('#mm-zoom-in').on('click', () => svg.transition().call(zoom.scaleBy, 1.2));
+    d3.select('#mm-zoom-out').on('click', () => svg.transition().call(zoom.scaleBy, 0.8));
+    d3.select('#mm-fit-view').on('click', () => {
+        svg.transition().call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(1));
+    });
+
+    // Tree Layout
+    // Calculate tree size based on depth
+    const root = d3.hierarchy(rootData);
+
+    // Set initial position
+    root.x0 = height / 2;
+    root.y0 = 0;
+
+    // Collapse function
+    function collapse(d) {
+        if (d.children) {
+            d._children = d.children;
+            d._children.forEach(collapse);
+            d.children = null;
+        }
+    }
+
+    // Collapse after level 2 initially for cleaner view
+    // root.children.forEach(collapse);
+
+    update(root);
+
+    function update(source) {
+        // Compute the new tree layout.
+        // Dynamic width based on depth
+        const treeLayout = d3.tree().nodeSize([40, 200]); // [height-spacing, width-spacing]
+        const treeData = treeLayout(root);
+
+        // Nodes
+        const nodes = treeData.descendants();
+        const links = treeData.links();
+
+        // Normalize for fixed-depth.
+        nodes.forEach(d => { d.y = d.depth * 250; }); // Horizontal spacing
+
+        // ****************** Nodes section ******************
+
+        // Update the nodes...
+        const node = g.selectAll('g.node')
+            .data(nodes, d => d.id || (d.id = Math.random().toString())); // Use stable ID if possible
+
+        // Enter any new nodes at the parent's previous position.
+        const nodeEnter = node.enter().append('g')
+            .attr('class', 'node')
+            .attr('transform', d => `translate(${source.y0 || 0},${source.x0 || 0})`)
+            .on('click', click);
+
+        // Add Circle for the nodes
+        nodeEnter.append('circle')
+            .attr('class', 'node')
+            .attr('r', 1e-6)
+            .style('fill', d => d._children ? '#6366f1' : '#1e293b') // Indigo if collapsed
+            .style('stroke', '#6366f1')
+            .style('stroke-width', '2px')
+            .style('cursor', 'pointer');
+
+        // Add labels
+        nodeEnter.append('text')
+            .attr('dy', '.35em')
+            .attr('x', d => d.children || d._children ? -13 : 13)
+            .attr('text-anchor', d => d.children || d._children ? 'end' : 'start')
+            .text(d => d.data.name)
+            .style('font-size', '14px')
+            .style('fill', '#e2e8f0') // Slate-200
+            .style('font-family', 'Inter, sans-serif')
+            .style('text-shadow', '0 1px 3px rgba(0,0,0,0.8)')
+            .style('cursor', 'pointer');
+
+        // UPDATE
+        const nodeUpdate = nodeEnter.merge(node);
+
+        // Transition to the proper position for the node
+        nodeUpdate.transition()
+            .duration(500)
+            .attr('transform', d => `translate(${d.y},${d.x})`);
+
+        // Update the node attributes and style
+        nodeUpdate.select('circle.node')
+            .attr('r', 10)
+            .style('fill', d => d._children ? '#6366f1' : (d.data.type === 'root' ? '#ec4899' : '#1e293b')) // Root pink, else slate
+            .attr('cursor', 'pointer');
+
+        // Remove any exiting nodes
+        const nodeExit = node.exit().transition()
+            .duration(500)
+            .attr('transform', d => `translate(${source.y},${source.x})`)
+            .remove();
+
+        nodeExit.select('circle')
+            .attr('r', 1e-6);
+
+        nodeExit.select('text')
+            .style('fill-opacity', 1e-6);
+
+        // ****************** Links section ******************
+
+        // Update the links...
+        const link = g.selectAll('path.link')
+            .data(links, d => d.target.id);
+
+        // Enter any new links at the parent's previous position.
+        const linkEnter = link.enter().insert('path', 'g')
+            .attr('class', 'link')
+            .attr('d', d => {
+                const o = { x: source.x0 || 0, y: source.y0 || 0 };
+                return diagonal(o, o);
+            })
+            .style('fill', 'none')
+            .style('stroke', '#475569') // Slate-600
+            .style('stroke-width', '1.5px')
+            .style('opacity', '0.6');
+
+        // UPDATE
+        const linkUpdate = linkEnter.merge(link);
+
+        // Transition back to the parent element position
+        linkUpdate.transition()
+            .duration(500)
+            .attr('d', d => diagonal(d.source, d.target));
+
+        // Remove any exiting links
+        const linkExit = link.exit().transition()
+            .duration(500)
+            .attr('d', d => {
+                const o = { x: source.x, y: source.y };
+                return diagonal(o, o);
+            })
+            .remove();
+
+        // Store the old positions for transition.
+        nodes.forEach(d => {
+            d.x0 = d.x;
+            d.y0 = d.y;
+        });
+
+        // Creates a curved (diagonal) path from parent to the child nodes
+        function diagonal(s, d) {
+            return `M ${s.y} ${s.x}
+                    C ${(s.y + d.y) / 2} ${s.x},
+                      ${(s.y + d.y) / 2} ${d.x},
+                      ${d.y} ${d.x}`;
+        }
+
+        // Toggle children on click.
+        function click(event, d) {
+            // If dragging, don't trigger click (if we implement drag later)
+            // But also update Inspector
+            updateInspector(d.data);
+
+            if (d.children) {
+                d._children = d.children;
+                d.children = null;
+            } else {
+                d.children = d._children;
+                d._children = null;
+            }
+            update(d);
+        }
+    }
+
+    // Initial transform to center root
+    svg.call(zoom.transform, d3.zoomIdentity.translate(100, height / 2).scale(1));
+}
+
+function updateInspector(nodeData) {
+    const inspector = document.getElementById('mindmap-inspector');
+    const emptyState = document.getElementById('inspector-empty-state');
+    const content = document.getElementById('inspector-content');
+    const body = document.getElementById('inspector-body');
+
+    emptyState.classList.add('hidden');
+    content.classList.remove('hidden');
+    body.classList.remove('hidden');
+
+    document.getElementById('insp-node-name').textContent = nodeData.name;
+    document.getElementById('insp-node-type').textContent = nodeData.type || 'Concept';
+    document.getElementById('insp-node-desc').textContent = nodeData.description || 'No description available.';
+
+    // Source Card
+    const sourceCard = document.getElementById('insp-source-card');
+    if (nodeData.sourceReference) {
+        sourceCard.classList.remove('hidden');
+        document.getElementById('insp-source-title').textContent = nodeData.sourceReference.title || 'Unknown Source';
+        document.getElementById('insp-source-snippet').textContent = `"${nodeData.sourceReference.snippet || '...'}"`;
+    } else {
+        sourceCard.classList.add('hidden');
+    }
+}
+
+function saveMindMapChanges() {
+    // TODO: Implement save logic back to currentPlan Version
+    showNotification('Mind Map layout saved (simulation)', 'success');
 }

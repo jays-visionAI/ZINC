@@ -3961,13 +3961,29 @@ exports.generateContentPlan = onCall({ cors: ALLOWED_ORIGINS }, async (request) 
 - Expected outcomes`,
 
             // Knowledge
-            brand_mind_map: `Create a brand mind map structure:
-- Core Brand Identity (center)
-- Product/Service branches
-- Audience segments
-- Brand values
-- Key differentiators
-- Communication channels`,
+            brand_mind_map: `Create a comprehensive hierarchical brand mind map.
+IMPORTANT: Return ONLY a valid JSON object wrapped in \`\`\`json\`\`\`.
+Structure:
+{
+  "name": "Brand Name",
+  "children": [
+    {
+      "name": "Category (e.g. Core Values)",
+      "children": [
+        {
+          "name": "Concept",
+          "description": "Brief explanation",
+          "sourceReference": {
+            "title": "Exact Source Document Title",
+            "snippet": "Relevant text excerpt from source (approx 200 chars)..."
+          }
+        }
+      ]
+    }
+  ]
+}
+Ensure deep coverage: Core Identity, Products, Target Audience, Values, Channels.
+Do not include any text outside the JSON block.`,
 
             competitor_analysis: `Conduct competitive analysis:
 - Top 3-5 competitors identified
@@ -4048,7 +4064,9 @@ ${planPrompt}
 
 ${additionalInstructions ? `Additional requirements: ${additionalInstructions}` : ''}
 
-Create a comprehensive, well-structured output. Use markdown formatting with headers, bullet points, and clear sections.`;
+${planType === 'brand_mind_map'
+                ? 'ENSURE OUTPUT IS VALID JSON ONLY. No markdown conversational text.'
+                : 'Create a comprehensive, well-structured output. Use markdown formatting with headers, bullet points, and clear sections.'}`;
 
         // Get OpenAI API key from Firestore
         const apiKey = await getSystemApiKey('openai');
