@@ -153,6 +153,79 @@ window.initSettings = function (currentUser) {
         }
     }
 
+    /**
+     * Sanitize LLM Providers (Standardize names & remove duplicates)
+     */
+    window.sanitizeLLMProviders = async function () {
+        if (!confirm('This will standardise provider names (OpenAI, Google Gemini, Anthropic) and remove duplicates. Continue?')) {
+            return;
+        }
+
+        try {
+            const db = firebase.firestore();
+            const snapshot = await db.collection('systemLLMProviders').get();
+            const allProviders = [];
+
+            snapshot.forEach(doc => {
+                allProviders.push({ id: doc.id, ...doc.data() });
+            });
+
+            // Standardize names mapping
+            const standardNames = {
+                'openai': 'OpenAI',
+                'gemini': 'Google Gemini',
+                'anthropic': 'Anthropic'
+            };
+
+            const uniqueProviders = {};
+            const batch = db.batch();
+            let changesCount = 0;
+
+            // Sort by update time (keep most recent) to prefer newer entries
+            allProviders.sort((a, b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
+
+            // 1. Identify unique providers & mark duplicates for deletion
+            // Also update names if needed
+            for (const p of allProviders) {
+                if (!p.provider) continue; // Skip invalid
+
+                const type = p.provider.toLowerCase();
+                if (!uniqueProviders[type]) {
+                    // This is the primary provider for this type
+                    uniqueProviders[type] = p;
+
+                    // Check if renaming is needed
+                    const newName = standardNames[type];
+                    if (newName && p.name !== newName) {
+                        console.log(`Renaming ${p.name} -> ${newName}`);
+                        batch.update(db.collection('systemLLMProviders').doc(p.id), {
+                            name: newName,
+                            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                        changesCount++;
+                    }
+                } else {
+                    // Duplicate! Delete it.
+                    console.log(`Deleting duplicate provider: ${p.name} (${p.id})`);
+                    batch.delete(db.collection('systemLLMProviders').doc(p.id));
+                    changesCount++;
+                }
+            }
+
+            if (changesCount > 0) {
+                await batch.commit();
+                alert(`Cleanup complete! ${changesCount} items processed.`);
+                await loadProviders();
+            } else {
+                alert('Providers are already clean.');
+            }
+
+        } catch (error) {
+            console.error('Error sanitizing providers:', error);
+            alert('Error: ' + error.message);
+        }
+    };
+
     window.openProviderModal = function (providerId = null) {
         if (!modal || !form) return;
 
