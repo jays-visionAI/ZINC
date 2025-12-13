@@ -112,10 +112,15 @@ window.initSettings = function (currentUser) {
         if (!statusCell) return;
 
         try {
-            // Use LLMProviderService to test connection
-            const result = await window.LLMProviderService.testConnection(provider.provider, provider.apiKey || provider.credentialRef?.apiKey);
+            // Call Cloud Function to test provider connection
+            // The function will use the stored API key from Firestore
+            const testConnection = firebase.functions().httpsCallable('testLLMProviderConnection');
+            const result = await testConnection({
+                providerId: provider.id,
+                providerType: provider.provider
+            });
 
-            if (result.success) {
+            if (result.data && result.data.success) {
                 statusCell.innerHTML = `
                     <span style="color: #22c55e; border: 1px solid #22c55e; padding: 2px 8px; border-radius: 12px; font-size: 10px;">
                         ✓ Active
@@ -123,18 +128,26 @@ window.initSettings = function (currentUser) {
                 `;
             } else {
                 statusCell.innerHTML = `
-                    <span style="color: #ef4444; border: 1px solid #ef4444; padding: 2px 8px; border-radius: 12px; font-size: 10px;" title="${result.error || 'Connection failed'}">
+                    <span style="color: #ef4444; border: 1px solid #ef4444; padding: 2px 8px; border-radius: 12px; font-size: 10px;" title="${result.data?.error || 'Connection failed'}">
                         ✗ Error
                     </span>
                 `;
             }
         } catch (error) {
             console.error(`[Provider Health] ${provider.name} error:`, error);
-            statusCell.innerHTML = `
-                <span style="color: #ef4444; border: 1px solid #ef4444; padding: 2px 8px; border-radius: 12px; font-size: 10px;" title="${error.message}">
-                    ✗ Error
-                </span>
-            `;
+            // If Cloud Function doesn't exist yet, fall back to stored status
+            if (error.code === 'functions/not-found' || error.message.includes('not found')) {
+                // Use stored status as fallback
+                statusCell.innerHTML = provider.status === 'active'
+                    ? `<span style="color: #22c55e; border: 1px solid #22c55e; padding: 2px 8px; border-radius: 12px; font-size: 10px;">✓ Active</span>`
+                    : `<span style="color: #6b7280; border: 1px solid #6b7280; padding: 2px 8px; border-radius: 12px; font-size: 10px;">Disabled</span>`;
+            } else {
+                statusCell.innerHTML = `
+                    <span style="color: #ef4444; border: 1px solid #ef4444; padding: 2px 8px; border-radius: 12px; font-size: 10px;" title="${error.message}">
+                        ✗ Error
+                    </span>
+                `;
+            }
         }
     }
 

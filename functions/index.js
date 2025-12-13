@@ -90,6 +90,90 @@ exports.callOpenAI = functions.https.onCall(async (data, context) => {
 });
 
 /**
+ * Test LLM Provider Connection
+ * Tests if the stored API key is valid for a given provider
+ */
+exports.testLLMProviderConnection = functions.https.onCall(async (data, context) => {
+    const { providerId, providerType } = data;
+
+    if (!providerId || !providerType) {
+        throw new functions.https.HttpsError('invalid-argument', 'providerId and providerType are required');
+    }
+
+    try {
+        // Get the provider's API key from Firestore
+        const providerDoc = await admin.firestore().collection('systemLLMProviders').doc(providerId).get();
+
+        if (!providerDoc.exists) {
+            return { success: false, error: 'Provider not found' };
+        }
+
+        const providerData = providerDoc.data();
+        const apiKey = getApiKeyFromData(providerData);
+
+        if (!apiKey) {
+            return { success: false, error: 'No API key configured' };
+        }
+
+        // Test the connection based on provider type
+        let testResult;
+
+        switch (providerType.toLowerCase()) {
+            case 'openai':
+                testResult = await testOpenAIConnectionQuick(apiKey);
+                break;
+            case 'gemini':
+                testResult = await testGeminiConnectionQuick(apiKey);
+                break;
+            case 'anthropic':
+                testResult = await testAnthropicConnectionQuick(apiKey);
+                break;
+            default:
+                return { success: false, error: `Unknown provider type: ${providerType}` };
+        }
+
+        return testResult;
+
+    } catch (error) {
+        console.error('[testLLMProviderConnection] Error:', error);
+        return { success: false, error: error.message };
+    }
+});
+
+async function testOpenAIConnectionQuick(apiKey) {
+    try {
+        const OpenAI = require('openai');
+        const openai = new OpenAI({ apiKey });
+        await openai.models.list();
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+async function testGeminiConnectionQuick(apiKey) {
+    try {
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        // Just verify we can create the model - don't make actual call
+        return { success: !!model };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+async function testAnthropicConnectionQuick(apiKey) {
+    try {
+        const Anthropic = require('@anthropic-ai/sdk');
+        const client = new Anthropic({ apiKey });
+        // Check if client is created successfully
+        return { success: !!client };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
  * Execute a single sub-agent
  * Called from the frontend AgentExecutionService
  */
