@@ -355,6 +355,15 @@
                         </svg>
                         Regenerate
                     </button>
+                    Regenerate
+                    </button>
+                    <!-- Boost Toggle for Main Summary -->
+                    <button id="btn-boost-main-summary" onclick="toggleBoost('main-summary')"
+                        class="px-3 py-1.5 text-xs bg-slate-800/50 hover:bg-slate-700 text-slate-300 rounded-lg transition-all flex items-center gap-2 border border-slate-700/50">
+                        <span id="boost-icon-main-summary" class="grayscale">🚀</span>
+                        Boost
+                    </button>
+                    <input type="hidden" id="main-summary-boost-active" value="false">
                     <!-- History Button (Moved here) -->
                     <button id="btn-summary-history" onclick="openSummaryHistory()"
                         class="text-xs text-slate-400 hover:text-white flex items-center gap-1 px-3 py-1.5 bg-slate-800/50 rounded-lg border border-slate-700/50 hover:bg-slate-700/50 transition-all">
@@ -1124,6 +1133,13 @@
                             class="px-4 py-2 text-sm text-slate-400 hover:text-white transition-colors">
                             Cancel
                         </button>
+                        <!-- Boost Toggle for Plan -->
+                        <button id="btn-boost-plan" onclick="toggleBoost('plan')"
+                            class="px-3 py-2 text-sm bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-all flex items-center gap-2 border border-slate-700">
+                            <span id="boost-icon-plan" class="grayscale">🚀</span>
+                            Boost
+                        </button>
+                        <input type="hidden" id="plan-boost-active" value="false">
                         <button id="btn-generate-plan" onclick="generatePlan()"
                             class="px-6 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-500 transition-colors flex items-center gap-2">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"

@@ -548,6 +548,13 @@ function updateSummarySection() {
                         </svg>
                         Regenerate Summary
                     </button>
+                    <button id="btn-boost-summary" 
+                            onclick="toggleBoost('summary')" 
+                            class="px-3 py-1.5 text-xs bg-slate-700/50 hover:bg-slate-700 text-slate-300 rounded-lg transition-all flex items-center gap-2 border border-slate-600/50">
+                        <span id="boost-icon-summary" class="grayscale">🚀</span>
+                        Boost
+                    </button>
+                    <input type="hidden" id="summary-boost-active" value="false">
                     <button onclick="confirmDeleteSource('${summaryToShow.sourceId}', '${escapeHtml(summaryToShow.title || 'this source')}')" 
                             class="px-3 py-1.5 text-xs bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-lg transition-all flex items-center gap-2 border border-red-600/30">
                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1212,7 +1219,11 @@ async function regenerateSourceSummary(sourceId) {
         return;
     }
 
-    showNotification('Generating summary...', 'info');
+    // Check for Boost Mode
+    const boostActive = document.getElementById('summary-boost-active')?.value === 'true';
+    const qualityTier = boostActive ? 'BOOST' : 'DEFAULT';  // "BOOST" uses Gemini 3.0 Pro, "DEFAULT" uses Gemini 2.0 Flash
+
+    showNotification(`Generating summary (${boostActive ? 'Boosted 🚀' : 'Standard'})...`, 'info');
 
     try {
         // Get content to summarize based on source type
@@ -1231,27 +1242,25 @@ async function regenerateSourceSummary(sourceId) {
             return;
         }
 
-        // Call AI to generate summary via Cloud Function
-        const callOpenAI = firebase.functions().httpsCallable('callOpenAI');
-        const result = await callOpenAI({
-            messages: [
-                { role: 'system', content: 'You are a helpful assistant that creates concise document summaries.' },
-                {
-                    role: 'user', content: `Please provide a concise summary (3-5 sentences) of the following document content. Focus on the key points and main takeaways.
+        // Call AI via routeLLM (PRD 11.6 Router)
+        const routeLLM = firebase.functions().httpsCallable('routeLLM');
+
+        const result = await routeLLM({
+            feature: 'brandbrain.analysis', // Maps to Gemini 3.0 Pro (Boost) or Gemini 2.0 Flash (Default)
+            qualityTier: qualityTier,
+            systemPrompt: 'You are a helpful assistant that creates concise document summaries. Structure your response with a clear summary followed by key bullet points.',
+            userPrompt: `Please provide a concise summary of the following document content. Focus on the main strategy, key insights, and actionable items.
             
 Document Title: ${source.title || 'Untitled'}
 Document Type: ${source.sourceType}
 Content:
-${contentToSummarize.substring(0, 5000)}`
-                }
-            ],
-            model: 'gpt-4o-mini',
-            temperature: 0.5
+${contentToSummarize.substring(0, 15000)}` // Increased limit for Gemini
         });
 
-        const response = result.data?.response;
+        // routeLLM returns { content: "...", model: "...", ... }
+        const responseText = result.data?.content;
 
-        if (response) {
+        if (responseText) {
             // Save summary to Firestore
             await firebase.firestore()
                 .collection('projects')
@@ -1259,28 +1268,61 @@ ${contentToSummarize.substring(0, 5000)}`
                 .collection('knowledgeSources')
                 .doc(sourceId)
                 .update({
-                    summary: response,
+                    summary: responseText, // Use responseText
                     summarizedAt: firebase.firestore.FieldValue.serverTimestamp(),
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
             // Update local state
-            source.summary = response;
+            source.summary = responseText;
             source.summarizedAt = { toDate: () => new Date() };
 
             // Refresh the view
             openSourceContent(sourceId);
 
-            showNotification('Summary generated successfully!', 'success');
+            showNotification(`Summary generated successfully! (${qualityTier})`, 'success');
         } else {
-            showNotification('Failed to generate summary', 'error');
+            console.error('RouteLLM Empty Response:', result.data);
+            showNotification(`Failed to generate: ${result.data?.error || 'No content returned from AI'}`, 'error');
         }
 
     } catch (error) {
         console.error('Error regenerating source summary:', error);
-        showNotification('Failed to generate summary', 'error');
+        // Show detailed error from Cloud Function
+        const errorMsg = error.details?.message || error.message || 'Unknown error';
+        showNotification(`Generation Error: ${errorMsg}`, 'error');
     }
 }
+
+// Boost Toggle Logic
+window.toggleBoost = function (context) {
+    const btnId = `btn-boost-${context}`;
+    const inputId = `${context}-boost-active`;
+    const iconId = `boost-icon-${context}`;
+
+    const btn = document.getElementById(btnId);
+    const input = document.getElementById(inputId);
+    const icon = document.getElementById(iconId);
+
+    if (!btn || !input) return;
+
+    const isActive = input.value === 'true';
+    const newState = !isActive;
+
+    input.value = newState;
+
+    if (newState) {
+        // Active State
+        btn.classList.remove('bg-slate-700/50', 'text-slate-300', 'border-slate-600/50');
+        btn.classList.add('bg-indigo-600', 'text-white', 'border-indigo-500', 'ring-2', 'ring-indigo-500/30');
+        if (icon) icon.classList.remove('grayscale');
+    } else {
+        // Inactive State
+        btn.classList.add('bg-slate-700/50', 'text-slate-300', 'border-slate-600/50');
+        btn.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-500', 'ring-2', 'ring-indigo-500/30');
+        if (icon) icon.classList.add('grayscale');
+    }
+};
 
 // ============================================================
 // CONTENT PLANS
@@ -2356,148 +2398,203 @@ async function generateSummary() {
             weightPercent: s.importance === 3 ? 45 : (s.importance === 1 ? 20 : 35)
         }));
 
-        // Call Cloud Function with target language and weights
-        const generateKnowledgeSummary = firebase.functions().httpsCallable('generateKnowledgeSummary');
-        const result = await generateKnowledgeSummary({
-            projectId: currentProjectId,
-            targetLanguage: targetLanguage,
-            sourceWeights: sourceWeights  // Pass weights to Cloud Function
+        // Check Boost Mode
+        const boostActive = document.getElementById('main-summary-boost-active')?.value === 'true';
+        const qualityTier = boostActive ? 'BOOST' : 'DEFAULT';
+
+        // Call routeLLM
+        const routeLLM = firebase.functions().httpsCallable('routeLLM');
+        const result = await routeLLM({
+            feature: 'brandbrain.analysis',
+            qualityTier: qualityTier,
+            systemPrompt: 'You are a Brand Intelligence AI. Analyze the provided source documents and generate a comprehensive brand summary in JSON format. The summary should include an executive summary, key insights, and suggested follow-up questions.',
+            userPrompt: `Please analyze the following source documents and generate a Brand Summary in ${targetLanguage === 'ko' ? 'Korean' : 'English'}.
+            
+Source Weights (Importance 1-3):
+${sourceWeights.map(s => `- ${s.title} (Importance: ${s.importance})`).join('\n')}
+
+Output Format (JSON):
+{
+    "summary": "Executive summary text...",
+    "keyInsights": ["Insight 1...", "Insight 2..."],
+    "suggestedQuestions": ["Question 1?", "Question 2?"],
+    "sourceNames": ["Source 1", "Source 2"]
+}`
         });
 
-        if (result.data.success) {
-            // Calculate total weight points and percentages
-            const totalWeightPoints = sourceWeights.reduce((sum, s) => sum + (s.importance === 3 ? 3 : (s.importance === 1 ? 1 : 2)), 0);
-            const weightBreakdown = sourceWeights.map(s => {
-                const points = s.importance === 3 ? 3 : (s.importance === 1 ? 1 : 2);
-                const percent = Math.round((points / totalWeightPoints) * 100);
-                return {
-                    id: s.id,
-                    title: s.title,
-                    importance: s.importance,
-                    percent: percent
-                };
-            }).sort((a, b) => b.importance - a.importance); // Sort by importance desc
+        // Parse result (routeLLM returns string content, possibly wrapped in markdown code blocks)
+        let responseContent = result.data.content;
 
-            // Create Summary Object
-            const newSummary = {
-                title: `Brand Summary - ${new Date().toLocaleDateString()}`,
-                content: result.data.summary,
-                suggestedQuestions: result.data.suggestedQuestions || [],
-                keyInsights: result.data.keyInsights || [], // Ensure cloud function returns this or we extract it
-                sourceCount: activeSources.length,
-                sourceNames: result.data.sourceNames || activeSources.map(s => s.title),
-                weightBreakdown: weightBreakdown,  // Store weight breakdown for display
-                targetLanguage: targetLanguage,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                createdBy: currentUser?.uid
+        // Clean markdown JSON if present
+        if (responseContent.startsWith('```json')) responseContent = responseContent.replace(/```json\n?|```/g, '');
+        else if (responseContent.startsWith('```')) responseContent = responseContent.replace(/```\n?|```/g, '');
+
+        let parsedResult;
+        try {
+            parsedResult = JSON.parse(responseContent);
+        } catch (e) {
+            console.error('JSON Parse Error:', e);
+            // Fallback object
+            parsedResult = {
+                summary: responseContent,
+                suggestedQuestions: [],
+                keyInsights: []
+            };
+        }
+
+        if (result.data) { // routeLLM success
+            // Mock the structure expected by the rest of the function
+            const resultData = {
+                success: true,
+                summary: parsedResult.summary || responseContent,
+                suggestedQuestions: parsedResult.suggestedQuestions || [],
+                keyInsights: parsedResult.keyInsights || [],
+                sourceNames: parsedResult.sourceNames || activeSources.map(s => s.title)
             };
 
-            // Save to brandSummaries collection
-            const docRef = await firebase.firestore()
+            // Continue with existing saving logic
+            // We need to wrap it to match 'result.data' usage below
+            const wrappedResult = { data: resultData };
+
+            // Use wrappedResult instead of result in the following block
+            const originalResult = result; // backup
+            result = wrappedResult; // overwrite for compatibility
+
+
+            if (result.data.success) {
+                // Calculate total weight points and percentages
+                const totalWeightPoints = sourceWeights.reduce((sum, s) => sum + (s.importance === 3 ? 3 : (s.importance === 1 ? 1 : 2)), 0);
+                const weightBreakdown = sourceWeights.map(s => {
+                    const points = s.importance === 3 ? 3 : (s.importance === 1 ? 1 : 2);
+                    const percent = Math.round((points / totalWeightPoints) * 100);
+                    return {
+                        id: s.id,
+                        title: s.title,
+                        importance: s.importance,
+                        percent: percent
+                    };
+                }).sort((a, b) => b.importance - a.importance); // Sort by importance desc
+
+                // Create Summary Object
+                const newSummary = {
+                    title: `Brand Summary - ${new Date().toLocaleDateString()}`,
+                    content: result.data.summary,
+                    suggestedQuestions: result.data.suggestedQuestions || [],
+                    keyInsights: result.data.keyInsights || [], // Ensure cloud function returns this or we extract it
+                    sourceCount: activeSources.length,
+                    sourceNames: result.data.sourceNames || activeSources.map(s => s.title),
+                    weightBreakdown: weightBreakdown,  // Store weight breakdown for display
+                    targetLanguage: targetLanguage,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    createdBy: currentUser?.uid
+                };
+
+                // Save to brandSummaries collection
+                const docRef = await firebase.firestore()
+                    .collection('projects')
+                    .doc(currentProjectId)
+                    .collection('brandSummaries')
+                    .add(newSummary);
+
+                // Fetch back to get valid timestamp
+                const savedDoc = await docRef.get();
+                const savedSummary = { id: savedDoc.id, ...savedDoc.data() };
+
+                // Update local state (prepend)
+                brandSummaries.unshift(savedSummary);
+                if (brandSummaries.length > MAX_SUMMARY_HISTORY) {
+                    brandSummaries.pop();
+                }
+
+                // Set as current display
+                currentDisplayedSummary = savedSummary;
+                updateSummarySection();
+
+                // Store current for actions
+                currentSummary = savedSummary;
+
+                // Cleanup old summaries in DB (Async)
+                cleanupOldBrandSummaries();
+
+                showNotification('Summary generated!', 'success');
+            }
+        } catch (error) {
+            console.error('Error generating summary:', error);
+            document.getElementById('summary-title').textContent = 'Summary Failed';
+            document.getElementById('summary-content').textContent = `Failed to generate summary: ${error.message}`;
+        } finally {
+            if (btnRegenerate) btnRegenerate.disabled = false;
+        }
+    }
+
+async function cleanupOldBrandSummaries() {
+        try {
+            const snapshot = await firebase.firestore()
                 .collection('projects')
                 .doc(currentProjectId)
                 .collection('brandSummaries')
-                .add(newSummary);
+                .orderBy('createdAt', 'desc')
+                .get();
 
-            // Fetch back to get valid timestamp
-            const savedDoc = await docRef.get();
-            const savedSummary = { id: savedDoc.id, ...savedDoc.data() };
-
-            // Update local state (prepend)
-            brandSummaries.unshift(savedSummary);
-            if (brandSummaries.length > MAX_SUMMARY_HISTORY) {
-                brandSummaries.pop();
+            if (snapshot.size > MAX_SUMMARY_HISTORY) {
+                const notesToDelete = [];
+                let count = 0;
+                snapshot.forEach(doc => {
+                    count++;
+                    if (count > MAX_SUMMARY_HISTORY) {
+                        notesToDelete.push(doc.ref);
+                    }
+                });
+                await batch.commit();
             }
+        } catch (e) {
+            console.error('Cleanup error:', e);
+        }
+    }
 
-            // Set as current display
-            currentDisplayedSummary = savedSummary;
+    function displaySummaryOverride(summaryId) {
+        const summary = brandSummaries.find(s => s.id === summaryId);
+        if (summary) {
+            currentDisplayedSummary = summary;
             updateSummarySection();
-
-            // Store current for actions
-            currentSummary = savedSummary;
-
-            // Cleanup old summaries in DB (Async)
-            cleanupOldBrandSummaries();
-
-            showNotification('Summary generated!', 'success');
+            // Scroll to top of chat to see summary
+            const chatContainer = document.getElementById('chat-content');
+            if (chatContainer) chatContainer.scrollTop = 0;
         }
-    } catch (error) {
-        console.error('Error generating summary:', error);
-        document.getElementById('summary-title').textContent = 'Summary Failed';
-        document.getElementById('summary-content').textContent = `Failed to generate summary: ${error.message}`;
-    } finally {
-        if (btnRegenerate) btnRegenerate.disabled = false;
     }
-}
 
-async function cleanupOldBrandSummaries() {
-    try {
-        const snapshot = await firebase.firestore()
-            .collection('projects')
-            .doc(currentProjectId)
-            .collection('brandSummaries')
-            .orderBy('createdAt', 'desc')
-            .get();
-
-        if (snapshot.size > MAX_SUMMARY_HISTORY) {
-            const notesToDelete = [];
-            let count = 0;
-            snapshot.forEach(doc => {
-                count++;
-                if (count > MAX_SUMMARY_HISTORY) {
-                    notesToDelete.push(doc.ref);
-                }
-            });
-            await batch.commit();
+    // History Modal Functions
+    function openSummaryHistory() {
+        const modal = document.getElementById('summary-history-modal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            renderSummaryHistory();
         }
-    } catch (e) {
-        console.error('Cleanup error:', e);
-    }
-}
-
-function displaySummaryOverride(summaryId) {
-    const summary = brandSummaries.find(s => s.id === summaryId);
-    if (summary) {
-        currentDisplayedSummary = summary;
-        updateSummarySection();
-        // Scroll to top of chat to see summary
-        const chatContainer = document.getElementById('chat-content');
-        if (chatContainer) chatContainer.scrollTop = 0;
-    }
-}
-
-// History Modal Functions
-function openSummaryHistory() {
-    const modal = document.getElementById('summary-history-modal');
-    if (modal) {
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-        renderSummaryHistory();
-    }
-}
-
-function closeSummaryHistory() {
-    const modal = document.getElementById('summary-history-modal');
-    if (modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-    }
-}
-
-function renderSummaryHistory() {
-    const container = document.getElementById('summary-history-list');
-    if (!container) return;
-
-    if (brandSummaries.length === 0) {
-        container.innerHTML = '<div class="text-center text-slate-500 py-10">No history available</div>';
-        return;
     }
 
-    container.innerHTML = brandSummaries.map(summary => {
-        const date = summary.createdAt?.toDate ? summary.createdAt.toDate() : new Date();
-        const dateStr = date.toLocaleString();
+    function closeSummaryHistory() {
+        const modal = document.getElementById('summary-history-modal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+    }
 
-        return `
+    function renderSummaryHistory() {
+        const container = document.getElementById('summary-history-list');
+        if (!container) return;
+
+        if (brandSummaries.length === 0) {
+            container.innerHTML = '<div class="text-center text-slate-500 py-10">No history available</div>';
+            return;
+        }
+
+        container.innerHTML = brandSummaries.map(summary => {
+            const date = summary.createdAt?.toDate ? summary.createdAt.toDate() : new Date();
+            const dateStr = date.toLocaleString();
+
+            return `
             <div class="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 hover:border-indigo-500/50 transition-all cursor-pointer group" onclick="selectHistoryItem('${summary.id}')">
                 <div class="flex justify-between items-start mb-2">
                     <h4 class="font-medium text-white">${summary.title || 'Brand Summary'}</h4>
@@ -2510,709 +2607,709 @@ function renderSummaryHistory() {
                 </div>
             </div>
         `;
-    }).join('');
-}
-
-function selectHistoryItem(summaryId) {
-    displaySummaryOverride(summaryId);
-    closeSummaryHistory();
-}
-
-// ============================================================
-// SUMMARY ACTION FUNCTIONS (NotebookLM Style)
-// ============================================================
-
-/**
- * Save current summary to notes with history limit
- */
-async function saveToNote() {
-    if (!currentSummary || !currentProjectId) {
-        showNotification('No summary to save', 'error');
-        return;
+        }).join('');
     }
 
-    try {
-        const db = firebase.firestore();
-        const date = new Date();
-        const dateStr = date.toLocaleDateString('ko-KR', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-
-        // Create note document
-        const noteData = {
-            title: `Brand Summary - ${dateStr}`,
-            sourceType: 'note',
-            noteType: 'summary', // Special type to identify summary notes
-            content: currentSummary.content,
-            suggestedQuestions: currentSummary.suggestedQuestions,
-            sourceNames: currentSummary.sourceNames,
-            sourceCount: currentSummary.sourceCount,
-            targetLanguage: currentSummary.targetLanguage,
-            isActive: true,
-            status: 'completed',
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            createdBy: currentUser?.uid
-        };
-
-        // Add the new note
-        await db.collection('projects').doc(currentProjectId)
-            .collection('knowledgeSources').add(noteData);
-
-        // Cleanup: Delete oldest summary notes if exceeding limit
-        await cleanupOldSummaryNotes();
-
-        showNotification('Summary saved to notes!', 'success');
-    } catch (error) {
-        console.error('Error saving summary to note:', error);
-        showNotification('Failed to save: ' + error.message, 'error');
+    function selectHistoryItem(summaryId) {
+        displaySummaryOverride(summaryId);
+        closeSummaryHistory();
     }
-}
 
-/**
- * Delete oldest summary notes if exceeding MAX_SUMMARY_HISTORY
- */
-async function cleanupOldSummaryNotes() {
-    try {
-        const db = firebase.firestore();
-        const summaryNotes = await db.collection('projects').doc(currentProjectId)
-            .collection('knowledgeSources')
-            .where('noteType', '==', 'summary')
-            .orderBy('createdAt', 'desc')
-            .get();
+    // ============================================================
+    // SUMMARY ACTION FUNCTIONS (NotebookLM Style)
+    // ============================================================
 
-        if (summaryNotes.size > MAX_SUMMARY_HISTORY) {
-            const notesToDelete = [];
-            let count = 0;
-
-            summaryNotes.forEach(doc => {
-                count++;
-                if (count > MAX_SUMMARY_HISTORY) {
-                    notesToDelete.push(doc.ref);
-                }
-            });
-
-            // Delete excess notes
-            const batch = db.batch();
-            notesToDelete.forEach(ref => batch.delete(ref));
-            await batch.commit();
-
-            console.log(`Cleaned up ${notesToDelete.length} old summary notes`);
+    /**
+     * Save current summary to notes with history limit
+     */
+    async function saveToNote() {
+        if (!currentSummary || !currentProjectId) {
+            showNotification('No summary to save', 'error');
+            return;
         }
-    } catch (error) {
-        console.error('Error cleaning up old summary notes:', error);
-    }
-}
 
-/**
- * Copy summary to clipboard
- */
-async function copySummary() {
-    if (!currentSummary) {
-        showNotification('No summary to copy', 'error');
-        return;
-    }
-
-    try {
-        await navigator.clipboard.writeText(currentSummary.content);
-        showNotification('Summary copied to clipboard!', 'success');
-    } catch (error) {
-        // Fallback for older browsers
-        const textarea = document.createElement('textarea');
-        textarea.value = currentSummary.content;
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-        showNotification('Summary copied!', 'success');
-    }
-}
-
-/**
- * Rate summary (thumbs up/down)
- */
-async function rateSummary(rating) {
-    if (!currentSummary || !currentProjectId) return;
-
-    const thumbsUp = document.getElementById('summary-thumbs-up');
-    const thumbsDown = document.getElementById('summary-thumbs-down');
-
-    if (rating === 'up') {
-        thumbsUp.classList.add('text-green-400');
-        thumbsUp.classList.remove('text-slate-500');
-        thumbsDown.classList.remove('text-red-400');
-        thumbsDown.classList.add('text-slate-500');
-    } else {
-        thumbsDown.classList.add('text-red-400');
-        thumbsDown.classList.remove('text-slate-500');
-        thumbsUp.classList.remove('text-green-400');
-        thumbsUp.classList.add('text-slate-500');
-    }
-
-    // Optionally save rating to Firestore for analytics
-    try {
-        const db = firebase.firestore();
-        await db.collection('projects').doc(currentProjectId)
-            .collection('summaryFeedback').add({
-                rating: rating,
-                summaryContent: currentSummary.content.substring(0, 200), // First 200 chars
-                targetLanguage: currentSummary.targetLanguage,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                userId: currentUser?.uid
+        try {
+            const db = firebase.firestore();
+            const date = new Date();
+            const dateStr = date.toLocaleDateString('ko-KR', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
             });
-    } catch (error) {
-        console.error('Error saving feedback:', error);
-    }
 
-    showNotification(rating === 'up' ? 'Thanks for your feedback! 👍' : 'Thanks for your feedback! We\'ll improve.', 'success');
-}
-
-// ============================================================
-// CHAT MESSAGE ACTION FUNCTIONS
-// ============================================================
-
-/**
- * Save chat message to note
- */
-async function saveChatToNote(messageId, btn) {
-    const content = btn.dataset.content;
-    if (!content || !currentProjectId) {
-        showNotification('Unable to save', 'error');
-        return;
-    }
-
-    try {
-        const db = firebase.firestore();
-        const date = new Date();
-        const dateStr = date.toLocaleDateString('ko-KR', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-
-        await db.collection('projects').doc(currentProjectId)
-            .collection('knowledgeSources').add({
-                title: `Chat Response - ${dateStr}`,
+            // Create note document
+            const noteData = {
+                title: `Brand Summary - ${dateStr}`,
                 sourceType: 'note',
-                noteType: 'chat',
-                content: content,
+                noteType: 'summary', // Special type to identify summary notes
+                content: currentSummary.content,
+                suggestedQuestions: currentSummary.suggestedQuestions,
+                sourceNames: currentSummary.sourceNames,
+                sourceCount: currentSummary.sourceCount,
+                targetLanguage: currentSummary.targetLanguage,
                 isActive: true,
                 status: 'completed',
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                 createdBy: currentUser?.uid
+            };
+
+            // Add the new note
+            await db.collection('projects').doc(currentProjectId)
+                .collection('knowledgeSources').add(noteData);
+
+            // Cleanup: Delete oldest summary notes if exceeding limit
+            await cleanupOldSummaryNotes();
+
+            showNotification('Summary saved to notes!', 'success');
+        } catch (error) {
+            console.error('Error saving summary to note:', error);
+            showNotification('Failed to save: ' + error.message, 'error');
+        }
+    }
+
+    /**
+     * Delete oldest summary notes if exceeding MAX_SUMMARY_HISTORY
+     */
+    async function cleanupOldSummaryNotes() {
+        try {
+            const db = firebase.firestore();
+            const summaryNotes = await db.collection('projects').doc(currentProjectId)
+                .collection('knowledgeSources')
+                .where('noteType', '==', 'summary')
+                .orderBy('createdAt', 'desc')
+                .get();
+
+            if (summaryNotes.size > MAX_SUMMARY_HISTORY) {
+                const notesToDelete = [];
+                let count = 0;
+
+                summaryNotes.forEach(doc => {
+                    count++;
+                    if (count > MAX_SUMMARY_HISTORY) {
+                        notesToDelete.push(doc.ref);
+                    }
+                });
+
+                // Delete excess notes
+                const batch = db.batch();
+                notesToDelete.forEach(ref => batch.delete(ref));
+                await batch.commit();
+
+                console.log(`Cleaned up ${notesToDelete.length} old summary notes`);
+            }
+        } catch (error) {
+            console.error('Error cleaning up old summary notes:', error);
+        }
+    }
+
+    /**
+     * Copy summary to clipboard
+     */
+    async function copySummary() {
+        if (!currentSummary) {
+            showNotification('No summary to copy', 'error');
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(currentSummary.content);
+            showNotification('Summary copied to clipboard!', 'success');
+        } catch (error) {
+            // Fallback for older browsers
+            const textarea = document.createElement('textarea');
+            textarea.value = currentSummary.content;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            showNotification('Summary copied!', 'success');
+        }
+    }
+
+    /**
+     * Rate summary (thumbs up/down)
+     */
+    async function rateSummary(rating) {
+        if (!currentSummary || !currentProjectId) return;
+
+        const thumbsUp = document.getElementById('summary-thumbs-up');
+        const thumbsDown = document.getElementById('summary-thumbs-down');
+
+        if (rating === 'up') {
+            thumbsUp.classList.add('text-green-400');
+            thumbsUp.classList.remove('text-slate-500');
+            thumbsDown.classList.remove('text-red-400');
+            thumbsDown.classList.add('text-slate-500');
+        } else {
+            thumbsDown.classList.add('text-red-400');
+            thumbsDown.classList.remove('text-slate-500');
+            thumbsUp.classList.remove('text-green-400');
+            thumbsUp.classList.add('text-slate-500');
+        }
+
+        // Optionally save rating to Firestore for analytics
+        try {
+            const db = firebase.firestore();
+            await db.collection('projects').doc(currentProjectId)
+                .collection('summaryFeedback').add({
+                    rating: rating,
+                    summaryContent: currentSummary.content.substring(0, 200), // First 200 chars
+                    targetLanguage: currentSummary.targetLanguage,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    userId: currentUser?.uid
+                });
+        } catch (error) {
+            console.error('Error saving feedback:', error);
+        }
+
+        showNotification(rating === 'up' ? 'Thanks for your feedback! 👍' : 'Thanks for your feedback! We\'ll improve.', 'success');
+    }
+
+    // ============================================================
+    // CHAT MESSAGE ACTION FUNCTIONS
+    // ============================================================
+
+    /**
+     * Save chat message to note
+     */
+    async function saveChatToNote(messageId, btn) {
+        const content = btn.dataset.content;
+        if (!content || !currentProjectId) {
+            showNotification('Unable to save', 'error');
+            return;
+        }
+
+        try {
+            const db = firebase.firestore();
+            const date = new Date();
+            const dateStr = date.toLocaleDateString('ko-KR', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
             });
 
-        showNotification('Saved to notes!', 'success');
-    } catch (error) {
-        console.error('Error saving to note:', error);
-        showNotification('Failed to save', 'error');
-    }
-}
+            await db.collection('projects').doc(currentProjectId)
+                .collection('knowledgeSources').add({
+                    title: `Chat Response - ${dateStr}`,
+                    sourceType: 'note',
+                    noteType: 'chat',
+                    content: content,
+                    isActive: true,
+                    status: 'completed',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    createdBy: currentUser?.uid
+                });
 
-/**
- * Copy text to clipboard
- */
-async function copyText(btn) {
-    const content = btn.dataset.content;
-    if (!content) return;
-
-    try {
-        await navigator.clipboard.writeText(content);
-        showNotification('Copied!', 'success');
-    } catch (error) {
-        // Fallback
-        const textarea = document.createElement('textarea');
-        textarea.value = content;
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-        showNotification('Copied!', 'success');
-    }
-}
-
-/**
- * Rate a chat message
- */
-function rateChatMessage(messageId, rating, btn) {
-    const parent = btn.parentElement;
-    const thumbsUp = parent.querySelector('button:nth-child(3)');
-    const thumbsDown = parent.querySelector('button:nth-child(4)');
-
-    if (rating === 'up') {
-        thumbsUp.classList.add('text-green-400');
-        thumbsUp.classList.remove('text-slate-500');
-        thumbsDown.classList.remove('text-red-400');
-        thumbsDown.classList.add('text-slate-500');
-    } else {
-        thumbsDown.classList.add('text-red-400');
-        thumbsDown.classList.remove('text-slate-500');
-        thumbsUp.classList.remove('text-green-400');
-        thumbsUp.classList.add('text-slate-500');
-    }
-
-    showNotification(rating === 'up' ? '👍' : 'Thanks for feedback', 'success');
-}
-
-// ============================================================
-// CONFIGURATION MODAL FUNCTIONS
-// ============================================================
-
-/**
- * Open the configuration modal
- */
-function openConfigModal() {
-    const modal = document.getElementById('config-modal');
-    modal.classList.remove('hidden');
-
-    // Initialize button states from current config
-    document.querySelectorAll('.config-option-btn').forEach(btn => {
-        const configType = btn.dataset.config;
-        const value = btn.dataset.value;
-
-        if (chatConfig[configType] === value) {
-            btn.classList.add('selected');
-        } else {
-            btn.classList.remove('selected');
+            showNotification('Saved to notes!', 'success');
+        } catch (error) {
+            console.error('Error saving to note:', error);
+            showNotification('Failed to save', 'error');
         }
-    });
-
-    // Show/hide custom prompt section
-    updateCustomPromptVisibility();
-
-    // Set custom prompt value
-    const customInput = document.getElementById('custom-prompt-input');
-    if (customInput) {
-        customInput.value = chatConfig.customPrompt || '';
     }
 
-    // Add event listeners for option buttons
-    document.querySelectorAll('.config-option-btn').forEach(btn => {
-        btn.onclick = () => selectConfigOption(btn);
-    });
-}
+    /**
+     * Copy text to clipboard
+     */
+    async function copyText(btn) {
+        const content = btn.dataset.content;
+        if (!content) return;
 
-/**
- * Close the configuration modal
- */
-function closeConfigModal() {
-    const modal = document.getElementById('config-modal');
-    modal.classList.add('hidden');
-}
+        try {
+            await navigator.clipboard.writeText(content);
+            showNotification('Copied!', 'success');
+        } catch (error) {
+            // Fallback
+            const textarea = document.createElement('textarea');
+            textarea.value = content;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            showNotification('Copied!', 'success');
+        }
+    }
 
-/**
- * Select a configuration option
- */
-function selectConfigOption(btn) {
-    const configType = btn.dataset.config;
-    const value = btn.dataset.value;
+    /**
+     * Rate a chat message
+     */
+    function rateChatMessage(messageId, rating, btn) {
+        const parent = btn.parentElement;
+        const thumbsUp = parent.querySelector('button:nth-child(3)');
+        const thumbsDown = parent.querySelector('button:nth-child(4)');
 
-    // Update selection UI
-    document.querySelectorAll(`.config-option-btn[data-config="${configType}"]`).forEach(b => {
-        b.classList.remove('selected');
-    });
-    btn.classList.add('selected');
+        if (rating === 'up') {
+            thumbsUp.classList.add('text-green-400');
+            thumbsUp.classList.remove('text-slate-500');
+            thumbsDown.classList.remove('text-red-400');
+            thumbsDown.classList.add('text-slate-500');
+        } else {
+            thumbsDown.classList.add('text-red-400');
+            thumbsDown.classList.remove('text-slate-500');
+            thumbsUp.classList.remove('text-green-400');
+            thumbsUp.classList.add('text-slate-500');
+        }
 
-    // Update style description
-    if (configType === 'style') {
-        const descriptions = {
-            'default': 'Best for general purpose research and brainstorming tasks.',
-            'learning': 'Explains concepts step by step like a helpful tutor.',
-            'custom': 'Use your own custom instructions for personalized responses.'
-        };
-        document.getElementById('style-description').textContent = descriptions[value] || '';
+        showNotification(rating === 'up' ? '👍' : 'Thanks for feedback', 'success');
+    }
+
+    // ============================================================
+    // CONFIGURATION MODAL FUNCTIONS
+    // ============================================================
+
+    /**
+     * Open the configuration modal
+     */
+    function openConfigModal() {
+        const modal = document.getElementById('config-modal');
+        modal.classList.remove('hidden');
+
+        // Initialize button states from current config
+        document.querySelectorAll('.config-option-btn').forEach(btn => {
+            const configType = btn.dataset.config;
+            const value = btn.dataset.value;
+
+            if (chatConfig[configType] === value) {
+                btn.classList.add('selected');
+            } else {
+                btn.classList.remove('selected');
+            }
+        });
 
         // Show/hide custom prompt section
         updateCustomPromptVisibility();
+
+        // Set custom prompt value
+        const customInput = document.getElementById('custom-prompt-input');
+        if (customInput) {
+            customInput.value = chatConfig.customPrompt || '';
+        }
+
+        // Add event listeners for option buttons
+        document.querySelectorAll('.config-option-btn').forEach(btn => {
+            btn.onclick = () => selectConfigOption(btn);
+        });
     }
-}
 
-/**
- * Toggle custom prompt section visibility
- */
-function updateCustomPromptVisibility() {
-    const customSection = document.getElementById('custom-prompt-section');
-    const selectedStyle = document.querySelector('.config-option-btn[data-config="style"].selected');
-
-    if (selectedStyle && selectedStyle.dataset.value === 'custom') {
-        customSection.classList.remove('hidden');
-    } else {
-        customSection.classList.add('hidden');
+    /**
+     * Close the configuration modal
+     */
+    function closeConfigModal() {
+        const modal = document.getElementById('config-modal');
+        modal.classList.add('hidden');
     }
-}
 
-/**
- * Save configuration
- */
-function saveConfig() {
-    // Get selected values
-    const styleBtn = document.querySelector('.config-option-btn[data-config="style"].selected');
-    const lengthBtn = document.querySelector('.config-option-btn[data-config="length"].selected');
-    const customPrompt = document.getElementById('custom-prompt-input')?.value || '';
+    /**
+     * Select a configuration option
+     */
+    function selectConfigOption(btn) {
+        const configType = btn.dataset.config;
+        const value = btn.dataset.value;
 
-    chatConfig.style = styleBtn?.dataset.value || 'default';
-    chatConfig.length = lengthBtn?.dataset.value || 'default';
-    chatConfig.customPrompt = customPrompt;
+        // Update selection UI
+        document.querySelectorAll(`.config-option-btn[data-config="${configType}"]`).forEach(b => {
+            b.classList.remove('selected');
+        });
+        btn.classList.add('selected');
 
-    // Save to localStorage
-    localStorage.setItem('knowledgeHub_chatConfig', JSON.stringify(chatConfig));
+        // Update style description
+        if (configType === 'style') {
+            const descriptions = {
+                'default': 'Best for general purpose research and brainstorming tasks.',
+                'learning': 'Explains concepts step by step like a helpful tutor.',
+                'custom': 'Use your own custom instructions for personalized responses.'
+            };
+            document.getElementById('style-description').textContent = descriptions[value] || '';
 
-    closeConfigModal();
-    showNotification('Configuration saved!', 'success');
-}
+            // Show/hide custom prompt section
+            updateCustomPromptVisibility();
+        }
+    }
 
-/**
- * Load configuration from localStorage
- */
-function loadChatConfig() {
-    const saved = localStorage.getItem('knowledgeHub_chatConfig');
-    if (saved) {
+    /**
+     * Toggle custom prompt section visibility
+     */
+    function updateCustomPromptVisibility() {
+        const customSection = document.getElementById('custom-prompt-section');
+        const selectedStyle = document.querySelector('.config-option-btn[data-config="style"].selected');
+
+        if (selectedStyle && selectedStyle.dataset.value === 'custom') {
+            customSection.classList.remove('hidden');
+        } else {
+            customSection.classList.add('hidden');
+        }
+    }
+
+    /**
+     * Save configuration
+     */
+    function saveConfig() {
+        // Get selected values
+        const styleBtn = document.querySelector('.config-option-btn[data-config="style"].selected');
+        const lengthBtn = document.querySelector('.config-option-btn[data-config="length"].selected');
+        const customPrompt = document.getElementById('custom-prompt-input')?.value || '';
+
+        chatConfig.style = styleBtn?.dataset.value || 'default';
+        chatConfig.length = lengthBtn?.dataset.value || 'default';
+        chatConfig.customPrompt = customPrompt;
+
+        // Save to localStorage
+        localStorage.setItem('knowledgeHub_chatConfig', JSON.stringify(chatConfig));
+
+        closeConfigModal();
+        showNotification('Configuration saved!', 'success');
+    }
+
+    /**
+     * Load configuration from localStorage
+     */
+    function loadChatConfig() {
+        const saved = localStorage.getItem('knowledgeHub_chatConfig');
+        if (saved) {
+            try {
+                chatConfig = { ...chatConfig, ...JSON.parse(saved) };
+            } catch (e) {
+                console.error('Error loading chat config:', e);
+            }
+        }
+    }
+
+    // ============================================================
+    // PLAN GENERATION FUNCTIONS
+    // ============================================================
+
+    // Plan definitions
+    const PLAN_DEFINITIONS = {
+        // Strategic Plans
+        campaign_brief: { name: 'Campaign Brief', credits: 10, category: 'strategic' },
+        content_calendar: { name: 'Content Calendar', credits: 10, category: 'strategic' },
+        channel_strategy: { name: 'Channel Strategy', credits: 10, category: 'strategic' },
+        brand_positioning: { name: 'Brand Positioning', credits: 10, category: 'strategic' },
+        messaging_framework: { name: 'Messaging Framework', credits: 10, category: 'strategic' },
+
+        // Quick Actions
+        social_post_ideas: { name: 'Social Post Ideas', credits: 1, category: 'quick' },
+        ad_copy: { name: 'Ad Copy Variants', credits: 1, category: 'quick' },
+        trend_response: { name: 'Trend Response', credits: 1, category: 'quick' },
+        action_items: { name: 'Action Items', credits: 1, category: 'quick' },
+
+        // Knowledge
+        brand_mind_map: { name: 'Brand Mind Map', credits: 5, category: 'knowledge' },
+        competitor_analysis: { name: 'Competitor Analysis', credits: 5, category: 'knowledge' },
+        audience_persona: { name: 'Audience Persona', credits: 5, category: 'knowledge' },
+        key_messages_bank: { name: 'Key Messages Bank', credits: 5, category: 'knowledge' },
+
+        // Create Now
+        product_brochure: { name: 'Product Brochure', credits: 20, category: 'create' },
+        promo_images: { name: 'Promo Images', credits: 5, category: 'create' },
+        one_pager: { name: '1-Pager PDF', credits: 15, category: 'create' },
+        pitch_deck: { name: 'Pitch Deck Outline', credits: 10, category: 'create' },
+        email_template: { name: 'Email Template', credits: 5, category: 'create' },
+        press_release: { name: 'Press Release', credits: 10, category: 'create' }
+    };
+
+    // Note: Language is now handled by global targetLanguage
+
+    /**
+     * Open plan generation modal
+     */
+    function openPlanModal(planType) {
         try {
-            chatConfig = { ...chatConfig, ...JSON.parse(saved) };
-        } catch (e) {
-            console.error('Error loading chat config:', e);
+            const planDef = PLAN_DEFINITIONS[planType];
+            if (!planDef) {
+                showNotification('Unknown plan type', 'error');
+                return;
+            }
+
+            // NEW: Redirect 'create' category to Creative Studio Modal
+            if (planDef.category === 'create') {
+                openCreativeModal(planType);
+                return;
+            }
+
+            currentPlan = {
+                type: planType,
+                ...planDef,
+                sessionId: generateSessionId() // For version tracking
+            };
+            planVersions = [];
+
+            // Update modal UI
+            document.getElementById('plan-modal-title').textContent = planDef.name;
+            document.getElementById('plan-modal-subtitle').textContent = `${planDef.category.charAt(0).toUpperCase() + planDef.category.slice(1)} Plan`;
+            document.getElementById('plan-credit-cost').innerHTML = `Cost: <span class="text-white font-medium">${planDef.credits} cr</span>`;
+
+            // Update sources summary
+            const activeSources = sources.filter(s => s.isActive !== false);
+            document.getElementById('plan-sources-summary').textContent =
+                activeSources.length > 0
+                    ? activeSources.map(s => s.title).join(', ')
+                    : 'No active sources. Add sources for better results.';
+
+            // Reset to options step
+            showPlanStep('options');
+
+            // Reset buttons
+            document.getElementById('btn-generate-plan').classList.remove('hidden');
+            document.getElementById('btn-generate-another').classList.add('hidden');
+            document.getElementById('plan-instructions').value = '';
+
+            // Initialize language buttons
+            // Initialize language buttons - REMOVED (using global setting)
+            // initializePlanLangButtons();
+
+            // Show modal
+            const modal = document.getElementById('plan-modal');
+            modal.style.display = 'block';
+
+        } catch (error) {
+            console.error('Error opening plan modal:', error);
+            showNotification('Error opening modal: ' + error.message, 'error');
         }
     }
-}
 
-// ============================================================
-// PLAN GENERATION FUNCTIONS
-// ============================================================
 
-// Plan definitions
-const PLAN_DEFINITIONS = {
-    // Strategic Plans
-    campaign_brief: { name: 'Campaign Brief', credits: 10, category: 'strategic' },
-    content_calendar: { name: 'Content Calendar', credits: 10, category: 'strategic' },
-    channel_strategy: { name: 'Channel Strategy', credits: 10, category: 'strategic' },
-    brand_positioning: { name: 'Brand Positioning', credits: 10, category: 'strategic' },
-    messaging_framework: { name: 'Messaging Framework', credits: 10, category: 'strategic' },
+    /**
+     * Creative Studio state
+     */
+    let currentCreativeType = null;
+    let currentCreativeData = {};
 
-    // Quick Actions
-    social_post_ideas: { name: 'Social Post Ideas', credits: 1, category: 'quick' },
-    ad_copy: { name: 'Ad Copy Variants', credits: 1, category: 'quick' },
-    trend_response: { name: 'Trend Response', credits: 1, category: 'quick' },
-    action_items: { name: 'Action Items', credits: 1, category: 'quick' },
+    /**
+     * Creative content type configurations
+     */
+    const CREATIVE_CONFIGS = {
+        email_template: {
+            name: 'Email Template',
+            subtitle: 'Generate a professional marketing email',
+            buttonLabel: 'Email',
+            credits: 5,
+            controls: [
+                { id: 'email-type', type: 'select', label: 'Email Type', options: ['Newsletter', 'Promotional', 'Welcome', 'Follow-up', 'Announcement'] },
+                { id: 'email-subject', type: 'text', label: 'Subject Line (optional)', placeholder: 'e.g., Introducing our new feature...' },
+                { id: 'email-keypoints', type: 'textarea', label: 'Key Points', placeholder: 'Enter key points to include (one per line)' },
+                { id: 'email-cta', type: 'text', label: 'Call to Action', placeholder: 'e.g., Try it now, Learn more' },
+                { id: 'email-tone', type: 'select', label: 'Tone', options: ['Professional', 'Friendly', 'Urgent', 'Casual', 'Formal'] }
+            ]
+        },
+        press_release: {
+            name: 'Press Release',
+            subtitle: 'Generate a media-ready press release',
+            buttonLabel: 'Press Release',
+            credits: 10,
+            controls: [
+                { id: 'pr-headline', type: 'text', label: 'Headline', placeholder: 'Main announcement headline' },
+                { id: 'pr-subheadline', type: 'text', label: 'Subheadline (optional)', placeholder: 'Supporting detail' },
+                { id: 'pr-announcement', type: 'textarea', label: 'Announcement Details', placeholder: 'What are you announcing? Key facts and details...' },
+                { id: 'pr-quote', type: 'textarea', label: 'Quote (optional)', placeholder: 'A quote from the CEO or spokesperson' },
+                { id: 'pr-boilerplate', type: 'checkbox', label: 'Include company boilerplate' }
+            ]
+        },
+        product_brochure: {
+            name: 'Product Brochure',
+            subtitle: 'Generate a high-quality PDF brochure',
+            buttonLabel: 'Brochure',
+            credits: 20,
+            controls: [
+                { id: 'brochure-title', type: 'text', label: 'Title', placeholder: 'Brochure title' },
+                { id: 'brochure-sections', type: 'select', label: 'Sections', options: ['3 sections', '4 sections', '5 sections'] },
+                { id: 'brochure-content', type: 'textarea', label: 'Key Content Points', placeholder: 'Main features, benefits, use cases...' }
+            ]
+        },
+        promo_images: {
+            name: 'Promo Images',
+            subtitle: 'Generate promotional images',
+            buttonLabel: 'Images',
+            credits: 5,
+            controls: [
+                { id: 'promo-concept', type: 'textarea', label: 'Image Concept', placeholder: 'Describe the image you want...' },
+                { id: 'promo-style', type: 'select', label: 'Style', options: ['Modern', 'Minimalist', 'Bold', 'Corporate', 'Creative'] }
+            ]
+        },
+        one_pager: {
+            name: '1-Pager PDF',
+            subtitle: 'Generate a single-page summary document',
+            buttonLabel: '1-Pager',
+            credits: 15,
+            controls: [
+                { id: 'onepager-title', type: 'text', label: 'Document Title', placeholder: 'Title for the document' },
+                { id: 'onepager-content', type: 'textarea', label: 'Main Content', placeholder: 'Key information to include...' }
+            ]
+        },
+        pitch_deck: {
+            name: 'Pitch Deck Outline',
+            subtitle: 'Generate a presentation outline',
+            buttonLabel: 'Outline',
+            credits: 10,
+            controls: [
+                { id: 'pitch-topic', type: 'text', label: 'Topic', placeholder: 'What is this pitch about?' },
+                { id: 'pitch-slides', type: 'select', label: 'Number of Slides', options: ['5 slides', '8 slides', '10 slides', '12 slides'] },
+                { id: 'pitch-audience', type: 'text', label: 'Target Audience', placeholder: 'e.g., Investors, Partners, Customers' }
+            ]
+        }
+    };
 
-    // Knowledge
-    brand_mind_map: { name: 'Brand Mind Map', credits: 5, category: 'knowledge' },
-    competitor_analysis: { name: 'Competitor Analysis', credits: 5, category: 'knowledge' },
-    audience_persona: { name: 'Audience Persona', credits: 5, category: 'knowledge' },
-    key_messages_bank: { name: 'Key Messages Bank', credits: 5, category: 'knowledge' },
-
-    // Create Now
-    product_brochure: { name: 'Product Brochure', credits: 20, category: 'create' },
-    promo_images: { name: 'Promo Images', credits: 5, category: 'create' },
-    one_pager: { name: '1-Pager PDF', credits: 15, category: 'create' },
-    pitch_deck: { name: 'Pitch Deck Outline', credits: 10, category: 'create' },
-    email_template: { name: 'Email Template', credits: 5, category: 'create' },
-    press_release: { name: 'Press Release', credits: 10, category: 'create' }
-};
-
-// Note: Language is now handled by global targetLanguage
-
-/**
- * Open plan generation modal
- */
-function openPlanModal(planType) {
-    try {
-        const planDef = PLAN_DEFINITIONS[planType];
-        if (!planDef) {
-            showNotification('Unknown plan type', 'error');
+    /**
+     * Open creative studio modal
+     */
+    function openCreativeModal(planType) {
+        const config = CREATIVE_CONFIGS[planType];
+        if (!config) {
+            showNotification('Unknown creative type: ' + planType, 'error');
             return;
         }
 
-        // NEW: Redirect 'create' category to Creative Studio Modal
-        if (planDef.category === 'create') {
-            openCreativeModal(planType);
-            return;
-        }
+        currentCreativeType = planType;
+        currentCreativeData = {};
 
-        currentPlan = {
-            type: planType,
-            ...planDef,
-            sessionId: generateSessionId() // For version tracking
-        };
-        planVersions = [];
+        // Update modal header
+        document.getElementById('creative-modal-title').textContent = config.name;
+        document.getElementById('creative-modal-subtitle').textContent = config.subtitle;
+        document.getElementById('creative-cost').textContent = config.credits + ' cr';
+        document.getElementById('btn-creative-generate-label').textContent = config.buttonLabel;
 
-        // Update modal UI
-        document.getElementById('plan-modal-title').textContent = planDef.name;
-        document.getElementById('plan-modal-subtitle').textContent = `${planDef.category.charAt(0).toUpperCase() + planDef.category.slice(1)} Plan`;
-        document.getElementById('plan-credit-cost').innerHTML = `Cost: <span class="text-white font-medium">${planDef.credits} cr</span>`;
+        // Generate controls
+        const controlsContainer = document.getElementById('creative-controls-container');
+        controlsContainer.innerHTML = generateCreativeControls(config.controls);
 
-        // Update sources summary
-        const activeSources = sources.filter(s => s.isActive !== false);
-        document.getElementById('plan-sources-summary').textContent =
-            activeSources.length > 0
-                ? activeSources.map(s => s.title).join(', ')
-                : 'No active sources. Add sources for better results.';
-
-        // Reset to options step
-        showPlanStep('options');
-
-        // Reset buttons
-        document.getElementById('btn-generate-plan').classList.remove('hidden');
-        document.getElementById('btn-generate-another').classList.add('hidden');
-        document.getElementById('plan-instructions').value = '';
-
-        // Initialize language buttons
-        // Initialize language buttons - REMOVED (using global setting)
-        // initializePlanLangButtons();
+        // Reset preview area
+        document.getElementById('creative-placeholder').classList.remove('hidden');
+        document.getElementById('creative-loading').classList.add('hidden');
+        document.getElementById('creative-result-container').classList.add('hidden');
+        document.getElementById('btn-creative-download').classList.add('hidden');
+        document.getElementById('btn-creative-copy').classList.add('hidden');
 
         // Show modal
-        const modal = document.getElementById('plan-modal');
-        modal.style.display = 'block';
-
-    } catch (error) {
-        console.error('Error opening plan modal:', error);
-        showNotification('Error opening modal: ' + error.message, 'error');
-    }
-}
-
-
-/**
- * Creative Studio state
- */
-let currentCreativeType = null;
-let currentCreativeData = {};
-
-/**
- * Creative content type configurations
- */
-const CREATIVE_CONFIGS = {
-    email_template: {
-        name: 'Email Template',
-        subtitle: 'Generate a professional marketing email',
-        buttonLabel: 'Email',
-        credits: 5,
-        controls: [
-            { id: 'email-type', type: 'select', label: 'Email Type', options: ['Newsletter', 'Promotional', 'Welcome', 'Follow-up', 'Announcement'] },
-            { id: 'email-subject', type: 'text', label: 'Subject Line (optional)', placeholder: 'e.g., Introducing our new feature...' },
-            { id: 'email-keypoints', type: 'textarea', label: 'Key Points', placeholder: 'Enter key points to include (one per line)' },
-            { id: 'email-cta', type: 'text', label: 'Call to Action', placeholder: 'e.g., Try it now, Learn more' },
-            { id: 'email-tone', type: 'select', label: 'Tone', options: ['Professional', 'Friendly', 'Urgent', 'Casual', 'Formal'] }
-        ]
-    },
-    press_release: {
-        name: 'Press Release',
-        subtitle: 'Generate a media-ready press release',
-        buttonLabel: 'Press Release',
-        credits: 10,
-        controls: [
-            { id: 'pr-headline', type: 'text', label: 'Headline', placeholder: 'Main announcement headline' },
-            { id: 'pr-subheadline', type: 'text', label: 'Subheadline (optional)', placeholder: 'Supporting detail' },
-            { id: 'pr-announcement', type: 'textarea', label: 'Announcement Details', placeholder: 'What are you announcing? Key facts and details...' },
-            { id: 'pr-quote', type: 'textarea', label: 'Quote (optional)', placeholder: 'A quote from the CEO or spokesperson' },
-            { id: 'pr-boilerplate', type: 'checkbox', label: 'Include company boilerplate' }
-        ]
-    },
-    product_brochure: {
-        name: 'Product Brochure',
-        subtitle: 'Generate a high-quality PDF brochure',
-        buttonLabel: 'Brochure',
-        credits: 20,
-        controls: [
-            { id: 'brochure-title', type: 'text', label: 'Title', placeholder: 'Brochure title' },
-            { id: 'brochure-sections', type: 'select', label: 'Sections', options: ['3 sections', '4 sections', '5 sections'] },
-            { id: 'brochure-content', type: 'textarea', label: 'Key Content Points', placeholder: 'Main features, benefits, use cases...' }
-        ]
-    },
-    promo_images: {
-        name: 'Promo Images',
-        subtitle: 'Generate promotional images',
-        buttonLabel: 'Images',
-        credits: 5,
-        controls: [
-            { id: 'promo-concept', type: 'textarea', label: 'Image Concept', placeholder: 'Describe the image you want...' },
-            { id: 'promo-style', type: 'select', label: 'Style', options: ['Modern', 'Minimalist', 'Bold', 'Corporate', 'Creative'] }
-        ]
-    },
-    one_pager: {
-        name: '1-Pager PDF',
-        subtitle: 'Generate a single-page summary document',
-        buttonLabel: '1-Pager',
-        credits: 15,
-        controls: [
-            { id: 'onepager-title', type: 'text', label: 'Document Title', placeholder: 'Title for the document' },
-            { id: 'onepager-content', type: 'textarea', label: 'Main Content', placeholder: 'Key information to include...' }
-        ]
-    },
-    pitch_deck: {
-        name: 'Pitch Deck Outline',
-        subtitle: 'Generate a presentation outline',
-        buttonLabel: 'Outline',
-        credits: 10,
-        controls: [
-            { id: 'pitch-topic', type: 'text', label: 'Topic', placeholder: 'What is this pitch about?' },
-            { id: 'pitch-slides', type: 'select', label: 'Number of Slides', options: ['5 slides', '8 slides', '10 slides', '12 slides'] },
-            { id: 'pitch-audience', type: 'text', label: 'Target Audience', placeholder: 'e.g., Investors, Partners, Customers' }
-        ]
-    }
-};
-
-/**
- * Open creative studio modal
- */
-function openCreativeModal(planType) {
-    const config = CREATIVE_CONFIGS[planType];
-    if (!config) {
-        showNotification('Unknown creative type: ' + planType, 'error');
-        return;
+        document.getElementById('creative-modal').style.display = 'block';
+        console.log('[CreativeModal] Opened for:', planType);
     }
 
-    currentCreativeType = planType;
-    currentCreativeData = {};
+    /**
+     * Generate control inputs HTML
+     */
+    function generateCreativeControls(controls) {
+        return controls.map(ctrl => {
+            let inputHTML = '';
 
-    // Update modal header
-    document.getElementById('creative-modal-title').textContent = config.name;
-    document.getElementById('creative-modal-subtitle').textContent = config.subtitle;
-    document.getElementById('creative-cost').textContent = config.credits + ' cr';
-    document.getElementById('btn-creative-generate-label').textContent = config.buttonLabel;
-
-    // Generate controls
-    const controlsContainer = document.getElementById('creative-controls-container');
-    controlsContainer.innerHTML = generateCreativeControls(config.controls);
-
-    // Reset preview area
-    document.getElementById('creative-placeholder').classList.remove('hidden');
-    document.getElementById('creative-loading').classList.add('hidden');
-    document.getElementById('creative-result-container').classList.add('hidden');
-    document.getElementById('btn-creative-download').classList.add('hidden');
-    document.getElementById('btn-creative-copy').classList.add('hidden');
-
-    // Show modal
-    document.getElementById('creative-modal').style.display = 'block';
-    console.log('[CreativeModal] Opened for:', planType);
-}
-
-/**
- * Generate control inputs HTML
- */
-function generateCreativeControls(controls) {
-    return controls.map(ctrl => {
-        let inputHTML = '';
-
-        switch (ctrl.type) {
-            case 'text':
-                inputHTML = `<input type="text" id="${ctrl.id}" placeholder="${ctrl.placeholder || ''}" 
+            switch (ctrl.type) {
+                case 'text':
+                    inputHTML = `<input type="text" id="${ctrl.id}" placeholder="${ctrl.placeholder || ''}" 
                     class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-indigo-500">`;
-                break;
-            case 'textarea':
-                inputHTML = `<textarea id="${ctrl.id}" placeholder="${ctrl.placeholder || ''}" rows="3"
+                    break;
+                case 'textarea':
+                    inputHTML = `<textarea id="${ctrl.id}" placeholder="${ctrl.placeholder || ''}" rows="3"
                     class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-indigo-500 resize-none"></textarea>`;
-                break;
-            case 'select':
-                const options = ctrl.options.map(opt => `<option value="${opt}">${opt}</option>`).join('');
-                inputHTML = `<select id="${ctrl.id}" 
+                    break;
+                case 'select':
+                    const options = ctrl.options.map(opt => `<option value="${opt}">${opt}</option>`).join('');
+                    inputHTML = `<select id="${ctrl.id}" 
                     class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-indigo-500">
                     ${options}
                 </select>`;
-                break;
-            case 'checkbox':
-                inputHTML = `<label class="flex items-center gap-2 cursor-pointer">
+                    break;
+                case 'checkbox':
+                    inputHTML = `<label class="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" id="${ctrl.id}" class="w-4 h-4 rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500">
                     <span class="text-sm text-slate-300">${ctrl.label}</span>
                 </label>`;
-                return `<div class="space-y-1">${inputHTML}</div>`;
-        }
+                    return `<div class="space-y-1">${inputHTML}</div>`;
+            }
 
-        return `
+            return `
             <div class="space-y-1">
                 <label class="block text-xs text-slate-400 font-medium">${ctrl.label}</label>
                 ${inputHTML}
             </div>
         `;
-    }).join('');
-}
+        }).join('');
+    }
 
-/**
- * Close creative modal
- */
-function closeCreativeModal() {
-    document.getElementById('creative-modal').style.display = 'none';
-    currentCreativeType = null;
-    currentCreativeData = {};
-}
+    /**
+     * Close creative modal
+     */
+    function closeCreativeModal() {
+        document.getElementById('creative-modal').style.display = 'none';
+        currentCreativeType = null;
+        currentCreativeData = {};
+    }
 
-/**
- * Generate creative item (placeholder - will connect to backend)
- */
-async function generateCreativeItem() {
-    if (!currentCreativeType) return;
+    /**
+     * Generate creative item (placeholder - will connect to backend)
+     */
+    async function generateCreativeItem() {
+        if (!currentCreativeType) return;
 
-    const config = CREATIVE_CONFIGS[currentCreativeType];
-    if (!config) return;
+        const config = CREATIVE_CONFIGS[currentCreativeType];
+        if (!config) return;
 
-    // Collect input values
-    const inputs = {};
-    config.controls.forEach(ctrl => {
-        const el = document.getElementById(ctrl.id);
-        if (el) {
-            inputs[ctrl.id] = ctrl.type === 'checkbox' ? el.checked : el.value;
-        }
-    });
+        // Collect input values
+        const inputs = {};
+        config.controls.forEach(ctrl => {
+            const el = document.getElementById(ctrl.id);
+            if (el) {
+                inputs[ctrl.id] = ctrl.type === 'checkbox' ? el.checked : el.value;
+            }
+        });
 
-    console.log('[CreativeModal] Generating with inputs:', inputs);
+        console.log('[CreativeModal] Generating with inputs:', inputs);
 
-    // Show loading
-    document.getElementById('creative-placeholder').classList.add('hidden');
-    document.getElementById('creative-loading').classList.remove('hidden');
-    document.getElementById('creative-loading').style.display = 'flex';
+        // Show loading
+        document.getElementById('creative-placeholder').classList.add('hidden');
+        document.getElementById('creative-loading').classList.remove('hidden');
+        document.getElementById('creative-loading').style.display = 'flex';
 
-    try {
-        // TODO: Replace with actual backend call
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API call
+        try {
+            // TODO: Replace with actual backend call
+            await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API call
 
-        // Mock result for Email/Press Release (text-based)
-        let mockResult = '';
-        if (currentCreativeType === 'email_template') {
-            mockResult = generateMockEmail(inputs);
-        } else if (currentCreativeType === 'press_release') {
-            mockResult = generateMockPressRelease(inputs);
-        } else {
-            mockResult = `<p class="text-slate-400">Generation for ${config.name} coming soon!</p>`;
-        }
+            // Mock result for Email/Press Release (text-based)
+            let mockResult = '';
+            if (currentCreativeType === 'email_template') {
+                mockResult = generateMockEmail(inputs);
+            } else if (currentCreativeType === 'press_release') {
+                mockResult = generateMockPressRelease(inputs);
+            } else {
+                mockResult = `<p class="text-slate-400">Generation for ${config.name} coming soon!</p>`;
+            }
 
-        // Show result
-        document.getElementById('creative-loading').classList.add('hidden');
-        document.getElementById('creative-loading').style.display = 'none';
-        document.getElementById('creative-result-container').classList.remove('hidden');
-        document.getElementById('creative-result-container').innerHTML = `
+            // Show result
+            document.getElementById('creative-loading').classList.add('hidden');
+            document.getElementById('creative-loading').style.display = 'none';
+            document.getElementById('creative-result-container').classList.remove('hidden');
+            document.getElementById('creative-result-container').innerHTML = `
             <div class="prose prose-invert max-w-none h-full overflow-auto p-4 bg-slate-900 rounded-lg border border-slate-800">
                 ${mockResult}
             </div>
         `;
 
-        // Show action buttons
-        document.getElementById('btn-creative-copy').classList.remove('hidden');
-        document.getElementById('btn-creative-copy').style.display = 'flex';
+            // Show action buttons
+            document.getElementById('btn-creative-copy').classList.remove('hidden');
+            document.getElementById('btn-creative-copy').style.display = 'flex';
 
-        showNotification(`${config.name} generated successfully!`, 'success');
+            showNotification(`${config.name} generated successfully!`, 'success');
 
-    } catch (error) {
-        console.error('[CreativeModal] Generation error:', error);
-        document.getElementById('creative-loading').classList.add('hidden');
-        document.getElementById('creative-placeholder').classList.remove('hidden');
-        showNotification('Generation failed: ' + error.message, 'error');
+        } catch (error) {
+            console.error('[CreativeModal] Generation error:', error);
+            document.getElementById('creative-loading').classList.add('hidden');
+            document.getElementById('creative-placeholder').classList.remove('hidden');
+            showNotification('Generation failed: ' + error.message, 'error');
+        }
     }
-}
 
-/**
- * Mock Email Template Generator
- */
-function generateMockEmail(inputs) {
-    const type = inputs['email-type'] || 'Newsletter';
-    const subject = inputs['email-subject'] || 'Your Weekly Update';
-    const keypoints = inputs['email-keypoints'] || 'Our latest features and updates';
-    const cta = inputs['email-cta'] || 'Learn More';
-    const tone = inputs['email-tone'] || 'Professional';
+    /**
+     * Mock Email Template Generator
+     */
+    function generateMockEmail(inputs) {
+        const type = inputs['email-type'] || 'Newsletter';
+        const subject = inputs['email-subject'] || 'Your Weekly Update';
+        const keypoints = inputs['email-keypoints'] || 'Our latest features and updates';
+        const cta = inputs['email-cta'] || 'Learn More';
+        const tone = inputs['email-tone'] || 'Professional';
 
-    return `
+        return `
         <div class="space-y-4">
             <div class="border-b border-slate-700 pb-3">
                 <p class="text-xs text-slate-500">Subject:</p>
@@ -3233,18 +3330,18 @@ function generateMockEmail(inputs) {
             </div>
         </div>
     `;
-}
+    }
 
-/**
- * Mock Press Release Generator
- */
-function generateMockPressRelease(inputs) {
-    const headline = inputs['pr-headline'] || 'Company Announces Major Update';
-    const subheadline = inputs['pr-subheadline'] || '';
-    const announcement = inputs['pr-announcement'] || 'Details of the announcement...';
-    const quote = inputs['pr-quote'] || '';
+    /**
+     * Mock Press Release Generator
+     */
+    function generateMockPressRelease(inputs) {
+        const headline = inputs['pr-headline'] || 'Company Announces Major Update';
+        const subheadline = inputs['pr-subheadline'] || '';
+        const announcement = inputs['pr-announcement'] || 'Details of the announcement...';
+        const quote = inputs['pr-quote'] || '';
 
-    return `
+        return `
         <div class="space-y-4">
             <div class="text-center border-b border-slate-700 pb-4">
                 <p class="text-xs text-slate-500 uppercase tracking-wider">Press Release</p>
@@ -3267,206 +3364,206 @@ function generateMockPressRelease(inputs) {
             </div>
         </div>
     `;
-}
-
-/**
- * Copy creative result to clipboard
- */
-function copyCreativeItem() {
-    const resultContainer = document.getElementById('creative-result-container');
-    if (!resultContainer) return;
-
-    const text = resultContainer.innerText;
-    navigator.clipboard.writeText(text).then(() => {
-        showNotification('Copied to clipboard!', 'success');
-    }).catch(err => {
-        console.error('Copy failed:', err);
-        showNotification('Failed to copy', 'error');
-    });
-}
-
-/**
- * Download creative item (placeholder)
- */
-function downloadCreativeItem() {
-    showNotification('Download feature coming soon!', 'info');
-}
-
-/**
- * Close plan modal
- */
-function closePlanModal() {
-    const modal = document.getElementById('plan-modal');
-    modal.style.display = 'none';
-    currentPlan = null;
-}
-
-/**
- * Show specific step in plan modal
- */
-function showPlanStep(step) {
-    document.getElementById('plan-step-options').classList.add('hidden');
-    document.getElementById('plan-step-generating').classList.add('hidden');
-    document.getElementById('plan-step-result').classList.add('hidden');
-
-    document.getElementById(`plan-step-${step}`).classList.remove('hidden');
-
-    // Update footer visibility
-    const footer = document.getElementById('plan-modal-footer');
-    if (step === 'generating') {
-        footer.classList.add('hidden');
-    } else {
-        footer.classList.remove('hidden');
     }
-}
 
-// ==========================================
-// CREATIVE STUDIO FUNCTIONS
-// ==========================================
+    /**
+     * Copy creative result to clipboard
+     */
+    function copyCreativeItem() {
+        const resultContainer = document.getElementById('creative-result-container');
+        if (!resultContainer) return;
 
-async function generateCreativeItem() {
-    if (!currentCreativeType) return;
-
-    // 1. Gather Inputs
-    const topic = document.getElementById('creative-input-topic')?.value || '';
-    const audience = document.getElementById('creative-input-audience')?.value || '';
-    const tone = document.getElementById('creative-input-tone')?.value || '';
-
-    // Construct specific inputs based on type
-    let specificInputs = {};
-    const container = document.getElementById('creative-controls-container');
-
-    if (currentCreativeType === 'product_brochure') {
-        // Find selected format button
-        const buttons = container.querySelectorAll('button');
-        let format = 'Tri-Fold';
-        buttons.forEach(btn => {
-            if (btn.classList.contains('border-indigo-500')) format = btn.textContent;
+        const text = resultContainer.innerText;
+        navigator.clipboard.writeText(text).then(() => {
+            showNotification('Copied to clipboard!', 'success');
+        }).catch(err => {
+            console.error('Copy failed:', err);
+            showNotification('Failed to copy', 'error');
         });
-        specificInputs.format = format;
-
-        const styleSelect = container.querySelectorAll('select')[1]; // Second select is style
-        specificInputs.style = styleSelect ? styleSelect.value : '';
-    }
-    else if (currentCreativeType === 'pitch_deck') {
-        const buttons = container.querySelectorAll('button');
-        let slideCount = '10';
-        buttons.forEach(btn => {
-            if (btn.classList.contains('border-indigo-500')) slideCount = btn.textContent.replace(' Slides', '');
-        });
-        specificInputs.slideCount = slideCount;
-
-        const purposeSelect = container.querySelectorAll('select')[1];
-        specificInputs.purpose = purposeSelect ? purposeSelect.value : '';
-    }
-    else if (currentCreativeType === 'promo_images') {
-        const buttons = container.querySelectorAll('button');
-        let ratio = 'Square (1:1)';
-        buttons.forEach(btn => {
-            if (btn.classList.contains('border-indigo-500')) ratio = btn.textContent;
-        });
-        specificInputs.ratio = ratio;
-
-        const styleSelect = container.querySelectorAll('select')[1];
-        specificInputs.style = styleSelect ? styleSelect.value : '';
-        const negInput = container.querySelector('input[placeholder*="text, blur"]');
-        specificInputs.negativePrompt = negInput ? negInput.value : '';
-    }
-    else if (currentCreativeType === 'email_template') {
-        const typeSelect = container.querySelectorAll('select')[1];
-        specificInputs.emailType = typeSelect ? typeSelect.value : '';
-        const senderInput = container.querySelector('input[placeholder*="John Doe"]');
-        specificInputs.senderName = senderInput ? senderInput.value : '';
-    }
-    else if (currentCreativeType === 'press_release') {
-        const typeSelect = container.querySelectorAll('select')[1];
-        specificInputs.announcementType = typeSelect ? typeSelect.value : '';
-        const quoteInput = container.querySelector('input[placeholder*="CEO"]');
-        specificInputs.quoteRole = quoteInput ? quoteInput.value : '';
     }
 
-    // 2. Prepare Context (Active Sources)
-    const activeSources = sources.filter(s => s.isActive !== false);
-    const contextText = activeSources.map(s => `${s.title}: ${s.content ? s.content.substring(0, 500) : 'No content'}`).join('\n\n');
+    /**
+     * Download creative item (placeholder)
+     */
+    function downloadCreativeItem() {
+        showNotification('Download feature coming soon!', 'info');
+    }
 
-    const requestData = {
-        type: currentCreativeType,
-        inputs: {
-            topic,
-            audience,
-            tone,
-            ...specificInputs
-        },
-        projectContext: contextText,
-        projectContext: contextText,
-        targetLanguage: targetLanguage || 'English',
-        mode: currentUserPerformanceMode // Pass Eco/Balanced/Pro mode
-    };
+    /**
+     * Close plan modal
+     */
+    function closePlanModal() {
+        const modal = document.getElementById('plan-modal');
+        modal.style.display = 'none';
+        currentPlan = null;
+    }
 
-    // 3. UI Loading State
-    document.getElementById('creative-placeholder').style.display = 'none';
-    document.getElementById('creative-result-container').classList.add('hidden');
-    document.getElementById('creative-loading').style.display = 'flex';
-    document.querySelector('.loading-text').textContent = 'Generating with AI...';
+    /**
+     * Show specific step in plan modal
+     */
+    function showPlanStep(step) {
+        document.getElementById('plan-step-options').classList.add('hidden');
+        document.getElementById('plan-step-generating').classList.add('hidden');
+        document.getElementById('plan-step-result').classList.add('hidden');
 
-    try {
-        // 4. Call Cloud Function
-        const generateFn = firebase.functions().httpsCallable('generateCreativeContent');
-        const result = await generateFn(requestData);
+        document.getElementById(`plan-step-${step}`).classList.remove('hidden');
 
-        if (result.data.success) {
-            currentCreativeData = result.data.type === 'image' ? result.data.data : result.data.content;
-
-            // 5. Render Real Result
-            if (result.data.type === 'image') {
-                renderCreativeImages(currentCreativeData);
-            } else {
-                renderCreativeResult(currentCreativeType, currentCreativeData);
-                // Inject Feedback UI
-                setTimeout(renderFeedbackUI, 100);
-            }
+        // Update footer visibility
+        const footer = document.getElementById('plan-modal-footer');
+        if (step === 'generating') {
+            footer.classList.add('hidden');
         } else {
-            throw new Error(result.data.error || 'Generation failed');
-        }
-
-    } catch (error) {
-        console.error('Generation Error:', error);
-        showNotification('Generation failed: ' + error.message, 'error');
-        document.getElementById('creative-placeholder').style.display = 'block';
-        document.getElementById('creative-placeholder').innerHTML = `<p class="text-red-400">Error: ${error.message}</p>`;
-    } finally {
-        document.getElementById('creative-loading').style.display = 'none';
-
-        // If success, show actions
-        if (currentCreativeData) {
-            document.getElementById('creative-result-container').style.display = 'block';
-            document.getElementById('creative-result-container').classList.remove('hidden');
-            document.getElementById('btn-creative-download').classList.remove('hidden');
-
-            // Setup Download Button
-            const downloadBtn = document.getElementById('btn-creative-download');
-            downloadBtn.onclick = () => {
-                if (currentCreativeType === 'promo_images' && currentCreativeData && currentCreativeData.length > 0) {
-                    window.open(currentCreativeData[0], '_blank');
-                } else {
-                    // For text content
-                    const blob = new Blob([currentCreativeData], { type: 'text/html' });
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `zynk-creative-${Date.now()}.html`;
-                    a.click();
-                }
-            };
-
-            document.getElementById('btn-creative-copy').classList.remove('hidden');
+            footer.classList.remove('hidden');
         }
     }
-}
 
-function renderCreativeImages(images) {
-    const container = document.getElementById('creative-result-container');
-    container.innerHTML = `
+    // ==========================================
+    // CREATIVE STUDIO FUNCTIONS
+    // ==========================================
+
+    async function generateCreativeItem() {
+        if (!currentCreativeType) return;
+
+        // 1. Gather Inputs
+        const topic = document.getElementById('creative-input-topic')?.value || '';
+        const audience = document.getElementById('creative-input-audience')?.value || '';
+        const tone = document.getElementById('creative-input-tone')?.value || '';
+
+        // Construct specific inputs based on type
+        let specificInputs = {};
+        const container = document.getElementById('creative-controls-container');
+
+        if (currentCreativeType === 'product_brochure') {
+            // Find selected format button
+            const buttons = container.querySelectorAll('button');
+            let format = 'Tri-Fold';
+            buttons.forEach(btn => {
+                if (btn.classList.contains('border-indigo-500')) format = btn.textContent;
+            });
+            specificInputs.format = format;
+
+            const styleSelect = container.querySelectorAll('select')[1]; // Second select is style
+            specificInputs.style = styleSelect ? styleSelect.value : '';
+        }
+        else if (currentCreativeType === 'pitch_deck') {
+            const buttons = container.querySelectorAll('button');
+            let slideCount = '10';
+            buttons.forEach(btn => {
+                if (btn.classList.contains('border-indigo-500')) slideCount = btn.textContent.replace(' Slides', '');
+            });
+            specificInputs.slideCount = slideCount;
+
+            const purposeSelect = container.querySelectorAll('select')[1];
+            specificInputs.purpose = purposeSelect ? purposeSelect.value : '';
+        }
+        else if (currentCreativeType === 'promo_images') {
+            const buttons = container.querySelectorAll('button');
+            let ratio = 'Square (1:1)';
+            buttons.forEach(btn => {
+                if (btn.classList.contains('border-indigo-500')) ratio = btn.textContent;
+            });
+            specificInputs.ratio = ratio;
+
+            const styleSelect = container.querySelectorAll('select')[1];
+            specificInputs.style = styleSelect ? styleSelect.value : '';
+            const negInput = container.querySelector('input[placeholder*="text, blur"]');
+            specificInputs.negativePrompt = negInput ? negInput.value : '';
+        }
+        else if (currentCreativeType === 'email_template') {
+            const typeSelect = container.querySelectorAll('select')[1];
+            specificInputs.emailType = typeSelect ? typeSelect.value : '';
+            const senderInput = container.querySelector('input[placeholder*="John Doe"]');
+            specificInputs.senderName = senderInput ? senderInput.value : '';
+        }
+        else if (currentCreativeType === 'press_release') {
+            const typeSelect = container.querySelectorAll('select')[1];
+            specificInputs.announcementType = typeSelect ? typeSelect.value : '';
+            const quoteInput = container.querySelector('input[placeholder*="CEO"]');
+            specificInputs.quoteRole = quoteInput ? quoteInput.value : '';
+        }
+
+        // 2. Prepare Context (Active Sources)
+        const activeSources = sources.filter(s => s.isActive !== false);
+        const contextText = activeSources.map(s => `${s.title}: ${s.content ? s.content.substring(0, 500) : 'No content'}`).join('\n\n');
+
+        const requestData = {
+            type: currentCreativeType,
+            inputs: {
+                topic,
+                audience,
+                tone,
+                ...specificInputs
+            },
+            projectContext: contextText,
+            projectContext: contextText,
+            targetLanguage: targetLanguage || 'English',
+            mode: currentUserPerformanceMode // Pass Eco/Balanced/Pro mode
+        };
+
+        // 3. UI Loading State
+        document.getElementById('creative-placeholder').style.display = 'none';
+        document.getElementById('creative-result-container').classList.add('hidden');
+        document.getElementById('creative-loading').style.display = 'flex';
+        document.querySelector('.loading-text').textContent = 'Generating with AI...';
+
+        try {
+            // 4. Call Cloud Function
+            const generateFn = firebase.functions().httpsCallable('generateCreativeContent');
+            const result = await generateFn(requestData);
+
+            if (result.data.success) {
+                currentCreativeData = result.data.type === 'image' ? result.data.data : result.data.content;
+
+                // 5. Render Real Result
+                if (result.data.type === 'image') {
+                    renderCreativeImages(currentCreativeData);
+                } else {
+                    renderCreativeResult(currentCreativeType, currentCreativeData);
+                    // Inject Feedback UI
+                    setTimeout(renderFeedbackUI, 100);
+                }
+            } else {
+                throw new Error(result.data.error || 'Generation failed');
+            }
+
+        } catch (error) {
+            console.error('Generation Error:', error);
+            showNotification('Generation failed: ' + error.message, 'error');
+            document.getElementById('creative-placeholder').style.display = 'block';
+            document.getElementById('creative-placeholder').innerHTML = `<p class="text-red-400">Error: ${error.message}</p>`;
+        } finally {
+            document.getElementById('creative-loading').style.display = 'none';
+
+            // If success, show actions
+            if (currentCreativeData) {
+                document.getElementById('creative-result-container').style.display = 'block';
+                document.getElementById('creative-result-container').classList.remove('hidden');
+                document.getElementById('btn-creative-download').classList.remove('hidden');
+
+                // Setup Download Button
+                const downloadBtn = document.getElementById('btn-creative-download');
+                downloadBtn.onclick = () => {
+                    if (currentCreativeType === 'promo_images' && currentCreativeData && currentCreativeData.length > 0) {
+                        window.open(currentCreativeData[0], '_blank');
+                    } else {
+                        // For text content
+                        const blob = new Blob([currentCreativeData], { type: 'text/html' });
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `zynk-creative-${Date.now()}.html`;
+                        a.click();
+                    }
+                };
+
+                document.getElementById('btn-creative-copy').classList.remove('hidden');
+            }
+        }
+    }
+
+    function renderCreativeImages(images) {
+        const container = document.getElementById('creative-result-container');
+        container.innerHTML = `
         <div class="w-full h-full p-6 overflow-y-auto">
             <div class="grid grid-cols-2 gap-4">
                 ${images.map((url, i) => `
@@ -3480,21 +3577,21 @@ function renderCreativeImages(images) {
             </div>
         </div>
     `;
-}
-
-/**
- * Render creative text/HTML result
- */
-function renderCreativeResult(type, content) {
-    const container = document.getElementById('creative-result-container');
-
-    // Clean up content - remove markdown code blocks if present
-    let cleanContent = content;
-    if (typeof content === 'string') {
-        cleanContent = content.replace(/```html?\n?/gi, '').replace(/```\n?/g, '');
     }
 
-    container.innerHTML = `
+    /**
+     * Render creative text/HTML result
+     */
+    function renderCreativeResult(type, content) {
+        const container = document.getElementById('creative-result-container');
+
+        // Clean up content - remove markdown code blocks if present
+        let cleanContent = content;
+        if (typeof content === 'string') {
+            cleanContent = content.replace(/```html?\n?/gi, '').replace(/```\n?/g, '');
+        }
+
+        container.innerHTML = `
         <div class="w-full h-full overflow-y-auto bg-white text-slate-800 rounded-lg">
             <div class="prose max-w-none p-6">
                 ${cleanContent}
@@ -3502,141 +3599,167 @@ function renderCreativeResult(type, content) {
         </div>
     `;
 
-    container.style.display = 'block';
-    container.classList.remove('hidden');
-}
-
-/**
- * Generate plan content
- */
-async function generatePlan() {
-    if (!currentPlan || !currentProjectId) {
-        showNotification('Please select a project first', 'error');
-        return;
+        container.style.display = 'block';
+        container.classList.remove('hidden');
     }
 
-    const activeSources = sources.filter(s => s.isActive !== false);
-    if (activeSources.length === 0) {
-        showNotification('Please add at least one source', 'error');
-        return;
-    }
-
-    showPlanStep('generating');
-
-    try {
-        const instructions = document.getElementById('plan-instructions').value.trim();
-
-        // Calculate weight breakdown for sources
-        const totalWeightPoints = activeSources.reduce((sum, s) => sum + (s.importance === 3 ? 3 : (s.importance === 1 ? 1 : 2)), 0);
-        const weightBreakdown = activeSources.map(s => {
-            const points = s.importance === 3 ? 3 : (s.importance === 1 ? 1 : 2);
-            const percent = Math.round((points / totalWeightPoints) * 100);
-            return {
-                id: s.id,
-                title: s.title,
-                importance: s.importance || 2,
-                percent: percent
-            };
-        }).sort((a, b) => b.importance - a.importance);
-
-        // Call Cloud Function (to be implemented)
-        const generateContentPlan = firebase.functions().httpsCallable('generateContentPlan');
-        const result = await generateContentPlan({
-            projectId: currentProjectId,
-            planType: currentPlan.type,
-            targetLanguage: targetLanguage,
-            additionalInstructions: instructions
-        });
-
-        if (result.data.success) {
-            const version = {
-                id: Date.now(),
-                content: result.data.content,
-                createdAt: new Date(),
-                weightBreakdown: weightBreakdown  // Store weight breakdown
-            };
-            planVersions.push(version);
-
-            showPlanResult();
-            showNotification('Plan generated successfully!', 'success');
-        } else {
-            throw new Error(result.data.error || 'Generation failed');
+    /**
+     * Generate plan content
+     */
+    async function generatePlan() {
+        if (!currentPlan || !currentProjectId) {
+            showNotification('Please select a project first', 'error');
+            return;
         }
-    } catch (error) {
-        console.error('Error generating plan:', error);
-        showPlanStep('options');
-        showNotification(`Error: ${error.message}`, 'error');
+
+        const activeSources = sources.filter(s => s.isActive !== false);
+        if (activeSources.length === 0) {
+            showNotification('Please add at least one source', 'error');
+            return;
+        }
+
+        showPlanStep('generating');
+
+        try {
+            const instructions = document.getElementById('plan-instructions').value.trim();
+
+            // Calculate weight breakdown for sources
+            const totalWeightPoints = activeSources.reduce((sum, s) => sum + (s.importance === 3 ? 3 : (s.importance === 1 ? 1 : 2)), 0);
+            const weightBreakdown = activeSources.map(s => {
+                const points = s.importance === 3 ? 3 : (s.importance === 1 ? 1 : 2);
+                const percent = Math.round((points / totalWeightPoints) * 100);
+                return {
+                    id: s.id,
+                    title: s.title,
+                    importance: s.importance || 2,
+                    percent: percent
+                };
+            }).sort((a, b) => b.importance - a.importance);
+
+            // Check Boost Mode
+            const boostActive = document.getElementById('plan-boost-active')?.value === 'true';
+            const qualityTier = boostActive ? 'BOOST' : 'DEFAULT';
+
+            // Call routeLLM instead of generateContentPlan
+            const routeLLM = firebase.functions().httpsCallable('routeLLM');
+            const result = await routeLLM({
+                feature: 'studio.content_gen', // Use content generation policy
+                qualityTier: qualityTier,
+                systemPrompt: `You are an expert content strategist. Create a detailed ${currentPlan.name} based on the provided brand sources.`,
+                userPrompt: `Generate a ${currentPlan.name} (${currentPlan.category}).
+            
+Context/Instructions:
+${document.getElementById('plan-instructions').value}
+
+Target Language: ${targetLanguage === 'ko' ? 'Korean' : 'English'}
+
+Sources:
+${activeSources.map(s => `- ${s.title}`).join('\n')}
+
+Format the output in clear, structured Markdown.`
+            });
+
+            // routeLLM returns { content: "...", ... }
+            const generatedContent = result.data?.content;
+
+            if (generatedContent) {
+                // Success
+                document.getElementById('plan-step-generating').classList.add('hidden');
+                document.getElementById('plan-step-result').classList.remove('hidden');
+
+                // Render Markdown
+                const resultContainer = document.querySelector('#plan-result-content .prose');
+                // Simple markdown rendering or just text
+                resultContainer.innerHTML = generatedContent.replace(/\n/g, '<br>'); // Basic formatting
+
+                // Store versions
+                const newVersion = {
+                    id: Date.now().toString(),
+                    content: generatedContent,
+                    createdAt: new Date()
+                };
+                planVersions.push(newVersion);
+                renderPlanVersions();
+
+                showNotification('Plan generated successfully!', 'success');
+            } else {
+                throw new Error('No content generated');
+            }
+        } catch (error) {
+            console.error('Error generating plan:', error);
+            showPlanStep('options');
+            showNotification(`Error: ${error.message}`, 'error');
+        }
     }
-}
 
-/**
- * Generate another version
- */
-async function generateAnotherVersion() {
-    if (planVersions.length >= 5) {
-        showNotification('Maximum 5 versions allowed', 'error');
-        return;
+    /**
+     * Generate another version
+     */
+    async function generateAnotherVersion() {
+        if (planVersions.length >= 5) {
+            showNotification('Maximum 5 versions allowed', 'error');
+            return;
+        }
+
+        await generatePlan();
     }
 
-    await generatePlan();
-}
+    /**
+     * Show plan result with version tabs
+     */
+    function showPlanResult() {
+        showPlanStep('result');
 
-/**
- * Show plan result with version tabs
- */
-function showPlanResult() {
-    showPlanStep('result');
-
-    // Build version tabs
-    const tabsContainer = document.getElementById('plan-versions-tabs');
-    tabsContainer.innerHTML = planVersions.map((v, i) => `
+        // Build version tabs
+        const tabsContainer = document.getElementById('plan-versions-tabs');
+        tabsContainer.innerHTML = planVersions.map((v, i) => `
         <button class="plan-version-tab px-3 py-1.5 text-xs rounded-lg border transition-all ${i === planVersions.length - 1 ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'}"
             onclick="selectPlanVersion(${i})">
             Version ${i + 1}
         </button>
     `).join('');
 
-    // Show latest version
-    selectPlanVersion(planVersions.length - 1);
+        // Show latest version
+        selectPlanVersion(planVersions.length - 1);
 
-    // Update buttons
-    document.getElementById('btn-generate-plan').classList.add('hidden');
-    document.getElementById('btn-generate-another').classList.remove('hidden');
+        // Update buttons
+        document.getElementById('btn-generate-plan').classList.add('hidden');
+        document.getElementById('btn-generate-another').classList.remove('hidden');
 
-    // Show credits used
-    const totalCredits = planVersions.length * currentPlan.credits;
-    document.getElementById('plan-credits-used').textContent = `${totalCredits} credits used`;
-}
+        // Show credits used
+        const totalCredits = planVersions.length * currentPlan.credits;
+        document.getElementById('plan-credits-used').textContent = `${totalCredits} credits used`;
+    }
 
-/**
- * Select a plan version to display
- */
-let currentPlanVersionIndex = 0;
+    /**
+     * Select a plan version to display
+     */
+    let currentPlanVersionIndex = 0;
 
-function selectPlanVersion(index) {
-    const version = planVersions[index];
-    if (!version) return;
+    function selectPlanVersion(index) {
+        const version = planVersions[index];
+        if (!version) return;
 
-    currentPlanVersionIndex = index;
+        currentPlanVersionIndex = index;
 
-    // Update tab styles
-    document.querySelectorAll('.plan-version-tab').forEach((tab, i) => {
-        if (i === index) {
-            tab.classList.add('bg-indigo-600', 'border-indigo-500', 'text-white');
-            tab.classList.remove('bg-slate-800', 'border-slate-700', 'text-slate-400');
-        } else {
-            tab.classList.remove('bg-indigo-600', 'border-indigo-500', 'text-white');
-            tab.classList.add('bg-slate-800', 'border-slate-700', 'text-slate-400');
-        }
-    });
+        // Update tab styles
+        document.querySelectorAll('.plan-version-tab').forEach((tab, i) => {
+            if (i === index) {
+                tab.classList.add('bg-indigo-600', 'border-indigo-500', 'text-white');
+                tab.classList.remove('bg-slate-800', 'border-slate-700', 'text-slate-400');
+            } else {
+                tab.classList.remove('bg-indigo-600', 'border-indigo-500', 'text-white');
+                tab.classList.add('bg-slate-800', 'border-slate-700', 'text-slate-400');
+            }
+        });
 
-    // Display content (convert markdown to HTML if needed)
-    const contentDiv = document.getElementById('plan-result-content').querySelector('.prose');
+        // Display content (convert markdown to HTML if needed)
+        const contentDiv = document.getElementById('plan-result-content').querySelector('.prose');
 
-    // Add Weight Report button if weightBreakdown exists
-    let weightReportBtn = '';
-    if (version.weightBreakdown && version.weightBreakdown.length > 0) {
-        weightReportBtn = `
+        // Add Weight Report button if weightBreakdown exists
+        let weightReportBtn = '';
+        if (version.weightBreakdown && version.weightBreakdown.length > 0) {
+            weightReportBtn = `
             <div class="mb-4 flex items-center justify-end">
                 <button onclick="openWeightReport(planVersions[${index}]?.weightBreakdown, '${currentPlan?.name || 'Content Plan'}')" 
                         class="px-3 py-1.5 text-xs bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 rounded-lg transition-all flex items-center gap-2 border border-indigo-600/30">
@@ -3648,203 +3771,203 @@ function selectPlanVersion(index) {
                 </button>
             </div>
         `;
+        }
+
+        contentDiv.innerHTML = weightReportBtn + formatPlanContent(version.content);
     }
 
-    contentDiv.innerHTML = weightReportBtn + formatPlanContent(version.content);
-}
+    /**
+     * Format plan content (basic markdown to HTML)
+     */
+    function formatPlanContent(content) {
+        if (!content) return '<p class="text-slate-400">No content generated</p>';
 
-/**
- * Format plan content (basic markdown to HTML)
- */
-function formatPlanContent(content) {
-    if (!content) return '<p class="text-slate-400">No content generated</p>';
-
-    return content
-        .replace(/### (.*?)$/gm, '<h3 class="text-lg font-semibold text-white mt-4 mb-2">$1</h3>')
-        .replace(/## (.*?)$/gm, '<h2 class="text-xl font-bold text-white mt-5 mb-3">$1</h2>')
-        .replace(/# (.*?)$/gm, '<h1 class="text-2xl font-bold text-white mt-6 mb-4">$1</h1>')
-        .replace(/\*\*(.*?)\*\*/g, '<strong class="text-white">$1</strong>')
-        .replace(/\*(.*?)\*/g, '<em>$1</em>')
-        .replace(/^\- (.*?)$/gm, '<li class="ml-4 text-slate-300">$1</li>')
-        .replace(/^\d+\. (.*?)$/gm, '<li class="ml-4 text-slate-300">$1</li>')
-        .replace(/\n\n/g, '</p><p class="text-slate-300 mb-3">')
-        .replace(/^/, '<p class="text-slate-300 mb-3">')
-        .replace(/$/, '</p>');
-}
-
-/**
- * Copy plan content to clipboard
- */
-async function copyPlanContent() {
-    const currentVersionIndex = document.querySelector('.plan-version-tab.bg-indigo-600')?.textContent.match(/\d+/) - 1 || 0;
-    const content = planVersions[currentVersionIndex]?.content;
-
-    if (!content) return;
-
-    try {
-        await navigator.clipboard.writeText(content);
-        showNotification('Copied to clipboard!', 'success');
-    } catch (error) {
-        showNotification('Failed to copy', 'error');
+        return content
+            .replace(/### (.*?)$/gm, '<h3 class="text-lg font-semibold text-white mt-4 mb-2">$1</h3>')
+            .replace(/## (.*?)$/gm, '<h2 class="text-xl font-bold text-white mt-5 mb-3">$1</h2>')
+            .replace(/# (.*?)$/gm, '<h1 class="text-2xl font-bold text-white mt-6 mb-4">$1</h1>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong class="text-white">$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            .replace(/^\- (.*?)$/gm, '<li class="ml-4 text-slate-300">$1</li>')
+            .replace(/^\d+\. (.*?)$/gm, '<li class="ml-4 text-slate-300">$1</li>')
+            .replace(/\n\n/g, '</p><p class="text-slate-300 mb-3">')
+            .replace(/^/, '<p class="text-slate-300 mb-3">')
+            .replace(/$/, '</p>');
     }
-}
 
-/**
- * Save plan to Firestore with versioning
- * Version format: vMajor.Minor.Patch
- * - Major: Different plan type (topic)
- * - Minor: Same plan type, new generation session
- * - Patch: Regeneration (+Another Version)
- */
-async function savePlanToFirestore() {
-    if (!currentPlan || planVersions.length === 0) return;
+    /**
+     * Copy plan content to clipboard
+     */
+    async function copyPlanContent() {
+        const currentVersionIndex = document.querySelector('.plan-version-tab.bg-indigo-600')?.textContent.match(/\d+/) - 1 || 0;
+        const content = planVersions[currentVersionIndex]?.content;
 
-    try {
-        const db = firebase.firestore();
+        if (!content) return;
+
+        try {
+            await navigator.clipboard.writeText(content);
+            showNotification('Copied to clipboard!', 'success');
+        } catch (error) {
+            showNotification('Failed to copy', 'error');
+        }
+    }
+
+    /**
+     * Save plan to Firestore with versioning
+     * Version format: vMajor.Minor.Patch
+     * - Major: Different plan type (topic)
+     * - Minor: Same plan type, new generation session
+     * - Patch: Regeneration (+Another Version)
+     */
+    async function savePlanToFirestore() {
+        if (!currentPlan || planVersions.length === 0) return;
+
+        try {
+            const db = firebase.firestore();
+            const currentVersionIndex = document.querySelector('.plan-version-tab.bg-indigo-600')?.textContent.match(/\d+/) - 1 || 0;
+            const version = planVersions[currentVersionIndex];
+
+            // Get latest version for this plan type
+            const latestSnapshot = await db.collection('projects').doc(currentProjectId)
+                .collection('savedPlans')
+                .where('planType', '==', currentPlan.type)
+                .orderBy('createdAt', 'desc')
+                .limit(1)
+                .get();
+
+            let versionNumber = 'v1.0.0';
+
+            if (!latestSnapshot.empty) {
+                const latestPlan = latestSnapshot.docs[0].data();
+                const lastVersion = latestPlan.version || 'v1.0.0';
+                const [major, minor, patch] = lastVersion.replace('v', '').split('.').map(Number);
+
+                // Check if this is a regeneration (same session) or new session
+                const isRegeneration = currentPlan.sessionId === latestPlan.sessionId;
+
+                if (isRegeneration) {
+                    // Patch increment for regeneration
+                    versionNumber = `v${major}.${minor}.${patch + 1}`;
+                } else {
+                    // Minor increment for new session of same plan type
+                    versionNumber = `v${major}.${minor + 1}.0`;
+                }
+            }
+
+            await db.collection('projects').doc(currentProjectId)
+                .collection('savedPlans').add({
+                    planType: currentPlan.type,
+                    planName: currentPlan.name,
+                    content: version.content,
+                    language: targetLanguage,
+                    creditsUsed: currentPlan.credits,
+                    version: versionNumber,
+                    sessionId: currentPlan.sessionId || generateSessionId(),
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    createdBy: currentUser?.uid
+                });
+
+            showNotification(`Plan saved as ${versionNumber}!`, 'success');
+            loadSavedPlans(); // Refresh saved plans list
+        } catch (error) {
+            console.error('Error saving plan:', error);
+            showNotification('Failed to save plan', 'error');
+        }
+    }
+
+    /**
+     * Generate unique session ID for plan generation session
+     */
+    function generateSessionId() {
+        return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+
+    /**
+     * Use plan in Studio - Open Agent Selection
+     */
+    function useInStudio() {
         const currentVersionIndex = document.querySelector('.plan-version-tab.bg-indigo-600')?.textContent.match(/\d+/) - 1 || 0;
         const version = planVersions[currentVersionIndex];
 
-        // Get latest version for this plan type
-        const latestSnapshot = await db.collection('projects').doc(currentProjectId)
-            .collection('savedPlans')
-            .where('planType', '==', currentPlan.type)
-            .orderBy('createdAt', 'desc')
-            .limit(1)
-            .get();
-
-        let versionNumber = 'v1.0.0';
-
-        if (!latestSnapshot.empty) {
-            const latestPlan = latestSnapshot.docs[0].data();
-            const lastVersion = latestPlan.version || 'v1.0.0';
-            const [major, minor, patch] = lastVersion.replace('v', '').split('.').map(Number);
-
-            // Check if this is a regeneration (same session) or new session
-            const isRegeneration = currentPlan.sessionId === latestPlan.sessionId;
-
-            if (isRegeneration) {
-                // Patch increment for regeneration
-                versionNumber = `v${major}.${minor}.${patch + 1}`;
-            } else {
-                // Minor increment for new session of same plan type
-                versionNumber = `v${major}.${minor + 1}.0`;
-            }
+        if (!version) {
+            showNotification('No plan content to send', 'error');
+            return;
         }
 
-        await db.collection('projects').doc(currentProjectId)
-            .collection('savedPlans').add({
-                planType: currentPlan.type,
-                planName: currentPlan.name,
-                content: version.content,
-                language: targetLanguage,
-                creditsUsed: currentPlan.credits,
-                version: versionNumber,
-                sessionId: currentPlan.sessionId || generateSessionId(),
-                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                createdBy: currentUser?.uid
-            });
-
-        showNotification(`Plan saved as ${versionNumber}!`, 'success');
-        loadSavedPlans(); // Refresh saved plans list
-    } catch (error) {
-        console.error('Error saving plan:', error);
-        showNotification('Failed to save plan', 'error');
-    }
-}
-
-/**
- * Generate unique session ID for plan generation session
- */
-function generateSessionId() {
-    return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-}
-
-/**
- * Use plan in Studio - Open Agent Selection
- */
-function useInStudio() {
-    const currentVersionIndex = document.querySelector('.plan-version-tab.bg-indigo-600')?.textContent.match(/\d+/) - 1 || 0;
-    const version = planVersions[currentVersionIndex];
-
-    if (!version) {
-        showNotification('No plan content to send', 'error');
-        return;
+        openAgentSelectionModal();
     }
 
-    openAgentSelectionModal();
-}
+    // ============================================================
+    // AGENT TEAM SELECTION
+    // ============================================================
+    let selectedAgentTeam = null;
 
-// ============================================================
-// AGENT TEAM SELECTION
-// ============================================================
-let selectedAgentTeam = null;
+    function openAgentSelectionModal() {
+        const modal = document.getElementById('agent-selection-modal');
+        if (!modal) return;
 
-function openAgentSelectionModal() {
-    const modal = document.getElementById('agent-selection-modal');
-    if (!modal) return;
+        modal.style.display = 'block';
+        selectedAgentTeam = null;
+        document.getElementById('btn-confirm-studio').disabled = true;
 
-    modal.style.display = 'block';
-    selectedAgentTeam = null;
-    document.getElementById('btn-confirm-studio').disabled = true;
+        loadAgentTeams();
+    }
 
-    loadAgentTeams();
-}
+    function closeAgentSelectionModal() {
+        document.getElementById('agent-selection-modal').style.display = 'none';
+    }
 
-function closeAgentSelectionModal() {
-    document.getElementById('agent-selection-modal').style.display = 'none';
-}
+    async function loadAgentTeams() {
+        const list = document.getElementById('agent-team-list');
+        list.innerHTML = '<div class="text-center py-4 text-slate-500 text-sm">Loading teams...</div>';
 
-async function loadAgentTeams() {
-    const list = document.getElementById('agent-team-list');
-    list.innerHTML = '<div class="text-center py-4 text-slate-500 text-sm">Loading teams...</div>';
-
-    try {
-        const db = firebase.firestore();
-        let teams = [];
-
-        // 1. Try projectAgentTeamInstances (New Architecture)
         try {
-            const instancesSnapshot = await db.collection('projectAgentTeamInstances')
-                .where('projectId', '==', currentProjectId)
-                .get();
+            const db = firebase.firestore();
+            let teams = [];
 
-            instancesSnapshot.forEach(doc => {
-                teams.push({ id: doc.id, ...doc.data(), source: 'instance' });
-            });
-            console.log(`[KnowledgeHub] Loaded ${instancesSnapshot.size} teams from Instances.`);
-        } catch (e) {
-            console.warn('[KnowledgeHub] Failed to load instances:', e);
-            // Continue to fallback
-        }
-
-        // 2. Fallback: Try agentTeams (Legacy Architecture) if we have very experienced users or valid configurations
-        if (teams.length === 0) {
+            // 1. Try projectAgentTeamInstances (New Architecture)
             try {
-                const legacySnapshot = await db.collection('agentTeams')
+                const instancesSnapshot = await db.collection('projectAgentTeamInstances')
                     .where('projectId', '==', currentProjectId)
                     .get();
 
-                legacySnapshot.forEach(doc => {
-                    teams.push({ id: doc.id, ...doc.data(), source: 'legacy' });
+                instancesSnapshot.forEach(doc => {
+                    teams.push({ id: doc.id, ...doc.data(), source: 'instance' });
                 });
-                console.log(`[KnowledgeHub] Loaded ${legacySnapshot.size} teams from Legacy agentTeams.`);
+                console.log(`[KnowledgeHub] Loaded ${instancesSnapshot.size} teams from Instances.`);
             } catch (e) {
-                console.warn('[KnowledgeHub] Failed to load legacy teams:', e);
+                console.warn('[KnowledgeHub] Failed to load instances:', e);
+                // Continue to fallback
             }
-        }
 
-        if (teams.length === 0) {
-            list.innerHTML = `
+            // 2. Fallback: Try agentTeams (Legacy Architecture) if we have very experienced users or valid configurations
+            if (teams.length === 0) {
+                try {
+                    const legacySnapshot = await db.collection('agentTeams')
+                        .where('projectId', '==', currentProjectId)
+                        .get();
+
+                    legacySnapshot.forEach(doc => {
+                        teams.push({ id: doc.id, ...doc.data(), source: 'legacy' });
+                    });
+                    console.log(`[KnowledgeHub] Loaded ${legacySnapshot.size} teams from Legacy agentTeams.`);
+                } catch (e) {
+                    console.warn('[KnowledgeHub] Failed to load legacy teams:', e);
+                }
+            }
+
+            if (teams.length === 0) {
+                list.innerHTML = `
                 <div class="text-center py-4 text-slate-500 text-sm">
                     No agent teams found for this project.<br>
                     <a href="admin-agentteams.html" class="text-indigo-400 hover:underline mt-2 inline-block">Create a Team</a>
                 </div>
             `;
-            return;
-        }
+                return;
+            }
 
-        list.innerHTML = teams.map(team => {
-            return `
+            list.innerHTML = teams.map(team => {
+                return `
                 <div class="agent-team-option p-3 bg-slate-800 border border-slate-700 rounded-xl hover:border-indigo-500 cursor-pointer transition-all flex items-center justify-between"
                     onclick="selectAgentTeam('${team.id}', this)">
                     <div>
@@ -3856,490 +3979,492 @@ async function loadAgentTeams() {
                     </div>
                 </div>
             `;
-        }).join('');
+            }).join('');
 
-    } catch (error) {
-        console.error('Error loading agent teams:', error);
-        list.innerHTML = '<div class="text-center py-4 text-red-400 text-sm">Error loading teams.</div>';
-    }
-}
-
-function selectAgentTeam(teamId, element) {
-    selectedAgentTeam = teamId;
-
-    document.querySelectorAll('.agent-team-option').forEach(el => {
-        el.classList.remove('border-indigo-500', 'bg-indigo-500/10');
-        el.querySelector('.selection-indicator').className = 'selection-indicator w-4 h-4 rounded-full border border-slate-600 flex items-center justify-center';
-        el.querySelector('.selection-indicator div').classList.add('opacity-0');
-    });
-
-    element.classList.add('border-indigo-500', 'bg-indigo-500/10');
-    element.querySelector('.selection-indicator').className = 'selection-indicator w-4 h-4 rounded-full border border-indigo-500 flex items-center justify-center';
-    element.querySelector('.selection-indicator div').classList.remove('opacity-0');
-
-    document.getElementById('btn-confirm-studio').disabled = false;
-}
-
-function confirmUseInStudio() {
-    if (!selectedAgentTeam) return;
-
-    const currentVersionIndex = document.querySelector('.plan-version-tab.bg-indigo-600')?.textContent.match(/\d+/) - 1 || 0;
-    const version = planVersions[currentVersionIndex];
-
-    if (!version) return;
-
-    localStorage.setItem('studioContext', JSON.stringify({
-        type: 'plan',
-        planType: currentPlan.type,
-        planName: currentPlan.name,
-        content: version.content,
-        projectId: currentProjectId,
-        agentTeamId: selectedAgentTeam
-    }));
-
-    window.location.href = 'studio/index.html';
-}
-
-/**
- * Load saved plans for sidebar
- */
-async function loadSavedPlans() {
-    if (!currentProjectId) return;
-
-    try {
-        const db = firebase.firestore();
-        const snapshot = await db.collection('projects').doc(currentProjectId)
-            .collection('savedPlans')
-            .orderBy('createdAt', 'desc')
-            .limit(5)
-            .get();
-
-        const container = document.getElementById('saved-plans-list');
-
-        if (snapshot.empty) {
-            container.innerHTML = '<p class="text-[11px] text-slate-600 text-center py-2">No saved plans yet</p>';
-            return;
+        } catch (error) {
+            console.error('Error loading agent teams:', error);
+            list.innerHTML = '<div class="text-center py-4 text-red-400 text-sm">Error loading teams.</div>';
         }
+    }
 
-        container.innerHTML = '';
-        snapshot.forEach(doc => {
-            const plan = doc.data();
-            const item = document.createElement('div');
-            item.className = 'p-2 bg-slate-800/30 rounded-lg hover:bg-slate-800/50 cursor-pointer transition-all';
-            item.innerHTML = `
+    function selectAgentTeam(teamId, element) {
+        selectedAgentTeam = teamId;
+
+        document.querySelectorAll('.agent-team-option').forEach(el => {
+            el.classList.remove('border-indigo-500', 'bg-indigo-500/10');
+            el.querySelector('.selection-indicator').className = 'selection-indicator w-4 h-4 rounded-full border border-slate-600 flex items-center justify-center';
+            el.querySelector('.selection-indicator div').classList.add('opacity-0');
+        });
+
+        element.classList.add('border-indigo-500', 'bg-indigo-500/10');
+        element.querySelector('.selection-indicator').className = 'selection-indicator w-4 h-4 rounded-full border border-indigo-500 flex items-center justify-center';
+        element.querySelector('.selection-indicator div').classList.remove('opacity-0');
+
+        document.getElementById('btn-confirm-studio').disabled = false;
+    }
+
+    function confirmUseInStudio() {
+        if (!selectedAgentTeam) return;
+
+        const currentVersionIndex = document.querySelector('.plan-version-tab.bg-indigo-600')?.textContent.match(/\d+/) - 1 || 0;
+        const version = planVersions[currentVersionIndex];
+
+        if (!version) return;
+
+        localStorage.setItem('studioContext', JSON.stringify({
+            type: 'plan',
+            planType: currentPlan.type,
+            planName: currentPlan.name,
+            content: version.content,
+            projectId: currentProjectId,
+            agentTeamId: selectedAgentTeam
+        }));
+
+        window.location.href = 'studio/index.html';
+    }
+
+    /**
+     * Load saved plans for sidebar
+     */
+    async function loadSavedPlans() {
+        if (!currentProjectId) return;
+
+        try {
+            const db = firebase.firestore();
+            const snapshot = await db.collection('projects').doc(currentProjectId)
+                .collection('savedPlans')
+                .orderBy('createdAt', 'desc')
+                .limit(5)
+                .get();
+
+            const container = document.getElementById('saved-plans-list');
+
+            if (snapshot.empty) {
+                container.innerHTML = '<p class="text-[11px] text-slate-600 text-center py-2">No saved plans yet</p>';
+                return;
+            }
+
+            container.innerHTML = '';
+            snapshot.forEach(doc => {
+                const plan = doc.data();
+                const item = document.createElement('div');
+                item.className = 'p-2 bg-slate-800/30 rounded-lg hover:bg-slate-800/50 cursor-pointer transition-all';
+                item.innerHTML = `
                 <div class="flex items-center justify-between">
                     <p class="text-xs text-white font-medium truncate flex-1">${plan.planName}</p>
                     ${plan.version ? `<span class="text-[9px] text-indigo-400 bg-indigo-500/20 px-1.5 py-0.5 rounded ml-2">${plan.version}</span>` : ''}
                 </div>
                 <p class="text-[10px] text-slate-500">${formatRelativeTime(plan.createdAt?.toDate())}</p>
             `;
-            item.onclick = () => viewSavedPlan(doc.id, plan);
-            container.appendChild(item);
-        });
-    } catch (error) {
-        console.error('Error loading saved plans:', error);
-    }
-}
-
-/**
- * View a saved plan
- */
-function viewSavedPlan(id, plan) {
-    currentPlan = {
-        type: plan.planType,
-        name: plan.planName,
-        credits: plan.creditsUsed || 0
-    };
-    planVersions = [{
-        id: id,
-        content: plan.content,
-        createdAt: plan.createdAt?.toDate() || new Date()
-    }];
-
-    document.getElementById('plan-modal-title').textContent = plan.planName;
-    document.getElementById('plan-modal-subtitle').textContent = 'Saved Plan';
-
-    showPlanResult();
-    document.getElementById('btn-generate-another').classList.add('hidden');
-    document.getElementById('plan-modal').style.display = 'block';
-}
-
-// ============================================================
-// UTILITIES
-// ============================================================
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-function extractDomain(url) {
-    try {
-        const domain = new URL(url).hostname;
-        return domain.replace('www.', '');
-    } catch {
-        return url.substring(0, 30);
-    }
-}
-
-function showNotification(message, type = 'success') {
-    const container = document.getElementById('notification-container') || createNotificationContainer();
-
-    const notification = document.createElement('div');
-    notification.className = `px-4 py-3 rounded-xl text-sm font-medium shadow-lg transition-all transform translate-x-full ${getNotificationClass(type)}`;
-    notification.textContent = message;
-
-    container.appendChild(notification);
-
-    requestAnimationFrame(() => {
-        notification.classList.remove('translate-x-full');
-    });
-
-    setTimeout(() => {
-        notification.classList.add('translate-x-full', 'opacity-0');
-        setTimeout(() => notification.remove(), 300);
-    }, 3000);
-}
-
-function createNotificationContainer() {
-    const container = document.createElement('div');
-    container.id = 'notification-container';
-    container.className = 'fixed top-20 right-4 z-50 flex flex-col gap-2';
-    document.body.appendChild(container);
-    return container;
-}
-
-function getNotificationClass(type) {
-    switch (type) {
-        case 'success': return 'bg-emerald-600 text-white';
-        case 'error': return 'bg-red-600 text-white';
-        case 'warning': return 'bg-amber-600 text-white';
-        case 'info': return 'bg-blue-600 text-white';
-        default: return 'bg-slate-700 text-white';
-    }
-}
-
-function formatRelativeTime(date) {
-    if (!date) return '';
-
-    const now = new Date();
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-
-    return date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
-}
-
-// ============================================================
-// IMAGE GENERATION
-// ============================================================
-let lastGeneratedImageUrl = null;
-
-function initializeImageGeneration() {
-    const modal = document.getElementById('image-gen-modal');
-    const closeBtn = document.getElementById('btn-close-image-modal');
-    const cancelBtn = document.getElementById('btn-cancel-image');
-    const generateBtn = document.getElementById('btn-generate-image');
-    const providerSelect = document.getElementById('image-provider');
-
-    // Close modal handlers
-    closeBtn?.addEventListener('click', closeImageModal);
-    cancelBtn?.addEventListener('click', closeImageModal);
-    modal?.addEventListener('click', (e) => {
-        if (e.target === modal) closeImageModal();
-    });
-
-    // Generate button
-    generateBtn?.addEventListener('click', generateImage);
-
-    // Quick prompt buttons
-    document.querySelectorAll('.quick-prompt-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.getElementById('image-prompt').value = btn.dataset.prompt;
-        });
-    });
-
-    // Update credits info when provider changes
-    providerSelect?.addEventListener('change', updateCreditsInfo);
-
-    // Handle promo_images plan card
-    document.querySelector('[data-plan="promo_images"]')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        openImageModal();
-    });
-}
-
-function openImageModal() {
-    const modal = document.getElementById('image-gen-modal');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-
-    // Reset state
-    document.getElementById('image-prompt').value = '';
-    document.getElementById('image-preview-container').classList.add('hidden');
-    document.getElementById('image-loading').classList.add('hidden');
-    document.getElementById('btn-generate-image').disabled = false;
-
-    updateCreditsInfo();
-}
-
-function closeImageModal() {
-    const modal = document.getElementById('image-gen-modal');
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
-}
-
-function updateCreditsInfo() {
-    const provider = document.getElementById('image-provider').value;
-    const creditsMap = {
-        'flux': '~1 credit ($0.003)',
-        'stability': '~1 credit ($0.003)',
-        'dalle': '~5 credits ($0.04)',
-        'ideogram': '~6 credits ($0.05)'
-    };
-    document.getElementById('image-credits-info').textContent = creditsMap[provider] || '~5 credits';
-}
-
-async function generateImage() {
-    const prompt = document.getElementById('image-prompt').value.trim();
-    if (!prompt) {
-        showNotification('Please enter an image description', 'warning');
-        return;
-    }
-
-    const provider = document.getElementById('image-provider').value;
-    const size = document.getElementById('image-size').value;
-
-    // Show loading
-    document.getElementById('image-loading').classList.remove('hidden');
-    document.getElementById('image-preview-container').classList.add('hidden');
-    document.getElementById('btn-generate-image').disabled = true;
-
-    try {
-        // Build enhanced prompt with brand context
-        let enhancedPrompt = prompt;
-
-        // Get active sources for context
-        const activeSources = sources.filter(s => s.isActive && s.status === 'completed');
-        if (activeSources.length > 0) {
-            const brandContext = activeSources
-                .slice(0, 3)
-                .map(s => s.analysis?.summary || s.title)
-                .join('. ');
-
-            if (brandContext) {
-                enhancedPrompt = `${prompt}. Brand context: ${brandContext.substring(0, 200)}`;
-            }
+                item.onclick = () => viewSavedPlan(doc.id, plan);
+                container.appendChild(item);
+            });
+        } catch (error) {
+            console.error('Error loading saved plans:', error);
         }
+    }
 
-        console.log(`[generateImage] Using ${provider}, size: ${size}`);
-        console.log(`[generateImage] Prompt: ${enhancedPrompt.substring(0, 100)}...`);
+    /**
+     * View a saved plan
+     */
+    function viewSavedPlan(id, plan) {
+        currentPlan = {
+            type: plan.planType,
+            name: plan.planName,
+            credits: plan.creditsUsed || 0
+        };
+        planVersions = [{
+            id: id,
+            content: plan.content,
+            createdAt: plan.createdAt?.toDate() || new Date()
+        }];
 
-        // Call Cloud Function
-        const generateImageFn = firebase.functions().httpsCallable('generateImage');
-        const result = await generateImageFn({
-            prompt: enhancedPrompt,
-            provider: provider,
-            size: size,
-            projectId: currentProjectId,
-            purpose: 'promotional'
+        document.getElementById('plan-modal-title').textContent = plan.planName;
+        document.getElementById('plan-modal-subtitle').textContent = 'Saved Plan';
+
+        showPlanResult();
+        document.getElementById('btn-generate-another').classList.add('hidden');
+        document.getElementById('plan-modal').style.display = 'block';
+    }
+
+    // ============================================================
+    // UTILITIES
+    // ============================================================
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function extractDomain(url) {
+        try {
+            const domain = new URL(url).hostname;
+            return domain.replace('www.', '');
+        } catch {
+            return url.substring(0, 30);
+        }
+    }
+
+    function showNotification(message, type = 'success') {
+        const container = document.getElementById('notification-container') || createNotificationContainer();
+
+        const notification = document.createElement('div');
+        notification.className = `px-4 py-3 rounded-xl text-sm font-medium shadow-lg transition-all transform translate-x-full ${getNotificationClass(type)}`;
+        notification.textContent = message;
+
+        container.appendChild(notification);
+
+        requestAnimationFrame(() => {
+            notification.classList.remove('translate-x-full');
         });
 
-        if (result.data.success) {
-            lastGeneratedImageUrl = result.data.imageUrl;
+        setTimeout(() => {
+            notification.classList.add('translate-x-full', 'opacity-0');
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
 
-            // Show preview
-            document.getElementById('generated-image-preview').src = result.data.imageUrl;
-            document.getElementById('image-download-link').href = result.data.imageUrl;
-            document.getElementById('image-preview-container').classList.remove('hidden');
+    function createNotificationContainer() {
+        const container = document.createElement('div');
+        container.id = 'notification-container';
+        container.className = 'fixed top-20 right-4 z-50 flex flex-col gap-2';
+        document.body.appendChild(container);
+        return container;
+    }
 
-            showNotification(`Image generated with ${result.data.provider}!`, 'success');
-        } else {
-            throw new Error('Image generation failed');
+    function getNotificationClass(type) {
+        switch (type) {
+            case 'success': return 'bg-emerald-600 text-white';
+            case 'error': return 'bg-red-600 text-white';
+            case 'warning': return 'bg-amber-600 text-white';
+            case 'info': return 'bg-blue-600 text-white';
+            default: return 'bg-slate-700 text-white';
         }
+    }
 
-    } catch (error) {
-        console.error('Error generating image:', error);
-        showNotification(`Error: ${error.message}`, 'error');
-    } finally {
+    function formatRelativeTime(date) {
+        if (!date) return '';
+
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return `${diffMins}m ago`;
+        if (diffHours < 24) return `${diffHours}h ago`;
+        if (diffDays < 7) return `${diffDays}d ago`;
+
+        return date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+    }
+
+    // ============================================================
+    // IMAGE GENERATION
+    // ============================================================
+    let lastGeneratedImageUrl = null;
+
+    function initializeImageGeneration() {
+        const modal = document.getElementById('image-gen-modal');
+        const closeBtn = document.getElementById('btn-close-image-modal');
+        const cancelBtn = document.getElementById('btn-cancel-image');
+        const generateBtn = document.getElementById('btn-generate-image');
+        const providerSelect = document.getElementById('image-provider');
+
+        // Close modal handlers
+        closeBtn?.addEventListener('click', closeImageModal);
+        cancelBtn?.addEventListener('click', closeImageModal);
+        modal?.addEventListener('click', (e) => {
+            if (e.target === modal) closeImageModal();
+        });
+
+        // Generate button
+        generateBtn?.addEventListener('click', generateImage);
+
+        // Quick prompt buttons
+        document.querySelectorAll('.quick-prompt-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.getElementById('image-prompt').value = btn.dataset.prompt;
+            });
+        });
+
+        // Update credits info when provider changes
+        providerSelect?.addEventListener('change', updateCreditsInfo);
+
+        // Handle promo_images plan card
+        document.querySelector('[data-plan="promo_images"]')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            openImageModal();
+        });
+    }
+
+    function openImageModal() {
+        const modal = document.getElementById('image-gen-modal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+
+        // Reset state
+        document.getElementById('image-prompt').value = '';
+        document.getElementById('image-preview-container').classList.add('hidden');
         document.getElementById('image-loading').classList.add('hidden');
         document.getElementById('btn-generate-image').disabled = false;
-    }
-}
 
-async function saveImageToGallery() {
-    if (!lastGeneratedImageUrl || !currentProjectId) {
-        showNotification('No image to save', 'warning');
-        return;
+        updateCreditsInfo();
     }
 
-    try {
-        // Image is already saved by the Cloud Function when projectId is provided
-        showNotification('Image saved to project gallery!', 'success');
-        closeImageModal();
-    } catch (error) {
-        console.error('Error saving image:', error);
-        showNotification('Failed to save image', 'error');
-    }
-}
-
-// Initialize image generation when page loads
-document.addEventListener('DOMContentLoaded', () => {
-    // Wait a bit for other initializations
-    setTimeout(initializeImageGeneration, 500);
-    setTimeout(initializeScheduling, 600);
-});
-
-// ============================================================
-// SCHEDULING
-// ============================================================
-let scheduledItems = [];
-
-function initializeScheduling() {
-    const modal = document.getElementById('schedule-modal');
-    const closeBtn = document.getElementById('btn-close-schedule-modal');
-    const cancelBtn = document.getElementById('btn-cancel-schedule');
-    const confirmBtn = document.getElementById('btn-confirm-schedule');
-
-    // Close handlers
-    closeBtn?.addEventListener('click', closeScheduleModal);
-    cancelBtn?.addEventListener('click', closeScheduleModal);
-    modal?.addEventListener('click', (e) => {
-        if (e.target === modal) closeScheduleModal();
-    });
-
-    // Confirm schedule
-    confirmBtn?.addEventListener('click', confirmSchedule);
-
-    // Channel selection toggle
-    document.querySelectorAll('.channel-option').forEach(option => {
-        option.addEventListener('click', () => {
-            option.classList.toggle('selected');
-        });
-    });
-
-    // Set default date/time to tomorrow at 10:00 AM
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    document.getElementById('schedule-date').value = tomorrow.toISOString().split('T')[0];
-    document.getElementById('schedule-time').value = '10:00';
-}
-
-function openScheduleModal() {
-    const modal = document.getElementById('schedule-modal');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-
-    // Populate with current plan data
-    if (window.currentPlanForScheduling) {
-        const { plan } = window.currentPlanForScheduling;
-        document.getElementById('schedule-title').value = plan.title || formatPlanType(plan.type);
+    function closeImageModal() {
+        const modal = document.getElementById('image-gen-modal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
     }
 
-    // Reset channels
-    document.querySelectorAll('.channel-option').forEach(opt => opt.classList.remove('selected'));
-}
-
-function closeScheduleModal() {
-    const modal = document.getElementById('schedule-modal');
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
-}
-
-async function confirmSchedule() {
-    const date = document.getElementById('schedule-date').value;
-    const time = document.getElementById('schedule-time').value;
-    const reminder = document.getElementById('schedule-reminder').value;
-    const notes = document.getElementById('schedule-notes').value;
-
-    if (!date || !time) {
-        showNotification('Please select date and time', 'warning');
-        return;
-    }
-
-    // Get selected channels
-    const selectedChannels = [];
-    document.querySelectorAll('.channel-option.selected input').forEach(input => {
-        selectedChannels.push(input.value);
-    });
-
-    if (selectedChannels.length === 0) {
-        showNotification('Please select at least one channel', 'warning');
-        return;
-    }
-
-    const scheduledDateTime = new Date(`${date}T${time}`);
-
-    if (scheduledDateTime <= new Date()) {
-        showNotification('Please select a future date and time', 'warning');
-        return;
-    }
-
-    try {
-        const { plan, planId } = window.currentPlanForScheduling || {};
-
-        // Save to Firestore
-        const scheduleData = {
-            title: document.getElementById('schedule-title').value,
-            contentType: plan?.type || 'content_plan',
-            contentPlanId: planId || null,
-            scheduledAt: firebase.firestore.Timestamp.fromDate(scheduledDateTime),
-            channels: selectedChannels,
-            reminder: reminder,
-            notes: notes,
-            status: 'scheduled', // scheduled, published, failed, cancelled
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            createdBy: currentUser?.uid || null
+    function updateCreditsInfo() {
+        const provider = document.getElementById('image-provider').value;
+        const creditsMap = {
+            'flux': '~1 credit ($0.003)',
+            'stability': '~1 credit ($0.003)',
+            'dalle': '~5 credits ($0.04)',
+            'ideogram': '~6 credits ($0.05)'
         };
+        document.getElementById('image-credits-info').textContent = creditsMap[provider] || '~5 credits';
+    }
 
-        await firebase.firestore()
-            .collection('projects')
-            .doc(currentProjectId)
-            .collection('scheduledContent')
-            .add(scheduleData);
+    async function generateImage() {
+        const prompt = document.getElementById('image-prompt').value.trim();
+        if (!prompt) {
+            showNotification('Please enter an image description', 'warning');
+            return;
+        }
 
-        // Update plan status
-        if (planId) {
+        const provider = document.getElementById('image-provider').value;
+        const size = document.getElementById('image-size').value;
+
+        // Show loading
+        document.getElementById('image-loading').classList.remove('hidden');
+        document.getElementById('image-preview-container').classList.add('hidden');
+        document.getElementById('btn-generate-image').disabled = true;
+
+        try {
+            // Build enhanced prompt with brand context
+            let enhancedPrompt = prompt;
+
+            // Get active sources for context
+            const activeSources = sources.filter(s => s.isActive && s.status === 'completed');
+            if (activeSources.length > 0) {
+                const brandContext = activeSources
+                    .slice(0, 3)
+                    .map(s => s.analysis?.summary || s.title)
+                    .join('. ');
+
+                if (brandContext) {
+                    enhancedPrompt = `${prompt}. Brand context: ${brandContext.substring(0, 200)}`;
+                }
+            }
+
+            console.log(`[generateImage] Using ${provider}, size: ${size}`);
+            console.log(`[generateImage] Prompt: ${enhancedPrompt.substring(0, 100)}...`);
+
+            // Call Cloud Function
+            const generateImageFn = firebase.functions().httpsCallable('generateImage');
+            const result = await generateImageFn({
+                prompt: enhancedPrompt,
+                provider: provider,
+                size: size,
+                projectId: currentProjectId,
+                purpose: 'promotional'
+            });
+
+            if (result.data.success) {
+                lastGeneratedImageUrl = result.data.imageUrl;
+
+                // Show preview
+                document.getElementById('generated-image-preview').src = result.data.imageUrl;
+                document.getElementById('image-download-link').href = result.data.imageUrl;
+                document.getElementById('image-preview-container').classList.remove('hidden');
+
+                showNotification(`Image generated with ${result.data.provider}!`, 'success');
+            } else {
+                console.error('Image generation failed:', result.data);
+                throw new Error(result.data?.error || 'Image generation failed');
+            }
+
+        } catch (error) {
+            console.error('Error generating image:', error);
+            const errorMsg = error.details?.message || error.message || 'Unknown error';
+            showNotification(`Image Error: ${errorMsg}`, 'error');
+        } finally {
+            document.getElementById('image-loading').classList.add('hidden');
+            document.getElementById('btn-generate-image').disabled = false;
+        }
+    }
+
+    async function saveImageToGallery() {
+        if (!lastGeneratedImageUrl || !currentProjectId) {
+            showNotification('No image to save', 'warning');
+            return;
+        }
+
+        try {
+            // Image is already saved by the Cloud Function when projectId is provided
+            showNotification('Image saved to project gallery!', 'success');
+            closeImageModal();
+        } catch (error) {
+            console.error('Error saving image:', error);
+            showNotification('Failed to save image', 'error');
+        }
+    }
+
+    // Initialize image generation when page loads
+    document.addEventListener('DOMContentLoaded', () => {
+        // Wait a bit for other initializations
+        setTimeout(initializeImageGeneration, 500);
+        setTimeout(initializeScheduling, 600);
+    });
+
+    // ============================================================
+    // SCHEDULING
+    // ============================================================
+    let scheduledItems = [];
+
+    function initializeScheduling() {
+        const modal = document.getElementById('schedule-modal');
+        const closeBtn = document.getElementById('btn-close-schedule-modal');
+        const cancelBtn = document.getElementById('btn-cancel-schedule');
+        const confirmBtn = document.getElementById('btn-confirm-schedule');
+
+        // Close handlers
+        closeBtn?.addEventListener('click', closeScheduleModal);
+        cancelBtn?.addEventListener('click', closeScheduleModal);
+        modal?.addEventListener('click', (e) => {
+            if (e.target === modal) closeScheduleModal();
+        });
+
+        // Confirm schedule
+        confirmBtn?.addEventListener('click', confirmSchedule);
+
+        // Channel selection toggle
+        document.querySelectorAll('.channel-option').forEach(option => {
+            option.addEventListener('click', () => {
+                option.classList.toggle('selected');
+            });
+        });
+
+        // Set default date/time to tomorrow at 10:00 AM
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        document.getElementById('schedule-date').value = tomorrow.toISOString().split('T')[0];
+        document.getElementById('schedule-time').value = '10:00';
+    }
+
+    function openScheduleModal() {
+        const modal = document.getElementById('schedule-modal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+
+        // Populate with current plan data
+        if (window.currentPlanForScheduling) {
+            const { plan } = window.currentPlanForScheduling;
+            document.getElementById('schedule-title').value = plan.title || formatPlanType(plan.type);
+        }
+
+        // Reset channels
+        document.querySelectorAll('.channel-option').forEach(opt => opt.classList.remove('selected'));
+    }
+
+    function closeScheduleModal() {
+        const modal = document.getElementById('schedule-modal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+
+    async function confirmSchedule() {
+        const date = document.getElementById('schedule-date').value;
+        const time = document.getElementById('schedule-time').value;
+        const reminder = document.getElementById('schedule-reminder').value;
+        const notes = document.getElementById('schedule-notes').value;
+
+        if (!date || !time) {
+            showNotification('Please select date and time', 'warning');
+            return;
+        }
+
+        // Get selected channels
+        const selectedChannels = [];
+        document.querySelectorAll('.channel-option.selected input').forEach(input => {
+            selectedChannels.push(input.value);
+        });
+
+        if (selectedChannels.length === 0) {
+            showNotification('Please select at least one channel', 'warning');
+            return;
+        }
+
+        const scheduledDateTime = new Date(`${date}T${time}`);
+
+        if (scheduledDateTime <= new Date()) {
+            showNotification('Please select a future date and time', 'warning');
+            return;
+        }
+
+        try {
+            const { plan, planId } = window.currentPlanForScheduling || {};
+
+            // Save to Firestore
+            const scheduleData = {
+                title: document.getElementById('schedule-title').value,
+                contentType: plan?.type || 'content_plan',
+                contentPlanId: planId || null,
+                scheduledAt: firebase.firestore.Timestamp.fromDate(scheduledDateTime),
+                channels: selectedChannels,
+                reminder: reminder,
+                notes: notes,
+                status: 'scheduled', // scheduled, published, failed, cancelled
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                createdBy: currentUser?.uid || null
+            };
+
             await firebase.firestore()
                 .collection('projects')
                 .doc(currentProjectId)
-                .collection('contentPlans')
-                .doc(planId)
-                .update({ status: 'scheduled' });
+                .collection('scheduledContent')
+                .add(scheduleData);
+
+            // Update plan status
+            if (planId) {
+                await firebase.firestore()
+                    .collection('projects')
+                    .doc(currentProjectId)
+                    .collection('contentPlans')
+                    .doc(planId)
+                    .update({ status: 'scheduled' });
+            }
+
+            showNotification(`Scheduled for ${scheduledDateTime.toLocaleDateString()} at ${time}`, 'success');
+            closeScheduleModal();
+            closePlanModal();
+
+            // Refresh saved plans list
+            await loadSavedPlans();
+            await loadUpcomingSchedules();
+
+        } catch (error) {
+            console.error('Error scheduling content:', error);
+            showNotification('Failed to schedule: ' + error.message, 'error');
         }
-
-        showNotification(`Scheduled for ${scheduledDateTime.toLocaleDateString()} at ${time}`, 'success');
-        closeScheduleModal();
-        closePlanModal();
-
-        // Refresh saved plans list
-        await loadSavedPlans();
-        await loadUpcomingSchedules();
-
-    } catch (error) {
-        console.error('Error scheduling content:', error);
-        showNotification('Failed to schedule: ' + error.message, 'error');
     }
-}
 
-// ============================================================
-// FEEDBACK LOOP UI
-// ============================================================
-function renderFeedbackUI() {
-    const container = document.getElementById('creative-result-container');
-    if (!container) return;
+    // ============================================================
+    // FEEDBACK LOOP UI
+    // ============================================================
+    function renderFeedbackUI() {
+        const container = document.getElementById('creative-result-container');
+        if (!container) return;
 
-    // Check if feedback already exists
-    if (document.getElementById('feedback-ui-section')) return;
+        // Check if feedback already exists
+        if (document.getElementById('feedback-ui-section')) return;
 
-    const feedbackHtml = `
+        const feedbackHtml = `
         <div id="feedback-ui-section" class="mt-6 pt-4 border-t border-slate-700/50">
             <div class="flex items-center justify-between">
                 <span class="text-xs text-slate-500">How was this result?</span>
@@ -4355,98 +4480,98 @@ function renderFeedbackUI() {
         </div>
     `;
 
-    // Append to the content container (assuming standard layout)
-    // Try to find the inner content wrapper first
-    const contentWrapper = container.querySelector('.prose') ? container : container.firstElementChild;
-    if (contentWrapper) {
-        contentWrapper.insertAdjacentHTML('beforeend', feedbackHtml);
-    } else {
-        container.insertAdjacentHTML('beforeend', feedbackHtml);
-    }
-}
-
-async function submitFeedback(rating) {
-    const feedbackSection = document.getElementById('feedback-ui-section');
-    if (feedbackSection) {
-        feedbackSection.innerHTML = `<span class="text-xs text-emerald-400">Thanks for your feedback!</span>`;
+        // Append to the content container (assuming standard layout)
+        // Try to find the inner content wrapper first
+        const contentWrapper = container.querySelector('.prose') ? container : container.firstElementChild;
+        if (contentWrapper) {
+            contentWrapper.insertAdjacentHTML('beforeend', feedbackHtml);
+        } else {
+            container.insertAdjacentHTML('beforeend', feedbackHtml);
+        }
     }
 
-    try {
-        const submitFeedbackFn = firebase.functions().httpsCallable('submitFeedback');
-        await submitFeedbackFn({
-            rating: rating, // 'good' or 'bad'
-            projectId: currentProjectId,
-            mode: currentUserPerformanceMode,
-            planType: currentCreativeType
-        });
-        console.log('Feedback submitted');
-    } catch (error) {
-        console.error('Error submitting feedback:', error);
+    async function submitFeedback(rating) {
+        const feedbackSection = document.getElementById('feedback-ui-section');
+        if (feedbackSection) {
+            feedbackSection.innerHTML = `<span class="text-xs text-emerald-400">Thanks for your feedback!</span>`;
+        }
+
+        try {
+            const submitFeedbackFn = firebase.functions().httpsCallable('submitFeedback');
+            await submitFeedbackFn({
+                rating: rating, // 'good' or 'bad'
+                projectId: currentProjectId,
+                mode: currentUserPerformanceMode,
+                planType: currentCreativeType
+            });
+            console.log('Feedback submitted');
+        } catch (error) {
+            console.error('Error submitting feedback:', error);
+        }
     }
-}
 
-async function loadUpcomingSchedules() {
-    if (!currentProjectId) return;
+    async function loadUpcomingSchedules() {
+        if (!currentProjectId) return;
 
-    try {
-        const now = new Date();
-        const snapshot = await firebase.firestore()
-            .collection('projects')
-            .doc(currentProjectId)
-            .collection('scheduledContent')
-            .where('status', '==', 'scheduled')
-            .where('scheduledAt', '>=', firebase.firestore.Timestamp.fromDate(now))
-            .orderBy('scheduledAt', 'asc')
-            .limit(5)
-            .get();
+        try {
+            const now = new Date();
+            const snapshot = await firebase.firestore()
+                .collection('projects')
+                .doc(currentProjectId)
+                .collection('scheduledContent')
+                .where('status', '==', 'scheduled')
+                .where('scheduledAt', '>=', firebase.firestore.Timestamp.fromDate(now))
+                .orderBy('scheduledAt', 'asc')
+                .limit(5)
+                .get();
 
-        scheduledItems = [];
-        snapshot.forEach(doc => {
-            scheduledItems.push({ id: doc.id, ...doc.data() });
-        });
+            scheduledItems = [];
+            snapshot.forEach(doc => {
+                scheduledItems.push({ id: doc.id, ...doc.data() });
+            });
 
-        renderUpcomingSchedules();
+            renderUpcomingSchedules();
 
-    } catch (error) {
-        console.error('Error loading schedules:', error);
+        } catch (error) {
+            console.error('Error loading schedules:', error);
+        }
     }
-}
 
-function renderUpcomingSchedules() {
-    // Find or create the upcoming schedules container
-    let container = document.getElementById('upcoming-schedules-container');
+    function renderUpcomingSchedules() {
+        // Find or create the upcoming schedules container
+        let container = document.getElementById('upcoming-schedules-container');
 
-    if (!container) {
-        // Add to saved plans section
-        const savedPlansSection = document.querySelector('#saved-plans-list')?.parentElement;
-        if (savedPlansSection) {
-            const scheduleSection = document.createElement('div');
-            scheduleSection.className = 'border-t border-slate-800 p-3 mt-2';
-            scheduleSection.innerHTML = `
+        if (!container) {
+            // Add to saved plans section
+            const savedPlansSection = document.querySelector('#saved-plans-list')?.parentElement;
+            if (savedPlansSection) {
+                const scheduleSection = document.createElement('div');
+                scheduleSection.className = 'border-t border-slate-800 p-3 mt-2';
+                scheduleSection.innerHTML = `
                 <div class="flex items-center justify-between mb-2">
                     <span class="text-xs font-semibold text-emerald-400">📅 Upcoming</span>
                 </div>
                 <div id="upcoming-schedules-container" class="space-y-1"></div>
             `;
-            savedPlansSection.after(scheduleSection);
-            container = document.getElementById('upcoming-schedules-container');
+                savedPlansSection.after(scheduleSection);
+                container = document.getElementById('upcoming-schedules-container');
+            }
         }
-    }
 
-    if (!container) return;
+        if (!container) return;
 
-    if (scheduledItems.length === 0) {
-        container.innerHTML = '<p class="text-[11px] text-slate-600 text-center py-2">No upcoming schedules</p>';
-        return;
-    }
+        if (scheduledItems.length === 0) {
+            container.innerHTML = '<p class="text-[11px] text-slate-600 text-center py-2">No upcoming schedules</p>';
+            return;
+        }
 
-    container.innerHTML = scheduledItems.map(item => {
-        const date = item.scheduledAt?.toDate?.() || new Date();
-        const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-        const channels = item.channels?.map(c => getChannelEmoji(c)).join(' ') || '';
+        container.innerHTML = scheduledItems.map(item => {
+            const date = item.scheduledAt?.toDate?.() || new Date();
+            const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+            const channels = item.channels?.map(c => getChannelEmoji(c)).join(' ') || '';
 
-        return `
+            return `
             <div class="flex items-center justify-between p-2 bg-emerald-900/20 border border-emerald-500/20 rounded-lg">
                 <div class="flex-1 min-w-0">
                     <p class="text-xs font-medium text-slate-300 truncate">${escapeHtml(item.title)}</p>
@@ -4455,174 +4580,174 @@ function renderUpcomingSchedules() {
                 <button onclick="cancelSchedule('${item.id}')" class="text-xs text-slate-500 hover:text-red-400 p-1" title="Cancel">✕</button>
             </div>
         `;
-    }).join('');
-}
-
-function getChannelEmoji(channel) {
-    switch (channel) {
-        case 'x': return '𝕏';
-        case 'instagram': return '📸';
-        case 'linkedin': return '💼';
-        default: return '📢';
-    }
-}
-
-async function cancelSchedule(scheduleId) {
-    if (!confirm('Cancel this scheduled content?')) return;
-
-    try {
-        await firebase.firestore()
-            .collection('projects')
-            .doc(currentProjectId)
-            .collection('scheduledContent')
-            .doc(scheduleId)
-            .update({ status: 'cancelled' });
-
-        showNotification('Schedule cancelled', 'info');
-        await loadUpcomingSchedules();
-    } catch (error) {
-        console.error('Error cancelling schedule:', error);
-        showNotification('Failed to cancel', 'error');
-    }
-}
-
-// ============================================================
-// CREDITS & BILLING
-// ============================================================
-let userCredits = {
-    plan: 'free',
-    credits: 0,
-    dailyLimit: 10,
-    creditsUsedToday: 0
-};
-
-async function loadUserCredits() {
-    try {
-        const getUserCredits = firebase.functions().httpsCallable('getUserCredits');
-        const result = await getUserCredits({});
-
-        if (result.data.success) {
-            userCredits = {
-                plan: result.data.plan,
-                credits: result.data.credits,
-                dailyLimit: result.data.dailyLimit,
-                creditsUsedToday: result.data.creditsUsedToday,
-                planDetails: result.data.planDetails
-            };
-
-            updateCreditsDisplay();
-        }
-    } catch (error) {
-        console.error('Error loading credits:', error);
-        // Set default values
-        userCredits = { plan: 'free', credits: 50, dailyLimit: 10, creditsUsedToday: 0 };
-        updateCreditsDisplay();
-    }
-}
-
-function updateCreditsDisplay() {
-    const creditCountEl = document.getElementById('credit-count');
-    const creditDisplayEl = document.getElementById('credit-display');
-
-    if (creditCountEl) {
-        creditCountEl.textContent = userCredits.credits;
+        }).join('');
     }
 
-    if (creditDisplayEl) {
-        // Update styling based on remaining credits
-        if (userCredits.credits <= 10) {
-            creditDisplayEl.classList.add('border-red-500/50', 'text-red-400');
-            creditDisplayEl.classList.remove('border-slate-700', 'text-slate-400');
-        } else if (userCredits.credits <= 25) {
-            creditDisplayEl.classList.add('border-amber-500/50', 'text-amber-400');
-            creditDisplayEl.classList.remove('border-slate-700', 'text-slate-400');
-        } else {
-            creditDisplayEl.classList.remove('border-red-500/50', 'text-red-400', 'border-amber-500/50', 'text-amber-400');
-            creditDisplayEl.classList.add('border-slate-700', 'text-slate-400');
-        }
-
-        // Add plan badge
-        if (userCredits.plan !== 'free') {
-            const badge = userCredits.plan === 'pro' ? '⭐' : userCredits.plan === 'starter' ? '🚀' : '💎';
-            creditDisplayEl.innerHTML = `${badge} <span id="credit-count">${userCredits.credits}</span> credits`;
+    function getChannelEmoji(channel) {
+        switch (channel) {
+            case 'x': return '𝕏';
+            case 'instagram': return '📸';
+            case 'linkedin': return '💼';
+            default: return '📢';
         }
     }
-}
 
-async function checkAndDeductCredits(operation, customCost = null) {
-    const costs = {
-        chat_message: 1,
-        generate_summary: 2,
-        content_plan_quick: 1,
-        content_plan_strategy: 10,
-        content_plan_knowledge: 5,
-        content_plan_create: 15,
-        image_flux: 1,
-        image_stability: 1,
-        image_dalle: 5,
-        image_ideogram: 6,
-        source_analysis: 1
+    async function cancelSchedule(scheduleId) {
+        if (!confirm('Cancel this scheduled content?')) return;
+
+        try {
+            await firebase.firestore()
+                .collection('projects')
+                .doc(currentProjectId)
+                .collection('scheduledContent')
+                .doc(scheduleId)
+                .update({ status: 'cancelled' });
+
+            showNotification('Schedule cancelled', 'info');
+            await loadUpcomingSchedules();
+        } catch (error) {
+            console.error('Error cancelling schedule:', error);
+            showNotification('Failed to cancel', 'error');
+        }
+    }
+
+    // ============================================================
+    // CREDITS & BILLING
+    // ============================================================
+    let userCredits = {
+        plan: 'free',
+        credits: 0,
+        dailyLimit: 10,
+        creditsUsedToday: 0
     };
 
-    const cost = customCost || costs[operation] || 1;
+    async function loadUserCredits() {
+        try {
+            const getUserCredits = firebase.functions().httpsCallable('getUserCredits');
+            const result = await getUserCredits({});
 
-    // Check if enough credits
-    if (userCredits.credits < cost) {
-        showUpgradeModal('insufficient_credits', cost);
-        return false;
-    }
+            if (result.data.success) {
+                userCredits = {
+                    plan: result.data.plan,
+                    credits: result.data.credits,
+                    dailyLimit: result.data.dailyLimit,
+                    creditsUsedToday: result.data.creditsUsedToday,
+                    planDetails: result.data.planDetails
+                };
 
-    // Check daily limit
-    if (userCredits.creditsUsedToday + cost > userCredits.dailyLimit) {
-        showUpgradeModal('daily_limit', cost);
-        return false;
-    }
-
-    try {
-        const deductCredits = firebase.functions().httpsCallable('deductCredits');
-        const result = await deductCredits({ operation, amount: cost });
-
-        if (result.data.success) {
-            userCredits.credits = result.data.remaining;
-            userCredits.creditsUsedToday += cost;
-            updateCreditsDisplay();
-            return true;
-        } else {
-            if (result.data.error === 'insufficient_credits') {
-                showUpgradeModal('insufficient_credits', cost);
-            } else if (result.data.error === 'daily_limit_exceeded') {
-                showUpgradeModal('daily_limit', cost);
+                updateCreditsDisplay();
             }
+        } catch (error) {
+            console.error('Error loading credits:', error);
+            // Set default values
+            userCredits = { plan: 'free', credits: 50, dailyLimit: 10, creditsUsedToday: 0 };
+            updateCreditsDisplay();
+        }
+    }
+
+    function updateCreditsDisplay() {
+        const creditCountEl = document.getElementById('credit-count');
+        const creditDisplayEl = document.getElementById('credit-display');
+
+        if (creditCountEl) {
+            creditCountEl.textContent = userCredits.credits;
+        }
+
+        if (creditDisplayEl) {
+            // Update styling based on remaining credits
+            if (userCredits.credits <= 10) {
+                creditDisplayEl.classList.add('border-red-500/50', 'text-red-400');
+                creditDisplayEl.classList.remove('border-slate-700', 'text-slate-400');
+            } else if (userCredits.credits <= 25) {
+                creditDisplayEl.classList.add('border-amber-500/50', 'text-amber-400');
+                creditDisplayEl.classList.remove('border-slate-700', 'text-slate-400');
+            } else {
+                creditDisplayEl.classList.remove('border-red-500/50', 'text-red-400', 'border-amber-500/50', 'text-amber-400');
+                creditDisplayEl.classList.add('border-slate-700', 'text-slate-400');
+            }
+
+            // Add plan badge
+            if (userCredits.plan !== 'free') {
+                const badge = userCredits.plan === 'pro' ? '⭐' : userCredits.plan === 'starter' ? '🚀' : '💎';
+                creditDisplayEl.innerHTML = `${badge} <span id="credit-count">${userCredits.credits}</span> credits`;
+            }
+        }
+    }
+
+    async function checkAndDeductCredits(operation, customCost = null) {
+        const costs = {
+            chat_message: 1,
+            generate_summary: 2,
+            content_plan_quick: 1,
+            content_plan_strategy: 10,
+            content_plan_knowledge: 5,
+            content_plan_create: 15,
+            image_flux: 1,
+            image_stability: 1,
+            image_dalle: 5,
+            image_ideogram: 6,
+            source_analysis: 1
+        };
+
+        const cost = customCost || costs[operation] || 1;
+
+        // Check if enough credits
+        if (userCredits.credits < cost) {
+            showUpgradeModal('insufficient_credits', cost);
             return false;
         }
-    } catch (error) {
-        console.error('Error deducting credits:', error);
-        // Allow operation but log error
-        return true;
+
+        // Check daily limit
+        if (userCredits.creditsUsedToday + cost > userCredits.dailyLimit) {
+            showUpgradeModal('daily_limit', cost);
+            return false;
+        }
+
+        try {
+            const deductCredits = firebase.functions().httpsCallable('deductCredits');
+            const result = await deductCredits({ operation, amount: cost });
+
+            if (result.data.success) {
+                userCredits.credits = result.data.remaining;
+                userCredits.creditsUsedToday += cost;
+                updateCreditsDisplay();
+                return true;
+            } else {
+                if (result.data.error === 'insufficient_credits') {
+                    showUpgradeModal('insufficient_credits', cost);
+                } else if (result.data.error === 'daily_limit_exceeded') {
+                    showUpgradeModal('daily_limit', cost);
+                }
+                return false;
+            }
+        } catch (error) {
+            console.error('Error deducting credits:', error);
+            // Allow operation but log error
+            return true;
+        }
     }
-}
 
-function showUpgradeModal(reason, requiredCredits) {
-    const modal = document.createElement('div');
-    modal.className = 'fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm';
-    modal.id = 'upgrade-modal';
+    function showUpgradeModal(reason, requiredCredits) {
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm';
+        modal.id = 'upgrade-modal';
 
-    let title, message, icon;
-    if (reason === 'insufficient_credits') {
-        title = 'Not Enough Credits';
-        message = `This action requires ${requiredCredits} credits. You have ${userCredits.credits} remaining.`;
-        icon = '🪙';
-    } else if (reason === 'daily_limit') {
-        title = 'Daily Limit Reached';
-        message = `You've used ${userCredits.creditsUsedToday}/${userCredits.dailyLimit} credits today. Upgrade for higher limits.`;
-        icon = '⏰';
-    } else {
-        title = 'Upgrade Required';
-        message = 'This feature requires a higher plan.';
-        icon = '💎';
-    }
+        let title, message, icon;
+        if (reason === 'insufficient_credits') {
+            title = 'Not Enough Credits';
+            message = `This action requires ${requiredCredits} credits. You have ${userCredits.credits} remaining.`;
+            icon = '🪙';
+        } else if (reason === 'daily_limit') {
+            title = 'Daily Limit Reached';
+            message = `You've used ${userCredits.creditsUsedToday}/${userCredits.dailyLimit} credits today. Upgrade for higher limits.`;
+            icon = '⏰';
+        } else {
+            title = 'Upgrade Required';
+            message = 'This feature requires a higher plan.';
+            icon = '💎';
+        }
 
-    modal.innerHTML = `
+        modal.innerHTML = `
         <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md mx-4 p-6 text-center">
             <div class="text-5xl mb-4">${icon}</div>
             <h3 class="text-xl font-bold text-white mb-2">${title}</h3>
@@ -4650,79 +4775,79 @@ function showUpgradeModal(reason, requiredCredits) {
         </div>
     `;
 
-    document.body.appendChild(modal);
+        document.body.appendChild(modal);
 
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) closeUpgradeModal();
-    });
-}
-
-function closeUpgradeModal() {
-    document.getElementById('upgrade-modal')?.remove();
-}
-
-function openBillingPage() {
-    closeUpgradeModal();
-    // Navigate to billing page or open Stripe checkout
-    window.location.href = 'settings.html?tab=billing';
-}
-
-// Check feature access
-async function checkFeatureAccess(feature) {
-    const features = {
-        basic_chat: ['free', 'starter', 'pro', 'enterprise'],
-        link_sources: ['free', 'starter', 'pro', 'enterprise'],
-        note_sources: ['free', 'starter', 'pro', 'enterprise'],
-        drive_sources: ['starter', 'pro', 'enterprise'],
-        content_plans: ['starter', 'pro', 'enterprise'],
-        image_gen: ['starter', 'pro', 'enterprise'],
-        scheduling: ['pro', 'enterprise'],
-        analytics: ['pro', 'enterprise']
-    };
-
-    const allowedPlans = features[feature] || ['enterprise'];
-
-    if (!allowedPlans.includes(userCredits.plan)) {
-        showUpgradeModal('feature', 0);
-        return false;
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeUpgradeModal();
+        });
     }
-    return true;
-}
 
-// ============================================================
-// HISTORY MODAL
-// ============================================================
-let historyFilter = null;
-let historyDocs = [];
+    function closeUpgradeModal() {
+        document.getElementById('upgrade-modal')?.remove();
+    }
 
-function openHistoryModal() {
-    const modal = document.getElementById('history-modal');
-    modal.style.display = 'block';
+    function openBillingPage() {
+        closeUpgradeModal();
+        // Navigate to billing page or open Stripe checkout
+        window.location.href = 'settings.html?tab=billing';
+    }
 
-    // Reset filter
-    historyFilter = null;
+    // Check feature access
+    async function checkFeatureAccess(feature) {
+        const features = {
+            basic_chat: ['free', 'starter', 'pro', 'enterprise'],
+            link_sources: ['free', 'starter', 'pro', 'enterprise'],
+            note_sources: ['free', 'starter', 'pro', 'enterprise'],
+            drive_sources: ['starter', 'pro', 'enterprise'],
+            content_plans: ['starter', 'pro', 'enterprise'],
+            image_gen: ['starter', 'pro', 'enterprise'],
+            scheduling: ['pro', 'enterprise'],
+            analytics: ['pro', 'enterprise']
+        };
 
-    loadHistorySidebar();
-    loadHistoryItems();
-}
+        const allowedPlans = features[feature] || ['enterprise'];
 
-function closeHistoryModal() {
-    document.getElementById('history-modal').style.display = 'none';
-}
-
-function loadHistorySidebar() {
-    const sidebar = document.getElementById('history-sidebar');
-
-    // Group PLAN_DEFINITIONS by category for filter buttons
-    const categories = {};
-    for (const [key, def] of Object.entries(PLAN_DEFINITIONS)) {
-        if (!categories[def.category]) {
-            categories[def.category] = [];
+        if (!allowedPlans.includes(userCredits.plan)) {
+            showUpgradeModal('feature', 0);
+            return false;
         }
-        categories[def.category].push({ type: key, ...def });
+        return true;
     }
 
-    let html = `
+    // ============================================================
+    // HISTORY MODAL
+    // ============================================================
+    let historyFilter = null;
+    let historyDocs = [];
+
+    function openHistoryModal() {
+        const modal = document.getElementById('history-modal');
+        modal.style.display = 'block';
+
+        // Reset filter
+        historyFilter = null;
+
+        loadHistorySidebar();
+        loadHistoryItems();
+    }
+
+    function closeHistoryModal() {
+        document.getElementById('history-modal').style.display = 'none';
+    }
+
+    function loadHistorySidebar() {
+        const sidebar = document.getElementById('history-sidebar');
+
+        // Group PLAN_DEFINITIONS by category for filter buttons
+        const categories = {};
+        for (const [key, def] of Object.entries(PLAN_DEFINITIONS)) {
+            if (!categories[def.category]) {
+                categories[def.category] = [];
+            }
+            categories[def.category].push({ type: key, ...def });
+        }
+
+        let html = `
         <div class="mb-4">
             <button onclick="filterHistory(null)" class="w-full text-left px-3 py-2 rounded-lg text-sm font-medium ${historyFilter === null ? 'bg-indigo-600/20 text-indigo-400' : 'text-slate-400 hover:text-white hover:bg-slate-800'} transition-all">
                 All Plans
@@ -4730,14 +4855,14 @@ function loadHistorySidebar() {
         </div>
     `;
 
-    const categoryLabels = {
-        quick: 'Quick Wins',
-        knowledge: 'Knowledge',
-        create: 'Create Now'
-    };
+        const categoryLabels = {
+            quick: 'Quick Wins',
+            knowledge: 'Knowledge',
+            create: 'Create Now'
+        };
 
-    for (const [cat, plans] of Object.entries(categories)) {
-        html += `
+        for (const [cat, plans] of Object.entries(categories)) {
+            html += `
             <div class="mb-4">
                 <h4 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 px-3">${categoryLabels[cat] || cat}</h4>
                 <div class="space-y-1">
@@ -4750,48 +4875,48 @@ function loadHistorySidebar() {
                 </div>
             </div>
         `;
+        }
+
+        sidebar.innerHTML = html;
     }
 
-    sidebar.innerHTML = html;
-}
+    function filterHistory(planType) {
+        historyFilter = planType;
+        loadHistorySidebar(); // Re-render sidebar to update active state
+        loadHistoryItems();
+    }
 
-function filterHistory(planType) {
-    historyFilter = planType;
-    loadHistorySidebar(); // Re-render sidebar to update active state
-    loadHistoryItems();
-}
+    async function loadHistoryItems() {
+        const list = document.getElementById('history-list');
+        list.innerHTML = '<div class="text-center py-10 text-slate-500">Loading...</div>';
 
-async function loadHistoryItems() {
-    const list = document.getElementById('history-list');
-    list.innerHTML = '<div class="text-center py-10 text-slate-500">Loading...</div>';
+        try {
+            const db = firebase.firestore();
+            let query = db.collection('projects').doc(currentProjectId)
+                .collection('savedPlans')
+                .orderBy('createdAt', 'desc');
 
-    try {
-        const db = firebase.firestore();
-        let query = db.collection('projects').doc(currentProjectId)
-            .collection('savedPlans')
-            .orderBy('createdAt', 'desc');
+            if (historyFilter) {
+                query = query.where('planType', '==', historyFilter);
+            }
 
-        if (historyFilter) {
-            query = query.where('planType', '==', historyFilter);
-        }
+            const snapshot = await query.limit(50).get();
 
-        const snapshot = await query.limit(50).get();
+            if (snapshot.empty) {
+                list.innerHTML = '<div class="text-center py-10 text-slate-500">No saved plans found.</div>';
+                return;
+            }
 
-        if (snapshot.empty) {
-            list.innerHTML = '<div class="text-center py-10 text-slate-500">No saved plans found.</div>';
-            return;
-        }
+            historyDocs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-        historyDocs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            list.innerHTML = historyDocs.map((plan, index) => {
+                const planDef = PLAN_DEFINITIONS[plan.planType] || { name: plan.planType };
+                const langLabel = plan.language === 'ko' ? '🇰🇷 Korean' : plan.language === 'ja' ? '🇯🇵 Japanese' : plan.language ? '🇺🇸 English' : 'Unknown';
+                const dateStr = plan.createdAt?.toDate ? formatRelativeTime(plan.createdAt.toDate()) : 'Unknown date';
+                const contentPreview = plan.content ? plan.content.substring(0, 150) + '...' : 'No content';
+                const versionBadges = plan.version ? `<span class="px-1.5 py-0.5 rounded text-[10px] bg-indigo-500/20 text-indigo-300 font-mono ml-2">${plan.version}</span>` : '';
 
-        list.innerHTML = historyDocs.map((plan, index) => {
-            const planDef = PLAN_DEFINITIONS[plan.planType] || { name: plan.planType };
-            const langLabel = plan.language === 'ko' ? '🇰🇷 Korean' : plan.language === 'ja' ? '🇯🇵 Japanese' : plan.language ? '🇺🇸 English' : 'Unknown';
-            const dateStr = plan.createdAt?.toDate ? formatRelativeTime(plan.createdAt.toDate()) : 'Unknown date';
-            const contentPreview = plan.content ? plan.content.substring(0, 150) + '...' : 'No content';
-            const versionBadges = plan.version ? `<span class="px-1.5 py-0.5 rounded text-[10px] bg-indigo-500/20 text-indigo-300 font-mono ml-2">${plan.version}</span>` : '';
-
-            return `
+                return `
                 <div class="p-4 bg-slate-800/50 border border-slate-700/50 rounded-xl hover:bg-slate-800 hover:border-indigo-500/30 transition-all cursor-pointer group"
                     onclick="openHistoryPlan(${index})">
                     <div class="flex items-start justify-between mb-2">
@@ -4811,301 +4936,301 @@ async function loadHistoryItems() {
                     </div>
                 </div>
             `;
-        }).join('');
+            }).join('');
 
-    } catch (error) {
-        console.error('Error loading history:', error);
-        list.innerHTML = '<div class="text-center py-10 text-red-400">Error loading history.</div>';
-    }
-}
-
-function openHistoryPlan(index) {
-    const plan = historyDocs[index];
-    if (plan) {
-        viewSavedPlan(plan.id, plan);
-        closeHistoryModal(); // Stack modal behavior: close history, open plan view
-    }
-}
-
-// Alias for HTML button
-window.regenerateSummary = generateSummary;
-
-/**
- * Set input text from suggested question
- */
-function setInput(text) {
-    const input = document.getElementById('chat-input');
-    if (input) {
-        input.value = text;
-        input.focus();
-    }
-}
-// Alias for HTML onclick
-window.setInput = setInput;
-
-// ============================================================
-// WEIGHT REPORT - CANVAS ANIMATION
-// ============================================================
-
-let weightReportAnimation = null;
-let weightReportData = null;
-
-// Open Weight Report modal
-function openWeightReport(weightBreakdown, resultTitle = 'Summary') {
-    if (!weightBreakdown || weightBreakdown.length === 0) {
-        showNotification('No weight data available', 'warning');
-        return;
+        } catch (error) {
+            console.error('Error loading history:', error);
+            list.innerHTML = '<div class="text-center py-10 text-red-400">Error loading history.</div>';
+        }
     }
 
-    // Check for missing documents
-    const enrichedBreakdown = weightBreakdown.map(w => ({
-        ...w,
-        missing: !sources.find(s => s.id === w.id)
-    }));
-
-    weightReportData = {
-        breakdown: enrichedBreakdown,
-        resultTitle: resultTitle
-    };
-
-    // Update subtitle
-    document.getElementById('weight-report-subtitle').textContent = `${resultTitle} - ${enrichedBreakdown.length} documents`;
-
-    // Show modal
-    const modal = document.getElementById('weight-report-modal');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-
-    // Start animation
-    setTimeout(() => startWeightReportAnimation(), 100);
-}
-
-// Close Weight Report modal
-function closeWeightReport() {
-    const modal = document.getElementById('weight-report-modal');
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
-
-    // Stop animation
-    if (weightReportAnimation) {
-        cancelAnimationFrame(weightReportAnimation);
-        weightReportAnimation = null;
-    }
-}
-
-// Particle class
-class WeightParticle {
-    constructor(startX, startY, endX, endY, importance, color) {
-        this.startX = startX;
-        this.startY = startY;
-        this.endX = endX;
-        this.endY = endY;
-        this.x = startX;
-        this.y = startY;
-        this.importance = importance;
-        this.color = color;
-        this.progress = Math.random() * 0.3; // Random start offset
-        this.speed = importance === 3 ? 0.008 : (importance === 2 ? 0.006 : 0.004);
-        this.size = importance === 3 ? 6 : (importance === 2 ? 4 : 2.5);
-        this.alpha = 1;
+    function openHistoryPlan(index) {
+        const plan = historyDocs[index];
+        if (plan) {
+            viewSavedPlan(plan.id, plan);
+            closeHistoryModal(); // Stack modal behavior: close history, open plan view
+        }
     }
 
-    update() {
-        this.progress += this.speed;
-        if (this.progress >= 1) {
-            this.progress = 0;
+    // Alias for HTML button
+    window.regenerateSummary = generateSummary;
+
+    /**
+     * Set input text from suggested question
+     */
+    function setInput(text) {
+        const input = document.getElementById('chat-input');
+        if (input) {
+            input.value = text;
+            input.focus();
+        }
+    }
+    // Alias for HTML onclick
+    window.setInput = setInput;
+
+    // ============================================================
+    // WEIGHT REPORT - CANVAS ANIMATION
+    // ============================================================
+
+    let weightReportAnimation = null;
+    let weightReportData = null;
+
+    // Open Weight Report modal
+    function openWeightReport(weightBreakdown, resultTitle = 'Summary') {
+        if (!weightBreakdown || weightBreakdown.length === 0) {
+            showNotification('No weight data available', 'warning');
+            return;
+        }
+
+        // Check for missing documents
+        const enrichedBreakdown = weightBreakdown.map(w => ({
+            ...w,
+            missing: !sources.find(s => s.id === w.id)
+        }));
+
+        weightReportData = {
+            breakdown: enrichedBreakdown,
+            resultTitle: resultTitle
+        };
+
+        // Update subtitle
+        document.getElementById('weight-report-subtitle').textContent = `${resultTitle} - ${enrichedBreakdown.length} documents`;
+
+        // Show modal
+        const modal = document.getElementById('weight-report-modal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+
+        // Start animation
+        setTimeout(() => startWeightReportAnimation(), 100);
+    }
+
+    // Close Weight Report modal
+    function closeWeightReport() {
+        const modal = document.getElementById('weight-report-modal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+
+        // Stop animation
+        if (weightReportAnimation) {
+            cancelAnimationFrame(weightReportAnimation);
+            weightReportAnimation = null;
+        }
+    }
+
+    // Particle class
+    class WeightParticle {
+        constructor(startX, startY, endX, endY, importance, color) {
+            this.startX = startX;
+            this.startY = startY;
+            this.endX = endX;
+            this.endY = endY;
+            this.x = startX;
+            this.y = startY;
+            this.importance = importance;
+            this.color = color;
+            this.progress = Math.random() * 0.3; // Random start offset
+            this.speed = importance === 3 ? 0.008 : (importance === 2 ? 0.006 : 0.004);
+            this.size = importance === 3 ? 6 : (importance === 2 ? 4 : 2.5);
             this.alpha = 1;
         }
 
-        // Ease-in-out interpolation
-        const t = this.progress;
-        const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+        update() {
+            this.progress += this.speed;
+            if (this.progress >= 1) {
+                this.progress = 0;
+                this.alpha = 1;
+            }
 
-        this.x = this.startX + (this.endX - this.startX) * ease;
-        this.y = this.startY + (this.endY - this.startY) * ease;
+            // Ease-in-out interpolation
+            const t = this.progress;
+            const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 
-        // Fade out near end
-        if (this.progress > 0.8) {
-            this.alpha = 1 - ((this.progress - 0.8) / 0.2);
+            this.x = this.startX + (this.endX - this.startX) * ease;
+            this.y = this.startY + (this.endY - this.startY) * ease;
+
+            // Fade out near end
+            if (this.progress > 0.8) {
+                this.alpha = 1 - ((this.progress - 0.8) / 0.2);
+            }
         }
-    }
 
-    draw(ctx) {
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fillStyle = this.color.replace('1)', `${this.alpha})`);
-        ctx.fill();
-
-        // Glow effect for high importance
-        if (this.importance === 3) {
+        draw(ctx) {
             ctx.beginPath();
-            ctx.arc(this.x, this.y, this.size * 2, 0, Math.PI * 2);
-            ctx.fillStyle = this.color.replace('1)', `${this.alpha * 0.3})`);
+            ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+            ctx.fillStyle = this.color.replace('1)', `${this.alpha})`);
             ctx.fill();
+
+            // Glow effect for high importance
+            if (this.importance === 3) {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size * 2, 0, Math.PI * 2);
+                ctx.fillStyle = this.color.replace('1)', `${this.alpha * 0.3})`);
+                ctx.fill();
+            }
         }
     }
-}
 
-// Start Canvas animation
-function startWeightReportAnimation() {
-    const canvas = document.getElementById('weight-report-canvas');
-    if (!canvas || !weightReportData) return;
+    // Start Canvas animation
+    function startWeightReportAnimation() {
+        const canvas = document.getElementById('weight-report-canvas');
+        if (!canvas || !weightReportData) return;
 
-    const ctx = canvas.getContext('2d');
-    const breakdown = weightReportData.breakdown;
+        const ctx = canvas.getContext('2d');
+        const breakdown = weightReportData.breakdown;
 
-    // Layout calculations
-    const leftMargin = 50;
-    const rightMargin = 950;
-    const topMargin = 60;
-    const rowHeight = Math.min(70, (canvas.height - 150) / Math.max(breakdown.length, 1));
+        // Layout calculations
+        const leftMargin = 50;
+        const rightMargin = 950;
+        const topMargin = 60;
+        const rowHeight = Math.min(70, (canvas.height - 150) / Math.max(breakdown.length, 1));
 
-    // Result node position
-    const resultX = rightMargin - 100;
-    const resultY = canvas.height / 2;
+        // Result node position
+        const resultX = rightMargin - 100;
+        const resultY = canvas.height / 2;
 
-    // Create particles
-    const particles = [];
-    breakdown.forEach((doc, index) => {
-        const docY = topMargin + index * rowHeight + rowHeight / 2;
-        const docX = leftMargin + 200;
-
-        let color;
-        if (doc.missing) {
-            color = 'rgba(239, 68, 68, 1)'; // Red for missing
-        } else if (doc.importance === 3) {
-            color = 'rgba(139, 92, 246, 1)'; // Purple
-        } else if (doc.importance === 2) {
-            color = 'rgba(251, 191, 36, 1)'; // Yellow
-        } else {
-            color = 'rgba(100, 116, 139, 1)'; // Slate
-        }
-
-        // Create multiple particles per document based on weight
-        const particleCount = doc.missing ? 0 : Math.ceil(doc.percent / 10);
-        for (let i = 0; i < particleCount; i++) {
-            setTimeout(() => {
-                particles.push(new WeightParticle(docX, docY, resultX - 40, resultY, doc.importance, color));
-            }, i * 200);
-        }
-    });
-
-    // Animation loop
-    function animate() {
-        // Clear canvas
-        ctx.fillStyle = '#0f172a';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Draw connection lines
+        // Create particles
+        const particles = [];
         breakdown.forEach((doc, index) => {
             const docY = topMargin + index * rowHeight + rowHeight / 2;
             const docX = leftMargin + 200;
 
+            let color;
+            if (doc.missing) {
+                color = 'rgba(239, 68, 68, 1)'; // Red for missing
+            } else if (doc.importance === 3) {
+                color = 'rgba(139, 92, 246, 1)'; // Purple
+            } else if (doc.importance === 2) {
+                color = 'rgba(251, 191, 36, 1)'; // Yellow
+            } else {
+                color = 'rgba(100, 116, 139, 1)'; // Slate
+            }
+
+            // Create multiple particles per document based on weight
+            const particleCount = doc.missing ? 0 : Math.ceil(doc.percent / 10);
+            for (let i = 0; i < particleCount; i++) {
+                setTimeout(() => {
+                    particles.push(new WeightParticle(docX, docY, resultX - 40, resultY, doc.importance, color));
+                }, i * 200);
+            }
+        });
+
+        // Animation loop
+        function animate() {
+            // Clear canvas
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw connection lines
+            breakdown.forEach((doc, index) => {
+                const docY = topMargin + index * rowHeight + rowHeight / 2;
+                const docX = leftMargin + 200;
+
+                ctx.beginPath();
+                ctx.moveTo(docX, docY);
+                ctx.lineTo(resultX - 40, resultY);
+                ctx.strokeStyle = doc.missing ? 'rgba(239, 68, 68, 0.2)' : 'rgba(99, 102, 241, 0.15)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            });
+
+            // Draw document nodes
+            breakdown.forEach((doc, index) => {
+                const docY = topMargin + index * rowHeight + rowHeight / 2;
+
+                // Stars
+                const stars = '⭐'.repeat(doc.importance);
+                ctx.font = '14px sans-serif';
+                ctx.fillStyle = doc.missing ? '#ef4444' : (doc.importance === 3 ? '#a78bfa' : (doc.importance === 2 ? '#fbbf24' : '#64748b'));
+                ctx.fillText(stars, leftMargin, docY - 8);
+
+                // Document title
+                ctx.font = '13px Inter, sans-serif';
+                ctx.fillStyle = doc.missing ? '#ef4444' : '#e2e8f0';
+                const title = doc.title.length > 25 ? doc.title.substring(0, 25) + '...' : doc.title;
+                ctx.fillText(doc.missing ? `⚠️ ${title}` : title, leftMargin, docY + 12);
+
+                // Percentage
+                ctx.font = 'bold 14px Inter, sans-serif';
+                ctx.fillStyle = doc.missing ? '#ef4444' : '#6366f1';
+                ctx.fillText(`${doc.percent}%`, leftMargin + 210, docY + 4);
+            });
+
+            // Draw result node
             ctx.beginPath();
-            ctx.moveTo(docX, docY);
-            ctx.lineTo(resultX - 40, resultY);
-            ctx.strokeStyle = doc.missing ? 'rgba(239, 68, 68, 0.2)' : 'rgba(99, 102, 241, 0.15)';
-            ctx.lineWidth = 1;
+            ctx.roundRect(resultX - 40, resultY - 40, 80, 80, 12);
+            ctx.fillStyle = 'rgba(99, 102, 241, 0.2)';
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(99, 102, 241, 0.5)';
+            ctx.lineWidth = 2;
             ctx.stroke();
-        });
 
-        // Draw document nodes
-        breakdown.forEach((doc, index) => {
-            const docY = topMargin + index * rowHeight + rowHeight / 2;
+            // Result icon (document)
+            ctx.font = '32px sans-serif';
+            ctx.fillStyle = '#6366f1';
+            ctx.fillText('📄', resultX - 18, resultY + 10);
 
-            // Stars
-            const stars = '⭐'.repeat(doc.importance);
-            ctx.font = '14px sans-serif';
-            ctx.fillStyle = doc.missing ? '#ef4444' : (doc.importance === 3 ? '#a78bfa' : (doc.importance === 2 ? '#fbbf24' : '#64748b'));
-            ctx.fillText(stars, leftMargin, docY - 8);
+            // Result label
+            ctx.font = 'bold 12px Inter, sans-serif';
+            ctx.fillStyle = '#94a3b8';
+            ctx.fillText('Result', resultX - 18, resultY + 55);
 
-            // Document title
-            ctx.font = '13px Inter, sans-serif';
-            ctx.fillStyle = doc.missing ? '#ef4444' : '#e2e8f0';
-            const title = doc.title.length > 25 ? doc.title.substring(0, 25) + '...' : doc.title;
-            ctx.fillText(doc.missing ? `⚠️ ${title}` : title, leftMargin, docY + 12);
+            // Update and draw particles
+            particles.forEach(p => {
+                p.update();
+                p.draw(ctx);
+            });
 
-            // Percentage
-            ctx.font = 'bold 14px Inter, sans-serif';
-            ctx.fillStyle = doc.missing ? '#ef4444' : '#6366f1';
-            ctx.fillText(`${doc.percent}%`, leftMargin + 210, docY + 4);
-        });
+            weightReportAnimation = requestAnimationFrame(animate);
+        }
 
-        // Draw result node
-        ctx.beginPath();
-        ctx.roundRect(resultX - 40, resultY - 40, 80, 80, 12);
-        ctx.fillStyle = 'rgba(99, 102, 241, 0.2)';
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(99, 102, 241, 0.5)';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        // Result icon (document)
-        ctx.font = '32px sans-serif';
-        ctx.fillStyle = '#6366f1';
-        ctx.fillText('📄', resultX - 18, resultY + 10);
-
-        // Result label
-        ctx.font = 'bold 12px Inter, sans-serif';
-        ctx.fillStyle = '#94a3b8';
-        ctx.fillText('Result', resultX - 18, resultY + 55);
-
-        // Update and draw particles
-        particles.forEach(p => {
-            p.update();
-            p.draw(ctx);
-        });
-
-        weightReportAnimation = requestAnimationFrame(animate);
+        animate();
     }
 
-    animate();
-}
+    // Expose to window
+    window.openWeightReport = openWeightReport;
+    window.closeWeightReport = closeWeightReport;
 
-// Expose to window
-window.openWeightReport = openWeightReport;
-window.closeWeightReport = closeWeightReport;
+    /**
+     * Initialize Mobile Tab Navigation
+     */
+    function initializeMobileTabs() {
+        const tabs = document.querySelectorAll('.mobile-tab-btn');
+        const panels = {
+            'sources': document.getElementById('sources-panel'),
+            'chat': document.getElementById('chat-panel'),
+            'plans': document.getElementById('plans-panel')
+        };
 
-/**
- * Initialize Mobile Tab Navigation
- */
-function initializeMobileTabs() {
-    const tabs = document.querySelectorAll('.mobile-tab-btn');
-    const panels = {
-        'sources': document.getElementById('sources-panel'),
-        'chat': document.getElementById('chat-panel'),
-        'plans': document.getElementById('plans-panel')
-    };
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const target = tab.dataset.tab;
 
-    tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            const target = tab.dataset.tab;
+                // 1. Update Tab Styles
+                tabs.forEach(t => {
+                    const isActive = t.dataset.tab === target;
+                    if (isActive) {
+                        t.classList.add('active', 'text-indigo-400');
+                        t.classList.remove('text-slate-500');
+                    } else {
+                        t.classList.remove('active', 'text-indigo-400');
+                        t.classList.add('text-slate-500');
+                    }
+                });
 
-            // 1. Update Tab Styles
-            tabs.forEach(t => {
-                const isActive = t.dataset.tab === target;
-                if (isActive) {
-                    t.classList.add('active', 'text-indigo-400');
-                    t.classList.remove('text-slate-500');
-                } else {
-                    t.classList.remove('active', 'text-indigo-400');
-                    t.classList.add('text-slate-500');
-                }
-            });
+                // 2. Update Panel Visibility
+                // Logic: Add 'hidden' to all panels on mobile (except target). 
+                // 'md:flex' ensures they remain visible on desktop.
+                Object.keys(panels).forEach(key => {
+                    const panel = panels[key];
+                    if (!panel) return;
 
-            // 2. Update Panel Visibility
-            // Logic: Add 'hidden' to all panels on mobile (except target). 
-            // 'md:flex' ensures they remain visible on desktop.
-            Object.keys(panels).forEach(key => {
-                const panel = panels[key];
-                if (!panel) return;
-
-                if (key === target) {
-                    panel.classList.remove('hidden'); // Show on mobile
-                } else {
-                    panel.classList.add('hidden'); // Hide on mobile
-                }
+                    if (key === target) {
+                        panel.classList.remove('hidden'); // Show on mobile
+                    } else {
+                        panel.classList.add('hidden'); // Hide on mobile
+                    }
+                });
             });
         });
-    });
-}
+    }

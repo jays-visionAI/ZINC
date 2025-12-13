@@ -167,7 +167,7 @@ window.seedLLMRouterData = async function () {
             },
             boostTier: {
                 provider: 'gemini',
-                model: 'gemini-3-pro-preview',
+                model: 'gemini-1.5-pro',
                 creditMultiplier: 2.5
             },
             forceTier: null, // No forced model
@@ -244,7 +244,7 @@ window.seedLLMRouterData = async function () {
             },
             boostTier: {
                 provider: 'gemini',
-                model: 'gemini-3-pro-preview',
+                model: 'gemini-1.5-pro',
                 creditMultiplier: 2.5
             },
             forceTier: null,
@@ -281,7 +281,7 @@ window.seedLLMRouterData = async function () {
             },
             boostTier: {
                 provider: 'gemini',
-                model: 'gemini-3-pro-preview',
+                model: 'gemini-1.5-pro',
                 creditMultiplier: 2.5
             },
             forceTier: null,
