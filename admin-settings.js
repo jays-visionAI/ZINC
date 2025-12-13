@@ -86,17 +86,56 @@ window.initSettings = function (currentUser) {
             return;
         }
 
+        // Initial render with "Checking..." status
         tableBody.innerHTML = providers.map(p => `
-            <tr>
+            <tr id="provider-row-${p.id}">
                 <td><strong style="color: #16e0bd;">${p.name}</strong></td>
                 <td>${capitalize(p.provider)}</td>
-                <td>${getStatusBadge(p.status)}</td>
+                <td id="provider-status-${p.id}">
+                    <span style="color: #f59e0b; border: 1px solid #f59e0b; padding: 2px 8px; border-radius: 12px; font-size: 10px;">
+                        ⏳ Checking...
+                    </span>
+                </td>
                 <td style="font-size: 12px; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${p.models?.join(', ')}">${p.models?.join(', ') || '-'}</td>
                 <td>
                     <button class="admin-btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="editProviderSettings('${p.id}')">Edit</button>
                 </td>
             </tr>
         `).join('');
+
+        // Test each provider's API in background
+        providers.forEach(p => testProviderHealth(p));
+    }
+
+    async function testProviderHealth(provider) {
+        const statusCell = document.getElementById(`provider-status-${provider.id}`);
+        if (!statusCell) return;
+
+        try {
+            // Use LLMProviderService to test connection
+            const result = await window.LLMProviderService.testConnection(provider.provider, provider.apiKey || provider.credentialRef?.apiKey);
+
+            if (result.success) {
+                statusCell.innerHTML = `
+                    <span style="color: #22c55e; border: 1px solid #22c55e; padding: 2px 8px; border-radius: 12px; font-size: 10px;">
+                        ✓ Active
+                    </span>
+                `;
+            } else {
+                statusCell.innerHTML = `
+                    <span style="color: #ef4444; border: 1px solid #ef4444; padding: 2px 8px; border-radius: 12px; font-size: 10px;" title="${result.error || 'Connection failed'}">
+                        ✗ Error
+                    </span>
+                `;
+            }
+        } catch (error) {
+            console.error(`[Provider Health] ${provider.name} error:`, error);
+            statusCell.innerHTML = `
+                <span style="color: #ef4444; border: 1px solid #ef4444; padding: 2px 8px; border-radius: 12px; font-size: 10px;" title="${error.message}">
+                    ✗ Error
+                </span>
+            `;
+        }
     }
 
     window.openProviderModal = function (providerId = null) {
