@@ -161,15 +161,8 @@ class LLMRouter {
             selectedTier = policy.boostTier;
         }
 
-        // Emergency Override: Downgrade 2.0 Flash Exp to 1.5 Flash to prevent 429 Quota errors
-        if (selectedTier && selectedTier.model === 'gemini-2.0-flash-exp') {
-            // Create a shallow copy to avoid mutating cache
-            selectedTier = { ...selectedTier, model: 'gemini-1.5-flash' };
-        }
-
         return selectedTier;
     }
-
     /**
      * Calculate credit cost based on model and usage
      */

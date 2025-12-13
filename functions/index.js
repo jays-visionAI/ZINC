@@ -312,17 +312,17 @@ exports.routeLLM = functions.https.onCall(async (data, context) => {
 
     console.log(`[routeLLM] Request: feature=${feature}, tier=${qualityTier}, userId=${userId}`);
 
-    try {
-        // Build messages array
-        let messages = rawMessages;
-        if (!messages) {
-            messages = [];
-            if (systemPrompt) {
-                messages.push({ role: 'system', content: systemPrompt });
-            }
-            messages.push({ role: 'user', content: userPrompt });
+    // Build messages array (Move outside try-catch for scope access)
+    let messages = rawMessages;
+    if (!messages) {
+        messages = [];
+        if (systemPrompt) {
+            messages.push({ role: 'system', content: systemPrompt });
         }
+        messages.push({ role: 'user', content: userPrompt });
+    }
 
+    try {
         // Route through LLMRouter
         const result = await llmRouter.route({
             feature,
@@ -360,7 +360,63 @@ exports.routeLLM = functions.https.onCall(async (data, context) => {
         };
 
     } catch (error) {
-        console.error('[routeLLM] Error:', error.message);
+        console.error('[routeLLM] ❌ Primary Generation Error:', error.message);
+
+        // AUTO-FAILOVER: Retry with OpenAI if primary fails (e.g. Gemini 404/429/500)
+        const isRetryable = error.message.includes('404') ||
+            error.message.includes('429') ||
+            error.message.includes('500') ||
+            error.message.includes('400') ||
+            error.message.includes('not found') ||
+            error.message.includes('fetch failed') ||
+            error.message.includes('Unsupported value');
+
+        if (isRetryable) {
+            console.warn('[routeLLM] ⚠️ Initiating Auto-Failover to OpenAI...');
+
+            try {
+                // Determine fallback model based on Quality Tier
+                // BOOST -> gpt-4o (Premium)
+                // DEFAULT -> gpt-4o-mini (Standard/Economy)
+                const fallbackModel = (qualityTier === 'BOOST') ? 'gpt-4o' : 'gpt-4o-mini';
+                const fallbackProvider = 'openai';
+
+                // Retry Generation
+                // callLLM signature: (provider, model, messages, temperature)
+                // It fetches API Key internally.
+
+                // Fix for o1 models requiring temperature 1.0 or remove it
+                let fallbackTemp = temperature;
+                if (fallbackModel.startsWith('o1')) {
+                    fallbackTemp = 1.0;
+                }
+
+                const fallbackResult = await callLLM(fallbackProvider, fallbackModel, messages, fallbackTemp);
+
+                console.log(`[routeLLM] ✅ Auto-Failover Success using ${fallbackModel}`);
+
+                return {
+                    success: true,
+                    content: fallbackResult.content,
+                    model: fallbackModel,
+                    usage: { total_tokens: 0 }, // Usage info simplified
+                    routing: {
+                        provider: fallbackProvider,
+                        model: fallbackModel,
+                        tier: qualityTier,
+                        failover: true,
+                        originalError: error.message
+                    },
+                    credits: null // Skip credit deduction for fallback to avoid double billing issues
+                };
+
+            } catch (fallbackError) {
+                console.error('[routeLLM] ❌ Auto-Failover Failed:', fallbackError.message);
+                // Throw original error + fallback error
+                throw new functions.https.HttpsError('internal', `Generation Failed. Primary: ${error.message}. Fallback: ${fallbackError.message}`);
+            }
+        }
+
         throw new functions.https.HttpsError('internal', error.message);
     }
 });

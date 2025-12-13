@@ -405,10 +405,15 @@ async function selectProject(projectId) {
             document.getElementById('project-name-display').textContent =
                 currentProject.name || currentProject.brandName || 'Brand Intelligence';
 
-            await loadSources();
-            await loadBrandSummaries(); // Load summaries
+            // Optimize loading with parallel execution using Promise.all
+            await Promise.all([
+                loadSources(),
+                loadBrandSummaries(),
+                loadSavedPlans(),
+                loadUpcomingSchedules() // Ensure all related data loads together
+            ]);
+
             updateSourceCounts();
-            loadSavedPlans(); // Load saved plans for sidebar
         }
     } catch (error) {
         console.error('Error selecting project:', error);
@@ -2392,26 +2397,28 @@ async function generateSummary() {
     if (btnRegenerate) btnRegenerate.disabled = true;
 
     try {
-        // Boost Mode Check
+        // Prepare Context
+        // Calculate percentages
+        const totalPoints = activeSources.reduce((sum, s) => sum + (s.importance === 3 ? 3 : (s.importance === 1 ? 1 : 2)), 0);
+
+        const sourceWeights = activeSources.map(s => {
+            const points = s.importance === 3 ? 3 : (s.importance === 1 ? 1 : 2);
+            return {
+                id: s.id,
+                title: s.title,
+                importance: s.importance || 2,
+                percent: Math.round((points / totalPoints) * 100)
+            };
+        });
+
+        // Determine Tier (Standard vs Boost)
         const boostActiveEl = document.getElementById('main-summary-boost-active');
         const boostActive = boostActiveEl ? boostActiveEl.value === 'true' : false;
         const qualityTier = boostActive ? 'BOOST' : 'DEFAULT';
 
-        // Prepare context
-        const sourceWeights = activeSources.map(s => ({
-            id: s.id,
-            title: s.title,
-            importance: s.importance || 2,
-            weightPercent: s.importance === 3 ? 45 : (s.importance === 1 ? 20 : 35)
-        }));
-
-        // Call routeLLM
-        const routeLLM = firebase.functions().httpsCallable('routeLLM');
-        const result = await routeLLM({
-            feature: 'brandbrain.analysis',
-            qualityTier: qualityTier,
-            systemPrompt: 'You are a Brand Intelligence AI. Analyze the provided source documents and generate a comprehensive brand summary in JSON format. The summary should include an executive summary, key insights, and suggested follow-up questions.',
-            userPrompt: `Please analyze the following source documents and generate a Brand Summary in ${targetLanguage === 'ko' ? 'Korean' : 'English'}.
+        // Prepare Prompts
+        const systemPrompt = 'You are a Brand Intelligence AI. Analyze the provided source documents and generate a comprehensive brand summary in JSON format.';
+        const userPrompt = `Please analyze the following source documents and generate a Brand Summary in ${targetLanguage === 'ko' ? 'Korean' : 'English'}.
             
 Source Weights (Importance 1-3):
 ${sourceWeights.map(s => `- ${s.title} (Importance: ${s.importance})`).join('\n')}
@@ -2422,41 +2429,47 @@ Output Format (JSON):
     "keyInsights": ["Insight 1...", "Insight 2..."],
     "suggestedQuestions": ["Question 1?", "Question 2?"],
     "sourceNames": ["Source 1", "Source 2"]
-}`
+}
+
+Sources Content:
+${activeSources.map(s => `--- Source: ${s.title} ---\n${s.summary || s.content?.substring(0, 3000) || ''}`).join('\n\n')}`;
+
+        // Call LLM Router Cloud Function
+        const routeLLM = firebase.functions().httpsCallable('routeLLM');
+        const result = await routeLLM({
+            feature: 'studio.content_gen', // Using generic content gen feature policy
+            qualityTier: qualityTier,
+            systemPrompt: systemPrompt,
+            userPrompt: userPrompt,
+            temperature: 0.2, // Lower temp for factual summary
+            projectId: currentProjectId
         });
 
         // Handle Response
-        if (!result.data || (!result.data.content && !result.data.summary)) {
-            throw new Error(result.data?.error || 'No content returned from AI');
+        if (!result.data.success) {
+            throw new Error(result.data.error || 'Unknown error from LLM Router');
         }
 
-        // Parse Logic (routeLLM usually returns 'content' string)
-        let responseContent = result.data.content || result.data.summary;
+        let responseText = result.data.content;
 
-        // Clean Markdown
-        if (typeof responseContent === 'string') {
-            if (responseContent.startsWith('```json')) responseContent = responseContent.replace(/```json\n?|```/g, '');
-            else if (responseContent.startsWith('```')) responseContent = responseContent.replace(/```\n?|```/g, '');
+        // Log if failover occurred
+        if (result.data.routing?.failover) {
+            console.warn('⚠️ Auto-Failover triggered:', result.data.routing.originalError);
+            showNotification('Optimized route used for stability', 'info');
         }
 
+        // Parse JSON
         let parsedResult;
-        if (typeof responseContent === 'object') {
-            parsedResult = responseContent;
-        } else {
-            try {
-                parsedResult = JSON.parse(responseContent);
-            } catch (e) {
-                console.error('JSON Parse Error, using raw content:', e);
-                parsedResult = {
-                    summary: responseContent,
-                    suggestedQuestions: [],
-                    keyInsights: [],
-                    sourceNames: activeSources.map(s => s.title)
-                };
-            }
+        try {
+            // Clean markdown blocks if present (common with LLMs)
+            responseText = responseText.replace(/```json\n?|```/g, '');
+            parsedResult = JSON.parse(responseText);
+        } catch (e) {
+            console.error('JSON Parse Error:', e);
+            parsedResult = { summary: responseText, keyInsights: [], suggestedQuestions: [] };
         }
 
-        // Final Data Structure
+        // 6. Save & Update UI (Existing logic follows...)
         const summaryData = {
             title: `Brand Summary - ${new Date().toLocaleDateString()}`,
             content: parsedResult.summary || "Summary generated.",
@@ -2465,19 +2478,14 @@ Output Format (JSON):
             sourceCount: activeSources.length,
             sourceNames: parsedResult.sourceNames || activeSources.map(s => s.title),
             targetLanguage: targetLanguage,
-            weightBreakdown: sourceWeights, // simplified
+            weightBreakdown: sourceWeights,
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             createdBy: currentUser?.uid
         };
 
-        // Save to Firestore
-        const docRef = await firebase.firestore()
-            .collection('projects')
-            .doc(currentProjectId)
-            .collection('brandSummaries')
-            .add(summaryData);
+        const docRef = await db.collection('projects').doc(currentProjectId)
+            .collection('brandSummaries').add(summaryData);
 
-        // Update UI immediately (Optimistic-ish)
         const savedDoc = await docRef.get();
         const savedSummary = { id: savedDoc.id, ...savedDoc.data() };
 
@@ -2488,7 +2496,7 @@ Output Format (JSON):
         currentSummary = savedSummary;
 
         updateSummarySection();
-        cleanupOldBrandSummaries(); // Background cleanup
+        cleanupOldBrandSummaries();
 
         showNotification(`Summary generated successfully! (${qualityTier})`, 'success');
 
@@ -3651,7 +3659,8 @@ Format the output in clear, structured Markdown.`
             const newVersion = {
                 id: Date.now().toString(),
                 content: generatedContent,
-                createdAt: new Date()
+                createdAt: new Date(),
+                weightBreakdown: weightBreakdown
             };
             planVersions.push(newVersion);
             renderPlanVersions();
@@ -3710,6 +3719,24 @@ function showPlanResult() {
  * Select a plan version to display
  */
 let currentPlanVersionIndex = 0;
+
+/**
+ * Render plan version tabs
+ */
+function renderPlanVersions() {
+    const tabsContainer = document.getElementById('plan-versions-tabs');
+    if (!tabsContainer || planVersions.length === 0) return;
+
+    tabsContainer.innerHTML = planVersions.map((v, i) => `
+        <button class="plan-version-tab px-3 py-1.5 text-xs rounded-lg border transition-all ${i === planVersions.length - 1 ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'}"
+            onclick="selectPlanVersion(${i})">
+            Version ${i + 1}
+        </button>
+    `).join('');
+
+    // Select the latest version by default
+    selectPlanVersion(planVersions.length - 1);
+}
 
 function selectPlanVersion(index) {
     const version = planVersions[index];
@@ -3838,6 +3865,7 @@ async function savePlanToFirestore() {
                 creditsUsed: currentPlan.credits,
                 version: versionNumber,
                 sessionId: currentPlan.sessionId || generateSessionId(),
+                weightBreakdown: version.weightBreakdown || [],
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                 createdBy: currentUser?.uid
             });
@@ -4051,7 +4079,8 @@ function viewSavedPlan(id, plan) {
     planVersions = [{
         id: id,
         content: plan.content,
-        createdAt: plan.createdAt?.toDate() || new Date()
+        createdAt: plan.createdAt?.toDate() || new Date(),
+        weightBreakdown: plan.weightBreakdown || []
     }];
 
     document.getElementById('plan-modal-title').textContent = plan.planName;
