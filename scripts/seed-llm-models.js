@@ -155,6 +155,14 @@ window.seedLLMRouterData = async function () {
         }
     ];
 
+
+
+    console.log('🧹 Cleaning up old systemLLMModels...');
+    const existingModels = await db.collection('systemLLMModels').get();
+    existingModels.forEach(doc => {
+        batch.delete(doc.ref);
+    });
+
     console.log('📦 Seeding systemLLMModels...');
     for (const model of models) {
         const ref = db.collection('systemLLMModels').doc(model.id);
