@@ -681,3 +681,230 @@ window.savePricingData = async function () {
         if (btn) { btn.textContent = "Save Changes"; btn.disabled = false; }
     }
 };
+
+// ===================================================
+// PRD 11.6 - LLM Models & Feature Policies Management
+// ===================================================
+
+let llmModels = [];
+let featurePolicies = [];
+
+/**
+ * Load and render LLM Models table
+ */
+window.refreshLLMModels = async function () {
+    const tbody = document.getElementById('llm-models-table-body');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 20px;">Loading models...</td></tr>';
+
+    try {
+        const db = firebase.firestore();
+        const snapshot = await db.collection('systemLLMModels').orderBy('tier').get();
+
+        llmModels = [];
+        if (snapshot.empty) {
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 20px; color: rgba(255,255,255,0.5);">No models found. Click "Seed Models" to initialize.</td></tr>';
+            return;
+        }
+
+        snapshot.forEach(doc => {
+            llmModels.push({ id: doc.id, ...doc.data() });
+        });
+
+        renderLLMModelsTable();
+    } catch (error) {
+        console.error('[LLM Models] Load error:', error);
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: #ef4444;">Error: ${error.message}</td></tr>`;
+    }
+};
+
+function renderLLMModelsTable() {
+    const tbody = document.getElementById('llm-models-table-body');
+    if (!tbody) return;
+
+    const tierColors = {
+        economy: '#10b981',
+        standard: '#eab308',
+        premium: '#f43f5e'
+    };
+
+    const providerIcons = {
+        openai: '🟢',
+        anthropic: '🟣',
+        gemini: '🔵'
+    };
+
+    tbody.innerHTML = llmModels.map(model => {
+        const tierColor = tierColors[model.tier] || '#888';
+        const providerIcon = providerIcons[model.provider] || '⚪';
+        const statusBadge = model.isActive
+            ? '<span style="color: #22c55e; border: 1px solid #22c55e; padding: 2px 8px; border-radius: 12px; font-size: 10px;">Active</span>'
+            : '<span style="color: #6b7280; border: 1px solid #6b7280; padding: 2px 8px; border-radius: 12px; font-size: 10px;">Disabled</span>';
+        const defaultBadge = model.isDefault
+            ? '<span style="background: #16e0bd; color: #000; padding: 2px 6px; border-radius: 4px; font-size: 9px; margin-left: 4px;">DEFAULT</span>'
+            : '';
+
+        return `
+        <tr>
+            <td>
+                <strong style="color: #fff;">${model.displayName}</strong>${defaultBadge}
+                <div style="font-size: 11px; color: rgba(255,255,255,0.4); font-family: monospace;">${model.modelId}</div>
+            </td>
+            <td>${providerIcon} ${capitalize(model.provider)}</td>
+            <td><span style="color: ${tierColor}; font-weight: 600; text-transform: uppercase; font-size: 11px;">${model.tier}</span></td>
+            <td style="font-family: monospace; font-size: 12px;">$${model.costPer1kInputTokens?.toFixed(4) || '0.00'}</td>
+            <td style="font-family: monospace; font-size: 12px;">$${model.costPer1kOutputTokens?.toFixed(4) || '0.00'}</td>
+            <td>
+                <span style="background: linear-gradient(90deg, ${tierColor}40, transparent); padding: 4px 8px; border-radius: 4px; font-weight: 600; color: ${tierColor};">
+                    ${model.creditPer1kTokens?.toFixed(1) || '1.0'}x
+                </span>
+            </td>
+            <td style="font-size: 11px; color: rgba(255,255,255,0.6);">${formatContextSize(model.maxContextTokens)}</td>
+            <td>${statusBadge}</td>
+            <td>
+                <button class="admin-btn-secondary" style="padding: 4px 8px; font-size: 10px;" onclick="editLLMModel('${model.id}')">Edit</button>
+            </td>
+        </tr>
+        `;
+    }).join('');
+}
+
+function formatContextSize(tokens) {
+    if (!tokens) return '-';
+    if (tokens >= 1000000) return `${(tokens / 1000000).toFixed(1)}M`;
+    if (tokens >= 1000) return `${Math.round(tokens / 1000)}K`;
+    return tokens.toString();
+}
+
+function capitalize(str) {
+    return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
+}
+
+/**
+ * Load and render Feature Policies table
+ */
+window.refreshFeaturePolicies = async function () {
+    const tbody = document.getElementById('feature-policies-table-body');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px;">Loading policies...</td></tr>';
+
+    try {
+        const db = firebase.firestore();
+        const snapshot = await db.collection('featurePolicies').orderBy('category').get();
+
+        featurePolicies = [];
+        if (snapshot.empty) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px; color: rgba(255,255,255,0.5);">No policies found. Click "Seed Models" to initialize.</td></tr>';
+            return;
+        }
+
+        snapshot.forEach(doc => {
+            featurePolicies.push({ id: doc.id, ...doc.data() });
+        });
+
+        renderFeaturePoliciesTable();
+    } catch (error) {
+        console.error('[Feature Policies] Load error:', error);
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: #ef4444;">Error: ${error.message}</td></tr>`;
+    }
+};
+
+function renderFeaturePoliciesTable() {
+    const tbody = document.getElementById('feature-policies-table-body');
+    if (!tbody) return;
+
+    const categoryColors = {
+        studio: '#8b5cf6',
+        brandbrain: '#f59e0b',
+        marketpulse: '#06b6d4',
+        chatbot: '#10b981',
+        arena: '#ef4444'
+    };
+
+    tbody.innerHTML = featurePolicies.map(policy => {
+        const catColor = categoryColors[policy.category] || '#6b7280';
+        const defaultModel = policy.defaultTier?.model || '-';
+        const boostModel = policy.boostTier?.model || '-';
+        const defaultCredit = policy.defaultTier?.creditMultiplier?.toFixed(1) || '1.0';
+        const boostCredit = policy.boostTier?.creditMultiplier?.toFixed(1) || '2.5';
+        const forceModel = policy.forceTier?.model;
+        const forceBadge = forceModel
+            ? `<span style="background: #ef4444; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 9px;">${forceModel}</span>`
+            : '<span style="color: rgba(255,255,255,0.3);">-</span>';
+        const statusBadge = policy.isActive
+            ? '<span style="color: #22c55e;">●</span>'
+            : '<span style="color: #6b7280;">○</span>';
+
+        return `
+        <tr>
+            <td>
+                <strong style="color: #fff;">${policy.featureName}</strong>
+                <div style="font-size: 10px; color: rgba(255,255,255,0.4); font-family: monospace;">${policy.id}</div>
+            </td>
+            <td>
+                <span style="background: ${catColor}20; color: ${catColor}; padding: 4px 8px; border-radius: 4px; font-size: 11px; text-transform: uppercase;">
+                    ${policy.category}
+                </span>
+            </td>
+            <td style="font-size: 12px; color: rgba(255,255,255,0.8);">${defaultModel}</td>
+            <td><span style="color: #eab308;">${defaultCredit}x</span></td>
+            <td style="font-size: 12px; color: #16e0bd; font-weight: 600;">${boostModel}</td>
+            <td><span style="color: #f43f5e; font-weight: 600;">${boostCredit}x</span></td>
+            <td>${forceBadge}</td>
+            <td>${statusBadge}</td>
+        </tr>
+        `;
+    }).join('');
+}
+
+/**
+ * Edit LLM Model (placeholder for modal)
+ */
+window.editLLMModel = function (modelId) {
+    const model = llmModels.find(m => m.id === modelId);
+    if (!model) return;
+
+    // For now, just show info. Full edit modal can be added later.
+    const info = `
+Model: ${model.displayName}
+ID: ${model.modelId}
+Provider: ${model.provider}
+Tier: ${model.tier}
+
+Cost (per 1K tokens):
+- Input: $${model.costPer1kInputTokens}
+- Output: $${model.costPer1kOutputTokens}
+
+Credit Multiplier: ${model.creditPer1kTokens}x
+
+To edit, modify the systemLLMModels collection directly in Firestore.
+    `;
+    alert(info);
+};
+
+// Auto-load LLM Models and Feature Policies when System tab is shown
+(function () {
+    // Override switchSettingsTab to also load LLM data
+    const originalSwitch = window.switchSettingsTab;
+    window.switchSettingsTab = function (tabId) {
+        originalSwitch(tabId);
+
+        if (tabId === 'system') {
+            // Load LLM Models and Feature Policies
+            if (typeof refreshLLMModels === 'function') refreshLLMModels();
+            if (typeof refreshFeaturePolicies === 'function') refreshFeaturePolicies();
+        }
+    };
+
+    // Also load on initial page load if System tab is active
+    setTimeout(() => {
+        const systemTab = document.getElementById('tab-system');
+        if (systemTab && systemTab.style.display !== 'none') {
+            if (typeof refreshLLMModels === 'function') refreshLLMModels();
+            if (typeof refreshFeaturePolicies === 'function') refreshFeaturePolicies();
+        }
+    }, 500);
+})();
+

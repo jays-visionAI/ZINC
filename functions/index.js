@@ -30,6 +30,10 @@ const { FeedbackLoop } = require('./zyncCore/feedbackLoop');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const Anthropic = require('@anthropic-ai/sdk');
 
+// PRD 11.6 - LLM Router
+const { LLMRouter } = require('./llmRouter');
+const llmRouter = new LLMRouter(db);
+
 /**
  * Call OpenAI Chat Completions API
  * This function securely proxies requests to OpenAI from the frontend
@@ -190,6 +194,90 @@ exports.executeSubAgent = onCall({
 });
 
 /**
+ * PRD 11.6 - Route LLM Request
+ * Intelligent routing based on feature policies with Booster support
+ */
+exports.routeLLM = functions.https.onCall(async (data, context) => {
+    const payload = (data && data.data) ? data.data : data;
+
+    const {
+        feature,
+        qualityTier = 'DEFAULT',
+        systemPrompt,
+        userPrompt,
+        messages: rawMessages,
+        temperature = 0.7,
+        projectId,
+        metadata = {}
+    } = payload;
+
+    // Get user ID from auth context
+    const userId = context.auth?.uid;
+
+    if (!feature) {
+        throw new functions.https.HttpsError('invalid-argument', 'Feature ID is required');
+    }
+
+    if (!rawMessages && !userPrompt) {
+        throw new functions.https.HttpsError('invalid-argument', 'Either messages or userPrompt is required');
+    }
+
+    console.log(`[routeLLM] Request: feature=${feature}, tier=${qualityTier}, userId=${userId}`);
+
+    try {
+        // Build messages array
+        let messages = rawMessages;
+        if (!messages) {
+            messages = [];
+            if (systemPrompt) {
+                messages.push({ role: 'system', content: systemPrompt });
+            }
+            messages.push({ role: 'user', content: userPrompt });
+        }
+
+        // Route through LLMRouter
+        const result = await llmRouter.route({
+            feature,
+            qualityTier: qualityTier.toUpperCase(),
+            messages,
+            temperature,
+            userId,
+            projectId,
+            callLLM  // Pass the existing callLLM function
+        });
+
+        // Optionally deduct credits (if userId is provided)
+        let creditResult = null;
+        if (userId && result.routing.creditCost > 0) {
+            try {
+                creditResult = await llmRouter.deductCredits(userId, result.routing.creditCost, {
+                    feature,
+                    qualityTier,
+                    model: result.routing.model,
+                    projectId
+                });
+            } catch (creditError) {
+                console.warn('[routeLLM] Credit deduction failed:', creditError.message);
+                // Continue without failing - credit can be deducted later
+            }
+        }
+
+        return {
+            success: true,
+            content: result.content,
+            model: result.model,
+            usage: result.usage,
+            routing: result.routing,
+            credits: creditResult
+        };
+
+    } catch (error) {
+        console.error('[routeLLM] Error:', error.message);
+        throw new functions.https.HttpsError('internal', error.message);
+    }
+});
+
+/**
  * Helper: Get API key from systemLLMProviders
  */
 async function getSystemApiKey(provider) {
@@ -292,7 +380,7 @@ async function callOpenAIInternal(apiKey, model, messages, temperature) {
         model,
         messages,
         temperature,
-        max_tokens: 4000
+        max_completion_tokens: 4000
     });
 
     return {
