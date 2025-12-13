@@ -111,6 +111,8 @@ window.initSettings = function (currentUser) {
         const statusCell = document.getElementById(`provider-status-${provider.id}`);
         if (!statusCell) return;
 
+        console.log('[Provider Health] Testing:', provider.name, 'id:', provider.id, 'type:', provider.provider);
+
         try {
             // Call Cloud Function to test provider connection
             // The function will use the stored API key from Firestore
