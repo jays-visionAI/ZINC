@@ -1131,3 +1131,142 @@ function renderFeaturePoliciesTable() {
 // Auto-load LLM Models and Feature Policies when System tab is shown
 // LLM Auto-load simplified via main switchSettingsTab logic
 
+
+/**
+ * Seed LLM Models & Router Data
+ * Adds standard models including Gemini 3.0 Pro, GPT-4o, Claude 3.5 Sonnet
+ */
+window.seedLLMRouterData = async function () {
+    if (!confirm('This will reset/update the LLM Models catalog. Existing custom settings might be overwritten. Continue?')) {
+        return;
+    }
+
+    try {
+        const db = firebase.firestore();
+        const batch = db.batch();
+
+        const models = [
+            // --- Google Gemini ---
+            {
+                id: 'gemini-3-pro-preview',
+                provider: 'gemini',
+                modelId: 'gemini-3-pro-preview',
+                displayName: 'Gemini 3.0 Pro (Preview)',
+                tier: 'premium',
+                creditPer1kTokens: 3.0,
+                costPer1kInputTokens: 0.0025,
+                costPer1kOutputTokens: 0.0100,
+                maxContextTokens: 2000000,
+                isActive: true,
+                codeReady: true
+            },
+            {
+                id: 'gemini-2.5-pro',
+                provider: 'gemini',
+                modelId: 'gemini-2.5-pro',
+                displayName: 'Gemini 2.5 Pro (Boost)',
+                tier: 'standard', // High standard or Premium
+                creditPer1kTokens: 2.0,
+                costPer1kInputTokens: 0.00125,
+                costPer1kOutputTokens: 0.00375,
+                maxContextTokens: 2000000,
+                isActive: true,
+                codeReady: true
+            },
+            {
+                id: 'gemini-2.5-flash',
+                provider: 'gemini',
+                modelId: 'gemini-2.5-flash',
+                displayName: 'Gemini 2.5 Flash',
+                tier: 'economy',
+                creditPer1kTokens: 0.2,
+                costPer1kInputTokens: 0.0001, // Very cheap
+                costPer1kOutputTokens: 0.0004,
+                maxContextTokens: 1000000,
+                isActive: true,
+                codeReady: true
+            },
+            {
+                id: 'gemini-2.0-flash-exp',
+                provider: 'gemini',
+                modelId: 'gemini-2.0-flash-exp',
+                displayName: 'Gemini 2.0 Flash (Exp)',
+                tier: 'economy',
+                creditPer1kTokens: 0.1,
+                costPer1kInputTokens: 0,
+                costPer1kOutputTokens: 0,
+                maxContextTokens: 1000000,
+                isActive: true,
+                codeReady: true
+            },
+
+            // --- OpenAI ---
+            {
+                id: 'gpt-4o',
+                provider: 'openai',
+                modelId: 'gpt-4o',
+                displayName: 'GPT-4o',
+                tier: 'standard',
+                creditPer1kTokens: 1.5,
+                costPer1kInputTokens: 0.0025,
+                costPer1kOutputTokens: 0.0100,
+                maxContextTokens: 128000,
+                isActive: true,
+                codeReady: true
+            },
+            {
+                id: 'gpt-4o-mini',
+                provider: 'openai',
+                modelId: 'gpt-4o-mini',
+                displayName: 'GPT-4o Mini',
+                tier: 'economy',
+                creditPer1kTokens: 0.2,
+                costPer1kInputTokens: 0.00015,
+                costPer1kOutputTokens: 0.0006,
+                maxContextTokens: 128000,
+                isActive: true,
+                codeReady: false
+            },
+
+            // --- Anthropic ---
+            {
+                id: 'claude-3-5-sonnet-20241022',
+                provider: 'anthropic',
+                modelId: 'claude-3-5-sonnet-20241022',
+                displayName: 'Claude 3.5 Sonnet (New)',
+                tier: 'standard',
+                creditPer1kTokens: 1.5,
+                costPer1kInputTokens: 0.003,
+                costPer1kOutputTokens: 0.015,
+                maxContextTokens: 200000,
+                isActive: true,
+                codeReady: true
+            },
+            {
+                id: 'claude-3-opus',
+                provider: 'anthropic',
+                modelId: 'claude-3-opus-20240229',
+                displayName: 'Claude 3 Opus (Premium)',
+                tier: 'premium',
+                creditPer1kTokens: 5.0,
+                costPer1kInputTokens: 0.015,
+                costPer1kOutputTokens: 0.075,
+                maxContextTokens: 200000,
+                isActive: true,
+                codeReady: true
+            }
+        ];
+
+        models.forEach(model => {
+            const docRef = db.collection('systemLLMModels').doc(model.id);
+            batch.set(docRef, { ...model, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        });
+
+        await batch.commit();
+        alert('✅ LLM Models seeded successfully! Gemini 3.0 Pro added.');
+        refreshLLMModels();
+    } catch (error) {
+        console.error('Error seeding LLM models:', error);
+        alert('Error: ' + error.message);
+    }
+};

@@ -94,6 +94,21 @@ window.seedLLMRouterData = async function () {
         },
         // Google Gemini Models
         {
+            id: 'gemini-3-pro-preview',
+            provider: 'gemini',
+            modelId: 'gemini-3-pro-preview',
+            displayName: 'Gemini 3.0 Pro (Preview)',
+            description: 'Next-gen reasoning model',
+            tier: 'premium',
+            costPer1kInputTokens: 0.0025,
+            costPer1kOutputTokens: 0.0100,
+            creditPer1kTokens: 3.0,
+            maxContextTokens: 2000000,
+            capabilities: ['chat', 'vision', 'video', 'pdf'],
+            isActive: true,
+            isDefault: false
+        },
+        {
             id: 'gemini-2.0-flash',
             provider: 'gemini',
             modelId: 'gemini-2.0-flash-exp',
