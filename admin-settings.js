@@ -781,12 +781,6 @@ function renderLLMModelsTable() {
     const tbody = document.getElementById('llm-models-table-body');
     if (!tbody) return;
 
-    const tierColors = {
-        economy: '#10b981',
-        standard: '#eab308',
-        premium: '#f43f5e'
-    };
-
     const providerIcons = {
         openai: '🟢',
         anthropic: '🟣',
@@ -794,7 +788,12 @@ function renderLLMModelsTable() {
     };
 
     tbody.innerHTML = llmModels.map(model => {
-        const tierColor = tierColors[model.tier] || '#888';
+        // Calculate tier from credit rate
+        const creditRate = model.creditPer1kTokens || 1.0;
+        const tierInfo = getTierFromCreditRate(creditRate);
+        const tierColor = tierInfo.color;
+        const tierLabel = tierInfo.label;
+
         const providerIcon = providerIcons[model.provider] || '⚪';
         const defaultBadge = model.isDefault
             ? '<span style="background: #16e0bd; color: #000; padding: 2px 6px; border-radius: 4px; font-size: 9px; margin-left: 4px;">DEFAULT</span>'
@@ -824,7 +823,7 @@ function renderLLMModelsTable() {
                 <div style="font-size: 11px; color: rgba(255,255,255,0.4); font-family: monospace;">${model.modelId}</div>
             </td>
             <td>${providerIcon} ${capitalize(model.provider)}</td>
-            <td><span style="color: ${tierColor}; font-weight: 600; text-transform: uppercase; font-size: 11px;">${model.tier}</span></td>
+            <td><span style="color: ${tierColor}; font-weight: 600; text-transform: uppercase; font-size: 11px;">${tierLabel}</span></td>
             <td style="font-family: monospace; font-size: 12px;">$${model.costPer1kInputTokens?.toFixed(4) || '0.00'}</td>
             <td style="font-family: monospace; font-size: 12px;">$${model.costPer1kOutputTokens?.toFixed(4) || '0.00'}</td>
             <td>
@@ -853,6 +852,125 @@ function formatContextSize(tokens) {
 function capitalize(str) {
     return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
 }
+
+/**
+ * Calculate tier from credit rate
+ */
+function getTierFromCreditRate(rate) {
+    if (rate < 1.0) return { tier: 'economy', color: '#10b981', label: 'ECONOMY' };
+    if (rate < 2.0) return { tier: 'standard', color: '#eab308', label: 'STANDARD' };
+    return { tier: 'premium', color: '#f43f5e', label: 'PREMIUM' };
+}
+
+/**
+ * Update tier preview in modal
+ */
+window.updateTierPreview = function () {
+    const rateInput = document.getElementById('llm-model-credit-rate');
+    const tierPreview = document.getElementById('tier-preview');
+    if (!rateInput || !tierPreview) return;
+
+    const rate = parseFloat(rateInput.value) || 1.0;
+    const { color, label } = getTierFromCreditRate(rate);
+
+    tierPreview.textContent = label;
+    tierPreview.style.background = color + '20';
+    tierPreview.style.color = color;
+    tierPreview.style.border = `1px solid ${color}`;
+};
+
+/**
+ * Open LLM Model edit modal
+ */
+window.editLLMModel = function (modelId) {
+    const model = llmModels.find(m => m.id === modelId);
+    if (!model) {
+        console.error('Model not found:', modelId);
+        return;
+    }
+
+    const modal = document.getElementById('llm-model-modal');
+    if (!modal) return;
+
+    // Populate form fields
+    document.getElementById('llm-model-doc-id').value = model.id;
+    document.getElementById('llm-model-modal-title').textContent = `Edit: ${model.displayName}`;
+    document.getElementById('llm-model-display-name').value = model.displayName || '';
+    document.getElementById('llm-model-input-cost').textContent = `$${model.costPer1kInputTokens?.toFixed(4) || '0.0000'}`;
+    document.getElementById('llm-model-output-cost').textContent = `$${model.costPer1kOutputTokens?.toFixed(4) || '0.0000'}`;
+    document.getElementById('llm-model-credit-rate').value = model.creditPer1kTokens?.toFixed(1) || '1.0';
+    document.getElementById('llm-model-status').value = model.isActive ? 'true' : 'false';
+
+    // Update tier preview
+    window.updateTierPreview();
+
+    // Show modal
+    modal.classList.add('open');
+    modal.style.display = 'flex';
+};
+
+/**
+ * Close LLM Model modal
+ */
+window.closeLLMModelModal = function () {
+    const modal = document.getElementById('llm-model-modal');
+    if (modal) {
+        modal.classList.remove('open');
+        modal.style.display = 'none';
+    }
+};
+
+/**
+ * Save LLM Model changes
+ */
+window.saveLLMModel = async function () {
+    const modelId = document.getElementById('llm-model-doc-id').value;
+    const displayName = document.getElementById('llm-model-display-name').value.trim();
+    const creditRate = parseFloat(document.getElementById('llm-model-credit-rate').value);
+    const isActive = document.getElementById('llm-model-status').value === 'true';
+
+    if (!modelId || !displayName) {
+        alert('Please fill in all required fields');
+        return;
+    }
+
+    if (isNaN(creditRate) || creditRate < 0.1 || creditRate > 10) {
+        alert('Credit Rate must be between 0.1 and 10.0');
+        return;
+    }
+
+    const saveBtn = document.getElementById('btn-save-llm-model');
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+    }
+
+    try {
+        const db = firebase.firestore();
+        const { tier } = getTierFromCreditRate(creditRate);
+
+        await db.collection('systemLLMModels').doc(modelId).update({
+            displayName: displayName,
+            creditPer1kTokens: creditRate,
+            tier: tier,
+            isActive: isActive,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        console.log('[LLM Model] Updated:', modelId);
+        window.closeLLMModelModal();
+        await window.refreshLLMModels();
+
+    } catch (error) {
+        console.error('[LLM Model] Save error:', error);
+        alert('Error saving model: ' + error.message);
+    } finally {
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save Changes';
+        }
+    }
+};
 
 /**
  * Load and render Feature Policies table

@@ -94,7 +94,11 @@ exports.callOpenAI = functions.https.onCall(async (data, context) => {
  * Tests if the stored API key is valid for a given provider
  */
 exports.testLLMProviderConnection = functions.https.onCall(async (data, context) => {
-    const { providerId, providerType } = data;
+    // Handle nested data structure (v2 compatibility)
+    const payload = (data && data.data) ? data.data : data;
+    const { providerId, providerType } = payload || {};
+
+    console.log('[testLLMProviderConnection] Parsed:', providerId, providerType);
 
     if (!providerId || !providerType) {
         throw new functions.https.HttpsError('invalid-argument', 'providerId and providerType are required');
