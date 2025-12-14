@@ -4,7 +4,7 @@
  */
 
 // --- Firebase Setup ---
-const db = firebase.firestore();
+// db is initialized in firebase-config.js
 let currentUser = null;
 
 // --- Configuration ---
