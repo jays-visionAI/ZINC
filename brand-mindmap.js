@@ -151,6 +151,8 @@ function renderSidebar(groups) {
         return;
     }
 
+    const activeMapId = currentMetadata?.mapId;
+
     groups.forEach(group => {
         // Project Header
         const section = document.createElement('div');
@@ -169,8 +171,16 @@ function renderSidebar(groups) {
         list.className = 'space-y-1';
 
         group.maps.forEach(map => {
+            const isActive = map.id === activeMapId;
             const item = document.createElement('div');
-            item.className = 'sidebar-item group flex items-center justify-between p-2 rounded-lg cursor-pointer hover:bg-slate-800 transition-colors border border-transparent hover:border-slate-700';
+
+            // Apply active styles if matches
+            if (isActive) {
+                item.className = 'sidebar-item group flex items-center justify-between p-2 rounded-lg cursor-pointer bg-indigo-500/20 border border-indigo-500/50 transition-colors';
+            } else {
+                item.className = 'sidebar-item group flex items-center justify-between p-2 rounded-lg cursor-pointer hover:bg-slate-800 transition-colors border border-transparent hover:border-slate-700';
+            }
+
             item.onclick = () => loadMapFromFirestore(group, map);
 
             // Creation Date
@@ -182,7 +192,7 @@ function renderSidebar(groups) {
 
             item.innerHTML = `
                 <div class="flex-1 min-w-0">
-                    <div class="text-xs font-medium text-slate-300 group-hover:text-white truncate">${map.parameters?.topic || map.title || "Untitled Map"}</div>
+                    <div class="text-xs font-medium ${isActive ? 'text-white' : 'text-slate-300'} group-hover:text-white truncate">${map.parameters?.topic || map.title || "Untitled Map"}</div>
                     <div class="text-[10px] text-slate-500">${dateStr}</div>
                 </div>
                 <button onclick="deleteMap(event, '${group.projectId}', '${map.id}')" class="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded transition-all" title="Delete">
@@ -560,10 +570,17 @@ function inspectNode(d) {
     document.getElementById('inp-desc').innerText = d.data.description || "No description available.";
 
     const sourceCard = document.getElementById('source-card');
-    if (d.data.sourceReference) {
+
+    // Robust source reference check
+    const ref = d.data.sourceReference || d.data.source || d.data.ref;
+
+    if (ref) {
         sourceCard.classList.remove('hidden');
-        document.getElementById('source-title').innerText = d.data.sourceReference.title || "Unknown Document";
-        document.getElementById('source-snippet').innerText = `"${d.data.sourceReference.snippet}"`;
+        document.getElementById('source-title').innerText = ref.title || ref.name || "Unknown Document";
+
+        let snippet = ref.snippet || ref.content || ref.text || "";
+        if (snippet.length > 150) snippet = snippet.substring(0, 150) + "...";
+        document.getElementById('source-snippet').innerText = snippet ? `"${snippet}"` : "(No snippet available)";
     } else {
         sourceCard.classList.add('hidden');
     }
@@ -770,7 +787,7 @@ window.fnDeleteNode = function () {
 async function loadMapByID(pId, mId) {
     try {
         // Show loading state
-        document.getElementById('mindmap-container').style.opacity = '0.5';
+        document.getElementById('global-loading').classList.remove('hidden');
 
         const doc = await db.collection(`projects/${pId}/contentPlans`).doc(mId).get();
 
@@ -783,10 +800,22 @@ async function loadMapByID(pId, mId) {
                 if (pDoc.exists) pName = pDoc.data().projectName;
             } catch (e) { console.warn("Could not fetch project name", e); }
 
+            // Set global metadata correctly before loading
+            currentMetadata = {
+                projectId: pId,
+                mapId: mId,
+                mapTitle: data.title || data.parameters?.topic,
+                isLocal: false
+            };
+
             loadMapFromFirestore(
                 { projectId: pId, projectName: pName },
                 { id: mId, ...data }
             );
+
+            // Refresh sidebar to highlight this map
+            await loadSidebarData();
+
         } else {
             console.error("Map document not found");
             document.getElementById('canvas-placeholder').innerHTML = '<div class="text-center p-4">Mind Map not found or deleted.</div>';
@@ -796,6 +825,6 @@ async function loadMapByID(pId, mId) {
         console.error("Error loading map by ID:", e);
         showPlaceholder(true);
     } finally {
-        document.getElementById('mindmap-container').style.opacity = '1';
+        document.getElementById('global-loading').classList.add('hidden');
     }
 }

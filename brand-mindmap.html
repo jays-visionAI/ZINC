@@ -274,6 +274,15 @@
     <!-- Config & Logic -->
     <script src="firebase-config.js"></script>
     <script src="brand-mindmap.js"></script>
+    <!-- Global Loading Overlay -->
+    <div id="global-loading" class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950 hidden">
+        <div class="text-center">
+            <div
+                class="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4">
+            </div>
+            <p class="text-slate-400 text-sm animate-pulse">Loading Mind Map...</p>
+        </div>
+    </div>
 </body>
 
 </html>
