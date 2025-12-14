@@ -313,28 +313,38 @@ window.initSettings = function (currentUser) {
     }
 
     async function testConnection() {
-        const apiKey = document.getElementById('provider-api-key-settings').value;
+        const apiKeyInput = document.getElementById('provider-api-key-settings');
+        const apiKey = apiKeyInput ? apiKeyInput.value : '';
+        const providerDocId = document.getElementById('provider-doc-id-settings').value;
         const provider = document.getElementById('provider-type-settings').value;
         const modelsStr = document.getElementById('provider-models-settings').value;
         const model = modelsStr.split(',')[0]?.trim() || 'gpt-4o-mini';
 
-        if (!apiKey) {
-            testResultDiv.innerHTML = '<span style="color: #fbbf24;">⚠️ Please enter API Key to test connection</span>';
+        if (!apiKey && !providerDocId) {
+            if (testResultDiv) testResultDiv.innerHTML = '<span style="color: #fbbf24;">⚠️ Please enter API Key (or save provider first) to test connection</span>';
             return;
         }
 
-        testResultDiv.innerHTML = '<span style="color: #888;">Testing connection...</span>';
+        if (testResultDiv) testResultDiv.innerHTML = '<span style="color: #888;">Testing connection...</span>';
 
-        const result = await window.LLMProviderService.testConnection({
-            provider,
-            apiKey,
-            model
-        });
+        try {
+            // Call service which calls Cloud Function
+            // Pass providerId so backend can use stored key if apiKey is empty
+            const result = await window.LLMProviderService.testConnection({
+                provider,
+                apiKey,
+                providerId: providerDocId,
+                model
+            });
 
-        if (result.success) {
-            testResultDiv.innerHTML = `<span style="color: #22c55e;">✅ ${result.message} (${result.latency}ms)</span>`;
-        } else {
-            testResultDiv.innerHTML = `<span style="color: #ef4444;">❌ ${result.message}</span>`;
+            if (result.success) {
+                if (testResultDiv) testResultDiv.innerHTML = `<span style="color: #22c55e;">✅ ${result.message} (${result.latency}ms)</span>`;
+            } else {
+                if (testResultDiv) testResultDiv.innerHTML = `<span style="color: #ef4444;">❌ ${result.message}</span>`;
+            }
+        } catch (error) {
+            console.error("Test function error:", error);
+            if (testResultDiv) testResultDiv.innerHTML = `<span style="color: #ef4444;">❌ Error: ${error.message}</span>`;
         }
     }
 
