@@ -90,7 +90,7 @@ function setupEventListeners() {
     document.getElementById('btn-node-delete').addEventListener('click', (e) => { e.stopPropagation(); deleteNode(); });
 
     // Inspector Edit Events
-    document.getElementById('inp-name').addEventListener('input', (e) => updateActiveNodeData('name', e.target.innerText));
+    document.getElementById('inp-name').addEventListener('input', (e) => updateActiveNodeData('name', e.target.value));
     document.getElementById('inp-desc').addEventListener('input', (e) => updateActiveNodeData('description', e.target.innerText));
     document.getElementById('inp-memo').addEventListener('input', (e) => updateActiveNodeData('memo', e.target.value));
 }
@@ -541,7 +541,7 @@ function updateInspector(data) {
     document.getElementById('inspector-content').classList.remove('hidden');
     document.getElementById('inspector-body').classList.remove('hidden');
 
-    document.getElementById('inp-name').innerText = data.name;
+    document.getElementById('inp-name').value = data.name;
 
     // Badge
     const type = data.type || 'CONCEPT';
@@ -566,10 +566,14 @@ function updateInspector(data) {
 
 let isDragging = false;
 let hasMoved = false;
+let dragStartX, dragStartY;
 
 function dragStarted(event, d) {
     isDragging = true;
     hasMoved = false;
+    dragStartX = event.x;
+    dragStartY = event.y;
+
     document.getElementById('node-toolbar').classList.add('hidden'); // Hide toolbar during drag
     d3.select(this).raise();
 
@@ -584,8 +588,16 @@ function dragStarted(event, d) {
 
 function dragged(event, d) {
     if (!isDragging) return;
-    // Check movement threshold
-    if (Math.hypot(event.dx, event.dy) > 1) hasMoved = true;
+
+    // Check movement threshold logic (Accumulated distance)
+    if (!hasMoved) {
+        // D3 v6: event.x is absolute coordinate (or relative to parent).
+        // Safest is to track delta accumulation or distance from start.
+        // Assuming event.x/y works as expected in drag.
+        const dist = Math.hypot(event.x - dragStartX, event.y - dragStartY);
+        if (dist < 5) return; // Too small, ignore
+        hasMoved = true;
+    }
 
     // Multi-move Support
     if (!selectedData.has(d.data)) {
