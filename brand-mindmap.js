@@ -660,17 +660,48 @@ function ensureIds(node) {
 // Global CRUD Helpers for Toolbar
 window.addChildNode = function () {
     if (!activeNodeData) return;
-    const newNode = { id: Math.random().toString(36).substr(2, 9), name: "New Node", children: [], layout: null }; // Reset layout for auto-place? Or nearby?
 
-    // Smart Placement: Place near parent
+    // Smart Placement Logic
+    let newX = 0, newY = 0;
+
     if (activeNodeData.layout) {
-        newNode.layout = { x: activeNodeData.layout.x + 50, y: activeNodeData.layout.y + 150 };
+        const parentX = activeNodeData.layout.x;
+        const parentY = activeNodeData.layout.y;
+
+        if (activeNodeData.children && activeNodeData.children.length > 0) {
+            // Has siblings: Place below the last sibling
+            const lastChild = activeNodeData.children[activeNodeData.children.length - 1];
+            if (lastChild.layout) {
+                newX = lastChild.layout.x + 50; // Vertical spacing
+                newY = lastChild.layout.y;      // Align horizontally with siblings
+            } else {
+                newX = parentX + 50;
+                newY = parentY + 200;
+            }
+        } else {
+            // First child: Place to the right
+            newX = parentX;      // Same vertical level
+            newY = parentY + 200; // Horizontal offset
+        }
     }
+
+    const newNode = {
+        id: Math.random().toString(36).substr(2, 9),
+        name: "New Node",
+        children: [],
+        layout: { x: newX, y: newY }
+    };
 
     if (!activeNodeData.children) activeNodeData.children = [];
     activeNodeData.children.push(newNode);
 
     renderTree();
+
+    // Auto-select the new node
+    selectedData.clear();
+    selectedData.add(newNode);
+    activeNodeData = newNode;
+    renderSelectionState();
 };
 
 window.deleteNode = function () {
