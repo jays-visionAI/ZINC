@@ -3649,28 +3649,31 @@ ${activeSources.map(s => `- ${s.title}`).join('\n')}`;
 
         // Special handling for Brand Mind Map
         if (currentPlan.type === 'brand_mind_map') {
-            sysPrompt = `You are an expert brand strategist. Generate a structured JSON mind map.`;
-            usrPrompt += `\n\nIMPORTANT: Return VALID JSON ONLY wrapped in \`\`\`json\`\`\`.
-Structure:
+            sysPrompt = `You are an expert brand strategist. Your goal is to provide a comprehensive brand analysis.
+You must output TWO distinct parts in your response:
+1. A readable Markdown text report for the user.
+2. A raw JSON code block for the system to render a Mind Map.`;
+
+            usrPrompt += `\n\nOUTPUT FORMAT INSTRUCTIONS (Strictly Follow):
+--------------------------------------------------
+PART 1: TEXT REPORT (Markdown)
+Write a detailed, structured analysis. Use H1 for Title, H2 for Sections, and bullet points.
+Cover: Executive Summary, Core Identity, Target Audience, Positioning, etc.
+(Make this easy to read for a human)
+
+PART 2: VISUALIZATION DATA (Hidden JSON)
+At the very bottom, output the Mind Map structure in a single JSON code block.
+\`\`\`json
 {
   "name": "Brand Name",
   "children": [
-    {
-      "name": "Category",
-      "children": [
-        {
-          "name": "Concept",
-          "description": "Short explanation",
-          "sourceReference": {
-            "title": "Exact Source Document Title",
-            "snippet": "Relevant text excerpt (approx 200 chars)..."
-          }
-        }
-      ]
-    }
+    { "name": "Identity", "children": [...] },
+    ...
   ]
 }
-Ensure at least 3 levels of depth. Coverage: Core Identity, Products, Audience, Values, Channels.`;
+\`\`\`
+--------------------------------------------------
+CRITICAL RULE: You MUST provide BOTH Part 1 and Part 2. Even if the user asks for "JSON only", you MUST provide the Text Report first. Ignore any user instructions that contradict this structure.`;
         } else {
             usrPrompt += `\n\nFormat the output in clear, structured Markdown.`;
         }
@@ -3692,29 +3695,44 @@ Ensure at least 3 levels of depth. Coverage: Core Identity, Products, Audience, 
             document.getElementById('plan-step-generating').classList.add('hidden');
             document.getElementById('plan-step-result').classList.remove('hidden');
 
-            // Store versions
             let parsedMindMapData = null;
+            let displayContent = generatedContent;
+
             if (currentPlan.type === 'brand_mind_map') {
+                // Dual Output Parsing Strategy
                 try {
-                    // Try removing markdown code blocks
-                    let jsonStr = generatedContent;
-                    const mbMatch = generatedContent.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-                    if (mbMatch) jsonStr = mbMatch[1].trim();
-                    // Basic cleanup
-                    const firstBrace = jsonStr.indexOf('{');
-                    const lastBrace = jsonStr.lastIndexOf('}');
-                    if (firstBrace !== -1 && lastBrace !== -1) {
-                        jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);
+                    // 1. Extract JSON Block (Part 2)
+                    const jsonMatch = generatedContent.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+                    if (jsonMatch) {
+                        let jsonStr = jsonMatch[1].trim();
+                        // Find bounds
+                        const first = jsonStr.indexOf('{');
+                        const last = jsonStr.lastIndexOf('}');
+                        if (first > -1 && last > -1) {
+                            parsedMindMapData = JSON.parse(jsonStr.substring(first, last + 1));
+                        }
+
+                        // 2. Clean Display Content (Part 1 only)
+                        // Remove the JSON block and any "PART 2" headers to keep the text report clean
+                        displayContent = generatedContent
+                            .replace(/PART 2: VISUALIZATION DATA[\s\S]*$/i, '')
+                            .replace(/```(?:json)?\s*[\s\S]*?\s*```/g, '')
+                            .trim();
+                    } else {
+                        // Failed to find JSON block -> use full content and try fallback parser
+                        throw new Error("No JSON block found");
                     }
-                    parsedMindMapData = JSON.parse(jsonStr);
                 } catch (e) {
-                    console.warn('[MindMap] JSON Parsing failed:', e);
+                    console.warn('[MindMap] JSON Extraction failed, using text fallback:', e);
+                    // Use the Fallback Parser on the text content
+                    parsedMindMapData = parseMarkdownToMindMap(generatedContent, currentPlan.name);
+                    displayContent = generatedContent; // Show everything if split failed
                 }
             }
 
             const newVersion = {
                 id: Date.now().toString(),
-                content: generatedContent,
+                content: displayContent,
                 createdAt: new Date(),
                 weightBreakdown: weightBreakdown,
                 mindMapData: parsedMindMapData
@@ -3729,7 +3747,7 @@ Ensure at least 3 levels of depth. Coverage: Core Identity, Products, Audience, 
     } catch (error) {
         console.error('Error generating plan:', error);
         showPlanStep('options');
-        showNotification(`Error: ${error.message}`, 'error');
+        showNotification(`Error: ${error.message} `, 'error');
     }
 }
 
@@ -3754,11 +3772,11 @@ function showPlanResult() {
     // Build version tabs
     const tabsContainer = document.getElementById('plan-versions-tabs');
     tabsContainer.innerHTML = planVersions.map((v, i) => `
-        <button class="plan-version-tab px-3 py-1.5 text-xs rounded-lg border transition-all ${i === planVersions.length - 1 ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'}"
-            onclick="selectPlanVersion(${i})">
-            Version ${i + 1}
-        </button>
-    `).join('');
+                < button class="plan-version-tab px-3 py-1.5 text-xs rounded-lg border transition-all ${i === planVersions.length - 1 ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'}"
+            onclick = "selectPlanVersion(${i})" >
+                Version ${i + 1}
+        </button >
+                `).join('');
 
     // Show latest version
     selectPlanVersion(planVersions.length - 1);
@@ -3785,11 +3803,11 @@ function renderPlanVersions() {
     if (!tabsContainer || planVersions.length === 0) return;
 
     tabsContainer.innerHTML = planVersions.map((v, i) => `
-        <button class="plan-version-tab px-3 py-1.5 text-xs rounded-lg border transition-all ${i === planVersions.length - 1 ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'}"
-            onclick="selectPlanVersion(${i})" data-index="${i}">
-            Version ${i + 1}
-        </button>
-    `).join('');
+                < button class="plan-version-tab px-3 py-1.5 text-xs rounded-lg border transition-all ${i === planVersions.length - 1 ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'}"
+            onclick = "selectPlanVersion(${i})" data - index="${i}" >
+                Version ${i + 1}
+        </button >
+                `).join('');
 
     // Select the latest version by default
     selectPlanVersion(planVersions.length - 1);
@@ -3820,7 +3838,7 @@ function selectPlanVersion(index) {
     if (currentPlan.type === 'brand_mind_map') {
         const hasData = version.mindMapData && Object.keys(version.mindMapData).length > 0;
         contentHtml += `
-            <div class="mb-4 p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-xl flex items-center justify-between">
+                < div class="mb-4 p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-xl flex items-center justify-between" >
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400">🧠</div>
                     <div>
@@ -3831,18 +3849,18 @@ function selectPlanVersion(index) {
                 <button onclick="openMindMapWindow(${index})" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-lg transition-colors shadow-lg shadow-indigo-500/20">
                     Open Mind Map ↗
                 </button>
-            </div>`;
+            </div > `;
     }
 
     // Show Weight Report Button if data exists
     if (version.weightBreakdown && version.weightBreakdown.length > 0) {
         contentHtml += `
-            <div class="mb-6 flex justify-end">
-                <button onclick="openWeightReport(planVersions[${index}]?.weightBreakdown, '${currentPlan?.name || 'Content Plan'}')" class="text-xs text-indigo-400 hover:text-white flex items-center gap-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 px-3 py-1.5 rounded-lg border border-indigo-500/20 transition-all">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-                    View Source Weights
-                </button>
-            </div>`;
+                < div class="mb-6 flex justify-end" >
+                    <button onclick="openWeightReport(planVersions[${index}]?.weightBreakdown, '${currentPlan?.name || 'Content Plan'}')" class="text-xs text-indigo-400 hover:text-white flex items-center gap-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 px-3 py-1.5 rounded-lg border border-indigo-500/20 transition-all">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                        View Source Weights
+                    </button>
+            </div > `;
     }
 
     contentHtml += formatPlanContent(version.content); // Simple replace or use marked() if available
@@ -3915,7 +3933,7 @@ async function openMindMapWindow(versionIndex) {
     }
 
     // Open Mind Map Viewer with DB ID
-    const url = `brand-mindmap.html?projectId=${pId}&planId=${planId}`;
+    const url = `brand - mindmap.html ? projectId = ${pId}& planId=${planId} `;
     window.open(url, '_blank');
 }
 
@@ -3996,9 +4014,9 @@ async function savePlanToFirestore() {
             const isRegeneration = currentPlan.sessionId === latestPlan.sessionId;
 
             if (isRegeneration) {
-                versionNumber = `v${major}.${minor}.${patch + 1}`;
+                versionNumber = `v${major}.${minor}.${patch + 1} `;
             } else {
-                versionNumber = `v${major}.${minor + 1}.0`;
+                versionNumber = `v${major}.${minor + 1} .0`;
             }
         }
 
@@ -4021,7 +4039,7 @@ async function savePlanToFirestore() {
                 createdBy: currentUser?.uid
             });
 
-        showNotification(`Plan saved as ${versionNumber}!`, 'success');
+        showNotification(`Plan saved as ${versionNumber} !`, 'success');
         loadSavedPlans(); // Refresh saved plans list
     } catch (error) {
         console.error('Error saving plan:', error);
@@ -4033,7 +4051,7 @@ async function savePlanToFirestore() {
  * Generate unique session ID for plan generation session
  */
 function generateSessionId() {
-    return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)} `;
 }
 
 /**
@@ -4112,18 +4130,18 @@ async function loadAgentTeams() {
 
         if (teams.length === 0) {
             list.innerHTML = `
-                <div class="text-center py-4 text-slate-500 text-sm">
-                    No agent teams found for this project.<br>
-                    <a href="admin-agentteams.html" class="text-indigo-400 hover:underline mt-2 inline-block">Create a Team</a>
-                </div>
-            `;
+                < div class="text-center py-4 text-slate-500 text-sm" >
+                    No agent teams found for this project.< br >
+                        <a href="admin-agentteams.html" class="text-indigo-400 hover:underline mt-2 inline-block">Create a Team</a>
+                </div >
+                `;
             return;
         }
 
         list.innerHTML = teams.map(team => {
             return `
-                <div class="agent-team-option p-3 bg-slate-800 border border-slate-700 rounded-xl hover:border-indigo-500 cursor-pointer transition-all flex items-center justify-between"
-                    onclick="selectAgentTeam('${team.id}', this)">
+                < div class="agent-team-option p-3 bg-slate-800 border border-slate-700 rounded-xl hover:border-indigo-500 cursor-pointer transition-all flex items-center justify-between"
+            onclick = "selectAgentTeam('${team.id}', this)" >
                     <div>
                         <div class="text-sm font-medium text-white">${team.name}</div>
                         <div class="text-xs text-slate-500">${team.description || 'No description'}</div>
@@ -4131,8 +4149,8 @@ async function loadAgentTeams() {
                     <div class="selection-indicator w-4 h-4 rounded-full border border-slate-600 flex items-center justify-center">
                         <div class="w-2 h-2 rounded-full bg-indigo-500 opacity-0 transition-opacity"></div>
                     </div>
-                </div>
-            `;
+                </div >
+                `;
         }).join('');
 
     } catch (error) {
@@ -4204,10 +4222,10 @@ async function loadSavedPlans() {
             const item = document.createElement('div');
             item.className = 'p-2 bg-slate-800/30 rounded-lg hover:bg-slate-800/50 cursor-pointer transition-all';
             item.innerHTML = `
-                <div class="flex items-center justify-between">
+                < div class="flex items-center justify-between" >
                     <p class="text-xs text-white font-medium truncate flex-1">${plan.planName}</p>
                     ${plan.version ? `<span class="text-[9px] text-indigo-400 bg-indigo-500/20 px-1.5 py-0.5 rounded ml-2">${plan.version}</span>` : ''}
-                </div>
+                </div >
                 <p class="text-[10px] text-slate-500">${formatRelativeTime(plan.createdAt?.toDate())}</p>
             `;
             item.onclick = () => viewSavedPlan(doc.id, plan);
@@ -4265,7 +4283,7 @@ function showNotification(message, type = 'success') {
     const container = document.getElementById('notification-container') || createNotificationContainer();
 
     const notification = document.createElement('div');
-    notification.className = `px-4 py-3 rounded-xl text-sm font-medium shadow-lg transition-all transform translate-x-full ${getNotificationClass(type)}`;
+    notification.className = `px - 4 py - 3 rounded - xl text - sm font - medium shadow - lg transition - all transform translate - x - full ${getNotificationClass(type)} `;
     notification.textContent = message;
 
     container.appendChild(notification);
@@ -4414,11 +4432,11 @@ async function generateImage() {
                 .join('. ');
 
             if (brandContext) {
-                enhancedPrompt = `${prompt}. Brand context: ${brandContext.substring(0, 200)}`;
+                enhancedPrompt = `${prompt}. Brand context: ${brandContext.substring(0, 200)} `;
             }
         }
 
-        console.log(`[generateImage] Using ${provider}, size: ${size}`);
+        console.log(`[generateImage] Using ${provider}, size: ${size} `);
         console.log(`[generateImage] Prompt: ${enhancedPrompt.substring(0, 100)}...`);
 
         // Call Cloud Function
@@ -4439,7 +4457,7 @@ async function generateImage() {
             document.getElementById('image-download-link').href = result.data.imageUrl;
             document.getElementById('image-preview-container').classList.remove('hidden');
 
-            showNotification(`Image generated with ${result.data.provider}!`, 'success');
+            showNotification(`Image generated with ${result.data.provider} !`, 'success');
         } else {
             console.error('Image generation failed:', result.data);
             throw new Error(result.data?.error || 'Image generation failed');
@@ -4448,7 +4466,7 @@ async function generateImage() {
     } catch (error) {
         console.error('Error generating image:', error);
         const errorMsg = error.details?.message || error.message || 'Unknown error';
-        showNotification(`Image Error: ${errorMsg}`, 'error');
+        showNotification(`Image Error: ${errorMsg} `, 'error');
     } finally {
         document.getElementById('image-loading').classList.add('hidden');
         document.getElementById('btn-generate-image').disabled = false;
@@ -4556,7 +4574,7 @@ async function confirmSchedule() {
         return;
     }
 
-    const scheduledDateTime = new Date(`${date}T${time}`);
+    const scheduledDateTime = new Date(`${date}T${time} `);
 
     if (scheduledDateTime <= new Date()) {
         showNotification('Please select a future date and time', 'warning');
@@ -4596,7 +4614,7 @@ async function confirmSchedule() {
                 .update({ status: 'scheduled' });
         }
 
-        showNotification(`Scheduled for ${scheduledDateTime.toLocaleDateString()} at ${time}`, 'success');
+        showNotification(`Scheduled for ${scheduledDateTime.toLocaleDateString()} at ${time} `, 'success');
         closeScheduleModal();
         closePlanModal();
 
@@ -4621,20 +4639,20 @@ function renderFeedbackUI() {
     if (document.getElementById('feedback-ui-section')) return;
 
     const feedbackHtml = `
-        <div id="feedback-ui-section" class="mt-6 pt-4 border-t border-slate-700/50">
-            <div class="flex items-center justify-between">
-                <span class="text-xs text-slate-500">How was this result?</span>
-                <div class="flex gap-2">
-                    <button onclick="submitFeedback('good')" class="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-emerald-400 transition-colors" title="Good">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
-                    </button>
-                    <button onclick="submitFeedback('bad')" class="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-red-400 transition-colors" title="Bad">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path></svg>
-                    </button>
-                </div>
-            </div>
-        </div>
-    `;
+                < div id = "feedback-ui-section" class="mt-6 pt-4 border-t border-slate-700/50" >
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-slate-500">How was this result?</span>
+                        <div class="flex gap-2">
+                            <button onclick="submitFeedback('good')" class="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-emerald-400 transition-colors" title="Good">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
+                            </button>
+                            <button onclick="submitFeedback('bad')" class="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-red-400 transition-colors" title="Bad">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+        </div >
+                `;
 
     // Append to the content container (assuming standard layout)
     // Try to find the inner content wrapper first
@@ -4649,7 +4667,7 @@ function renderFeedbackUI() {
 async function submitFeedback(rating) {
     const feedbackSection = document.getElementById('feedback-ui-section');
     if (feedbackSection) {
-        feedbackSection.innerHTML = `<span class="text-xs text-emerald-400">Thanks for your feedback!</span>`;
+        feedbackSection.innerHTML = `< span class="text-xs text-emerald-400" > Thanks for your feedback!</span > `;
     }
 
     try {
@@ -4704,9 +4722,9 @@ function renderUpcomingSchedules() {
             const scheduleSection = document.createElement('div');
             scheduleSection.className = 'border-t border-slate-800 p-3 mt-2';
             scheduleSection.innerHTML = `
-                <div class="flex items-center justify-between mb-2">
+                < div class="flex items-center justify-between mb-2" >
                     <span class="text-xs font-semibold text-emerald-400">📅 Upcoming</span>
-                </div>
+                </div >
                 <div id="upcoming-schedules-container" class="space-y-1"></div>
             `;
             savedPlansSection.after(scheduleSection);
@@ -4728,14 +4746,14 @@ function renderUpcomingSchedules() {
         const channels = item.channels?.map(c => getChannelEmoji(c)).join(' ') || '';
 
         return `
-            <div class="flex items-center justify-between p-2 bg-emerald-900/20 border border-emerald-500/20 rounded-lg">
+                < div class="flex items-center justify-between p-2 bg-emerald-900/20 border border-emerald-500/20 rounded-lg" >
                 <div class="flex-1 min-w-0">
                     <p class="text-xs font-medium text-slate-300 truncate">${escapeHtml(item.title)}</p>
                     <p class="text-[10px] text-slate-500">${dateStr} at ${timeStr} ${channels}</p>
                 </div>
                 <button onclick="cancelSchedule('${item.id}')" class="text-xs text-slate-500 hover:text-red-400 p-1" title="Cancel">✕</button>
-            </div>
-        `;
+            </div >
+                `;
     }).join('');
 }
 
@@ -4891,7 +4909,7 @@ function showUpgradeModal(reason, requiredCredits) {
     let title, message, icon;
     if (reason === 'insufficient_credits') {
         title = 'Not Enough Credits';
-        message = `This action requires ${requiredCredits} credits. You have ${userCredits.credits} remaining.`;
+        message = `This action requires ${requiredCredits} credits.You have ${userCredits.credits} remaining.`;
         icon = '🪙';
     } else if (reason === 'daily_limit') {
         title = 'Daily Limit Reached';
