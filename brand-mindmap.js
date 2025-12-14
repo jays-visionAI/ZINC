@@ -32,6 +32,7 @@ let treemap;
 let root; // Hierarchy root
 let activeNode = null;
 let selectedNodes = new Set();
+let clipboardData = null; // For Copy/Paste
 
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -337,6 +338,9 @@ function initCanvas() {
             if (event.target.tagName === 'svg') {
                 selectedNodes.clear();
                 updateSelectionVisuals();
+                document.getElementById('node-toolbar').classList.add('hidden');
+                document.getElementById('inspector-placeholder').classList.remove('hidden');
+                document.getElementById('inspector-content').classList.add('hidden');
             }
         })
         .call(zoomKey)
@@ -390,16 +394,16 @@ function update(source) {
     // Initial shape (hidden, will be handled by update logic)
     // We add nothing here because the update logic below handles shape creation/switching
 
-    // Drag Behavior
+    // Drag Behavior (Updated with Reparenting logic)
     const dragBehavior = d3.drag()
         .on("start", (event, d) => {
             if (event.active) return;
+            // Hide toolbar during drag
+            document.getElementById('node-toolbar').classList.add('hidden');
             d3.select(`#node-${d.id}`).raise();
-            if (!selectedNodes.has(d) && !event.sourceEvent.shiftKey && !event.sourceEvent.ctrlKey && !event.sourceEvent.metaKey) {
+
+            if (!selectedNodes.has(d) && !event.sourceEvent.shiftKey) {
                 selectedNodes.clear();
-                selectedNodes.add(d);
-                updateSelectionVisuals();
-            } else if (!selectedNodes.has(d)) {
                 selectedNodes.add(d);
                 updateSelectionVisuals();
             }
@@ -410,16 +414,70 @@ function update(source) {
             const dx = event.dx / scale;
             const dy = event.dy / scale;
 
-            let nodesToMove = selectedNodes;
-            if (nodesToMove.size === 0) nodesToMove = new Set([d]);
+            // Move visuals directly for feedback (Note: Visual X is Data Y)
+            d.y += dx;
+            d.x += dy;
 
-            nodesToMove.forEach(node => {
-                node.y += dx;
-                node.x += dy;
-                d3.select(`#node-${node.id}`).attr("transform", `translate(${node.y},${node.x})`);
+            d3.select(`#node-${d.id}`).attr("transform", `translate(${d.y},${d.x})`);
+
+            // Update connected links
+            g.selectAll('path.link').filter(l => l.source === d || l.target === d)
+                .attr('d', l => diagonal(l.source, l.target));
+        })
+        .on("end", (event, d) => {
+            if (!d.parent) { update(root); return; } // Cannot move root
+
+            let minDist = 80; // Collision Threshold
+            let target = null;
+
+            // Check collision with all potential parents
+            const allNodes = g.selectAll('g.node').data();
+
+            allNodes.forEach(node => {
+                if (node === d) return;
+                if (node === d.parent) return;
+
+                // Cycle prevention: node cannot be a descendant of d
+                let p = node;
+                while (p) {
+                    if (p === d) return;
+                    p = p.parent;
+                }
+
+                // Calc distance
+                const dist = Math.sqrt(Math.pow(node.y - d.y, 2) + Math.pow(node.x - d.x, 2));
+
+                if (dist < minDist) {
+                    minDist = dist;
+                    target = node;
+                }
             });
 
-            g.selectAll('path.link').attr('d', l => diagonal(l.source, l.target));
+            if (target) {
+                // --- MOVE LOGIC ---
+                console.log(`Reparenting ${d.data.name} to ${target.data.name}`);
+
+                // 1. Remove from old parent
+                const oldParentData = d.parent.data;
+                const childArr = oldParentData.children || oldParentData._children;
+                if (childArr) {
+                    const idx = childArr.indexOf(d.data);
+                    if (idx > -1) childArr.splice(idx, 1);
+                }
+
+                // 2. Add to new parent
+                if (!target.data.children && !target.data._children) target.data.children = [];
+                const targetArr = target.data.children || target.data._children;
+                targetArr.push(d.data);
+
+                // 3. Clear source visual (optional, update handles it)
+            }
+
+            // Whether moved or not, we re-layout the tree
+            update(root);
+
+            // Re-show toolbar if node still exists and is selected
+            if (selectedNodes.has(d)) updateToolbarPosition(d);
         });
 
     nodeEnter.call(dragBehavior);
@@ -585,6 +643,83 @@ function click(event, d) {
     }
     updateSelectionVisuals();
     inspectNode(d);
+    updateToolbarPosition(d);
+}
+
+function updateToolbarPosition(d) {
+    const toolbar = document.getElementById('node-toolbar');
+    toolbar.classList.remove('hidden');
+
+    // Calculate position relative to viewport/container
+    const nodeEl = document.getElementById(`node-${d.id}`);
+    if (nodeEl) {
+        const rect = nodeEl.getBoundingClientRect();
+        // Adjust for sidebar/header offsets if necessary, but fixed/absolute usually works relative to view
+        // The container #mindmap-container is relative?
+        // Let's use page coordinates if toolbar is in body, or container relative if in main.
+        // It's in 'main' (relative). So we need relative position.
+
+        const containerRect = document.getElementById('mindmap-container').getBoundingClientRect();
+
+        const left = rect.left - containerRect.left + rect.width / 2;
+        const top = rect.top - containerRect.top - 10;
+
+        toolbar.style.left = `${left}px`;
+        toolbar.style.top = `${top}px`;
+
+        // Update Paste Button state
+        const btnPaste = document.getElementById('btn-paste');
+        if (clipboardData) btnPaste.classList.remove('hidden');
+        else btnPaste.classList.add('hidden');
+    }
+}
+
+// --- Toolbar Logic ---
+window.toolbarAction = function (action) {
+    if (!activeNode) return;
+
+    switch (action) {
+        case 'add':
+            fnAddChild();
+            break;
+        case 'copy':
+            // Deep copy, excluding circular refs & D3 props
+            const cleanData = (data) => {
+                return {
+                    name: data.name,
+                    description: data.description,
+                    memo: data.memo,
+                    sourceReference: data.sourceReference, // Reference copy is fine
+                    children: data.children ? data.children.map(cleanData) : (data._children ? data._children.map(cleanData) : [])
+                };
+            };
+            clipboardData = cleanData(activeNode.data);
+            document.getElementById('btn-paste').classList.remove('hidden');
+
+            // Show toast or feedback
+            const btnCopy = document.querySelector('button[title="Copy Branch"]');
+            const originalColor = btnCopy.style.color;
+            btnCopy.classList.add('text-emerald-400');
+            setTimeout(() => btnCopy.classList.remove('text-emerald-400'), 1000);
+            break;
+
+        case 'paste':
+            if (!clipboardData) return;
+            // Deep clone again for the new instance
+            const newData = JSON.parse(JSON.stringify(clipboardData));
+
+            if (!activeNode.children && !activeNode._children) activeNode.children = [];
+            const arr = activeNode.children || activeNode._children;
+            arr.push(newData);
+
+            update(activeNode);
+            break;
+
+        case 'delete':
+            fnDeleteNode();
+            document.getElementById('node-toolbar').classList.add('hidden');
+            break;
+    }
 }
 
 function updateSelectionVisuals() {
