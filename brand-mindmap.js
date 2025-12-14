@@ -88,6 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Inspector Edit Events
     document.getElementById('inp-name').addEventListener('input', (e) => updateActiveNode('name', e.target.innerText));
     document.getElementById('inp-desc').addEventListener('input', (e) => updateActiveNode('description', e.target.innerText));
+    document.getElementById('inp-memo').addEventListener('input', (e) => updateActiveNode('memo', e.target.value));
 });
 
 // --- Data Loading Logic ---
@@ -379,21 +380,17 @@ function update(source) {
     const node = g.selectAll('g.node')
         .data(nodes, d => d.id || (d.id = ++i));
 
+    // ENTER: Create new nodes
     const nodeEnter = node.enter().append('g')
         .attr('class', 'node')
         .attr('id', d => `node-${d.id}`)
         .attr('transform', d => `translate(${source.y0},${source.x0})`)
         .on('click', click);
 
-    nodeEnter.append('circle')
-        .attr('class', 'node')
-        .attr('r', 1e-6)
-        .style('fill', d => d._children ? CONFIG.colors.leaf : CONFIG.colors.bg)
-        .style('stroke', d => getNodeColor(d))
-        .style('stroke-width', '2px')
-        .style('cursor', 'pointer');
+    // Initial shape (hidden, will be handled by update logic)
+    // We add nothing here because the update logic below handles shape creation/switching
 
-    // Drag Behavior (Updated with multi-select logic)
+    // Drag Behavior
     const dragBehavior = d3.drag()
         .on("start", (event, d) => {
             if (event.active) return;
@@ -427,40 +424,93 @@ function update(source) {
 
     nodeEnter.call(dragBehavior);
 
-    nodeEnter.append('text')
-        .attr('dy', '.35em')
-        .attr('x', d => d.children || d._children ? -15 : 15)
-        .attr('text-anchor', d => d.children || d._children ? 'end' : 'start')
-        .text(d => d.data.name)
-        .style('fill', CONFIG.colors.textMuted)
-        .style('opacity', 0)
-        .style('cursor', 'pointer')
-        .style('font-size', '13px')
-        .style('font-weight', '500');
-
+    // MERGE: Update existing + Enter
     const nodeUpdate = nodeEnter.merge(node);
 
     nodeUpdate.transition().duration(CONFIG.duration)
         .attr('transform', d => `translate(${d.y},${d.x})`);
 
-    nodeUpdate.select('circle.node')
-        .attr('r', d => d.depth === 0 ? 12 : 8)
-        .style('fill', d => d._children ? getNodeColor(d) : CONFIG.colors.bg);
+    // DYNAMIC SHAPE RENDERING
+    // We clear content and re-render to support shape switching (Circle <-> rect)
+    nodeUpdate.each(function (d) {
+        const group = d3.select(this);
+        const hasChildren = d.children || d._children;
+        const isCategory = hasChildren;
+        const color = getNodeColor(d);
+        const name = d.data.name || "Node";
 
-    nodeUpdate.select('text')
-        .style('fill-opacity', 1)
-        .style('opacity', 1)
-        .text(d => d.data.name);
+        // Check if we need to re-render (optimization could come here, but for now clear logic ensures consistency)
+        // Simplest strategy: Remove mismatched shapes (e.g. if isCategory but found circle)
+        // Or just clear all content to be safe.
+        group.selectAll('*').remove();
 
+        if (isCategory) {
+            // --- ROUNDED RECTANGLE (Category) ---
+            const fontSize = 12;
+            const paddingX = 24;
+            const charWidth = 7; // Approx
+            const minWidth = 80;
+            const width = Math.max(minWidth, name.length * charWidth + paddingX);
+            const height = 32;
+
+            group.append('rect')
+                .attr('class', 'node-shape') // Shared class for selection logic
+                .attr('rx', 16)
+                .attr('ry', 16)
+                .attr('x', -width / 2)
+                .attr('y', -height / 2)
+                .attr('width', width)
+                .attr('height', height)
+                .style('fill', color)
+                .style('stroke', '#fff')
+                .style('stroke-width', '2px')
+                .style('cursor', 'pointer');
+
+            group.append('text')
+                .attr('dy', '0.35em')
+                .attr('text-anchor', 'middle')
+                .text(name)
+                .style('fill', '#ffffff')
+                .style('font-size', '12px')
+                .style('font-weight', 'bold')
+                .style('pointer-events', 'none') // Clean clicks
+                .style('text-shadow', '0 1px 2px rgba(0,0,0,0.3)');
+
+        } else {
+            // --- CIRCLE (Leaf / Simple) ---
+            group.append('circle')
+                .attr('class', 'node-shape')
+                .attr('r', d.depth === 0 ? 12 : 8)
+                .style('fill', CONFIG.colors.bg)
+                .style('stroke', color)
+                .style('stroke-width', '2px')
+                .style('cursor', 'pointer');
+
+            group.append('text')
+                .attr('dy', '0.31em')
+                .attr('x', 14)
+                .attr('text-anchor', 'start')
+                .text(name)
+                .style('fill', CONFIG.colors.textMuted)
+                .style('font-size', '13px')
+                .style('font-weight', '500')
+                .style('pointer-events', 'none')
+                .style('opacity', 1);
+        }
+    });
+
+    // Apply selection visuals after re-rendering
     updateSelectionVisuals();
 
+    // EXIT
     const nodeExit = node.exit().transition().duration(CONFIG.duration)
         .attr('transform', d => `translate(${source.y},${source.x})`)
         .remove();
 
-    nodeExit.select('circle').attr('r', 1e-6);
-    nodeExit.select('text').style('fill-opacity', 1e-6);
+    nodeExit.style('opacity', 0);
+    // nodeExit.select('.node-shape').attr('r', 1e-6); // Generic fade out handles it
 
+    // LINKS
     const link = g.selectAll('path.link')
         .data(links, d => d.target.id);
 
@@ -538,21 +588,33 @@ function click(event, d) {
 }
 
 function updateSelectionVisuals() {
-    g.selectAll('circle.node')
+    // Reset all shapes
+    g.selectAll('.node-shape')
         .style('stroke', d => getNodeColor(d))
         .style('stroke-width', '2px')
         .style('stroke-dasharray', null);
 
-    g.selectAll('text').style('fill', CONFIG.colors.textMuted);
+    // Reset leaf text colors only (categories have white text inside)
+    g.selectAll('text').each(function (d) {
+        if (!(d.children || d._children)) {
+            d3.select(this).style('fill', CONFIG.colors.textMuted);
+        }
+    });
 
     selectedNodes.forEach(d => {
         const nodeGroup = d3.select(`#node-${d.id}`);
-        nodeGroup.select('circle')
-            .style('stroke', CONFIG.colors.selected)
-            .style('stroke-width', '3px')
-            .style('stroke-dasharray', '2,2');
+        const shape = nodeGroup.select('.node-shape');
 
-        nodeGroup.select('text').style('fill', CONFIG.colors.text);
+        if (!shape.empty()) {
+            shape.style('stroke', CONFIG.colors.selected)
+                .style('stroke-width', '3px')
+                .style('stroke-dasharray', '4,2');
+        }
+
+        // Highlight text for leaf nodes
+        if (!(d.children || d._children)) {
+            nodeGroup.select('text').style('fill', CONFIG.colors.text);
+        }
     });
 }
 
@@ -568,6 +630,7 @@ function inspectNode(d) {
 
     document.getElementById('inp-name').innerText = d.data.name;
     document.getElementById('inp-desc').innerText = d.data.description || "No description available.";
+    document.getElementById('inp-memo').value = d.data.memo || "";
 
     const sourceCard = document.getElementById('source-card');
 
