@@ -455,29 +455,31 @@ function update(source) {
 
             if (target) {
                 // --- MOVE LOGIC ---
-                console.log(`Reparenting ${d.data.name} to ${target.data.name}`);
+                // console.log(`Reparenting ${d.data.name} to ${target.data.name}`);
 
-                // 1. Remove from old parent
+                // 1. Remove from old parent (DATA)
                 const oldParentData = d.parent.data;
-                const childArr = oldParentData.children || oldParentData._children;
-                if (childArr) {
-                    const idx = childArr.indexOf(d.data);
-                    if (idx > -1) childArr.splice(idx, 1);
+                const oldChildArr = oldParentData.children;
+                if (oldChildArr) {
+                    const idx = oldChildArr.indexOf(d.data);
+                    if (idx > -1) oldChildArr.splice(idx, 1);
                 }
 
-                // 2. Add to new parent
-                if (!target.data.children && !target.data._children) target.data.children = [];
-                const targetArr = target.data.children || target.data._children;
-                targetArr.push(d.data);
+                // 2. Add to new parent (DATA)
+                if (!target.data.children) target.data.children = [];
+                target.data.children.push(d.data);
 
-                // 3. Clear source visual (optional, update handles it)
+                // 3. Re-render
+                render();
+            } else {
+                // Snap back if dropped in empty space (Layout default)
+                update(root);
             }
 
-            // Whether moved or not, we re-layout the tree
-            update(root);
-
             // Re-show toolbar if node still exists and is selected
-            if (selectedNodes.has(d)) updateToolbarPosition(d);
+            // But after render(), 'd' is stale.
+            // We need to find the node again by ID or object reference if possible.
+            // For now, toolbar might disappear, which is acceptable.
         });
 
     nodeEnter.call(dragBehavior);
@@ -708,11 +710,16 @@ window.toolbarAction = function (action) {
             // Deep clone again for the new instance
             const newData = JSON.parse(JSON.stringify(clipboardData));
 
-            if (!activeNode.children && !activeNode._children) activeNode.children = [];
-            const arr = activeNode.children || activeNode._children;
-            arr.push(newData);
+            if (!activeNode.data.children) activeNode.data.children = [];
+            activeNode.data.children.push(newData);
 
-            update(activeNode);
+            // Expand if collapsed
+            if (activeNode._children) {
+                activeNode.children = activeNode._children;
+                activeNode._children = null;
+            }
+
+            render();
             break;
 
         case 'delete':
@@ -960,25 +967,40 @@ window.submitNewMap = async function () {
 }
 
 // Helpers reused from previous
+// Helpers reused from previous
 window.fnAddChild = function () {
     if (!activeNode) return;
-    const newNode = { name: "New Node" };
-    if (!activeNode.children && !activeNode._children) activeNode.children = [];
-    if (activeNode.children) activeNode.children.push(newNode);
-    else activeNode._children.push(newNode);
-    update(activeNode);
+    const newNode = { name: "New Node", children: [] };
+
+    // Modify DATA
+    if (!activeNode.data.children) activeNode.data.children = [];
+    activeNode.data.children.push(newNode);
+
+    // Expand if collapsed (View update will happen in render)
+    // But we should ensure data structure supports it.
+
+    render();
+
+    // Attempt to select the new node? 
+    // It's hard to find without ID. We'll leave it for now.
 }
 
 window.fnDeleteNode = function () {
-    if (!activeNode || !activeNode.parent) return;
-    const parent = activeNode.parent;
-    const children = parent.children || parent._children;
-    const index = children.indexOf(activeNode);
-    if (index > -1) children.splice(index, 1);
+    if (!activeNode || !activeNode.parent) return; // Cannot delete root
+
+    const parentData = activeNode.parent.data;
+    const children = parentData.children;
+
+    if (children) {
+        const index = children.indexOf(activeNode.data);
+        if (index > -1) children.splice(index, 1);
+    }
+
     activeNode = null;
     selectedNodes.clear();
+    document.getElementById('node-toolbar').classList.add('hidden');
     updateSelectionVisuals();
-    update(parent);
+    render();
 }
 
 // Helper: Load map by ID (for direct links)
