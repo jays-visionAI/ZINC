@@ -455,8 +455,8 @@ Feel free to ask me anything about using ZYNK!
         this.lastVisitedPage = this.currentPage;
     },
 
-    addMessage(type, content, saveToHistory = true) {
-        const message = { type, content, time: new Date().toISOString() };
+    addMessage(type, content, saveToHistory = true, model = null, provider = null) {
+        const message = { type, content, time: new Date().toISOString(), model, provider };
         this.messages.push(message);
         this.renderMessage(message);
         this.scrollToBottom();
@@ -475,9 +475,17 @@ Feel free to ask me anything about using ZYNK!
 
         const messageEl = document.createElement('div');
         messageEl.className = `chatbot-message ${message.type}`;
+        const metaHtml = message.model ?
+            `<div class="chatbot-meta" style="font-size: 10px; opacity: 0.6; margin-top: 6px; text-align: right; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 4px;">
+                ${message.provider === 'google' || message.provider === 'gemini' ? '✨' : '🤖'} ${message.model}
+             </div>` : '';
+
         messageEl.innerHTML = `
             <div class="chatbot-message-avatar">${avatar}</div>
-            <div class="chatbot-message-content">${this.formatContent(message.content)}</div>
+            <div class="chatbot-message-content">
+                ${this.formatContent(message.content)}
+                ${metaHtml}
+            </div>
         `;
 
         container.appendChild(messageEl);
@@ -546,9 +554,15 @@ Feel free to ask me anything about using ZYNK!
 
         try {
             // Call Firebase function
-            const response = await this.callAI(question);
+            // Call Firebase function
+            const responseObj = await this.callAI(question);
             this.hideTyping();
-            this.addMessage('bot', response);
+
+            if (typeof responseObj === 'object' && responseObj.answer) {
+                this.addMessage('bot', responseObj.answer, true, responseObj.model, responseObj.provider);
+            } else {
+                this.addMessage('bot', responseObj);
+            }
 
             // Update usage
             this.usageCount++;
@@ -594,7 +608,11 @@ Feel free to ask me anything about using ZYNK!
                     this.updateUsageBadge();
                 }
 
-                return result.data.answer;
+                return {
+                    answer: result.data.answer,
+                    model: result.data.model,
+                    provider: result.data.provider
+                };
             } catch (error) {
                 console.error('[Chatbot] Firebase function error:', error);
                 console.error('[Chatbot] Error code:', error.code);

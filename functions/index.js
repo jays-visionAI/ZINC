@@ -1331,19 +1331,8 @@ exports.askZynkBot = onCall({ cors: true }, async (request) => {
             );
         }
 
-        // 4. Get OpenAI API key
-        console.log('[askZynkBot] Getting OpenAI API key...');
-        const openaiApiKey = await getOpenAIApiKey();
-
-        if (!openaiApiKey) {
-            console.error('[askZynkBot] OpenAI API key not found');
-            throw new functions.https.HttpsError('failed-precondition', 'AI Service (OpenAI) is not configured.');
-        }
-
-        // 5. Call OpenAI API
-        console.log('[askZynkBot] Calling OpenAI API (Model: gpt-4o)...');
-        const OpenAI = require('openai');
-        const openai = new OpenAI({ apiKey: openaiApiKey });
+        // 4. Route via LLM Router (Phase 2 Integration)
+        console.log('[askZynkBot] Routing to LLM Provider...');
 
         const messages = [
             { role: "system", content: systemPrompt },
@@ -1351,58 +1340,82 @@ exports.askZynkBot = onCall({ cors: true }, async (request) => {
         ];
 
         let answer = "";
-        let usedModel = "gpt-4o";
+        let usedModel = "";
+        let usedProvider = "";
+        let usageData = {};
 
         try {
-            const completion = await openai.chat.completions.create({
-                model: "gpt-4o",
+            // Use LLMRouter to pick the best model (Gemini 3.0, Nano Banana, or OpenAI)
+            // 'CHATBOT' feature will default to Google/Gemini if not explicitly overridden
+            const routerResult = await llmRouter.route({
+                feature: 'CHATBOT',
+                userId: userId,
                 messages: messages,
-                max_tokens: 1000
+                callLLM: callLLM
             });
-            answer = completion.choices[0].message.content;
-            console.log(`[askZynkBot] Success with model: ${usedModel}`);
 
-        } catch (err) {
-            console.warn(`[askZynkBot] Failed with gpt-4o, trying gpt-3.5-turbo fallback:`, err.message);
+            answer = routerResult.content;
+            usedModel = routerResult.model;
+            usedProvider = routerResult.routing?.provider || 'unknown';
+            usageData = routerResult.usage || {};
+
+            console.log(`[askZynkBot] Generation Success. Provider: ${usedProvider}, Model: ${usedModel}`);
+
+        } catch (error) {
+            console.warn('[askZynkBot] Router execution failed, attempting Legacy OpenAI Fallback:', error.message);
+
             try {
-                usedModel = "gpt-3.5-turbo";
-                const fallbackCompletion = await openai.chat.completions.create({
-                    model: "gpt-3.5-turbo",
+                // FALLBACK: Direct OpenAI Call
+                const apiKey = await getSystemApiKey('openai');
+                if (!apiKey) throw new Error("OpenAI API Key not found for fallback");
+
+                const OpenAI = require('openai');
+                const openai = new OpenAI({ apiKey });
+
+                const completion = await openai.chat.completions.create({
+                    model: "gpt-4o-mini", // Use mini for fallback speed
                     messages: messages,
                     max_tokens: 1000
                 });
-                answer = fallbackCompletion.choices[0].message.content;
-                console.log(`[askZynkBot] Success with model: ${usedModel}`);
-            } catch (fallbackErr) {
-                console.error('[askZynkBot] All OpenAI models failed:', fallbackErr);
-                throw new functions.https.HttpsError('internal', 'AI generation failed.');
+
+                answer = completion.choices[0].message.content;
+                usedModel = "gpt-4o-mini (fallback)";
+                usedProvider = "openai";
+                usageData = completion.usage;
+
+            } catch (fallbackError) {
+                console.error('[askZynkBot] All generation attempts failed:', fallbackError);
+                throw new functions.https.HttpsError('internal', 'AI service unavailable. Please try again later.');
             }
         }
 
-        // 6. Update usage stats
+        // 5. Update Usage Stats
         try {
             await db.collection('system_stats').doc('chatbot_usage').set({
                 total_queries: admin.firestore.FieldValue.increment(1),
                 last_query_at: admin.firestore.FieldValue.serverTimestamp(),
-                last_provider: 'openai',
+                last_provider: usedProvider,
                 last_model: usedModel
             }, { merge: true });
         } catch (statsErr) {
-            console.error('[askZynkBot] Error updating stats:', statsErr);
+            console.error('[askZynkBot] Stats update error:', statsErr);
         }
 
-        // 7. Update user-specific usage count
+        // 6. Update user-specific usage count
         await usageRef.set({
             userId,
             count: currentCount + 1,
             date: today,
-            lastUsed: admin.firestore.FieldValue.serverTimestamp()
+            lastUsed: admin.firestore.FieldValue.serverTimestamp(),
+            lastModel: usedModel
         }, { merge: true });
 
-        console.log(`[askZynkBot] Successfully responded to user ${userId} (${currentCount + 1}/${dailyLimit})`);
+        console.log(`[askZynkBot] Response sent to user ${userId}`);
 
         return {
             answer,
+            model: usedModel,
+            provider: usedProvider,
             usage: {
                 count: currentCount + 1,
                 limit: dailyLimit
