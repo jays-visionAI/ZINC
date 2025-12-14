@@ -3803,10 +3803,10 @@ function renderPlanVersions() {
     if (!tabsContainer || planVersions.length === 0) return;
 
     tabsContainer.innerHTML = planVersions.map((v, i) => `
-                < button class="plan-version-tab px-3 py-1.5 text-xs rounded-lg border transition-all ${i === planVersions.length - 1 ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'}"
-            onclick = "selectPlanVersion(${i})" data - index="${i}" >
-                Version ${i + 1}
-        </button >
+        <button class="plan-version-tab px-3 py-1.5 text-xs rounded-lg border transition-all ${i === planVersions.length - 1 ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'}"
+            onclick="selectPlanVersion(${i})" data-index="${i}">
+            Version ${i + 1}
+        </button>
                 `).join('');
 
     // Select the latest version by default
@@ -3838,7 +3838,7 @@ function selectPlanVersion(index) {
     if (currentPlan.type === 'brand_mind_map') {
         const hasData = version.mindMapData && Object.keys(version.mindMapData).length > 0;
         contentHtml += `
-                < div class="mb-4 p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-xl flex items-center justify-between" >
+            <div class="mb-4 p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-xl flex items-center justify-between">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400">🧠</div>
                     <div>
@@ -3849,15 +3849,15 @@ function selectPlanVersion(index) {
                 <button onclick="openMindMapWindow(${index})" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-lg transition-colors shadow-lg shadow-indigo-500/20">
                     Open Mind Map ↗
                 </button>
-            </div > `;
+            </div>`;
     }
 
     // Show Weight Report Button if data exists
     if (version.weightBreakdown && version.weightBreakdown.length > 0) {
         contentHtml += `
-                < div class="mb-6 flex justify-end" >
-                    <button onclick="openWeightReport(planVersions[${index}]?.weightBreakdown, '${currentPlan?.name || 'Content Plan'}')" class="text-xs text-indigo-400 hover:text-white flex items-center gap-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 px-3 py-1.5 rounded-lg border border-indigo-500/20 transition-all">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+            <div class="mb-6 flex justify-end">
+                <button onclick="openWeightReport(planVersions[${index}]?.weightBreakdown, '${currentPlan?.name || 'Content Plan'}')" class="text-xs text-indigo-400 hover:text-white flex items-center gap-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 px-3 py-1.5 rounded-lg border border-indigo-500/20 transition-all">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
                         View Source Weights
                     </button>
             </div > `;
