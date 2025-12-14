@@ -105,10 +105,9 @@ async function loadSidebarData() {
         for (const pDoc of projectsSnap.docs) {
             const pData = pDoc.data();
 
-            // Query for mind maps
+            // Query for mind maps (removed orderBy to avoid index requirement)
             const mapsSnap = await db.collection(`projects/${pDoc.id}/contentPlans`)
                 .where('type', '==', 'brand_mind_map')
-                .orderBy('createdAt', 'desc') // Assuming createdAt exists
                 .get();
 
             if (!mapsSnap.empty) {
@@ -116,6 +115,13 @@ async function loadSidebarData() {
                     id: doc.id,
                     ...doc.data()
                 }));
+
+                // Client-side sorting (Newest first)
+                maps.sort((a, b) => {
+                    const timeA = a.createdAt ? (a.createdAt.toMillis ? a.createdAt.toMillis() : new Date(a.createdAt)) : 0;
+                    const timeB = b.createdAt ? (b.createdAt.toMillis ? b.createdAt.toMillis() : new Date(b.createdAt)) : 0;
+                    return timeB - timeA;
+                });
 
                 projectGroups.push({
                     projectId: pDoc.id,
