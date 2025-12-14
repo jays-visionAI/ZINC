@@ -1148,6 +1148,19 @@ window.seedLLMRouterData = async function () {
         const models = [
             // --- Google Gemini ---
             {
+                id: 'nano-banana-pro',
+                provider: 'gemini',
+                modelId: 'nano-banana-pro',
+                displayName: 'Nano Banana Pro (Image)',
+                tier: 'premium',
+                creditPer1kTokens: 5.0,
+                costPer1kInputTokens: 0.0100,
+                costPer1kOutputTokens: 0.0400,
+                maxContextTokens: 1000000,
+                isActive: true,
+                codeReady: false
+            },
+            {
                 id: 'gemini-3-pro-preview',
                 provider: 'gemini',
                 modelId: 'gemini-3-pro-preview',
@@ -1263,7 +1276,7 @@ window.seedLLMRouterData = async function () {
         });
 
         await batch.commit();
-        alert('✅ LLM Models seeded successfully! Gemini 3.0 Pro added.');
+        alert('✅ LLM Models seeded successfully! Gemini 3.0 & Nano Banana added.');
         refreshLLMModels();
     } catch (error) {
         console.error('Error seeding LLM models:', error);

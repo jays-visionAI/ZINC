@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Brand Brain - Strategy War Room</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              slate: { 850: '#151f32', 900: '#0f172a', 950: '#020617' },
+              brand: { 500: '#6366f1', 600: '#4f46e5' },
+              accent: { 500: '#10b981' }
+            },
+            fontFamily: { sans: ['Inter', 'sans-serif'] }
+          },
+        },
+      };
+    </script>
+    <style>
+      body { background-color: #020617; color: #f8fafc; }
+    </style>
+</head>
+<body class="min-h-screen bg-slate-950 text-slate-100 font-sans">
+    <!-- Header -->
+    <header class="h-16 bg-slate-950/80 backdrop-blur-md border-b border-slate-800 flex items-center px-6 gap-4 sticky top-0 z-50">
+        <a href="brandBrain.html" class="p-2 hover:bg-slate-800 rounded-lg text-slate-400 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        </a>
+        <div class="flex items-center gap-2">
+             <div class="bg-purple-900/30 p-2 rounded-lg text-purple-400">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+             </div>
+             <div>
+                <h1 class="text-lg font-bold leading-none">Strategy War Room</h1>
+                <span class="text-[10px] text-slate-500 uppercase tracking-widest">Directive Center</span>
+             </div>
+        </div>
+        <div class="ml-auto flex items-center gap-3">
+             <button class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium rounded-lg transition-colors">Discard</button>
+             <button class="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-sm font-bold rounded-lg shadow-lg shadow-brand-500/20 transition-colors">Deploy Strategy</button>
+        </div>
+    </header>
+
+    <main class="p-6 max-w-[1200px] mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- COL 1: Voice DNA & Archetype -->
+        <div class="space-y-6">
+            <!-- Voice DNA Radar -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                <h2 class="text-sm font-bold text-slate-400 uppercase mb-4 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4"/><path d="m16.2 7.8 2.9-2.9"/><path d="M18 12h4"/><path d="m16.2 16.2 2.9 2.9"/><path d="M12 18v4"/><path d="m7.8 16.2-2.9 2.9"/><path d="M6 12H2"/><path d="m7.8 7.8-2.9-2.9"/></svg>
+                    Voice DNA
+                </h2>
+                <div class="aspect-square bg-slate-950/50 rounded-xl border border-slate-800 relative flex items-center justify-center" id="radar-chart-container">
+                    <!-- SVG Chart injected via JS -->
+                </div>
+                <div class="mt-4 grid grid-cols-2 gap-2 text-xs">
+                    <div class="flex justify-between p-2 bg-slate-800/50 rounded">
+                        <span class="text-slate-500">Witty</span>
+                        <span class="text-purple-400 font-bold" id="val-witty">70%</span>
+                    </div>
+                    <div class="flex justify-between p-2 bg-slate-800/50 rounded">
+                        <span class="text-slate-500">Formal</span>
+                        <span class="text-purple-400 font-bold" id="val-formal">30%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Archetype Selector -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                <h2 class="text-sm font-bold text-slate-400 uppercase mb-4">Brand Archetype</h2>
+                <div class="space-y-3">
+                    <label class="flex items-center gap-3 p-3 bg-brand-500/10 border border-brand-500/50 rounded-xl cursor-pointer transition-all">
+                        <input type="radio" name="archetype" class="text-brand-600 focus:ring-brand-500" checked>
+                        <div class="flex-1">
+                            <div class="font-bold text-white text-sm">The Sage</div>
+                            <div class="text-[10px] text-brand-200/70">Knowledgeable, Trustworthy, Analytical</div>
+                        </div>
+                    </label>
+                    <label class="flex items-center gap-3 p-3 bg-slate-800/30 border border-slate-700 hover:border-slate-600 rounded-xl cursor-pointer transition-all opacity-60 hover:opacity-100">
+                        <input type="radio" name="archetype" class="text-brand-600 focus:ring-brand-500">
+                        <div class="flex-1">
+                            <div class="font-bold text-slate-300 text-sm">The Creator</div>
+                            <div class="text-[10px] text-slate-500">Innovative, Artistic, Visionary</div>
+                        </div>
+                    </label>
+                    <label class="flex items-center gap-3 p-3 bg-slate-800/30 border border-slate-700 hover:border-slate-600 rounded-xl cursor-pointer transition-all opacity-60 hover:opacity-100">
+                        <input type="radio" name="archetype" class="text-brand-600 focus:ring-brand-500">
+                        <div class="flex-1">
+                            <div class="font-bold text-slate-300 text-sm">The Caregiver</div>
+                            <div class="text-[10px] text-slate-500">Compassionate, Nurturing, Warm</div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- COL 2 & 3: Platform Tactics & Rules -->
+        <div class="lg:col-span-2 space-y-6">
+            
+            <!-- Platform Tactics -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                 <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-sm font-bold text-slate-400 uppercase">Platform Tactics</h2>
+                    <div class="flex bg-slate-800 p-1 rounded-lg">
+                        <button class="px-3 py-1 text-xs font-bold text-white bg-slate-700 rounded shadow-sm">Instagram</button>
+                        <button class="px-3 py-1 text-xs font-medium text-slate-500 hover:text-slate-300">LinkedIn</button>
+                        <button class="px-3 py-1 text-xs font-medium text-slate-500 hover:text-slate-300">Twitter</button>
+                    </div>
+                 </div>
+
+                 <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4">
+                    <div class="flex gap-4">
+                        <div class="w-12 h-12 bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 rounded-xl flex items-center justify-center shrink-0">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
+                        </div>
+                        <div class="flex-1 space-y-3">
+                            <div class="flex justify-between">
+                                <label class="text-xs text-slate-400 font-semibold uppercase">Post Length</label>
+                                <span class="text-xs text-slate-200">Short (100-300 chars)</span>
+                            </div>
+                            <input type="range" class="w-full h-1 bg-slate-800 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full" value="30">
+                            
+                            <div class="flex justify-between pt-2">
+                                <label class="text-xs text-slate-400 font-semibold uppercase">Emoji Usage</label>
+                                <span class="text-xs text-slate-200">High</span>
+                            </div>
+                            <input type="range" class="w-full h-1 bg-slate-800 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full" value="80">
+
+                             <div class="flex justify-between pt-2">
+                                <label class="text-xs text-slate-400 font-semibold uppercase">Hashtag Density</label>
+                                <span class="text-xs text-slate-200">10-15 Tags</span>
+                            </div>
+                            <input type="range" class="w-full h-1 bg-slate-800 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full" value="60">
+                        </div>
+                    </div>
+                 </div>
+            </div>
+
+            <!-- Rules of Engagement -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                 <h2 class="text-sm font-bold text-slate-400 uppercase mb-4">Rules of Engagement</h2>
+                 <div class="grid grid-cols-2 gap-6">
+                    
+                    <!-- DOs -->
+                    <div class="space-y-3">
+                        <div class="flex items-center gap-2 text-emerald-500 mb-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+                            <span class="font-bold text-sm">Always Do</span>
+                        </div>
+                        <div id="dos-container" class="space-y-2">
+                            <!-- JS Generated -->
+                        </div>
+                        <div class="flex gap-2">
+                            <input type="text" placeholder="Add new rule..." class="bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs w-full focus:outline-none focus:border-emerald-500 transition-colors">
+                            <button class="bg-slate-800 hover:bg-emerald-500/20 hover:text-emerald-400 text-slate-400 p-1.5 rounded transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- DON'Ts -->
+                    <div class="space-y-3">
+                        <div class="flex items-center gap-2 text-red-500 mb-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+                            <span class="font-bold text-sm">Never Do</span>
+                        </div>
+                        <div id="donts-container" class="space-y-2">
+                             <!-- JS Generated -->
+                        </div>
+                         <div class="flex gap-2">
+                            <input type="text" placeholder="Add restriction..." class="bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs w-full focus:outline-none focus:border-red-500 transition-colors">
+                            <button class="bg-slate-800 hover:bg-red-500/20 hover:text-red-400 text-slate-400 p-1.5 rounded transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                 </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script src="strategyWarRoom.js"></script>
+</body>
+</html>

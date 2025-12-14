@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Brand Brain - Live Trends</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              slate: { 850: '#151f32', 900: '#0f172a', 950: '#020617' },
+              brand: { 500: '#6366f1', 600: '#4f46e5' },
+              fire: { 500: '#f97316', 600: '#ea580c' } // Orange for trends
+            },
+            fontFamily: { sans: ['Inter', 'sans-serif'] }
+          },
+        },
+      };
+    </script>
+    <style>
+      body { background-color: #020617; color: #f8fafc; }
+      .heatmap-cell:hover { transform: scale(1.2); z-index: 10; border-color: white; }
+    </style>
+</head>
+<body class="min-h-screen bg-slate-950 text-slate-100 font-sans">
+    
+    <!-- Header -->
+    <header class="h-16 bg-slate-950/80 backdrop-blur-md border-b border-slate-800 flex items-center px-6 gap-4 sticky top-0 z-50">
+        <a href="marketPulse.html" class="p-2 hover:bg-slate-800 rounded-lg text-slate-400 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        </a>
+        <div class="flex items-center gap-2">
+             <div class="bg-orange-900/30 p-2 rounded-lg text-orange-400 animate-pulse">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+             </div>
+             <div>
+                <h1 class="text-lg font-bold leading-none">Live Trends</h1>
+                <span class="text-[10px] text-slate-500 uppercase tracking-widest">Real-time Stream</span>
+             </div>
+        </div>
+        <div class="ml-auto flex items-center gap-3">
+             <button class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg border border-slate-700 transition-colors flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                Config Sources
+             </button>
+        </div>
+    </header>
+
+    <main class="p-6 max-w-[1400px] mx-auto space-y-6">
+
+        <!-- Top Row: Leaderboard + Detail Chart -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[500px]">
+            
+            <!-- Left: Leaderboard -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col">
+                <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wide mb-4">Trending Keywords</h2>
+                <div class="flex-1 overflow-y-auto pr-2 space-y-2" id="leaderboard">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- Right: Detail Chart -->
+            <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col relative">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <div class="flex items-center gap-3">
+                            <h2 class="text-2xl font-bold text-white" id="detail-title">#CleanBeauty</h2>
+                            <span class="px-2 py-0.5 bg-orange-500/10 text-orange-400 border border-orange-500/20 rounded text-xs font-bold">+340%</span>
+                        </div>
+                        <p class="text-sm text-slate-400 mt-1">24h Volume Analysis • <span class="text-emerald-400">Positive Sentiment Dominant</span></p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-lg transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                        </button>
+                        <button class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-lg shadow-lg shadow-indigo-500/20 transition-colors">
+                            Create Content
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Chart Area -->
+                <div class="flex-1 w-full bg-slate-950/50 rounded-xl border border-slate-800 relative overflow-hidden" id="detail-chart">
+                    <!-- SVG Chart via JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Row: Heatmap & AI Assistant -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Heatmap -->
+            <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wide">Sentiment Heatmap (Last 7 Days)</h2>
+                    <div class="flex gap-4 text-[10px] text-slate-500 font-medium">
+                        <div class="flex items-center gap-1"><div class="w-2 h-2 bg-emerald-500 rounded-sm"></div> Pos</div>
+                        <div class="flex items-center gap-1"><div class="w-2 h-2 bg-slate-700 rounded-sm"></div> Neu</div>
+                        <div class="flex items-center gap-1"><div class="w-2 h-2 bg-red-500 rounded-sm"></div> Neg</div>
+                    </div>
+                </div>
+                <!-- Grid Container -->
+                <div class="w-full overflow-x-auto">
+                    <div id="heatmap-grid" class="min-w-[600px]">
+                        <!-- JS Generated -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Smart Assistant -->
+            <div class="bg-gradient-to-br from-indigo-900/40 to-slate-900 border border-indigo-500/20 rounded-2xl p-6 shadow-xl">
+                 <div class="flex items-center gap-2 mb-4">
+                    <div class="bg-indigo-500 p-1.5 rounded-lg text-white">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5"/><path d="M8.5 8.5v.01"/><path d="M16 15.5v.01"/><path d="M12 12v.01"/><path d="M11 17v.01"/><path d="M7 14v.01"/></svg>
+                    </div>
+                    <h2 class="text-sm font-bold text-indigo-300">Smart Assistant</h2>
+                 </div>
+                 
+                 <div class="space-y-4">
+                    <p class="text-sm text-slate-300">
+                        Based on your core identity <span class="text-white font-semibold">"Eco-conscious Beauty"</span>, AI recommends monitoring these emerging keywords:
+                    </p>
+
+                    <div id="ai-recommendations" class="space-y-2">
+                        <!-- Rec Item 1 -->
+                        <div class="flex items-center justify-between p-3 bg-slate-800/50 border border-slate-700 rounded-xl">
+                            <div>
+                                <div class="font-bold text-slate-200 text-sm">#BlueBeauty</div>
+                                <div class="text-[10px] text-slate-500">Ocean-safe ingredients • +120% Vol</div>
+                            </div>
+                            <button class="text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 p-1.5 rounded-lg transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                            </button>
+                        </div>
+                        
+                        <!-- Rec Item 2 -->
+                        <div class="flex items-center justify-between p-3 bg-slate-800/50 border border-slate-700 rounded-xl">
+                            <div>
+                                <div class="font-bold text-slate-200 text-sm">#SkinCycling</div>
+                                <div class="text-[10px] text-slate-500">Routine trend • +85% Vol</div>
+                            </div>
+                            <button class="text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 p-1.5 rounded-lg transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white text-xs font-bold rounded-lg transition-colors">
+                        Refresh Insights
+                    </button>
+                 </div>
+            </div>
+
+        </div>
+
+    </main>
+    <script src="liveTrends.js"></script>
+</body>
+</html>
