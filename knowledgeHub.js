@@ -4014,32 +4014,48 @@ async function savePlanToFirestore() {
             const isRegeneration = currentPlan.sessionId === latestPlan.sessionId;
 
             if (isRegeneration) {
-                versionNumber = `v${major}.${minor}.${patch + 1} `;
+                versionNumber = `v${major}.${minor}.${patch + 1}`;
             } else {
-                versionNumber = `v${major}.${minor + 1} .0`;
+                versionNumber = `v${major}.${minor + 1}.0`;
             }
         }
 
-        // Save to 'contentPlans' collection
-        await db.collection('projects').doc(currentProjectId)
-            .collection('contentPlans').add({
-                type: currentPlan.type,      // Changed from planType
-                title: currentPlan.name,     // Changed from planName
-                content: version.content,
-                language: targetLanguage,
-                creditsUsed: currentPlan.credits,
-                version: versionNumber,
-                sessionId: currentPlan.sessionId || generateSessionId(),
-                weightBreakdown: version.weightBreakdown || [],
-                mindMapData: version.mindMapData || null,
-                category: currentPlan.category || 'strategic', // Needed for icons
-                status: 'completed',          // Needed for badges
-                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                createdBy: currentUser?.uid
-            });
+        // Check for existing save (Upsert Logic)
+        if (currentPlan.savedId) {
+            await db.collection('projects').doc(currentProjectId)
+                .collection('contentPlans').doc(currentPlan.savedId)
+                .update({
+                    content: version.content,
+                    mindMapData: version.mindMapData || null,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
 
-        showNotification(`Plan saved as ${versionNumber} !`, 'success');
+            showNotification('Plan updated successfully!', 'success');
+        } else {
+            // Save new to 'contentPlans' collection
+            const docRef = await db.collection('projects').doc(currentProjectId)
+                .collection('contentPlans').add({
+                    type: currentPlan.type,
+                    title: currentPlan.name,
+                    content: version.content,
+                    language: targetLanguage,
+                    creditsUsed: currentPlan.credits,
+                    version: versionNumber,
+                    sessionId: currentPlan.sessionId || generateSessionId(),
+                    weightBreakdown: version.weightBreakdown || [],
+                    mindMapData: version.mindMapData || null,
+                    category: currentPlan.category || 'strategic',
+                    status: 'completed',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    createdBy: currentUser?.uid
+                });
+
+            // Prevent future duplicates
+            currentPlan.savedId = docRef.id;
+            showNotification(`Plan saved as ${versionNumber}!`, 'success');
+        }
+
         loadSavedPlans(); // Refresh saved plans list
     } catch (error) {
         console.error('Error saving plan:', error);
