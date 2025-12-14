@@ -214,6 +214,12 @@ function loadMapFromFirestore(project, map) {
         rootData = { name: map.title || "New Map", children: [] };
     } else {
         rootData = mapData; // Direct reference
+
+        // CHECK PERSISTENCE: If loaded data has layout, prevent auto-layout reset
+        const hasLayout = rootData.layout || (rootData.children && rootData.children.some(c => c.layout));
+        if (hasLayout) {
+            rootData.layoutInitialized = true;
+        }
     }
 
     // UI Updates
@@ -522,10 +528,11 @@ function updateToolbarPosition(data) {
     // Multi-select Logic for Buttons
     const btnAdd = document.getElementById('btn-node-add');
     if (selectedData.size > 1) {
-        // Disable Add for multi-selection
-        btnAdd.classList.add('opacity-30', 'pointer-events-none');
+        // Disable Add for multi-selection but keep visible
+        btnAdd.classList.add('opacity-40', 'pointer-events-none');
     } else {
-        btnAdd.classList.remove('opacity-30', 'pointer-events-none');
+        btnAdd.classList.remove('opacity-40', 'pointer-events-none');
+        btnAdd.classList.remove('opacity-30'); // remove old class if present
     }
 }
 
@@ -797,10 +804,10 @@ window.copyBranch = function () {
     if (btn) btn.style.color = '#34d399';
     setTimeout(() => { if (btn) btn.style.color = ''; }, 500);
 
-    // Refresh toolbar to show Paste if applicable (if single select remains?)
-    // Usually copy doesn't change selection, so toolbar stays.
-    // If activeNodeData exists, update toolbar.
-    if (activeNodeData) updateToolbarPosition(activeNodeData);
+    // Immediately show Paste button
+    if (contextNodeData || activeNodeData) {
+        updateToolbarPosition(contextNodeData || activeNodeData);
+    }
 };
 
 window.pasteBranch = function () {
