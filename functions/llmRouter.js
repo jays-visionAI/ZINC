@@ -9,10 +9,10 @@
 
 const admin = require('firebase-admin');
 
-// Default models if policy not found
+// Default models if policy not found (Updated for Gemini 3.0 / Nano Banana)
 const DEFAULT_MODELS = {
-    default: { provider: 'openai', model: 'gpt-5', creditMultiplier: 1.0 },
-    boost: { provider: 'openai', model: 'gpt-5.2', creditMultiplier: 2.5 }
+    default: { provider: 'google', model: 'gemini-3.0-pro', creditMultiplier: 1.0 },
+    boost: { provider: 'google', model: 'nano-banana-pro', creditMultiplier: 3.0 }
 };
 
 /**

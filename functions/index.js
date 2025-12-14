@@ -376,20 +376,16 @@ exports.routeLLM = functions.https.onCall(async (data, context) => {
 
             try {
                 // Determine fallback model based on Quality Tier
-                // BOOST -> gpt-4o (Premium)
-                // DEFAULT -> gpt-4o-mini (Standard/Economy)
-                const fallbackModel = (qualityTier === 'BOOST') ? 'gpt-4o' : 'gpt-4o-mini';
-                const fallbackProvider = 'openai';
+                // BOOST -> gemini-3.0-pro (Premium) or openai gpt-4o
+                // DEFAULT -> gemini-2.0-flash-exp (Standard/Speed)
+                // User requested to prioritize Gemini/Banana ecosystem.
+
+                const fallbackProvider = 'google';
+                const fallbackModel = (qualityTier === 'BOOST') ? 'gemini-3.0-pro' : 'gemini-2.0-flash-exp';
 
                 // Retry Generation
-                // callLLM signature: (provider, model, messages, temperature)
-                // It fetches API Key internally.
-
-                // Fix for o1 models requiring temperature 1.0 or remove it
                 let fallbackTemp = temperature;
-                if (fallbackModel.startsWith('o1')) {
-                    fallbackTemp = 1.0;
-                }
+                // Temperature adjustments for specific models if needed
 
                 const fallbackResult = await callLLM(fallbackProvider, fallbackModel, messages, fallbackTemp);
 
@@ -500,7 +496,10 @@ async function callLLM(provider, model, messages, temperature = 0.7) {
 
         case 'gemini':
         case 'google':
-            return await callGeminiInternal(apiKey, model || 'gemini-2.0-flash-exp', messages, temperature);
+        case 'banana':      // Nano Banana
+        case 'nano':        // Nano
+        case 'nano-banana': // explicit
+            return await callGeminiInternal(apiKey, model || 'gemini-3.0-pro', messages, temperature);
 
         case 'anthropic':
         case 'claude':
