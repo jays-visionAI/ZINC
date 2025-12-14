@@ -1,55 +1,57 @@
-# ZYNK Brand Mind Map - Functional Specification
-version: 2.1.0
+# ZYNK Brand Mind Map - 기능 명세서 (Functional Specification)
+버전: 2.1.0
 
-## 1. Overview
-The Brand Mind Map is an interactive, D3.js-powered visualization tool designed to edit and restructure brand strategy entities. It supports a hybrid layout system that starts with an organized tree structure but allows complete freedom of movement (Free Positioning).
+## 1. 개요 (Overview)
+Brand Mind Map은 브랜드 전략 엔티티를 구조화하고 편집할 수 있는 D3.js 기반의 인터랙티브 시각화 도구입니다. 초기에는 정리된 트리 구조로 시작하지만, 사용자가 자유롭게 배치할 수 있는 하이브리드 레이아웃 시스템을 지원합니다.
 
-## 2. Core Features
+## 2. 핵심 기능 (Core Features)
 
-### 2.1 Visualization & Layout
-- **Hybrid Free Layout**: 
-  - **Initial Load**: Uses `d3.tree` to automatically organize nodes hierarchically.
-  - **Interaction**: Once a node is moved, its position (x, y) is permanently saved in the data. Subsequent loads use these saved coordinates, ensuring the map looks exactly as you left it.
-  - **Persistence**: Coordinates are saved to Firestore within the `mindMapData` object.
-- **Node Styling**: 
-  - **Root/Concept Nodes**: Rendered as pill shapes with dynamic width based on text length.
-  - **Leaf Nodes**: Rendered as simple circles to reduce visual clutter.
-  - **Dynamic Coloring**: Nodes are colored based on their hierarchy branch (Hash-based coloring).
+### 2.1 시각화 및 레이아웃 (Visualization & Layout)
+- **하이브리드 자유 배치 (Hybrid Free Layout)**:
+  - **초기 로드**: `d3.tree` 알고리즘을 사용하여 노드들을 계층 구조에 맞게 자동으로 정렬합니다.
+  - **자유 이동**: 사용자가 노드를 이동시키면 해당 위치(x, y)가 데이터에 영구적으로 저장됩니다. 이후 다시 마인드맵을 열면 저장된 위치 그대로 복원됩니다 (Free Positioning).
+  - **데이터 지속성**: 좌표값은 `mindMapData` 객체 내에 저장되어 Firestore에 기록됩니다.
+- **노드 스타일링**:
+  - **루트/컨셉 노드**: 텍스트 길이에 따라 너비가 늘어나는 알약(Pill) 형태로 렌더링됩니다.
+  - **리프(Leaf) 노드**: 시각적 복잡도를 줄이기 위해 단순한 원형으로 렌더링됩니다.
+  - **동적 색상**: 계층 브랜치에 따라 해시 기반 컬러링 알고리즘이 적용되어 구분감을 줍니다.
 
-### 2.2 Interaction Controls
-- **Navigation**:
-  - **Zoom & Pan**: Use scroll wheel or trackpad to zoom/pan the canvas.
-  - **Zoom Controls**: Dedicated (+), (-), and [Fit View] buttons on the bottom left.
-- **Selection**:
-  - **Single Click**: Selects a generic node. Shows the Floating Toolbar and Node Inspector.
-  - **Shift + Click**: Selects multiple nodes. Used for batch operations (Move, Delete, Copy).
-  - **Click Background**: Deselects all nodes.
-- **Drag & Drop**:
-  - **Move**: Dragging a node moves it (and any selected peers) to a new position.
-  - **Reparenting**: Dragging a single node and dropping it onto another node attaches it as a child of that node.
+### 2.2 조작 및 인터랙션 (Interaction Controls)
+- **네비게이션 (Navigation)**:
+  - **줌 & 팬 (Zoom & Pan)**: 마우스 휠이나 트랙패드를 사용하여 캔버스를 확대/축소하거나 이동할 수 있습니다.
+  - **줌 컨트롤**: 화면 좌측 하단에 (+), (-), [Fit View] 버튼을 제공합니다.
+- **선택 (Selection)**:
+  - **단일 클릭**: 노드를 선택합니다. 선택 시 **플로팅 툴바**와 우측 **속성 패널(Inspector)**이 활성화됩니다.
+  - **Shift + 클릭**: 여러 노드를 동시에 선택합니다 (다중 선택). 일괄 이동이나 일괄 삭제 시 사용합니다.
+  - **배경 클릭**: 모든 선택을 해제하고 **맵 요약 정보**를 표시합니다.
+- **드래그 앤 드롭 (Drag & Drop)**:
+  - **이동**: 노드를 드래그하면 선택된 모든 노드가 함께 이동합니다.
+  - **부모 변경 (Reparenting)**: (단일 선택 시) 노드를 드래그하여 다른 노드 근처에 놓으면 해당 노드의 자식으로 구조가 변경됩니다.
 
-### 2.3 Editing & Manipulation
-- **Floating Toolbar**: Appears above the selected node(s).
-  - **Add Child (+)**: Adds a new sub-node. (Disabled during multi-selection).
-  - **Copy**: Copies the selected branch(es) to the clipboard.
-  - **Paste**: Pastes the clipboard content as children of the selected node.
-  - **Delete**: Removes the selected node(s) and their descendants.
-- **Node Inspector (Right Panel)**:
-  - **Node Name**: Edit the title of the entity.
-  - **Type Badge**: Displays the node type (e.g., CONCEPT, VALUE).
-  - **Description**: Edit the description text.
-  - **Memo/Notes**: Personal notes field.
-  - **Source Reference**: If the node was generated from a source document, a snippet and link are displayed here.
+### 2.3 편집 및 수정 (Editing & Manipulation)
+- **플로팅 툴바 (Floating Toolbar)**: 선택된 노드 상단에 나타납니다.
+  - **자식 추가 (+)**: 하위 노드를 추가합니다. (다중 선택 시 비활성화됨).
+  - **복사 (Copy)**: 선택된 브랜치(들)를 클립보드에 복사합니다.
+  - **붙여넣기 (Paste)**: 클립보드의 내용을 현재 선택된 노드의 자식으로 붙여넣습니다 (배열 지원).
+  - **삭제 (Delete)**: 선택된 노드(들)와 그 하위 노드들을 모두 삭제합니다.
+- **노드 속성 패널 (Node Inspector)**: 우측 사이드바 패널입니다.
+  - **노드 이름**: 엔티티의 이름을 직접 수정할 수 있습니다.
+  - **타입 뱃지**: 노드의 유형(예: CONCEPT, VALUE)을 표시합니다.
+  - **설명 (Description)**: 상세 설명을 수정할 수 있습니다.
+  - **메모 (Memo)**: 개인적인 노트를 작성할 수 있습니다.
+  - **소스 참조 (Source Reference)**: 해당 노드가 문서에서 추출된 경우, 원본 스니펫과 출처 링크를 보여줍니다.
+- **맵 요약 (Map Summary)**:
+  - 선택된 노드가 없을 때, 마인드맵의 **제목**과 **총 노드 수**를 표시합니다.
 
-### 2.4 Data Management
-- **Manual Save**: Changes are not auto-saved to prevent accidental overwrites. The "Save Changes" button in the header commits the current state to the database.
-- **Version History**: Saving creates a new version or updates the existing draft based on context (Upsert logic).
-- **Project Sidebar**: Lists all mind maps within the current project, showing the last modified time and version badges.
+### 2.4 데이터 관리 (Data Management)
+- **수동 저장 (Manual Save)**: 실수로 인한 덮어쓰기를 방지하기 위해 자동 저장을 하지 않습니다. 상단 [Save Changes] 버튼을 눌러야 데이터베이스에 반영됩니다.
+- **버전 관리**: 저장 시 기존 문서를 업데이트하거나(Upsert), 새로운 버전을 생성합니다.
+- **프로젝트 사이드바**: 프로젝트 내의 모든 마인드맵 리스트를 시간순으로 표시하며, 버전 뱃지와 상세 타임스탬프를 제공합니다.
 
-## 3. Keyboard Shortcuts
-- **Shift + Click**: Toggle selection of multiple nodes.
-- **Shift + Drag**: Move all selected nodes together.
+## 3. 단축키 (Keyboard Shortcuts)
+- **Shift + Click**: 다중 선택 토글.
+- **Shift + Drag**: 다중 선택된 노드들을 함께 이동.
 
-## 4. Current Status & Notes
-- **Double-Click**: Disabled on nodes to prevent conflict with Zoom operations.
-- **Layout Stability**: Stable IDs are generated for all nodes to ensure the view doesn't "jump" or reset unexpectedly.
+## 4. 현재 상태 및 참고사항
+- **더블 클릭 방지**: 줌 동작과의 충돌 및 오작동을 막기 위해 노드 더블 클릭 이벤트는 차단되어 있습니다.
+- **안정적 식별자**: 렌더링 안정성을 위해 모든 노드는 고유 ID를 가지며, 화면 갱신 시에도 위치가 튀지 않습니다.
