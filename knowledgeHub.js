@@ -1511,7 +1511,7 @@ async function loadSavedPlans() {
         snapshot.forEach(doc => {
             const plan = doc.data();
             const planEl = document.createElement('div');
-            planEl.className = 'flex items-center justify-between p-2 bg-slate-800/30 rounded-lg hover:bg-slate-800/50 cursor-pointer transition-all';
+            planEl.className = 'group flex items-center justify-between p-2 bg-slate-800/30 rounded-lg hover:bg-slate-800/50 cursor-pointer transition-all';
             planEl.onclick = () => showPlanResultModal(plan, doc.id);
 
             planEl.innerHTML = `
@@ -1519,7 +1519,12 @@ async function loadSavedPlans() {
                     <p class="text-xs font-medium text-slate-300 truncate">${escapeHtml(plan.title || formatPlanType(plan.type))}</p>
                     <p class="text-[10px] text-slate-500">${getStatusBadgeText(plan.status)}</p>
                 </div>
-                <span class="text-[10px] text-slate-600">${getPlanIcon(plan.category)}</span>
+                <div class="flex items-center gap-2">
+                    <span class="text-[10px] text-slate-600">${getPlanIcon(plan.category)}</span>
+                    <button onclick="deletePlan(event, '${doc.id}')" class="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded opacity-0 group-hover:opacity-100 transition-all duration-200" title="Delete">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c0-1-2-2-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c0 1 1 2 2 2v2"></path></svg>
+                    </button>
+                </div>
             `;
             savedPlansList.appendChild(planEl);
         });
@@ -5556,7 +5561,31 @@ function updateInspector(nodeData) {
         sourceCard.classList.add('hidden');
     }
 }
+// --- Plan Management ---
+window.deletePlan = async function (event, planId) {
+    event.stopPropagation(); // Prevent opening the modal
 
+    if (!confirm("Are you sure you want to delete this saved plan?\n\nThis action cannot be undone.")) {
+        return;
+    }
+
+    try {
+        if (!currentProjectId) throw new Error("No project selected");
+
+        await firebase.firestore()
+            .collection('projects')
+            .doc(currentProjectId)
+            .collection('contentPlans')
+            .doc(planId)
+            .delete();
+
+        showNotification("Plan deleted successfully", "success");
+        loadSavedPlans(); // Refresh the list
+    } catch (e) {
+        console.error("Error deleting plan:", e);
+        showNotification("Failed to delete plan: " + e.message, "error");
+    }
+}
 function saveMindMapChanges() {
     // TODO: Implement save logic back to currentPlan Version
     showNotification('Mind Map layout saved (simulation)', 'success');
