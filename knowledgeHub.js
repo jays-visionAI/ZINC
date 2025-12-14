@@ -3839,40 +3839,77 @@ function selectPlanVersion(index) {
     }
 
     contentHtml += formatPlanContent(version.content); // Simple replace or use marked() if available
-
     resultContainer.innerHTML = contentHtml;
 }
 
 // Function to open the standalone mindmap viewer
-function openMindMapWindow(versionIndex) {
+// Modified to ensure DB persistence before opening
+async function openMindMapWindow(versionIndex) {
     const version = planVersions[versionIndex];
-    if (version) {
-        // Safe storage in localStorage to pass data to new window
-        const dataKey = `mindmap_${Date.now()}`;
-        if (version.mindMapData) {
-            localStorage.setItem(dataKey, JSON.stringify(version.mindMapData));
-        }
-        // Open window with project context
-        let url = `brand-mindmap.html?dataKey=${dataKey}`;
+    if (!version) return;
 
-        // Robust Project ID Retrieval
-        let pId = currentProjectId;
-        if (!pId && currentPlan && currentPlan.projectId) {
-            pId = currentPlan.projectId;
-        }
-        if (!pId) {
-            pId = localStorage.getItem('currentProjectId');
-        }
-
-        if (pId) {
-            url += `&projectId=${pId}`;
-        }
-
-        if (currentPlan && currentPlan.id) {
-            url += `&planId=${currentPlan.id}`;
-        }
-        window.open(url, '_blank');
+    // Resolve Project ID
+    let pId = currentProjectId;
+    if (!pId && currentPlan && currentPlan.projectId) {
+        pId = currentPlan.projectId;
     }
+    if (!pId) {
+        pId = localStorage.getItem('currentProjectId');
+    }
+
+    if (!pId) {
+        alert("Project context is missing. Cannot create Mind Map.");
+        return;
+    }
+
+    // Resolve Plan ID (Create DB entry if missing)
+    let planId = currentPlan.id;
+
+    // If it's a temporary/unsaved plan, we must save it first to generate a DB ID
+    if (!planId || planId.startsWith('temp_')) {
+        try {
+            showNotification("Initializing Mind Map workspace...", "info");
+            const db = firebase.firestore();
+
+            const newPlanData = {
+                type: 'brand_mind_map',
+                title: currentPlan.name || "Brand Mind Map",
+                content: version.content || "",
+                language: targetLanguage || 'ko',
+                creditsUsed: currentPlan.credits || 0,
+                version: 'v1.0.0',
+                sessionId: currentPlan.sessionId || generateSessionId(),
+                weightBreakdown: version.weightBreakdown || [],
+                mindMapData: version.mindMapData || { name: currentPlan.name || "Brand Mind Map", children: [] },
+                category: currentPlan.category || 'strategic',
+                status: 'draft', // Initial status
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                createdBy: currentUser?.uid || 'system'
+            };
+
+            const docRef = await db.collection('projects').doc(pId)
+                .collection('contentPlans').add(newPlanData);
+
+            planId = docRef.id;
+
+            // Update local state to avoid re-creation
+            currentPlan.id = planId;
+            currentPlan.projectId = pId;
+
+            // Refresh Saved Plans list to show the new item
+            loadSavedPlans();
+
+        } catch (e) {
+            console.error("Error creating mind map doc:", e);
+            alert("Failed to initialize Mind Map database: " + e.message);
+            return;
+        }
+    }
+
+    // Open Mind Map Viewer with DB ID
+    const url = `brand-mindmap.html?projectId=${pId}&planId=${planId}`;
+    window.open(url, '_blank');
 }
 
 /**
@@ -3926,10 +3963,11 @@ async function savePlanToFirestore() {
         const currentVersionIndex = document.querySelector('.plan-version-tab.bg-indigo-600')?.textContent.match(/\d+/) - 1 || 0;
         const version = planVersions[currentVersionIndex];
 
-        // Get latest version for this plan type
+        // Get latest version for this plan type to determine version number
+        // Note: Using 'contentPlans' collection to match loadSavedPlans and brand-mindmap.js
         const latestSnapshot = await db.collection('projects').doc(currentProjectId)
-            .collection('savedPlans')
-            .where('planType', '==', currentPlan.type)
+            .collection('contentPlans')
+            .where('type', '==', currentPlan.type)
             .orderBy('createdAt', 'desc')
             .limit(1)
             .get();
@@ -3945,26 +3983,28 @@ async function savePlanToFirestore() {
             const isRegeneration = currentPlan.sessionId === latestPlan.sessionId;
 
             if (isRegeneration) {
-                // Patch increment for regeneration
                 versionNumber = `v${major}.${minor}.${patch + 1}`;
             } else {
-                // Minor increment for new session of same plan type
                 versionNumber = `v${major}.${minor + 1}.0`;
             }
         }
 
+        // Save to 'contentPlans' collection
         await db.collection('projects').doc(currentProjectId)
-            .collection('savedPlans').add({
-                planType: currentPlan.type,
-                planName: currentPlan.name,
+            .collection('contentPlans').add({
+                type: currentPlan.type,      // Changed from planType
+                title: currentPlan.name,     // Changed from planName
                 content: version.content,
                 language: targetLanguage,
                 creditsUsed: currentPlan.credits,
                 version: versionNumber,
                 sessionId: currentPlan.sessionId || generateSessionId(),
                 weightBreakdown: version.weightBreakdown || [],
-                mindMapData: version.mindMapData || null, // Add mindMapData
+                mindMapData: version.mindMapData || null,
+                category: currentPlan.category || 'strategic', // Needed for icons
+                status: 'completed',          // Needed for badges
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
                 createdBy: currentUser?.uid
             });
 
@@ -3972,7 +4012,7 @@ async function savePlanToFirestore() {
         loadSavedPlans(); // Refresh saved plans list
     } catch (error) {
         console.error('Error saving plan:', error);
-        showNotification('Failed to save plan', 'error');
+        showNotification('Failed to save plan: ' + error.message, 'error');
     }
 }
 
