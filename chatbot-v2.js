@@ -448,8 +448,8 @@ Feel free to ask me anything about using ZYNK!
             });
         }
 
-        // Add as system message (different styling)
-        this.addMessage('system', introMsg, true);
+        // Add as system message (different styling, don't save to history to avoid clutter)
+        this.addMessage('system', introMsg, false);
 
         // Update last visited page
         this.lastVisitedPage = this.currentPage;
@@ -471,17 +471,29 @@ Feel free to ask me anything about using ZYNK!
         const container = this.elements.messagesContainer;
         if (!container) return;
 
-        const avatar = message.type === 'bot' ? '🤖' : '👤';
+        let avatar;
+        if (message.type === 'bot') {
+            avatar = '🤖';
+        } else if (message.type === 'system') {
+            avatar = '💡';
+        } else {
+            avatar = '👤';
+        }
 
         const messageEl = document.createElement('div');
         messageEl.className = `chatbot-message ${message.type}`;
-        const metaHtml = message.model ?
+
+        // Show model meta only for bot messages
+        const metaHtml = (message.type === 'bot' && message.model) ?
             `<div class="chatbot-meta" style="font-size: 10px; opacity: 0.6; margin-top: 6px; text-align: right; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 4px;">
                 ${message.provider === 'google' || message.provider === 'gemini' ? '✨' : '🤖'} ${message.model}
              </div>` : '';
 
+        // Custom style for system avatar
+        const avatarStyle = message.type === 'system' ? 'background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);' : '';
+
         messageEl.innerHTML = `
-            <div class="chatbot-message-avatar">${avatar}</div>
+            <div class="chatbot-message-avatar" style="${avatarStyle}">${avatar}</div>
             <div class="chatbot-message-content">
                 ${this.formatContent(message.content)}
                 ${metaHtml}
