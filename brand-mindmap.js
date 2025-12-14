@@ -422,23 +422,24 @@ function onNodeClick(event, d) {
     }
     event.stopPropagation();
 
-    // Sync context for actions
     contextNodeData = d.data;
+    const shift = event.shiftKey;
 
-    if (event.shiftKey) {
+    if (shift) {
         if (selectedData.has(d.data)) {
+            // Toggle Off (Shift+Click on selected node)
             selectedData.delete(d.data);
-            if (activeNodeData === d.data) activeNodeData = null;
-        } else {
+            if (activeNodeData === d.data) activeNodeData = Array.from(selectedData).pop() || null;
+        }
+        // Toggle On is already handled in dragStarted
+    } else {
+        // Single Select (If multi-selected, clear others)
+        if (selectedData.size > 1) {
+            selectedData.clear();
             selectedData.add(d.data);
             activeNodeData = d.data;
         }
-    } else {
-        selectedData.clear();
-        selectedData.add(d.data);
-        activeNodeData = d.data;
     }
-
     renderSelectionState();
 }
 
@@ -583,11 +584,23 @@ function dragStarted(event, d) {
     document.getElementById('node-toolbar').classList.add('hidden'); // Hide toolbar during drag
     d3.select(this).raise();
 
-    // Select on drag start? Maybe. But let's keep it clean.
-    // If not selected, select it?
-    if (!selectedData.has(d.data)) {
-        activeNodeData = d.data;
+    // Improved Selection Logic (Shift Key Support)
+    const shift = event.sourceEvent ? event.sourceEvent.shiftKey : event.shiftKey; // Handle D3 event wrapper
+
+    if (shift) {
+        if (!selectedData.has(d.data)) {
+            selectedData.add(d.data); // Shift+Click (Add)
+        }
+        // If already selected, wait for click to toggle off
+    } else {
+        if (!selectedData.has(d.data)) {
+            selectedData.clear(); // Click new node (Single)
+            selectedData.add(d.data);
+        }
+        // If already selected, maintain selection for potential drag
     }
+
+    activeNodeData = d.data;
     contextNodeData = d.data;
     renderSelectionState();
 }
@@ -605,13 +618,8 @@ function dragged(event, d) {
         hasMoved = true;
     }
 
-    // Multi-move Support
-    if (!selectedData.has(d.data)) {
-        selectedData.clear();
-        selectedData.add(d.data);
-        activeNodeData = d.data;
-        renderSelectionState();
-    }
+    // Multi-move Support handled in start
+    // DX/DY logic below takes care of position updates
 
     const dx = event.dx;
     const dy = event.dy;
