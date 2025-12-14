@@ -584,17 +584,80 @@ function fitView() {
 }
 
 // Global actions
-window.saveChanges = function () {
-    // If connected to Firestore, update the Doc
-    if (currentMetadata && currentMetadata.mapId && currentMetadata.projectId && !currentMetadata.isLocal) {
-        // TODO: Update Firestore document with new tree structure
-        // This requires serializing d3 hierarchy back to JSON
-        alert("Saving to Firestore not yet fully implemented. (Read-only mode for now)");
-    } else {
-        const btn = document.getElementById('btn-save');
-        const originalHtml = btn.innerHTML;
-        btn.innerHTML = `<span class="text-emerald-400">Saved Locally!</span>`;
-        setTimeout(() => btn.innerHTML = originalHtml, 2000);
+window.saveChanges = async function () {
+    if (!currentUser) return alert("Please log in to save changes.");
+
+    // We need at least a Project ID to know where to save
+    const projectId = currentMetadata?.projectId;
+    if (!projectId) {
+        // If no project context, maybe prompt user to select one? 
+        // For now, simpler to alert.
+        return alert("No project selected. Please open this map from a project context or create a new map.");
+    }
+
+    // Prepare Data
+    const title = rootData.name || "Untitled Mind Map";
+    const mapId = currentMetadata?.mapId;
+
+    // Button Feedback
+    const btn = document.getElementById('btn-save');
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = `<span class="animate-pulse">Saving...</span>`;
+    btn.disabled = true;
+
+    try {
+        const saveData = {
+            type: 'brand_mind_map',
+            title: title,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            mindMapData: rootData, // The actual tree structure
+            // Also update search keywords or plain text description if needed
+        };
+
+        if (mapId) {
+            // --- UPDATE EXISTING ---
+            await db.collection(`projects/${projectId}/contentPlans`).doc(mapId).update(saveData);
+
+            // Visual Feedback
+            btn.innerHTML = `<span class="text-emerald-400">Saved!</span>`;
+        } else {
+            // --- CREATE NEW (From Draft) ---
+            saveData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+            saveData.uid = currentUser.uid;
+
+            // Add initial version structure if needed strictly
+            saveData.versions = [{
+                createdAt: new Date().toISOString(),
+                mindMapData: rootData
+            }];
+
+            const docRef = await db.collection(`projects/${projectId}/contentPlans`).add(saveData);
+
+            // Switch from Draft to Saved Mode
+            currentMetadata.mapId = docRef.id;
+            currentMetadata.isLocal = false;
+            currentMetadata.mapTitle = title;
+
+            // Optionally update URL
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.set('planId', docRef.id);
+            newUrl.searchParams.delete('dataKey'); // No longer needed
+            window.history.pushState({}, '', newUrl);
+
+            // Refresh Sidebar to show the new map
+            await loadSidebarData();
+
+            btn.innerHTML = `<span class="text-emerald-400">Created!</span>`;
+        }
+    } catch (e) {
+        console.error("Save Error:", e);
+        alert("Failed to save changes: " + e.message);
+        btn.innerHTML = `<span class="text-rose-400">Error!</span>`;
+    } finally {
+        setTimeout(() => {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }, 2000);
     }
 }
 
