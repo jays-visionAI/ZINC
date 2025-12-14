@@ -38,43 +38,45 @@ document.addEventListener('DOMContentLoaded', () => {
     // Init Visuals
     initCanvas();
 
-    // Auth Check & Data Load
+    // 1. Parse URL Params IMMEDIATELY
+    const urlParams = new URLSearchParams(window.location.search);
+    const dataKey = urlParams.get('dataKey');
+    const pId = urlParams.get('projectId');
+    const mId = urlParams.get('planId');
+
+    // Setup metadata early
+    if (pId || mId) {
+        currentMetadata = { projectId: pId, mapId: mId };
+        if (pId && mId) currentMetadata.isLocal = false;
+    }
+
+    // 2. Auth Check & Data Load
     firebase.auth().onAuthStateChanged(user => {
         if (user) {
             currentUser = user;
-            loadSidebarData();
-
-            // Check for URL params to direct load
-            const urlParams = new URLSearchParams(window.location.search);
-            const dataKey = urlParams.get('dataKey');
-            const projectId = urlParams.get('projectId');
-            const planId = urlParams.get('planId');
+            loadSidebarData(); // Always load sidebar
 
             if (dataKey) {
-                // Load data passed from Knowledge Hub (localStorage)
+                // Mode A: Loaded from Knowledge Hub Text Generation (localStorage)
                 loadFromLocalStorage(dataKey);
-
-                // If context is provided, update metadata so "Save" knows where to go
-                if (projectId || planId) {
-                    if (!currentMetadata) currentMetadata = {};
-                    if (projectId) currentMetadata.projectId = projectId;
-                    if (planId) currentMetadata.mapId = planId;
-                    // If we have IDs, we treat it as a DB-backed map (not purely local)
-                    if (projectId && planId) currentMetadata.isLocal = false;
-
-                    // Update Header UI with Project Name if possible (won't have name text yet, but ID is there)
-                    // (Sidebar load will eventually populate names, or we can fetch project name here if crucial)
-                }
+            } else if (pId && mId) {
+                // Mode B: Direct Link / Saved Plan (Firestore)
+                loadMapByID(pId, mId);
             } else {
-                // Wait for user selection
+                // Mode C: No Context
                 showPlaceholder(true);
             }
         } else {
-            // Not logged in - maybe redirect or show mock?
-            // For now, load mock data for testing UI
-            console.warn("User not logged in. Loading Mock Data.");
-            loadMockData();
-            loadSidebarMock();
+            console.warn("User not logged in.");
+            // If we have local dataKey, we *could* show it even if logged out?
+            // For now, allow local view, block DB view
+            if (dataKey) {
+                loadFromLocalStorage(dataKey);
+            } else {
+                // Redirect to login or show mock
+                loadMockData();
+                loadSidebarMock();
+            }
         }
     });
 
@@ -616,4 +618,38 @@ window.fnDeleteNode = function () {
     selectedNodes.clear();
     updateSelectionVisuals();
     update(parent);
+}
+
+// Helper: Load map by ID (for direct links)
+async function loadMapByID(pId, mId) {
+    try {
+        // Show loading state
+        document.getElementById('mindmap-container').style.opacity = '0.5';
+
+        const doc = await db.collection(`projects/${pId}/contentPlans`).doc(mId).get();
+
+        if (doc.exists) {
+            const data = doc.data();
+            let pName = "Loading Project...";
+
+            try {
+                const pDoc = await db.collection('projects').doc(pId).get();
+                if (pDoc.exists) pName = pDoc.data().projectName;
+            } catch (e) { console.warn("Could not fetch project name", e); }
+
+            loadMapFromFirestore(
+                { projectId: pId, projectName: pName },
+                { id: mId, ...data }
+            );
+        } else {
+            console.error("Map document not found");
+            document.getElementById('canvas-placeholder').innerHTML = '<div class="text-center p-4">Mind Map not found or deleted.</div>';
+            showPlaceholder(true);
+        }
+    } catch (e) {
+        console.error("Error loading map by ID:", e);
+        showPlaceholder(true);
+    } finally {
+        document.getElementById('mindmap-container').style.opacity = '1';
+    }
 }
