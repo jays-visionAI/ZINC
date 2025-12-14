@@ -3847,8 +3847,15 @@ function openMindMapWindow(versionIndex) {
         if (version.mindMapData) {
             localStorage.setItem(dataKey, JSON.stringify(version.mindMapData));
         }
-        // Open window regardless of data (viewer handles missing data with mock)
-        window.open(`brand-mindmap.html?dataKey=${dataKey}`, '_blank');
+        // Open window with project context
+        let url = `brand-mindmap.html?dataKey=${dataKey}`;
+        if (currentProjectId) {
+            url += `&projectId=${currentProjectId}`;
+        }
+        if (currentPlan && currentPlan.id) {
+            url += `&planId=${currentPlan.id}`;
+        }
+        window.open(url, '_blank');
     }
 }
 

@@ -46,9 +46,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Check for URL params to direct load
             const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('dataKey')) {
-                // Legacy/Direct mode (from localStorage)
-                loadFromLocalStorage(urlParams.get('dataKey'));
+            const dataKey = urlParams.get('dataKey');
+            const projectId = urlParams.get('projectId');
+            const planId = urlParams.get('planId');
+
+            if (dataKey) {
+                // Load data passed from Knowledge Hub (localStorage)
+                loadFromLocalStorage(dataKey);
+
+                // If context is provided, update metadata so "Save" knows where to go
+                if (projectId || planId) {
+                    if (!currentMetadata) currentMetadata = {};
+                    if (projectId) currentMetadata.projectId = projectId;
+                    if (planId) currentMetadata.mapId = planId;
+                    // If we have IDs, we treat it as a DB-backed map (not purely local)
+                    if (projectId && planId) currentMetadata.isLocal = false;
+
+                    // Update Header UI with Project Name if possible (won't have name text yet, but ID is there)
+                    // (Sidebar load will eventually populate names, or we can fetch project name here if crucial)
+                }
             } else {
                 // Wait for user selection
                 showPlaceholder(true);
