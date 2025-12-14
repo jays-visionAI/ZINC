@@ -469,10 +469,17 @@
                         <option value="disabled">Disabled</option>
                     </select></div>
             </form>
+            <div id="connection-test-result-settings"
+                style="margin-top: 16px; padding: 8px; border-radius: 4px; background: rgba(0,0,0,0.2); font-size: 12px; min-height: 20px; display: flex; align-items: center; justify-content: center;">
+                <span style="color: rgba(255,255,255,0.3);">Test result will allow appear here</span>
+            </div>
         </div>
-        <div class="modal-footer"><button class="admin-btn-secondary"
-                onclick="closeProviderModalSettings()">Cancel</button><button class="admin-btn-primary"
-                id="btn-save-provider-settings">Save Provider</button></div>
+        <div class="modal-footer" style="display: flex; gap: 8px; justify-content: flex-end;">
+            <button class="admin-btn-secondary" id="btn-test-connection-settings" style="margin-right: auto;">📡 Test
+                Connection</button>
+            <button class="admin-btn-secondary" onclick="closeProviderModalSettings()">Cancel</button>
+            <button class="admin-btn-primary" id="btn-save-provider-settings">Save Provider</button>
+        </div>
     </div>
 </div>
 
