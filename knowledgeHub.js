@@ -3854,9 +3854,20 @@ function openMindMapWindow(versionIndex) {
         }
         // Open window with project context
         let url = `brand-mindmap.html?dataKey=${dataKey}`;
-        if (currentProjectId) {
-            url += `&projectId=${currentProjectId}`;
+
+        // Robust Project ID Retrieval
+        let pId = currentProjectId;
+        if (!pId && currentPlan && currentPlan.projectId) {
+            pId = currentPlan.projectId;
         }
+        if (!pId) {
+            pId = localStorage.getItem('currentProjectId');
+        }
+
+        if (pId) {
+            url += `&projectId=${pId}`;
+        }
+
         if (currentPlan && currentPlan.id) {
             url += `&planId=${currentPlan.id}`;
         }
