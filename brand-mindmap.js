@@ -29,8 +29,8 @@ let currentMetadata = null;
 let svg, g, zoomKey;
 let treeLayout;
 let rootHierarchy;
-let activeNode = null; // Primary selection (for Inspector)
-let selectedData = new Set(); // Multi-selection (Set of d.data)
+let activeNodeData = null; // Store Data Object (Persistent), NOT D3 Node
+let selectedData = new Set(); // Set of Data Objects
 let clipboardData = null;
 let globalProjectGroups = [];
 
@@ -260,28 +260,33 @@ function initCanvas() {
 function renderTree() {
     if (!rootData) return;
 
+    // 0. Ensure IDs for stability
+    ensureIds(rootData);
+
     // 1. Hierarchy Setup
     rootHierarchy = d3.hierarchy(rootData, d => d.children);
 
-    // 2. Layout Initialization (First Run Only)
-    // If root doesn't have layout data, run D3 Tree layout once to establish structure.
-    if (!rootData.layout || !rootData.layout.initialized) {
+    // 2. Layout Strategy: HYBRID
+    // If we have saved coordinates, USE THEM. Do not re-run tree layout.
+    // If we don't, run tree layout once to initialize.
+
+    if (!rootData.layoutInitialized) {
+        // Initial Layout Calculation
         const treeData = treeLayout(rootHierarchy);
         treeData.descendants().forEach(d => {
-            if (!d.data.layout) d.data.layout = {};
-            // Map D3 coordinates (x=vertical, y=horizontal in our render logic)
-            d.data.layout.x = d.x;
-            d.data.layout.y = d.y;
+            if (!d.data.layout) {
+                // Initial positioning: D3 Tree (Vertical x/y) -> Mapped to our Horiz View (y, x)
+                d.data.layout = { x: d.x, y: d.y };
+            }
         });
-        rootData.layout = { initialized: true };
+        rootData.layoutInitialized = true;
     }
 
-    // 3. Apply Coordinates from Data (Persistence)
+    // 3. Apply Coordinates from Data (Strict Force)
     rootHierarchy.descendants().forEach(d => {
-        if (d.data.layout) {
-            d.x = d.data.layout.x;
-            d.y = d.data.layout.y;
-        }
+        if (!d.data.layout) d.data.layout = { x: d.x || 0, y: d.y || 0 }; // Fallback
+        d.x = d.data.layout.x;
+        d.y = d.data.layout.y;
     });
 
     const nodes = rootHierarchy.descendants();
@@ -310,12 +315,13 @@ function renderTree() {
 
     // 5. Draw Nodes
     const node = g.selectAll('g.node')
-        .data(nodes)
+        .data(nodes, d => d.data.id) // Key function for stability
         .enter().append('g')
         .attr('class', 'node')
-        .attr('id', (d, i) => `node-${i}`) // Temporary ID for selection
+        .attr('id', d => `node-${d.data.id}`) // Stable DOM ID
         .attr('transform', d => `translate(${d.y},${d.x})`)
         .on('click', onNodeClick)
+        .on('dblclick', (e) => { e.stopPropagation(); e.preventDefault(); }) // Block double click
         .call(d3.drag()
             .on('start', dragStarted)
             .on('drag', dragged)
@@ -377,15 +383,15 @@ function renderTree() {
     });
 
     // Restore Selection if possible
-    if (activeNode) {
-        // Find the new D3 node that matches activeNode's data
+    if (activeNodeData) {
+        // Find the new D3 node that matches activeNodeData's data
         // This is tricky because object references might persist or change depending on D3.
         // But d.data should be the same object reference from rootData.
-        const newActive = nodes.find(n => n.data === activeNode.data);
+        const newActive = nodes.find(n => n.data === activeNodeData);
         if (newActive) {
-            activeNode = newActive;
-            highlightNode(newActive);
-            updateToolbarPosition(newActive);
+            // activeNodeData is already the data object, no need to reassign.
+            // Just ensure selection state is rendered correctly.
+            renderSelectionState();
         } else {
             deselectNode();
         }
@@ -398,19 +404,17 @@ function onNodeClick(event, d) {
     event.stopPropagation();
 
     if (event.shiftKey) {
-        // Multi-select Toggle
         if (selectedData.has(d.data)) {
             selectedData.delete(d.data);
-            if (activeNode === d) activeNode = null;
+            if (activeNodeData === d.data) activeNodeData = null;
         } else {
             selectedData.add(d.data);
-            activeNode = d;
+            activeNodeData = d.data;
         }
     } else {
-        // Single Select
         selectedData.clear();
         selectedData.add(d.data);
-        activeNode = d;
+        activeNodeData = d.data;
     }
 
     renderSelectionState();
@@ -433,9 +437,11 @@ function renderSelectionState() {
         }
     });
 
-    if (activeNode && selectedData.has(activeNode.data)) {
-        updateToolbarPosition(activeNode);
-        updateInspector(activeNode);
+    if (activeNodeData && selectedData.has(activeNodeData)) {
+        // Need D3 node wrapper to pass to inspector? No, data is enough.
+        // But Toolbar placement needs DOM.
+        updateToolbarPosition(activeNodeData);
+        updateInspector(activeNodeData);
     } else {
         document.getElementById('node-toolbar').classList.add('hidden');
         document.getElementById('inspector-placeholder').classList.remove('hidden');
@@ -445,39 +451,32 @@ function renderSelectionState() {
 }
 
 function highlightNode(d) {
-    const el = g.selectAll('.node').filter(n => n === d);
-    el.select('.shape')
-        .style('stroke', CONFIG.colors.selected)
-        .style('stroke-dasharray', '4,2')
-        .style('stroke-width', '3px');
-
-    // Highlight Text
-    // el.select('text').style('fill', '#fff'); // Optional
+    // Unused, logic moved to renderSelectionState
 }
 
 function deselectNode() {
     selectedData.clear();
-    activeNode = null;
+    activeNodeData = null;
     renderSelectionState();
 }
 
-function updateToolbarPosition(d) {
+function updateToolbarPosition(data) {
     const toolbar = document.getElementById('node-toolbar');
+
+    // Find DOM by ID
+    const nodeEl = document.getElementById(`node-${data.id}`);
+    if (!nodeEl) {
+        toolbar.classList.add('hidden');
+        return;
+    }
+
     toolbar.classList.remove('hidden');
 
-    // Find the SVG Element
-    // d is the data, we need the DOM element
-    // We stored index-based ID in renderTree: node-${i}... wait, 'i' is mutable relative to array.
-    // Better: use D3 selection
-    const nodeSelection = g.selectAll('.node').filter(n => n === d);
-    if (nodeSelection.empty()) return;
-
-    const nodeNode = nodeSelection.node(); // DOM Element
-    const rect = nodeNode.getBoundingClientRect();
+    const rect = nodeEl.getBoundingClientRect();
     const containerRect = document.getElementById('mindmap-container').getBoundingClientRect();
 
     const left = rect.left - containerRect.left + rect.width / 2;
-    const top = rect.top - containerRect.top - 10;
+    const top = rect.top - containerRect.top - 20; // 20px above
 
     toolbar.style.left = `${left}px`;
     toolbar.style.top = `${top}px`;
@@ -488,22 +487,22 @@ function updateToolbarPosition(d) {
     else btnPaste.classList.add('hidden');
 }
 
-function updateInspector(d) {
+function updateInspector(data) {
     document.getElementById('inspector-placeholder').classList.add('hidden');
     document.getElementById('inspector-content').classList.remove('hidden');
     document.getElementById('inspector-body').classList.remove('hidden');
 
-    document.getElementById('inp-name').innerText = d.data.name;
+    document.getElementById('inp-name').innerText = data.name;
 
     // Badge
-    const type = d.data.type || (d.depth === 0 ? 'ROOT' : 'CONCEPT');
+    const type = data.type || 'CONCEPT';
     const badge = document.getElementById('inp-type-badge');
-    if (badge) badge.innerText = type; // HTML check
+    if (badge) badge.innerText = type;
 
-    document.getElementById('inp-desc').innerText = d.data.description || "No description provided.";
-    document.getElementById('inp-memo').value = d.data.memo || "";
+    document.getElementById('inp-desc').innerText = data.description || "No description provided.";
+    document.getElementById('inp-memo').value = data.memo || "";
 
-    const ref = d.data.sourceReference || d.data.source || d.data.ref;
+    const ref = data.sourceReference || data.source || data.ref;
     const sourceCard = document.getElementById('source-card');
     if (ref) {
         sourceCard.classList.remove('hidden');
@@ -520,16 +519,15 @@ function dragStarted(event, d) {
     // Hide toolbar
     document.getElementById('node-toolbar').classList.add('hidden');
     d3.select(this).raise();
-    setActiveNode(d); // Select on drag start
+    activeNodeData = d.data; // Select on drag start
 }
 
 function dragged(event, d) {
     // Multi-move Support
     if (!selectedData.has(d.data)) {
-        // If dragging an unselected node, select it (and deselect others unless shift)
         selectedData.clear();
         selectedData.add(d.data);
-        activeNode = d;
+        activeNodeData = d.data;
         renderSelectionState();
     }
 
@@ -542,7 +540,7 @@ function dragged(event, d) {
         data.layout.x += dy; // Vertical
     });
 
-    // Efficient DOM Update
+    // Efficient DOM Update by ID
     g.selectAll('.node').filter(n => selectedData.has(n.data))
         .attr('transform', n => `translate(${n.data.layout.y}, ${n.data.layout.x})`);
 
@@ -626,69 +624,92 @@ function dragEnded(event, d) {
 
 // --- CRUD OPERATIONS ---
 
-function addChildNode() {
-    if (!activeNode) return;
-    const newNode = { name: "New Node", children: [] };
+// Helper to ensure IDs exist on all nodes
+function ensureIds(node) {
+    if (!node.id) node.id = Math.random().toString(36).substr(2, 9);
+    if (node.children) node.children.forEach(ensureIds);
+}
 
-    if (!activeNode.data.children) activeNode.data.children = [];
-    activeNode.data.children.push(newNode);
+// Global CRUD Helpers for Toolbar
+window.addChildNode = function () {
+    if (!activeNodeData) return;
+    const newNode = { id: Math.random().toString(36).substr(2, 9), name: "New Node", children: [], layout: null }; // Reset layout for auto-place? Or nearby?
+
+    // Smart Placement: Place near parent
+    if (activeNodeData.layout) {
+        newNode.layout = { x: activeNodeData.layout.x + 50, y: activeNodeData.layout.y + 150 };
+    }
+
+    if (!activeNodeData.children) activeNodeData.children = [];
+    activeNodeData.children.push(newNode);
 
     renderTree();
-}
+};
 
-function deleteNode() {
-    if (!activeNode || d3.select(activeNode).depth === 0 || !activeNode.parent) return;
-
+window.deleteNode = function () {
+    if (!activeNodeData) return;
     if (confirm("Delete this node?")) {
-        const parent = activeNode.parent;
-        const siblings = parent.data.children;
-        const idx = siblings.indexOf(activeNode.data);
-        if (idx > -1) siblings.splice(idx, 1);
+        // Must traverse to find parent. d.parent in D3 hierarchy is ephemeral.
+        // We must walk rootData.
 
-        activeNode = null; // Clear selection
-        renderTree();
-        deselectNode();
-    }
-}
-
-function copyBranch() {
-    if (!activeNode) return;
-
-    // Deep Clone
-    const clone = (d) => {
-        return {
-            name: d.name,
-            description: d.description,
-            memo: d.memo,
-            sourceReference: d.sourceReference,
-            children: d.children ? d.children.map(clone) : []
+        const removeRecursive = (parent, childToRemove) => {
+            if (parent.children) {
+                const idx = parent.children.indexOf(childToRemove);
+                if (idx > -1) {
+                    parent.children.splice(idx, 1);
+                    return true;
+                }
+                return parent.children.some(c => removeRecursive(c, childToRemove));
+            }
+            return false;
         };
-    };
 
-    clipboardData = clone(activeNode.data);
+        if (rootData === activeNodeData) {
+            alert("Cannot delete root.");
+        } else {
+            removeRecursive(rootData, activeNodeData);
+            activeNodeData = null;
+            selectedData.clear();
+            renderTree();
+            deselectNode();
+        }
+    }
+};
+
+window.copyBranch = function () {
+    if (!activeNodeData) return;
+    // Deep clone
+    const clone = (d) => ({ ...d, id: Math.random().toString(36).substr(2, 9), children: d.children ? d.children.map(clone) : [] });
+    clipboardData = clone(activeNodeData);
 
     // Feedback
     const btn = document.getElementById('btn-node-copy');
-    const originalColor = btn.style.color;
-    btn.style.color = '#34d399';
-    setTimeout(() => btn.style.color = '', 500);
-}
+    if (btn) btn.style.color = '#34d399';
+    setTimeout(() => { if (btn) btn.style.color = ''; }, 500);
 
-function pasteBranch() {
-    if (!activeNode || !clipboardData) return;
+    updateToolbarPosition(activeNodeData); // Refresh paste btn
+};
 
+window.pasteBranch = function () {
+    if (!activeNodeData || !clipboardData) return;
     const newData = JSON.parse(JSON.stringify(clipboardData));
+    // Re-ID
+    const reId = (d) => { d.id = Math.random().toString(36).substr(2, 9); if (d.children) d.children.forEach(reId); };
+    reId(newData);
 
-    if (!activeNode.data.children) activeNode.data.children = [];
-    activeNode.data.children.push(newData);
+    // Place near parent
+    if (activeNodeData.layout) {
+        newData.layout = { x: activeNodeData.layout.x + 50, y: activeNodeData.layout.y + 150 };
+    }
 
+    if (!activeNodeData.children) activeNodeData.children = [];
+    activeNodeData.children.push(newData);
     renderTree();
-}
+};
 
 function updateActiveNodeData(field, value) {
-    if (activeNode) {
-        activeNode.data[field] = value;
-        // If name changes, re-render to update width/text
+    if (activeNodeData) {
+        activeNodeData[field] = value;
         if (field === 'name') renderTree();
     }
 }
