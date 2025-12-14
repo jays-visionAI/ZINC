@@ -223,6 +223,7 @@ function loadMapFromFirestore(project, map) {
 
     // Initial Render
     renderTree();
+    deselectNode(); // Reset UI & Show Map Summary
 }
 
 // --- VISUALIZATION LOGIC (THE CORE REFACTOR) ---
@@ -458,6 +459,23 @@ function deselectNode() {
     selectedData.clear();
     activeNodeData = null;
     renderSelectionState();
+    updateInspectorMapInfo();
+}
+
+function updateInspectorMapInfo() {
+    const titleEl = document.getElementById('insp-map-title');
+    const statsEl = document.getElementById('insp-map-stats');
+
+    if (titleEl && rootData) {
+        titleEl.innerText = rootData.name || currentMetadata?.mapTitle || "Untitled Map";
+
+        // Calculate Node Count
+        let count = 0;
+        const traverse = (n) => { count++; if (n.children) n.children.forEach(traverse); };
+        traverse(rootData);
+
+        if (statsEl) statsEl.innerText = `${count} Nodes in total`;
+    }
 }
 
 function updateToolbarPosition(data) {
