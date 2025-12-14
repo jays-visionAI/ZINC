@@ -485,6 +485,15 @@ function updateToolbarPosition(data) {
     const btnPaste = document.getElementById('btn-node-paste');
     if (clipboardData) btnPaste.classList.remove('hidden');
     else btnPaste.classList.add('hidden');
+
+    // Multi-select Logic for Buttons
+    const btnAdd = document.getElementById('btn-node-add');
+    if (selectedData.size > 1) {
+        // Disable Add for multi-selection
+        btnAdd.classList.add('opacity-30', 'pointer-events-none');
+    } else {
+        btnAdd.classList.remove('opacity-30', 'pointer-events-none');
+    }
 }
 
 function updateInspector(data) {
@@ -647,11 +656,12 @@ window.addChildNode = function () {
 };
 
 window.deleteNode = function () {
-    if (!activeNodeData) return;
-    if (confirm("Delete this node?")) {
-        // Must traverse to find parent. d.parent in D3 hierarchy is ephemeral.
-        // We must walk rootData.
+    if (selectedData.size === 0) return;
 
+    if (confirm(`Delete ${selectedData.size} selected node(s)?`)) {
+        let deletedCount = 0;
+
+        // Helper to remove single node
         const removeRecursive = (parent, childToRemove) => {
             if (parent.children) {
                 const idx = parent.children.indexOf(childToRemove);
@@ -664,46 +674,73 @@ window.deleteNode = function () {
             return false;
         };
 
-        if (rootData === activeNodeData) {
-            alert("Cannot delete root.");
-        } else {
-            removeRecursive(rootData, activeNodeData);
+        // Convert Set to Array to avoid issues during modification
+        const targets = Array.from(selectedData);
+
+        targets.forEach(target => {
+            if (target === rootData) {
+                console.warn("Cannot delete root.");
+            } else {
+                if (removeRecursive(rootData, target)) {
+                    deletedCount++;
+                }
+            }
+        });
+
+        if (deletedCount > 0) {
             activeNodeData = null;
             selectedData.clear();
             renderTree();
-            deselectNode();
+            deselectNode(); // Hide toolbar
         }
     }
 };
 
 window.copyBranch = function () {
-    if (!activeNodeData) return;
-    // Deep clone
+    if (selectedData.size === 0) return;
+
+    // Deep clone helper
     const clone = (d) => ({ ...d, id: Math.random().toString(36).substr(2, 9), children: d.children ? d.children.map(clone) : [] });
-    clipboardData = clone(activeNodeData);
+
+    // Store as Array
+    clipboardData = Array.from(selectedData).map(d => clone(d));
 
     // Feedback
     const btn = document.getElementById('btn-node-copy');
     if (btn) btn.style.color = '#34d399';
     setTimeout(() => { if (btn) btn.style.color = ''; }, 500);
 
-    updateToolbarPosition(activeNodeData); // Refresh paste btn
+    // Refresh toolbar to show Paste if applicable (if single select remains?)
+    // Usually copy doesn't change selection, so toolbar stays.
+    // If activeNodeData exists, update toolbar.
+    if (activeNodeData) updateToolbarPosition(activeNodeData);
 };
 
 window.pasteBranch = function () {
     if (!activeNodeData || !clipboardData) return;
-    const newData = JSON.parse(JSON.stringify(clipboardData));
-    // Re-ID
+
+    // Handle both Single Object and Array (Migration support)
+    const itemsToPaste = Array.isArray(clipboardData) ? clipboardData : [clipboardData];
+
+    // Re-ID Helper
     const reId = (d) => { d.id = Math.random().toString(36).substr(2, 9); if (d.children) d.children.forEach(reId); };
-    reId(newData);
 
-    // Place near parent
-    if (activeNodeData.layout) {
-        newData.layout = { x: activeNodeData.layout.x + 50, y: activeNodeData.layout.y + 150 };
-    }
+    itemsToPaste.forEach((item, index) => {
+        const newData = JSON.parse(JSON.stringify(item));
+        reId(newData);
 
-    if (!activeNodeData.children) activeNodeData.children = [];
-    activeNodeData.children.push(newData);
+        // Place near parent with offset
+        if (activeNodeData.layout) {
+            newData.layout = {
+                x: activeNodeData.layout.x + 50 + (index * 20),
+                y: activeNodeData.layout.y + 150 + (index * 20)
+            };
+        }
+
+        if (!activeNodeData.children) activeNodeData.children = [];
+        activeNodeData.children.push(newData);
+    });
+
     renderTree();
 };
 
