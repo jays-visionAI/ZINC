@@ -30,6 +30,7 @@ let svg, g, zoomKey;
 let treeLayout;
 let rootHierarchy;
 let activeNodeData = null; // Store Data Object (Persistent), NOT D3 Node
+let contextNodeData = null; // Context target for Toolbar (Hover takes precedence)
 let selectedData = new Set(); // Set of Data Objects
 let clipboardData = null;
 let globalProjectGroups = [];
@@ -323,6 +324,13 @@ function renderTree() {
         .attr('transform', d => `translate(${d.y},${d.x})`)
         .on('click', onNodeClick)
         .on('dblclick', (e) => { e.stopPropagation(); e.preventDefault(); }) // Block double click
+        .on('mouseenter', (event, d) => {
+            // Show Toolbar on Hover
+            if (!isDragging) {
+                contextNodeData = d.data;
+                updateToolbarPosition(d.data);
+            }
+        })
         .call(d3.drag()
             .on('start', dragStarted)
             .on('drag', dragged)
@@ -402,7 +410,14 @@ function renderTree() {
 // --- Interaction Handlers ---
 
 function onNodeClick(event, d) {
+    if (hasMoved) {
+        event.stopPropagation();
+        return;
+    }
     event.stopPropagation();
+
+    // Sync context for actions
+    contextNodeData = d.data;
 
     if (event.shiftKey) {
         if (selectedData.has(d.data)) {
@@ -542,14 +557,29 @@ function updateInspector(data) {
 
 // --- DRAG LOGIC ---
 
+let isDragging = false;
+let hasMoved = false;
+
 function dragStarted(event, d) {
-    // Hide toolbar
-    document.getElementById('node-toolbar').classList.add('hidden');
+    isDragging = true;
+    hasMoved = false;
+    document.getElementById('node-toolbar').classList.add('hidden'); // Hide toolbar during drag
     d3.select(this).raise();
-    activeNodeData = d.data; // Select on drag start
+
+    // Select on drag start? Maybe. But let's keep it clean.
+    // If not selected, select it?
+    if (!selectedData.has(d.data)) {
+        activeNodeData = d.data;
+    }
+    contextNodeData = d.data;
+    renderSelectionState();
 }
 
 function dragged(event, d) {
+    if (!isDragging) return;
+    // Check movement threshold
+    if (Math.hypot(event.dx, event.dy) > 1) hasMoved = true;
+
     // Multi-move Support
     if (!selectedData.has(d.data)) {
         selectedData.clear();
@@ -590,6 +620,9 @@ function updateLinkPositions() {
 }
 
 function dragEnded(event, d) {
+    isDragging = false;
+    if (!hasMoved) return; // Treat as click
+
     if (d.depth === 0) { // Root cannot be moved
         renderTree();
         return;
@@ -659,29 +692,33 @@ function ensureIds(node) {
 
 // Global CRUD Helpers for Toolbar
 window.addChildNode = function () {
-    if (!activeNodeData) return;
+    const targetData = contextNodeData || activeNodeData;
+    if (!targetData) return;
+
+    // Use targetData instead of activeNodeData
+    const activeData = targetData;
 
     // Smart Placement Logic
     let newX = 0, newY = 0;
 
-    if (activeNodeData.layout) {
-        const parentX = activeNodeData.layout.x;
-        const parentY = activeNodeData.layout.y;
+    if (activeData.layout) {
+        const parentX = activeData.layout.x;
+        const parentY = activeData.layout.y;
 
-        if (activeNodeData.children && activeNodeData.children.length > 0) {
+        if (activeData.children && activeData.children.length > 0) {
             // Has siblings: Place below the last sibling
-            const lastChild = activeNodeData.children[activeNodeData.children.length - 1];
+            const lastChild = activeData.children[activeData.children.length - 1];
             if (lastChild.layout) {
-                newX = lastChild.layout.x + 50; // Vertical spacing
-                newY = lastChild.layout.y;      // Align horizontally with siblings
+                newX = lastChild.layout.x + 50;
+                newY = lastChild.layout.y;
             } else {
                 newX = parentX + 50;
                 newY = parentY + 200;
             }
         } else {
             // First child: Place to the right
-            newX = parentX;      // Same vertical level
-            newY = parentY + 200; // Horizontal offset
+            newX = parentX;
+            newY = parentY + 200;
         }
     }
 
@@ -692,8 +729,8 @@ window.addChildNode = function () {
         layout: { x: newX, y: newY }
     };
 
-    if (!activeNodeData.children) activeNodeData.children = [];
-    activeNodeData.children.push(newNode);
+    if (!activeData.children) activeData.children = [];
+    activeData.children.push(newNode);
 
     renderTree();
 
@@ -701,6 +738,7 @@ window.addChildNode = function () {
     selectedData.clear();
     selectedData.add(newNode);
     activeNodeData = newNode;
+    contextNodeData = newNode; // Sync context
     renderSelectionState();
 };
 
