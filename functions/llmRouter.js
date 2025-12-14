@@ -5,12 +5,13 @@
  * - Feature-based model selection
  * - Booster tier support
  * - Credit calculation and logging
+ * - Dynamic Global Defaults (Admin configurable)
  */
 
 const admin = require('firebase-admin');
 
-// Default models if policy not found (Updated for Gemini 3.0 / Nano Banana)
-const DEFAULT_MODELS = {
+// Hardcoded fallback models (if DB config missing)
+const FALLBACK_DEFAULTS = {
     default: { provider: 'google', model: 'gemini-3.0-pro', creditMultiplier: 1.0 },
     boost: { provider: 'google', model: 'nano-banana-pro', creditMultiplier: 3.0 }
 };
@@ -24,6 +25,7 @@ class LLMRouter {
         this.db = db;
         this.policyCache = new Map();
         this.modelCache = new Map();
+        this.globalDefaults = null; // Cache for global defaults
         this.cacheTime = 0;
         this.CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
     }
@@ -53,11 +55,14 @@ class LLMRouter {
 
         console.log(`[LLMRouter] Routing request: feature=${feature}, tier=${qualityTier}`);
 
-        // 1. Get feature policy
-        const policy = await this.getFeaturePolicy(feature);
+        // 1. Get feature policy & Global Defaults
+        const [policy, globalDefaults] = await Promise.all([
+            this.getFeaturePolicy(feature),
+            this.getGlobalDefaults()
+        ]);
 
-        // 2. Determine provider and model from policy
-        const tier = this.determineTier(policy, qualityTier);
+        // 2. Determine provider and model from policy (with global defaults fallback)
+        const tier = this.determineTier(policy, qualityTier, globalDefaults);
         const { provider, model, creditMultiplier } = tier;
 
         console.log(`[LLMRouter] Selected: provider=${provider}, model=${model}, creditMultiplier=${creditMultiplier}`);
@@ -87,9 +92,9 @@ class LLMRouter {
         let warning = null;
         if (qualityTier === 'BOOST') {
             // Check if we're actually using a premium model
-            const premiumModels = ['gpt-5', 'gpt-5.2', 'gpt-5-turbo', 'o1-preview', 'claude-3-opus'];
+            const premiumModels = ['gpt-5', 'gpt-5.2', 'gpt-5-turbo', 'o1-preview', 'claude-3-opus', 'nano-banana-pro'];
             if (!premiumModels.includes(model)) {
-                warning = '⚠️ BOOST 모드: 상위 버전 LLM(GPT-5 등)이 아직 지원되지 않아 현재 최상위 모델로 처리됩니다. 향후 업데이트 예정입니다.';
+                warning = '⚠️ BOOST 모드: 상위 버전 LLM이 아직 지원되지 않아 가용한 최상위 모델로 처리됩니다.';
                 console.log(`[LLMRouter] Warning: BOOST requested but using ${model} (premium not available)`);
             }
         }
@@ -112,7 +117,7 @@ class LLMRouter {
     }
 
     /**
-     * Get feature policy from Firestore (with caching)
+     * Get features policy from Firestore (with caching)
      */
     async getFeaturePolicy(feature) {
         // Check cache
@@ -131,7 +136,10 @@ class LLMRouter {
 
             const policy = doc.data();
             this.policyCache.set(feature, policy);
-            this.cacheTime = now;
+            // Don't update cacheTime here, let getGlobalDefaults handle generic cache invalidation or unified timer
+            // For simplicity, we share cacheTime reset in getGlobalDefaults or check individually. 
+            // Better: update cacheTime here if it's the only load? No, simplest is independent timeouts or shared.
+            // Let's assume shared CACHE_DURATION checks is enough.
 
             return policy;
         } catch (error) {
@@ -141,28 +149,67 @@ class LLMRouter {
     }
 
     /**
-     * Determine which tier to use based on policy and request
+     * Get Global Defaults from Firestore (systemSettings/llmConfig)
      */
-    determineTier(policy, qualityTier) {
-        // If no policy, use defaults
-        if (!policy) {
-            return qualityTier === 'BOOST' ? DEFAULT_MODELS.boost : DEFAULT_MODELS.default;
+    async getGlobalDefaults() {
+        // Check cache
+        const now = Date.now();
+        if (this.globalDefaults && (now - this.cacheTime < this.CACHE_DURATION)) {
+            return this.globalDefaults;
         }
 
-        // If force tier is set, always use it (regardless of user selection)
+        try {
+            const doc = await this.db.collection('systemSettings').doc('llmConfig').get();
+            let defaults = FALLBACK_DEFAULTS;
+
+            if (doc.exists && doc.data().defaultModels) {
+                defaults = doc.data().defaultModels;
+                console.log('[LLMRouter] Loaded Global Defaults from DB:', defaults);
+            } else {
+                console.warn('[LLMRouter] Global defaults not found in DB, using hardcoded fallback.');
+            }
+
+            this.globalDefaults = defaults;
+            this.cacheTime = now; // Update cache timestamp
+            return defaults;
+
+        } catch (error) {
+            console.error('[LLMRouter] Error loading global defaults:', error);
+            return FALLBACK_DEFAULTS;
+        }
+    }
+
+    /**
+     * Determine which tier to use based on policy and request
+     */
+    determineTier(policy, qualityTier, globalDefaults) {
+        const defaults = globalDefaults || FALLBACK_DEFAULTS;
+
+        // If no policy, use global defaults
+        if (!policy) {
+            return qualityTier === 'BOOST' ? defaults.boost : defaults.default;
+        }
+
+        // If force tier is set, always use it
         if (policy.forceTier && policy.forceTier.model) {
             console.log(`[LLMRouter] Force tier applied: ${policy.forceTier.model}`);
             return policy.forceTier;
         }
 
-        let selectedTier = policy.defaultTier || DEFAULT_MODELS.default;
+        let selectedTier = policy.defaultTier || defaults.default;
 
-        if (qualityTier === 'BOOST' && policy.boostTier) {
-            selectedTier = policy.boostTier;
+        if (qualityTier === 'BOOST') {
+            if (policy.boostTier) {
+                selectedTier = policy.boostTier;
+            } else {
+                // Fallback to global boost default if policy doesn't specify boost
+                selectedTier = defaults.boost;
+            }
         }
 
         return selectedTier;
     }
+
     /**
      * Calculate credit cost based on model and usage
      */
@@ -272,6 +319,7 @@ class LLMRouter {
     clearCache() {
         this.policyCache.clear();
         this.modelCache.clear();
+        this.globalDefaults = null;
         this.cacheTime = 0;
         console.log('[LLMRouter] Cache cleared');
     }

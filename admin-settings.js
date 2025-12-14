@@ -52,6 +52,7 @@ window.initSettings = function (currentUser) {
 
         setupProviderEventListeners();
         await loadProviders();
+        await window.loadGlobalDefaults();
     }
 
     function setupProviderEventListeners() {
@@ -1292,4 +1293,74 @@ window.seedLLMRouterData = async function () {
         console.error('Error seeding LLM models:', error);
         alert('Error: ' + error.message);
     }
+};
+
+// ============================================
+// GLOBAL ROUTING DEFAULTS
+// ============================================
+
+window.loadGlobalDefaults = async function () {
+    try {
+        if (!firebase.apps.length) return;
+        const db = firebase.firestore();
+        const doc = await db.collection('systemSettings').doc('llmConfig').get();
+
+        if (doc.exists && doc.data().defaultModels) {
+            const defaults = doc.data().defaultModels;
+
+            // Set fields helper
+            const setField = (id, val) => {
+                const el = document.getElementById(id);
+                if (el) el.value = val;
+            };
+
+            setField('default-tier-provider', defaults.default?.provider || 'google');
+            setField('default-tier-model', defaults.default?.model || 'gemini-3.0-pro');
+            setField('boost-tier-provider', defaults.boost?.provider || 'google');
+            setField('boost-tier-model', defaults.boost?.model || 'nano-banana-pro');
+        } else {
+            // Defaults
+            const setField = (id, val) => {
+                const el = document.getElementById(id);
+                if (el) el.value = val;
+            };
+            setField('default-tier-provider', 'google');
+            setField('default-tier-model', 'gemini-3.0-pro');
+            setField('boost-tier-provider', 'google');
+            setField('boost-tier-model', 'nano-banana-pro');
+        }
+    } catch (error) {
+        console.error('Error loading global defaults:', error);
+    }
+};
+
+window.saveGlobalDefaults = async function () {
+    const db = firebase.firestore();
+    const defaultData = {
+        default: {
+            provider: document.getElementById('default-tier-provider').value,
+            model: document.getElementById('default-tier-model').value,
+            creditMultiplier: 1.0
+        },
+        boost: {
+            provider: document.getElementById('boost-tier-provider').value,
+            model: document.getElementById('boost-tier-model').value,
+            creditMultiplier: 3.0
+        }
+    };
+
+    try {
+        await db.collection('systemSettings').doc('llmConfig').set({
+            defaultModels: defaultData,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        alert('✅ Global defaults saved successfully!');
+    } catch (error) {
+        alert('❌ Error saving defaults: ' + error.message);
+    }
+};
+
+window.updateModelOptions = function (tier) {
+    // Optional: Could be used to update placeholders based on provider selection
 };
