@@ -1498,8 +1498,8 @@ async function loadSavedPlans() {
             .collection('projects')
             .doc(currentProjectId)
             .collection('contentPlans')
-            .orderBy('createdAt', 'desc')
-            .limit(5)
+            // .orderBy('createdAt', 'desc') // Removed to prevent index error
+            .limit(20)
             .get();
 
         if (snapshot.empty) {
@@ -1507,12 +1507,19 @@ async function loadSavedPlans() {
             return;
         }
 
+        // Client-side sort
+        const plans = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+            .sort((a, b) => {
+                const tA = a.createdAt ? (a.createdAt.toMillis ? a.createdAt.toMillis() : new Date(a.createdAt).getTime()) : 0;
+                const tB = b.createdAt ? (b.createdAt.toMillis ? b.createdAt.toMillis() : new Date(b.createdAt).getTime()) : 0;
+                return tB - tA;
+            });
+
         savedPlansList.innerHTML = '';
-        snapshot.forEach(doc => {
-            const plan = doc.data();
+        plans.forEach(plan => {
             const planEl = document.createElement('div');
             planEl.className = 'group flex items-center justify-between p-2 bg-slate-800/30 rounded-lg hover:bg-slate-800/50 cursor-pointer transition-all';
-            planEl.onclick = () => showPlanResultModal(plan, doc.id);
+            planEl.onclick = () => showPlanResultModal(plan, plan.id);
 
             planEl.innerHTML = `
                 <div class="flex-1 min-w-0">
@@ -1521,7 +1528,7 @@ async function loadSavedPlans() {
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="text-[10px] text-slate-600">${getPlanIcon(plan.category)}</span>
-                    <button onclick="deletePlan(event, '${doc.id}')" class="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded opacity-0 group-hover:opacity-100 transition-all duration-200" title="Delete">
+                    <button onclick="deletePlan(event, '${plan.id}')" class="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded opacity-0 group-hover:opacity-100 transition-all duration-200" title="Delete">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c0-1-2-2-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c0 1 1 2 2 2v2"></path></svg>
                     </button>
                 </div>
@@ -3965,17 +3972,23 @@ async function savePlanToFirestore() {
 
         // Get latest version for this plan type to determine version number
         // Note: Using 'contentPlans' collection to match loadSavedPlans and brand-mindmap.js
+        // Limit removed to perform client-side sort
         const latestSnapshot = await db.collection('projects').doc(currentProjectId)
             .collection('contentPlans')
             .where('type', '==', currentPlan.type)
-            .orderBy('createdAt', 'desc')
-            .limit(1)
+            // .orderBy('createdAt', 'desc') // Removed
             .get();
 
         let versionNumber = 'v1.0.0';
 
         if (!latestSnapshot.empty) {
-            const latestPlan = latestSnapshot.docs[0].data();
+            // Client-side sort to find latest
+            const sortedDocs = latestSnapshot.docs.map(d => d.data()).sort((a, b) => {
+                const tA = a.createdAt ? (a.createdAt.toMillis ? a.createdAt.toMillis() : new Date(a.createdAt).getTime()) : 0;
+                const tB = b.createdAt ? (b.createdAt.toMillis ? b.createdAt.toMillis() : new Date(b.createdAt).getTime()) : 0;
+                return tB - tA;
+            });
+            const latestPlan = sortedDocs[0];
             const lastVersion = latestPlan.version || 'v1.0.0';
             const [major, minor, patch] = lastVersion.replace('v', '').split('.').map(Number);
 
