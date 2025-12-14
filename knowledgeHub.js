@@ -1528,7 +1528,7 @@ async function loadSavedPlans() {
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="text-[10px] text-slate-600">${getPlanIcon(plan.category)}</span>
-                    <button onclick="deletePlan(event, '${plan.id}')" class="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded opacity-0 group-hover:opacity-100 transition-all duration-200" title="Delete">
+                    <button onclick="deletePlan(event, '${plan.id}')" class="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded opacity-60 hover:opacity-100 transition-all duration-200" title="Delete">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c0-1-2-2-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c0 1 1 2 2 2v2"></path></svg>
                     </button>
                 </div>
