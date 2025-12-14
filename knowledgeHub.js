@@ -5048,12 +5048,15 @@ async function loadHistoryItems() {
 
     try {
         const db = firebase.firestore();
+        // Use 'contentPlans' (new standard) instead of 'savedPlans'
         let query = db.collection('projects').doc(currentProjectId)
-            .collection('savedPlans')
-            .orderBy('createdAt', 'desc');
+            .collection('contentPlans');
+        // .orderBy('createdAt', 'desc') // Removed to prevent index error
 
         if (historyFilter) {
-            query = query.where('planType', '==', historyFilter);
+            // Check both legacy 'planType' and new 'type' by fetching all and filtering client-side
+            // OR use 'type' since we migrated. Assuming 'type' is primary now.
+            query = query.where('type', '==', historyFilter);
         }
 
         const snapshot = await query.limit(50).get();
@@ -5063,27 +5066,45 @@ async function loadHistoryItems() {
             return;
         }
 
-        historyDocs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Client-side sort & mapping
+        historyDocs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+            .sort((a, b) => {
+                const tA = a.createdAt ? (a.createdAt.toMillis ? a.createdAt.toMillis() : new Date(a.createdAt).getTime()) : 0;
+                const tB = b.createdAt ? (b.createdAt.toMillis ? b.createdAt.toMillis() : new Date(b.createdAt).getTime()) : 0;
+                return tB - tA;
+            });
 
         list.innerHTML = historyDocs.map((plan, index) => {
-            const planDef = PLAN_DEFINITIONS[plan.planType] || { name: plan.planType };
+            // Handle legacy field names
+            const pType = plan.type || plan.planType;
+            const pName = plan.title || plan.planName;
+
+            const planDef = PLAN_DEFINITIONS[pType] || { name: pType };
             const langLabel = plan.language === 'ko' ? '🇰🇷 Korean' : plan.language === 'ja' ? '🇯🇵 Japanese' : plan.language ? '🇺🇸 English' : 'Unknown';
             const dateStr = plan.createdAt?.toDate ? formatRelativeTime(plan.createdAt.toDate()) : 'Unknown date';
-            const contentPreview = plan.content ? plan.content.substring(0, 150) + '...' : 'No content';
+            const contentPreview = plan.content ? (typeof plan.content === 'string' ? plan.content.substring(0, 150) + '...' : JSON.stringify(plan.content).substring(0, 150) + '...') : 'No content';
             const versionBadges = plan.version ? `<span class="px-1.5 py-0.5 rounded text-[10px] bg-indigo-500/20 text-indigo-300 font-mono ml-2">${plan.version}</span>` : '';
 
+            // Note: deletePlan(event, id) is globally available
             return `
                 <div class="p-4 bg-slate-800/50 border border-slate-700/50 rounded-xl hover:bg-slate-800 hover:border-indigo-500/30 transition-all cursor-pointer group"
                     onclick="openHistoryPlan(${index})">
                     <div class="flex items-start justify-between mb-2">
                         <div class="flex items-center">
-                            <span class="text-sm font-semibold text-white group-hover:text-indigo-400 transition-colors">${plan.planName}</span>
+                            <span class="text-sm font-semibold text-white group-hover:text-indigo-400 transition-colors">${escapeHtml(pName)}</span>
                             ${versionBadges}
                         </div>
-                        <span class="text-xs text-slate-500">${dateStr}</span>
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs text-slate-500">${dateStr}</span>
+                            <button onclick="deletePlan(event, '${plan.id}'); setTimeout(loadHistoryItems, 500);" 
+                                class="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded transition-colors" 
+                                title="Delete Plan">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                            </button>
+                        </div>
                     </div>
                     <div class="flex items-center gap-3 text-xs text-slate-400 mb-2">
-                        <span class="px-2 py-0.5 rounded bg-slate-900 border border-slate-700 text-slate-500">${planDef.name}</span>
+                        <span class="px-2 py-0.5 rounded bg-slate-900 border border-slate-700 text-slate-500">${planDef.name || pType}</span>
                         <span>${langLabel}</span>
                          <span>${plan.creditsUsed || 0} cr</span>
                     </div>
