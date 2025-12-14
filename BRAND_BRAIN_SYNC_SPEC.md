@@ -290,3 +290,4 @@ Now create content for the following topic...
 ---
 
 *문서 끝*
+내일은 구글 클라우드 연결작업을 할게. 너무 졸려서 자려고..
