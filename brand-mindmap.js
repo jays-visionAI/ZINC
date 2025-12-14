@@ -530,13 +530,15 @@ function updateToolbarPosition(data) {
     else btnPaste.classList.add('hidden');
 
     // Multi-select Logic for Buttons
-    const btnAdd = document.getElementById('btn-node-add');
+    // btnAdd is already declared above
     if (selectedData.size > 1) {
         // Disable Add for multi-selection but keep visible
-        btnAdd.classList.add('opacity-40', 'pointer-events-none');
+        if (btnAdd) btnAdd.classList.add('opacity-40', 'pointer-events-none');
     } else {
-        btnAdd.classList.remove('opacity-40', 'pointer-events-none');
-        btnAdd.classList.remove('opacity-30'); // remove old class if present
+        if (btnAdd) {
+            btnAdd.classList.remove('opacity-40', 'pointer-events-none');
+            btnAdd.classList.remove('opacity-30');
+        }
     }
 }
 
