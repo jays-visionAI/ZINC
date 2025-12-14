@@ -511,6 +511,10 @@ function updateToolbarPosition(data) {
 
     toolbar.classList.remove('hidden');
 
+    // Force show Add button (Bug Fix)
+    const btnAdd = document.getElementById('btn-node-add');
+    if (btnAdd) btnAdd.classList.remove('hidden');
+
     const rect = nodeEl.getBoundingClientRect();
     const containerRect = document.getElementById('mindmap-container').getBoundingClientRect();
 
