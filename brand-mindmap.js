@@ -131,6 +131,9 @@ async function loadSidebarData() {
             }
         }
 
+        // Store for Modal usage
+        globalProjectGroups = projectGroups;
+
         renderSidebar(projectGroups);
 
     } catch (error) {
@@ -595,13 +598,87 @@ window.saveChanges = function () {
     }
 }
 
+// --- Modal Logic ---
 window.createNewMap = function () {
-    if (!confirm("Start a new empty map? (Unsaved changes will be lost)")) return;
-    rootData = { name: "New Concept", children: [] };
-    currentMetadata = null;
-    document.getElementById('current-map-title').innerText = "New Concept";
-    showPlaceholder(false);
-    render();
+    const modal = document.getElementById('modal-new-map');
+    const select = document.getElementById('new-map-project');
+    const input = document.getElementById('new-map-name');
+
+    // Reset fields
+    input.value = '';
+    select.innerHTML = '<option value="" disabled selected>Select a project...</option>';
+
+    // Populate projects
+    if (globalProjectGroups && globalProjectGroups.length > 0) {
+        globalProjectGroups.forEach(group => {
+            const option = document.createElement('option');
+            option.value = group.projectId;
+            option.textContent = group.projectName;
+            select.appendChild(option);
+        });
+    }
+
+    // If currently in a project, pre-select it
+    if (currentMetadata && currentMetadata.projectId) {
+        select.value = currentMetadata.projectId;
+    }
+
+    modal.classList.remove('hidden');
+    input.focus();
+}
+
+window.closeNewMapModal = function () {
+    document.getElementById('modal-new-map').classList.add('hidden');
+}
+
+window.submitNewMap = async function () {
+    const name = document.getElementById('new-map-name').value.trim();
+    const projectId = document.getElementById('new-map-project').value;
+
+    if (!name) return alert("Please enter a map name.");
+    if (!projectId) return alert("Please select a project.");
+
+    // UI Loading State
+    const btn = document.querySelector('button[onclick="submitNewMap()"]');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = `<span>Creating...</span>`;
+    btn.disabled = true;
+
+    try {
+        const newMapData = {
+            type: 'brand_mind_map',
+            title: name,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            uid: currentUser.uid,
+            projectId: projectId,
+            // Initialize with empty structure
+            versions: [
+                {
+                    createdAt: new Date().toISOString(),
+                    mindMapData: { name: name, children: [] }
+                }
+            ],
+            mindMapData: { name: name, children: [] }
+        };
+
+        const docRef = await db.collection(`projects/${projectId}/contentPlans`).add(newMapData);
+
+        // Refresh sidebar to show new item
+        await loadSidebarData();
+
+        closeNewMapModal();
+
+        // Load the newly created map
+        loadMapByID(projectId, docRef.id);
+
+    } catch (e) {
+        console.error("Creation Error:", e);
+        alert("Error creating map: " + e.message);
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
 }
 
 // Helpers reused from previous
