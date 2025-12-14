@@ -4204,7 +4204,7 @@ async function loadSavedPlans() {
     try {
         const db = firebase.firestore();
         const snapshot = await db.collection('projects').doc(currentProjectId)
-            .collection('savedPlans')
+            .collection('contentPlans') // Updated to new standard collection
             .orderBy('createdAt', 'desc')
             .limit(5)
             .get();
@@ -4219,11 +4219,14 @@ async function loadSavedPlans() {
         container.innerHTML = '';
         snapshot.forEach(doc => {
             const plan = doc.data();
+            // Normalize fields (Legacy 'planName' vs New 'title')
+            const displayName = plan.title || plan.planName || 'Untitled Plan';
+
             const item = document.createElement('div');
             item.className = 'p-2 bg-slate-800/30 rounded-lg hover:bg-slate-800/50 cursor-pointer transition-all';
             item.innerHTML = `
                 <div class="flex items-center justify-between">
-                    <p class="text-xs text-white font-medium truncate flex-1">${plan.planName}</p>
+                    <p class="text-xs text-white font-medium truncate flex-1">${escapeHtml(displayName)}</p>
                     ${plan.version ? `<span class="text-[9px] text-indigo-400 bg-indigo-500/20 px-1.5 py-0.5 rounded ml-2">${plan.version}</span>` : ''}
                 </div>
                 <p class="text-[10px] text-slate-500">${formatRelativeTime(plan.createdAt?.toDate())}</p>
@@ -4241,9 +4244,12 @@ async function loadSavedPlans() {
  */
 function viewSavedPlan(id, plan) {
     currentPlan = {
-        type: plan.planType,
-        name: plan.planName,
-        credits: plan.creditsUsed || 0
+        type: plan.type || plan.planType,
+        name: plan.title || plan.planName || 'Untitled Plan',
+        credits: plan.creditsUsed || 0,
+        id: id,
+        projectId: currentProjectId,
+        category: plan.category || 'content'
     };
     planVersions = [{
         id: id,
@@ -4253,7 +4259,7 @@ function viewSavedPlan(id, plan) {
         mindMapData: plan.mindMapData || null
     }];
 
-    document.getElementById('plan-modal-title').textContent = plan.planName;
+    document.getElementById('plan-modal-title').textContent = currentPlan.name;
     document.getElementById('plan-modal-subtitle').textContent = 'Saved Plan';
 
     showPlanResult();
