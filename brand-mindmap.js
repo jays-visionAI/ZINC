@@ -25,13 +25,14 @@ const CONFIG = {
 
 // --- Global State ---
 let rootData = null; // Single Source of Truth
-let currentMetadata = null; // { projectId, mapId, docId, isLocal }
+let currentMetadata = null;
 let svg, g, zoomKey;
 let treeLayout;
-let rootHierarchy; // D3 Hierarchy Wrapper
-let activeNode = null; // Reference to D3 Node (d) or Data Object? -> D3 Node (d) for positioning, access d.data for data.
-let clipboardData = null; // For Copy/Paste
-let globalProjectGroups = []; // For sidebar
+let rootHierarchy;
+let activeNode = null; // Primary selection (for Inspector)
+let selectedData = new Set(); // Multi-selection (Set of d.data)
+let clipboardData = null;
+let globalProjectGroups = [];
 
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -171,12 +172,21 @@ function renderSidebar(groups) {
                 renderSidebar(groups);
             };
 
-            const dateStr = map.createdAt ? new Date(map.createdAt.seconds * 1000).toLocaleDateString() : 'Recently';
+            let dateStr = 'Recently';
+            if (map.createdAt) {
+                const d = new Date(map.createdAt.seconds * 1000);
+                dateStr = `${d.getFullYear()}. ${d.getMonth() + 1}. ${d.getDate()}. ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+            }
+
+            const versionBadge = map.version ? `<span class="ml-1.5 px-1 py-px rounded border border-slate-600 text-[9px] text-slate-400 font-normal opacity-75">${map.version}</span>` : '';
 
             item.innerHTML = `
                 <div class="flex-1 min-w-0">
-                    <div class="text-xs font-medium ${isActive ? 'text-white' : 'text-slate-300'} group-hover:text-white truncate">${map.title || "Untitled Map"}</div>
-                    <div class="text-[10px] text-slate-500">${dateStr}</div>
+                    <div class="flex items-center text-xs font-medium ${isActive ? 'text-white' : 'text-slate-300'} group-hover:text-white truncate">
+                        <span class="truncate">${map.title || "Untitled Map"}</span>
+                        ${versionBadge}
+                    </div>
+                    <div class="text-[10px] text-slate-500 mt-0.5">${dateStr}</div>
                 </div>
                  <button onclick="deleteMap(event, '${group.projectId}', '${map.id}')" class="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded transition-all" title="Delete">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
@@ -252,13 +262,30 @@ function renderTree() {
 
     // 1. Hierarchy Setup
     rootHierarchy = d3.hierarchy(rootData, d => d.children);
-    rootHierarchy.x0 = 0;
-    rootHierarchy.y0 = 0;
 
-    // 2. Compute Layout
-    const treeData = treeLayout(rootHierarchy);
-    const nodes = treeData.descendants();
-    const links = treeData.links();
+    // 2. Layout Initialization (First Run Only)
+    // If root doesn't have layout data, run D3 Tree layout once to establish structure.
+    if (!rootData.layout || !rootData.layout.initialized) {
+        const treeData = treeLayout(rootHierarchy);
+        treeData.descendants().forEach(d => {
+            if (!d.data.layout) d.data.layout = {};
+            // Map D3 coordinates (x=vertical, y=horizontal in our render logic)
+            d.data.layout.x = d.x;
+            d.data.layout.y = d.y;
+        });
+        rootData.layout = { initialized: true };
+    }
+
+    // 3. Apply Coordinates from Data (Persistence)
+    rootHierarchy.descendants().forEach(d => {
+        if (d.data.layout) {
+            d.x = d.data.layout.x;
+            d.y = d.data.layout.y;
+        }
+    });
+
+    const nodes = rootHierarchy.descendants();
+    const links = rootHierarchy.links();
 
     // 3. Clear Canvas (Simplifying update logic)
     // We keep transitions simple: clear and redraw.
@@ -369,30 +396,52 @@ function renderTree() {
 
 function onNodeClick(event, d) {
     event.stopPropagation();
-    setActiveNode(d);
-}
 
-function setActiveNode(d) {
-    if (activeNode === d) return; // Already active
-
-    // Deselect previous
-    if (activeNode) {
-        // Since we re-render, we don't need manual cleanup often, but for instant feedback:
-        // Actually, let's just use re-render-less highlighting for performance
-        const oldEl = g.selectAll('.node').filter(n => n === activeNode);
-        oldEl.select('.shape')
-            .style('stroke', n => getNodeColor(n)) // Restore color
-            .style('stroke-dasharray', null);
-        oldEl.select('text').style('fill', n => (n.children ? '#fff' : CONFIG.colors.textMuted));
+    if (event.shiftKey) {
+        // Multi-select Toggle
+        if (selectedData.has(d.data)) {
+            selectedData.delete(d.data);
+            if (activeNode === d) activeNode = null;
+        } else {
+            selectedData.add(d.data);
+            activeNode = d;
+        }
+    } else {
+        // Single Select
+        selectedData.clear();
+        selectedData.add(d.data);
+        activeNode = d;
     }
 
-    activeNode = d;
+    renderSelectionState();
+}
 
-    highlightNode(d);
+function renderSelectionState() {
+    g.selectAll('.node').each(function (d) {
+        const isSelected = selectedData.has(d.data);
+        const group = d3.select(this);
+        const shape = group.select('.shape');
 
-    // UI Updates
-    updateToolbarPosition(d);
-    updateInspector(d);
+        if (isSelected) {
+            shape.style('stroke', CONFIG.colors.selected)
+                .style('stroke-dasharray', '4,2')
+                .style('stroke-width', '3px');
+        } else {
+            shape.style('stroke', getNodeColor(d))
+                .style('stroke-dasharray', null)
+                .style('stroke-width', '2px');
+        }
+    });
+
+    if (activeNode && selectedData.has(activeNode.data)) {
+        updateToolbarPosition(activeNode);
+        updateInspector(activeNode);
+    } else {
+        document.getElementById('node-toolbar').classList.add('hidden');
+        document.getElementById('inspector-placeholder').classList.remove('hidden');
+        document.getElementById('inspector-content').classList.add('hidden');
+        document.getElementById('source-card').classList.add('hidden');
+    }
 }
 
 function highlightNode(d) {
@@ -407,22 +456,9 @@ function highlightNode(d) {
 }
 
 function deselectNode() {
-    if (activeNode) {
-        // Visual Reset is handled by re-render or manual logic? 
-        // Manual is faster.
-        const oldEl = g.selectAll('.node').filter(n => n === activeNode);
-        oldEl.select('.shape')
-            .style('stroke', n => getNodeColor(n))
-            .style('stroke-dasharray', null)
-            .style('stroke-width', '2px');
-        oldEl.select('text').style('fill', n => (n.children ? '#fff' : CONFIG.colors.textMuted));
-    }
+    selectedData.clear();
     activeNode = null;
-    document.getElementById('node-toolbar').classList.add('hidden');
-
-    // Inspector
-    document.getElementById('inspector-placeholder').classList.remove('hidden');
-    document.getElementById('inspector-content').classList.add('hidden');
+    renderSelectionState();
 }
 
 function updateToolbarPosition(d) {
@@ -458,7 +494,13 @@ function updateInspector(d) {
     document.getElementById('inspector-body').classList.remove('hidden');
 
     document.getElementById('inp-name').innerText = d.data.name;
-    document.getElementById('inp-desc').innerText = d.data.description || "";
+
+    // Badge
+    const type = d.data.type || (d.depth === 0 ? 'ROOT' : 'CONCEPT');
+    const badge = document.getElementById('inp-type-badge');
+    if (badge) badge.innerText = type; // HTML check
+
+    document.getElementById('inp-desc').innerText = d.data.description || "No description provided.";
     document.getElementById('inp-memo').value = d.data.memo || "";
 
     const ref = d.data.sourceReference || d.data.source || d.data.ref;
@@ -466,7 +508,7 @@ function updateInspector(d) {
     if (ref) {
         sourceCard.classList.remove('hidden');
         document.getElementById('source-title').innerText = ref.title || "Unknown Source";
-        document.getElementById('source-snippet').innerText = `"${(ref.snippet || "").substring(0, 100)}..."`;
+        document.getElementById('source-snippet').innerText = `"${(ref.snippet || "").substring(0, 150)}..."`;
     } else {
         sourceCard.classList.add('hidden');
     }
@@ -482,8 +524,44 @@ function dragStarted(event, d) {
 }
 
 function dragged(event, d) {
-    // Visual drag only
-    d3.select(this).attr('transform', `translate(${event.x},${event.y})`);
+    // Multi-move Support
+    if (!selectedData.has(d.data)) {
+        // If dragging an unselected node, select it (and deselect others unless shift)
+        selectedData.clear();
+        selectedData.add(d.data);
+        activeNode = d;
+        renderSelectionState();
+    }
+
+    const dx = event.dx;
+    const dy = event.dy;
+
+    selectedData.forEach(data => {
+        if (!data.layout) data.layout = { x: 0, y: 0 };
+        data.layout.y += dx; // Horizontal
+        data.layout.x += dy; // Vertical
+    });
+
+    // Efficient DOM Update
+    g.selectAll('.node').filter(n => selectedData.has(n.data))
+        .attr('transform', n => `translate(${n.data.layout.y}, ${n.data.layout.x})`);
+
+    updateLinkPositions();
+}
+
+function updateLinkPositions() {
+    g.selectAll('path.link').attr('d', d => {
+        // Sync with data.layout
+        const sx = d.source.data.layout?.x ?? d.source.x;
+        const sy = d.source.data.layout?.y ?? d.source.y;
+        const tx = d.target.data.layout?.x ?? d.target.x;
+        const ty = d.target.data.layout?.y ?? d.target.y;
+
+        return `M${sy},${sx}
+                 C${(sy + ty) / 2},${sx}
+                  ${(sy + ty) / 2},${tx}
+                  ${ty},${tx}`;
+    });
 }
 
 function dragEnded(event, d) {
