@@ -1,7 +1,11 @@
 /**
- * Brand Mind Map - D3.js Interactive Visualization
+ * Brand Mind Map - D3.js Interactive Visualization & Manager
  * @author ZYNK Studio
  */
+
+// --- Firebase Setup ---
+const db = firebase.firestore();
+let currentUser = null;
 
 // --- Configuration ---
 const CONFIG = {
@@ -12,59 +16,51 @@ const CONFIG = {
         text: '#f8fafc', // Slate-50
         textMuted: '#94a3b8', // Slate-400
         bg: '#020617', // Slate-950
-        link: '#334155'  // Slate-700
+        link: '#334155',  // Slate-700
+        selected: '#ffffff' // White for selection
     },
     nodeRadius: 6,
     duration: 500
 };
 
-// --- Mock Data (Testing Fallback) ---
-const MOCK_DATA = {
-    "name": "VisionChain",
-    "type": "root",
-    "children": [
-        {
-            "name": "Core Identity",
-            "children": [
-                {
-                    "name": "Mission",
-                    "description": "To democratize AI for small businesses through accessible automation tools.",
-                    "sourceReference": { "title": "Company_Manifesto_v2.pdf", "snippet": "Our mission is to democratize access to advanced AI tools..." }
-                },
-                { "name": "Vision", "description": "A world where creativity is limited only by imagination, not technical skill." }
-            ]
-        },
-        {
-            "name": "Target Audience",
-            "children": [
-                { "name": "SOLOpreneurs", "description": "Individual creators managing everything alone." },
-                { "name": "Agencies", "description": "Small boutique marketing firms." }
-            ]
-        },
-        {
-            "name": "Brand Values",
-            "children": [
-                { "name": "Transparency", "sourceReference": { "title": "Brand_Values.docx", "snippet": "We believe in radical transparency in our algorithms..." } },
-                { "name": "Speed" },
-                { "name": "Empowerment" }
-            ]
-        }
-    ]
-};
-
 // --- Global State ---
-let rootData = null;
+let rootData = null; // Current Mind Map Data
+let currentMetadata = null; // { projectId, mapId, docId }
 let svg, g, zoomKey;
 let i = 0;
 let treemap;
 let root; // Hierarchy root
-let activeNode = null; // Currently inspected node
+let activeNode = null;
+let selectedNodes = new Set();
 
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
-    initData();
+    // Init Visuals
     initCanvas();
-    render();
+
+    // Auth Check & Data Load
+    firebase.auth().onAuthStateChanged(user => {
+        if (user) {
+            currentUser = user;
+            loadSidebarData();
+
+            // Check for URL params to direct load
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('dataKey')) {
+                // Legacy/Direct mode (from localStorage)
+                loadFromLocalStorage(urlParams.get('dataKey'));
+            } else {
+                // Wait for user selection
+                showPlaceholder(true);
+            }
+        } else {
+            // Not logged in - maybe redirect or show mock?
+            // For now, load mock data for testing UI
+            console.warn("User not logged in. Loading Mock Data.");
+            loadMockData();
+            loadSidebarMock();
+        }
+    });
 
     // Toolbar Events
     document.getElementById('btn-zoom-in').onclick = () => svg.transition().call(zoomKey.scaleBy, 1.2);
@@ -76,35 +72,222 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('inp-desc').addEventListener('input', (e) => updateActiveNode('description', e.target.innerText));
 });
 
-function initData() {
-    // Try to get data from URL params or LocalStorage
-    // For now, use Mock Data if nothing found
-    const urlParams = new URLSearchParams(window.location.search);
-    const dataKey = urlParams.get('dataKey');
+// --- Data Loading Logic ---
 
-    let loadedData = null;
-    if (dataKey) {
-        const stored = localStorage.getItem(dataKey);
-        if (stored) loadedData = JSON.parse(stored);
+async function loadSidebarData() {
+    const listContainer = document.getElementById('sidebar-projects-list');
+
+    try {
+        // 1. Get Projects (This part depends on your DB structure/permissions)
+        // Trying to get all projects (you might want to filter by owner/member)
+        const projectsSnap = await db.collection('projects').get();
+        const projectGroups = [];
+
+        // 2. For each project, get Brand Mind Map plans
+        for (const pDoc of projectsSnap.docs) {
+            const pData = pDoc.data();
+
+            // Query for mind maps
+            const mapsSnap = await db.collection(`projects/${pDoc.id}/contentPlans`)
+                .where('type', '==', 'brand_mind_map')
+                .orderBy('createdAt', 'desc') // Assuming createdAt exists
+                .get();
+
+            if (!mapsSnap.empty) {
+                const maps = mapsSnap.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                projectGroups.push({
+                    projectId: pDoc.id,
+                    projectName: pData.projectName || "Untitled Project",
+                    maps: maps
+                });
+            }
+        }
+
+        renderSidebar(projectGroups);
+
+    } catch (error) {
+        console.error("Error loading sidebar data:", error);
+        listContainer.innerHTML = `<div class="text-center text-red-400 text-xs p-4">Error loading projects.<br>${error.message}</div>`;
+    }
+}
+
+function renderSidebar(groups) {
+    const container = document.getElementById('sidebar-projects-list');
+    container.innerHTML = '';
+
+    if (groups.length === 0) {
+        container.innerHTML = `<div class="text-center text-slate-500 text-xs p-4">No Mind Maps found.<br>Create one to get started.</div>`;
+        return;
     }
 
-    // Also check for a generic 'currentMindMap' key
-    if (!loadedData) {
-        const generic = localStorage.getItem('currentMindMap');
-        if (generic) loadedData = JSON.parse(generic);
+    groups.forEach(group => {
+        // Project Header
+        const section = document.createElement('div');
+        section.className = 'mb-6';
+
+        const header = document.createElement('div');
+        header.className = 'px-2 mb-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2';
+        header.innerHTML = `
+            <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+            ${group.projectName}
+        `;
+        section.appendChild(header);
+
+        // Map List
+        const list = document.createElement('div');
+        list.className = 'space-y-1';
+
+        group.maps.forEach(map => {
+            const item = document.createElement('div');
+            item.className = 'sidebar-item group flex items-center justify-between p-2 rounded-lg cursor-pointer hover:bg-slate-800 transition-colors border border-transparent hover:border-slate-700';
+            item.onclick = () => loadMapFromFirestore(group, map);
+
+            // Creation Date
+            let dateStr = 'Recently';
+            if (map.createdAt) {
+                const d = map.createdAt.toDate ? map.createdAt.toDate() : new Date(map.createdAt);
+                dateStr = d.toLocaleDateString();
+            }
+
+            item.innerHTML = `
+                <div class="flex-1 min-w-0">
+                    <div class="text-xs font-medium text-slate-300 group-hover:text-white truncate">${map.parameters?.topic || map.title || "Untitled Map"}</div>
+                    <div class="text-[10px] text-slate-500">${dateStr}</div>
+                </div>
+                <button onclick="deleteMap(event, '${group.projectId}', '${map.id}')" class="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded transition-all" title="Delete">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                </button>
+            `;
+            list.appendChild(item);
+        });
+
+        section.appendChild(list);
+        container.appendChild(section);
+    });
+}
+
+function loadMapFromFirestore(project, map) {
+    // 1. Set Metadata
+    currentMetadata = {
+        projectId: project.projectId,
+        mapId: map.id,
+        mapTitle: map.parameters?.topic || map.title
+    };
+
+    // 2. Set Data
+    // Check if 'mindMapData' exists in the plan document. 
+    // In ZINC logic, plans have versions. We usually display the latest version.
+    // Assuming 'mindMapData' is at top level or in 'versions' array.
+    // Let's assume the map object PASSED IN already has data (since we queried the docs).
+
+    let mapData = map.mindMapData;
+
+    // Fallback: Check versions
+    if (!mapData && map.versions && map.versions.length > 0) {
+        // Get latest version with data
+        const v = map.versions.slice().reverse().find(v => v.mindMapData);
+        if (v) mapData = v.mindMapData;
     }
 
-    rootData = loadedData || MOCK_DATA;
+    // Fallback: Mock if still null
+    if (!mapData) {
+        console.warn("No mindMapData found in this plan. Loading demo.");
+        rootData = { name: currentMetadata.mapTitle, children: [{ name: "No Data", children: [] }] };
+    } else {
+        rootData = mapData;
+    }
 
-    document.getElementById('map-subtitle').textContent = rootData.name || "Brand Strategy";
+    // 3. Update UI Headers
+    document.getElementById('current-project-name').innerText = project.projectName;
+    document.getElementById('current-doc-type').innerText = 'Brand Strategy';
+    document.getElementById('current-map-title').innerText = currentMetadata.mapTitle;
+
+    // 4. Render
+    showPlaceholder(false);
+    render();
+
+    // Highlight sidebar item
+    // (Implementation optional for logic simplicity)
+}
+
+async function deleteMap(e, projectId, mapId) {
+    e.stopPropagation();
+    if (!confirm("Are you sure you want to delete this Mind Map plan?")) return;
+
+    try {
+        await db.collection(`projects/${projectId}/contentPlans`).doc(mapId).delete();
+        // Refresh Sidebar
+        loadSidebarData();
+        // If current map, clear view
+        if (currentMetadata && currentMetadata.mapId === mapId) {
+            showPlaceholder(true);
+        }
+    } catch (err) {
+        alert("Error deleting map: " + err.message);
+    }
+}
+
+function loadFromLocalStorage(key) {
+    const stored = localStorage.getItem(key);
+    if (!stored) return;
+
+    try {
+        const parsed = JSON.parse(stored);
+        rootData = parsed;
+        currentMetadata = { mapTitle: rootData.name || "Imported Map", isLocal: true };
+
+        document.getElementById('current-project-name').innerText = "Local Storage";
+        document.getElementById('current-map-title').innerText = rootData.name;
+
+        showPlaceholder(false);
+        render();
+    } catch (e) { console.error(e); }
+}
+
+function loadMockData() {
+    rootData = {
+        "name": "VisionChain",
+        "children": [
+            { "name": "Core Identity", "children": [{ "name": "Mission" }, { "name": "Vision" }] },
+            { "name": "Target Audience", "children": [{ "name": "SOLOpreneurs" }] }
+        ]
+    };
+    render();
+}
+
+function loadSidebarMock() {
+    renderSidebar([
+        {
+            projectId: "mock_p1",
+            projectName: "Demo Project Alpha",
+            maps: [
+                { id: "m1", title: "Launch Strategy", createdAt: new Date() },
+                { id: "m2", title: "Brand Core", createdAt: new Date() }
+            ]
+        }
+    ]);
+}
+
+function showPlaceholder(show) {
+    const placeholder = document.getElementById('canvas-placeholder');
+    const container = document.getElementById('mindmap-container');
+
+    if (show) {
+        placeholder.classList.remove('hidden');
+        if (g) g.style('display', 'none');
+    } else {
+        placeholder.classList.add('hidden');
+        if (g) g.style('display', 'block');
+    }
 }
 
 function initCanvas() {
-    const container = document.getElementById('mindmap-container');
-    const width = container.clientWidth;
-    const height = container.clientHeight;
-
-    // Zoom Behavior
+    // ... same as before, but ensure 'g' is handled correctly
+    // Add Zoom Behavior
     zoomKey = d3.zoom()
         .scaleExtent([0.1, 4])
         .on('zoom', (event) => g.attr('transform', event.transform));
@@ -112,98 +295,112 @@ function initCanvas() {
     svg = d3.select('#mindmap-container').append('svg')
         .attr('width', '100%')
         .attr('height', '100%')
+        .on('click', (event) => {
+            if (event.target.tagName === 'svg') {
+                selectedNodes.clear();
+                updateSelectionVisuals();
+            }
+        })
         .call(zoomKey)
         .on('dblclick.zoom', null);
 
     g = svg.append('g');
 
     // Initialize Tree Layout
-    treemap = d3.tree().nodeSize([40, 240]); // [height, width] spacing
+    treemap = d3.tree().nodeSize([40, 240]);
 }
 
-// --- Rendering Logic ---
+// --- Rendering Logic (Reused from previous step) ---
 function render() {
-    // Convert to hierarchy
+    if (!rootData) return;
+
+    // Reset G content? No, maintain transitions? 
+    // For switching maps, we should probably clear or handle cleanly.
+    // If we want smooth transition, it's hard with totally different data.
+    // Let's clear for simplicity when switching maps.
+
+    // But D3 update pattern can handle data change.
+
     root = d3.hierarchy(rootData, d => d.children);
     root.x0 = document.getElementById('mindmap-container').clientHeight / 2;
     root.y0 = 100;
 
-    // Collapse logic if needed (optional initial state)
-    // if (root.children) root.children.forEach(collapse);
-
     update(root);
-
-    // Initial center
     fitView();
 }
+
+// ... update(), click(), drag(), etc. (COPY PREVIOUS LOGIC) ...
+// Since write_to_file overwrites, I must include the FULL logic.
 
 function update(source) {
     const treeData = treemap(root);
     const nodes = treeData.descendants();
     const links = treeData.links();
 
-    // Fixed depth positioning
     nodes.forEach(d => { d.y = d.depth * 280; });
 
-    // --- Nodes ---
     const node = g.selectAll('g.node')
         .data(nodes, d => d.id || (d.id = ++i));
 
     const nodeEnter = node.enter().append('g')
         .attr('class', 'node')
+        .attr('id', d => `node-${d.id}`)
         .attr('transform', d => `translate(${source.y0},${source.x0})`)
         .on('click', click);
 
-    // Node Circle
     nodeEnter.append('circle')
         .attr('class', 'node')
         .attr('r', 1e-6)
         .style('fill', d => d._children ? CONFIG.colors.leaf : CONFIG.colors.bg)
         .style('stroke', d => getNodeColor(d))
         .style('stroke-width', '2px')
-        .style('cursor', 'move'); // Changed to move cursor
+        .style('cursor', 'pointer');
 
-    // --- Drag Behavior ---
+    // Drag Behavior (Updated with multi-select logic)
     const dragBehavior = d3.drag()
         .on("start", (event, d) => {
-            if (event.active) return; // Ignore if already active
-            d3.select(event.sourceEvent.target.parentNode).raise(); // Bring to front
+            if (event.active) return;
+            d3.select(`#node-${d.id}`).raise();
+            if (!selectedNodes.has(d) && !event.sourceEvent.shiftKey && !event.sourceEvent.ctrlKey && !event.sourceEvent.metaKey) {
+                selectedNodes.clear();
+                selectedNodes.add(d);
+                updateSelectionVisuals();
+            } else if (!selectedNodes.has(d)) {
+                selectedNodes.add(d);
+                updateSelectionVisuals();
+            }
         })
         .on("drag", (event, d) => {
-            // Get current zoom transform to adjust drag sensitivity
             const transform = d3.zoomTransform(svg.node());
             const scale = transform.k || 1;
+            const dx = event.dx / scale;
+            const dy = event.dy / scale;
 
-            // Update coordinates with scale correction
-            d.y += event.dx / scale;
-            d.x += event.dy / scale;
+            let nodesToMove = selectedNodes;
+            if (nodesToMove.size === 0) nodesToMove = new Set([d]);
 
-            // Move Node
-            d3.select(event.sourceEvent.target.parentNode)
-                .attr("transform", `translate(${d.y},${d.x})`);
+            nodesToMove.forEach(node => {
+                node.y += dx;
+                node.x += dy;
+                d3.select(`#node-${node.id}`).attr("transform", `translate(${node.y},${node.x})`);
+            });
 
-            // Update Links (Update ALL links to be safe)
-            g.selectAll('path.link')
-                .attr('d', l => diagonal(l.source, l.target));
+            g.selectAll('path.link').attr('d', l => diagonal(l.source, l.target));
         });
 
     nodeEnter.call(dragBehavior);
 
-    // Labels
     nodeEnter.append('text')
         .attr('dy', '.35em')
         .attr('x', d => d.children || d._children ? -15 : 15)
         .attr('text-anchor', d => d.children || d._children ? 'end' : 'start')
         .text(d => d.data.name)
-        .style('font-family', 'Inter, sans-serif')
-        .style('font-size', '13px')
-        .style('font-weight', '500')
         .style('fill', CONFIG.colors.textMuted)
         .style('opacity', 0)
-        .style('text-shadow', '0 2px 4px rgba(0,0,0,0.8)')
-        .style('cursor', 'pointer');
+        .style('cursor', 'pointer')
+        .style('font-size', '13px')
+        .style('font-weight', '500');
 
-    // Update
     const nodeUpdate = nodeEnter.merge(node);
 
     nodeUpdate.transition().duration(CONFIG.duration)
@@ -211,18 +408,15 @@ function update(source) {
 
     nodeUpdate.select('circle.node')
         .attr('r', d => d.depth === 0 ? 12 : 8)
-        .style('fill', d => d._children ? getNodeColor(d) : CONFIG.colors.bg)
-        .style('stroke', d => getNodeColor(d)) // Dynamic color based on branch
-        .attr('cursor', 'pointer');
+        .style('fill', d => d._children ? getNodeColor(d) : CONFIG.colors.bg);
 
     nodeUpdate.select('text')
         .style('fill-opacity', 1)
         .style('opacity', 1)
-        .style('font-weight', d => d === activeNode ? '700' : '500')
-        .style('fill', d => d === activeNode ? CONFIG.colors.text : CONFIG.colors.textMuted)
-        .text(d => d.data.name); // Refresh name in case of edit
+        .text(d => d.data.name);
 
-    // Exit
+    updateSelectionVisuals();
+
     const nodeExit = node.exit().transition().duration(CONFIG.duration)
         .attr('transform', d => `translate(${source.y},${source.x})`)
         .remove();
@@ -230,7 +424,6 @@ function update(source) {
     nodeExit.select('circle').attr('r', 1e-6);
     nodeExit.select('text').style('fill-opacity', 1e-6);
 
-    // --- Links ---
     const link = g.selectAll('path.link')
         .data(links, d => d.target.id);
 
@@ -245,7 +438,6 @@ function update(source) {
         .style('stroke-width', '1.5px');
 
     const linkUpdate = linkEnter.merge(link);
-
     linkUpdate.transition().duration(CONFIG.duration)
         .attr('d', d => diagonal(d.source, d.target));
 
@@ -256,14 +448,12 @@ function update(source) {
         })
         .remove();
 
-    // Store positions
     nodes.forEach(d => {
         d.x0 = d.x;
         d.y0 = d.y;
     });
 }
 
-// Curved path generator
 function diagonal(s, d) {
     return `M ${s.y} ${s.x}
             C ${(s.y + d.y) / 2} ${s.x},
@@ -271,14 +461,10 @@ function diagonal(s, d) {
               ${d.y} ${d.x}`;
 }
 
-// Color logic
 function getNodeColor(d) {
     if (d.depth === 0) return CONFIG.colors.root;
-    // Walk up to find the level-1 parent to determine branch color
     let p = d;
     while (p.depth > 1) p = p.parent;
-
-    // Consistent color hashing based on name
     const colors = ['#f472b6', '#a78bfa', '#60a5fa', '#34d399', '#fbbf24', '#f87171'];
     let hash = 0;
     const str = p.data.name || '';
@@ -286,25 +472,55 @@ function getNodeColor(d) {
     return colors[Math.abs(hash) % colors.length];
 }
 
-// --- Interaction ---
 function click(event, d) {
-    // Toggle children
-    if (d.children) {
-        d._children = d.children;
-        d.children = null;
-    } else {
-        d.children = d._children;
-        d._children = null;
+    event.stopPropagation();
+    if (event.ctrlKey || event.metaKey) {
+        if (selectedNodes.has(d)) selectedNodes.delete(d);
+        else selectedNodes.add(d);
+        updateSelectionVisuals();
+        if (selectedNodes.size === 1) inspectNode(d);
+        return;
     }
-
+    if (selectedNodes.has(d) && selectedNodes.size > 1) {
+        selectedNodes.clear();
+        selectedNodes.add(d);
+    } else {
+        if (d.children) {
+            d._children = d.children;
+            d.children = null;
+        } else {
+            d.children = d._children;
+            d._children = null;
+        }
+        update(d);
+        selectedNodes.clear();
+        selectedNodes.add(d);
+    }
+    updateSelectionVisuals();
     inspectNode(d);
-    update(d);
+}
+
+function updateSelectionVisuals() {
+    g.selectAll('circle.node')
+        .style('stroke', d => getNodeColor(d))
+        .style('stroke-width', '2px')
+        .style('stroke-dasharray', null);
+
+    g.selectAll('text').style('fill', CONFIG.colors.textMuted);
+
+    selectedNodes.forEach(d => {
+        const nodeGroup = d3.select(`#node-${d.id}`);
+        nodeGroup.select('circle')
+            .style('stroke', CONFIG.colors.selected)
+            .style('stroke-width', '3px')
+            .style('stroke-dasharray', '2,2');
+
+        nodeGroup.select('text').style('fill', CONFIG.colors.text);
+    });
 }
 
 function inspectNode(d) {
     activeNode = d;
-
-    const inspector = document.getElementById('inspector');
     const placeholder = document.getElementById('inspector-placeholder');
     const content = document.getElementById('inspector-content');
     const body = document.getElementById('inspector-body');
@@ -313,11 +529,9 @@ function inspectNode(d) {
     content.classList.remove('hidden');
     body.classList.remove('hidden');
 
-    // Populate Fields
     document.getElementById('inp-name').innerText = d.data.name;
-    document.getElementById('inp-desc').innerText = d.data.description || "No description provided.";
+    document.getElementById('inp-desc').innerText = d.data.description || "No description available.";
 
-    // Source Reference
     const sourceCard = document.getElementById('source-card');
     if (d.data.sourceReference) {
         sourceCard.classList.remove('hidden');
@@ -331,10 +545,7 @@ function inspectNode(d) {
 function updateActiveNode(field, value) {
     if (activeNode) {
         activeNode.data[field] = value;
-        // If name changed, update graph text immediately
-        if (field === 'name') {
-            update(root);
-        }
+        if (field === 'name') update(root);
     }
 }
 
@@ -345,54 +556,48 @@ function fitView() {
     svg.transition().duration(750).call(zoomKey.transform, d3.zoomIdentity.translate(width / 4, height / 2).scale(1));
 }
 
-// --- Toolbar Actions ---
+// Global actions
 window.saveChanges = function () {
-    // In a integrated page, this would call Firestore.
-    // For standalone, we save to local storage.
-    localStorage.setItem('currentMindMap', JSON.stringify(rootData));
-
-    // Visual Feedback
-    const btn = document.querySelector('button[onclick="saveChanges()"]');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = `<span class="text-emerald-400">Saved!</span>`;
-    setTimeout(() => btn.innerHTML = originalText, 2000);
+    // If connected to Firestore, update the Doc
+    if (currentMetadata && currentMetadata.mapId && currentMetadata.projectId && !currentMetadata.isLocal) {
+        // TODO: Update Firestore document with new tree structure
+        // This requires serializing d3 hierarchy back to JSON
+        alert("Saving to Firestore not yet fully implemented. (Read-only mode for now)");
+    } else {
+        const btn = document.getElementById('btn-save');
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = `<span class="text-emerald-400">Saved Locally!</span>`;
+        setTimeout(() => btn.innerHTML = originalHtml, 2000);
+    }
 }
 
+window.createNewMap = function () {
+    if (!confirm("Start a new empty map? (Unsaved changes will be lost)")) return;
+    rootData = { name: "New Concept", children: [] };
+    currentMetadata = null;
+    document.getElementById('current-map-title').innerText = "New Concept";
+    showPlaceholder(false);
+    render();
+}
+
+// Helpers reused from previous
 window.fnAddChild = function () {
     if (!activeNode) return;
-
-    const newNode = { name: "New Node", description: "Edit me" };
-    if (!activeNode.children && !activeNode._children) {
-        activeNode.children = [];
-    }
-
-    // Add to children (handle hidden children state)
-    if (activeNode.children) {
-        activeNode.children.push(newNode);
-    } else {
-        activeNode._children.push(newNode);
-    }
-
+    const newNode = { name: "New Node" };
+    if (!activeNode.children && !activeNode._children) activeNode.children = [];
+    if (activeNode.children) activeNode.children.push(newNode);
+    else activeNode._children.push(newNode);
     update(activeNode);
-    // Auto-inspect new node? Maybe too complex for d3 update cycle
 }
 
 window.fnDeleteNode = function () {
-    if (!activeNode || !activeNode.parent) return; // Can't delete root
-
+    if (!activeNode || !activeNode.parent) return;
     const parent = activeNode.parent;
     const children = parent.children || parent._children;
-
-    // Remove from data
     const index = children.indexOf(activeNode);
-    if (index > -1) {
-        children.splice(index, 1);
-    }
-
+    if (index > -1) children.splice(index, 1);
     activeNode = null;
-    document.getElementById('inspector-content').classList.add('hidden');
-    document.getElementById('inspector-body').classList.add('hidden');
-    document.getElementById('inspector-placeholder').classList.remove('hidden');
-
+    selectedNodes.clear();
+    updateSelectionVisuals();
     update(parent);
 }
