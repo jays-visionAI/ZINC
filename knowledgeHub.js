@@ -3772,10 +3772,10 @@ function showPlanResult() {
     // Build version tabs
     const tabsContainer = document.getElementById('plan-versions-tabs');
     tabsContainer.innerHTML = planVersions.map((v, i) => `
-                < button class="plan-version-tab px-3 py-1.5 text-xs rounded-lg border transition-all ${i === planVersions.length - 1 ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'}"
-            onclick = "selectPlanVersion(${i})" >
-                Version ${i + 1}
-        </button >
+        <button class="plan-version-tab px-3 py-1.5 text-xs rounded-lg border transition-all ${i === planVersions.length - 1 ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'}"
+            onclick="selectPlanVersion(${i})">
+            Version ${i + 1}
+        </button>
                 `).join('');
 
     // Show latest version
@@ -4222,10 +4222,10 @@ async function loadSavedPlans() {
             const item = document.createElement('div');
             item.className = 'p-2 bg-slate-800/30 rounded-lg hover:bg-slate-800/50 cursor-pointer transition-all';
             item.innerHTML = `
-                < div class="flex items-center justify-between" >
+                <div class="flex items-center justify-between">
                     <p class="text-xs text-white font-medium truncate flex-1">${plan.planName}</p>
                     ${plan.version ? `<span class="text-[9px] text-indigo-400 bg-indigo-500/20 px-1.5 py-0.5 rounded ml-2">${plan.version}</span>` : ''}
-                </div >
+                </div>
                 <p class="text-[10px] text-slate-500">${formatRelativeTime(plan.createdAt?.toDate())}</p>
             `;
             item.onclick = () => viewSavedPlan(doc.id, plan);
@@ -4283,7 +4283,7 @@ function showNotification(message, type = 'success') {
     const container = document.getElementById('notification-container') || createNotificationContainer();
 
     const notification = document.createElement('div');
-    notification.className = `px - 4 py - 3 rounded - xl text - sm font - medium shadow - lg transition - all transform translate - x - full ${getNotificationClass(type)} `;
+    notification.className = `px-4 py-3 rounded-xl text-sm font-medium shadow-lg transition-all transform translate-x-full ${getNotificationClass(type)}`;
     notification.textContent = message;
 
     container.appendChild(notification);
