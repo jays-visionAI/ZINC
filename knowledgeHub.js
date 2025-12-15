@@ -1228,7 +1228,7 @@ async function regenerateSourceSummary(sourceId) {
     const boostActive = document.getElementById('summary-boost-active')?.value === 'true';
     const qualityTier = boostActive ? 'BOOST' : 'DEFAULT';  // "BOOST" uses Gemini 3.0 Pro, "DEFAULT" uses Gemini 2.0 Flash
 
-    showNotification(`Generating summary (${boostActive ? 'Boosted 🚀' : 'Standard'})...`, 'info');
+    showNotification(`🤖 Market Analyst: Analyzing (${boostActive ? 'Boosted 🚀' : 'Standard'})...`, 'info');
 
     try {
         // Get content to summarize based on source type
@@ -1285,7 +1285,7 @@ ${contentToSummarize.substring(0, 15000)}` // Increased limit for Gemini
             // Refresh the view
             openSourceContent(sourceId);
 
-            showNotification(`Summary generated successfully! (${qualityTier})`, 'success');
+            showNotification(`Market Analyst: Analysis complete! (${qualityTier})`, 'success');
         } else {
             console.error('RouteLLM Empty Response:', result.data);
             showNotification(`Failed to generate: ${result.data?.error || 'No content returned from AI'}`, 'error');
@@ -1460,7 +1460,8 @@ async function handlePlanClick(planType) {
     }
 
     // Show loading indicator
-    showNotification(`Generating ${formatPlanType(planType)}...`, 'info');
+    // Show loading indicator with Agent Persona (Standard Studio Agent)
+    showNotification(`🤖 Strategy Planner: Generating ${formatPlanType(planType)}...`, 'info');
 
     try {
         // Call Cloud Function
@@ -2360,6 +2361,26 @@ function addChatMessage(content, type) {
                         </svg>
                         Save to note
                     </button>
+                    <!-- Save Plan Button -->
+                    <button onclick="saveChatToPlan('${messageId}', this)" 
+                        class="flex items-center gap-1.5 px-2 py-1 text-xs text-slate-500 hover:text-indigo-400 hover:bg-slate-800/50 rounded-md transition-all"
+                        data-content="${escapeHtml(content).replace(/"/g, '&quot;')}">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                            <polyline points="7 3 7 8 15 8"></polyline>
+                        </svg>
+                        Save Plan
+                    </button>
+                    <!-- Use in Studio Button -->
+                    <button onclick="useChatInStudio('${messageId}', this)" 
+                        class="flex items-center gap-1.5 px-2 py-1 text-xs text-slate-500 hover:text-emerald-400 hover:bg-slate-800/50 rounded-md transition-all"
+                        data-content="${escapeHtml(content).replace(/"/g, '&quot;')}">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                        Use in Studio
+                    </button>
                     <button onclick="copyText(this)" 
                         class="p-1 text-slate-500 hover:text-white hover:bg-slate-800/50 rounded-md transition-all"
                         data-content="${escapeHtml(content).replace(/"/g, '&quot;')}">
@@ -2803,6 +2824,78 @@ async function saveChatToNote(messageId, btn) {
     } catch (error) {
         console.error('Error saving to note:', error);
         showNotification('Failed to save', 'error');
+    }
+}
+
+/**
+ * Save chat message as a Content Plan draft
+ */
+async function saveChatToPlan(messageId, btn) {
+    const content = btn.dataset.content;
+    if (!content || !currentProjectId) {
+        showNotification('Unable to save', 'error');
+        return;
+    }
+
+    try {
+        const db = firebase.firestore();
+        const date = new Date();
+        const dateStr = date.toLocaleDateString('ko-KR');
+
+        // Create a new drafted plan
+        await db.collection('projects').doc(currentProjectId)
+            .collection('contentPlans').add({
+                title: `Plan from Chat - ${dateStr}`,
+                type: 'custom',
+                category: 'strategic', // Default to strategic
+                status: 'draft',
+                content: {
+                    raw_chat: content,
+                    notes: 'Saved from Knowledge Hub chat'
+                },
+                summary: content.substring(0, 100) + '...',
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                createdBy: currentUser?.uid
+            });
+
+        showNotification('Saved as Draft Plan!', 'success');
+
+        // Refresh Saved Plans list if visible
+        if (typeof loadSavedPlans === 'function') {
+            loadSavedPlans();
+        }
+    } catch (error) {
+        console.error('Error saving to plan:', error);
+        showNotification('Failed to save plan', 'error');
+    }
+}
+
+// Global variable to hold content pending for Studio
+let pendingStudioContent = null;
+
+/**
+ * Send content to Studio (Opens Agent Team Modal)
+ */
+async function useChatInStudio(messageId, btn) {
+    const content = btn.dataset.content;
+    if (!content) return;
+
+    // Store content for the modal confirmation
+    pendingStudioContent = {
+        type: 'chat',
+        content: content,
+        planName: 'Insight from Brand Intelligence'
+    };
+
+    // Open the Agent Team Selection Modal
+    const modal = document.getElementById('modal-select-agent-team');
+    if (modal) {
+        modal.classList.remove('hidden');
+        loadAgentTeamsForStudio(); // Load teams
+    } else {
+        console.error('Agent Team Modal not found');
+        showNotification('System Error: Modal missing', 'error');
     }
 }
 
@@ -4146,18 +4239,18 @@ async function loadAgentTeams() {
 
         if (teams.length === 0) {
             list.innerHTML = `
-                < div class="text-center py-4 text-slate-500 text-sm" >
-                    No agent teams found for this project.< br >
-                        <a href="admin-agentteams.html" class="text-indigo-400 hover:underline mt-2 inline-block">Create a Team</a>
-                </div >
-                `;
+                <div class="text-center py-4 text-slate-500 text-sm">
+                    No agent teams found for this project.<br>
+                    <a href="admin-agentteams.html" class="text-indigo-400 hover:underline mt-2 inline-block">Create a Team</a>
+                </div>
+            `;
             return;
         }
 
         list.innerHTML = teams.map(team => {
             return `
-                < div class="agent-team-option p-3 bg-slate-800 border border-slate-700 rounded-xl hover:border-indigo-500 cursor-pointer transition-all flex items-center justify-between"
-            onclick = "selectAgentTeam('${team.id}', this)" >
+                <div class="agent-team-option p-3 bg-slate-800 border border-slate-700 rounded-xl hover:border-indigo-500 cursor-pointer transition-all flex items-center justify-between"
+                    onclick="selectAgentTeam('${team.id}', this)">
                     <div>
                         <div class="text-sm font-medium text-white">${team.name}</div>
                         <div class="text-xs text-slate-500">${team.description || 'No description'}</div>
@@ -4165,8 +4258,8 @@ async function loadAgentTeams() {
                     <div class="selection-indicator w-4 h-4 rounded-full border border-slate-600 flex items-center justify-center">
                         <div class="w-2 h-2 rounded-full bg-indigo-500 opacity-0 transition-opacity"></div>
                     </div>
-                </div >
-                `;
+                </div>
+            `;
         }).join('');
 
     } catch (error) {
@@ -4194,21 +4287,40 @@ function selectAgentTeam(teamId, element) {
 function confirmUseInStudio() {
     if (!selectedAgentTeam) return;
 
-    const currentVersionIndex = document.querySelector('.plan-version-tab.bg-indigo-600')?.textContent.match(/\d+/) - 1 || 0;
-    const version = planVersions[currentVersionIndex];
+    let studioData = null;
 
-    if (!version) return;
+    if (pendingStudioContent) {
+        // Case 1: From Chat Button
+        studioData = {
+            type: 'chat',
+            planType: 'custom',
+            planName: pendingStudioContent.planName,
+            content: pendingStudioContent.content,
+            projectId: currentProjectId,
+            agentTeamId: selectedAgentTeam
+        };
+    } else {
+        // Case 2: From Saved Plan (Standard Flow)
+        const currentVersionIndex = document.querySelector('.plan-version-tab.bg-indigo-600')?.textContent.match(/\d+/) - 1 || 0;
+        const version = planVersions[currentVersionIndex];
 
-    localStorage.setItem('studioContext', JSON.stringify({
-        type: 'plan',
-        planType: currentPlan.type,
-        planName: currentPlan.name,
-        content: version.content,
-        projectId: currentProjectId,
-        agentTeamId: selectedAgentTeam
-    }));
+        if (!version) return;
 
-    window.location.href = 'studio/index.html';
+        studioData = {
+            type: 'plan',
+            planType: currentPlan.type,
+            planName: currentPlan.name,
+            content: version.content,
+            projectId: currentProjectId,
+            agentTeamId: selectedAgentTeam
+        };
+    }
+
+    if (studioData) {
+        localStorage.setItem('studioContext', JSON.stringify(studioData));
+        window.location.href = 'studio/index.html';
+    }
+}
 }
 
 /**

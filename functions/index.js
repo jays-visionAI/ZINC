@@ -1872,8 +1872,39 @@ exports.analyzeKnowledgeSource = functions.https.onCall(async (data, context) =>
             throw new functions.https.HttpsError('failed-precondition', 'No text could be extracted');
         }
 
-        // Generate AI analysis
-        const analysis = await generateSourceAnalysis(extractedText, source.title);
+        // Generate AI analysis via LLM Router
+        const routeResult = await llmRouter.route({
+            feature: 'knowledge_hub.analysis',
+            messages: [
+                { role: 'system', content: 'You are the "Market Analyst" agent. Your role is to analyze documents and extract key insights for the brand strategy. Always respond with valid JSON.' },
+                {
+                    role: 'user', content: `Analyze the following document and extract key information for brand strategy purposes.
+
+Document Title: ${source.title || 'Untitled'}
+
+Document Content:
+${extractedText.substring(0, 15000)}
+
+Please provide the analysis in this JSON format:
+{
+    "summary": "A 2-3 sentence summary of the document",
+    "keyInsights": ["insight1", "insight2", "insight3"],
+    "extractedEntities": {
+        "companyName": "if mentioned",
+        "products": ["product1", "product2"],
+        "values": ["value1", "value2"],
+        "targetAudience": "if mentioned"
+    },
+    "tags": ["tag1", "tag2", "tag3"],
+    "relevanceScore": 0.0-1.0
+}` }
+            ],
+            response_format: { type: "json_object" },
+            projectId: projectId,
+            callLLM: callLLM
+        });
+
+        const analysis = JSON.parse(routeResult.content || '{}');
 
         // Update source with analysis
         await sourceRef.update({
@@ -1882,7 +1913,7 @@ exports.analyzeKnowledgeSource = functions.https.onCall(async (data, context) =>
                 ...analysis,
                 extractedTextLength: extractedText.length,
                 analyzedAt: admin.firestore.FieldValue.serverTimestamp(),
-                aiModel: 'gpt-4-turbo'
+                aiModel: routeResult.model
             },
             updatedAt: admin.firestore.FieldValue.serverTimestamp()
         });
@@ -2202,19 +2233,13 @@ exports.generateKnowledgeSummary = onCall(
                 }
             });
 
-            // Generate combined summary
-            const apiKey = await getSystemApiKey('openai');
-            const OpenAI = require('openai');
-            const openai = new OpenAI({ apiKey });
-
-            const combinedText = allInsights.join('\n- ');
-
-            const response = await openai.chat.completions.create({
-                model: 'gpt-4-turbo',
+            // Generate combined summary via LLM Router
+            const routeResult = await llmRouter.route({
+                feature: 'knowledge_hub.summary',
                 messages: [
                     {
                         role: 'system',
-                        content: `You are a brand strategist creating a concise summary for a client. Be professional and insightful. IMPORTANT: Respond entirely in ${outputLanguage}.`
+                        content: `You are the "Market Analyst" agent. Your role is to organize and synthesize information from multiple sources. Be professional and insightful. IMPORTANT: Respond entirely in ${outputLanguage}.`
                     },
                     {
                         role: 'user',
@@ -2239,12 +2264,12 @@ Respond in JSON format (with ${outputLanguage} content):
 }`
                     }
                 ],
-                temperature: 0.5,
-                max_tokens: 1000,
-                response_format: { type: "json_object" }
+                response_format: { type: "json_object" },
+                projectId: projectId,
+                callLLM: callLLM
             });
 
-            const result = JSON.parse(response.choices[0]?.message?.content || '{}');
+            const result = JSON.parse(routeResult.content || '{}');
 
             // Save summary to Firestore for persistence
             const summaryData = {
@@ -2348,28 +2373,24 @@ exports.askKnowledgeHub = onCall(
                 });
             });
 
-            // Generate answer
-            const apiKey = await getSystemApiKey('openai');
-            const OpenAI = require('openai');
-            const openai = new OpenAI({ apiKey });
-
-            const response = await openai.chat.completions.create({
-                model: 'gpt-4-turbo',
+            // Generate answer via LLM Router
+            const routeResult = await llmRouter.route({
+                feature: 'knowledge_hub.qa',
                 messages: [
                     {
                         role: 'system',
-                        content: `You are a helpful brand strategist assistant. Answer questions based ONLY on the provided context from the user's documents. If the answer is not in the context, say so. Always cite which source you're referencing. IMPORTANT: Respond ONLY in ${outputLanguage}.`
+                        content: `You are a helpful "Knowledge Assistant". Answer questions based ONLY on the provided context from the user's documents. If the answer is not in the context, say so. Always cite which source you're referencing. IMPORTANT: Respond ONLY in ${outputLanguage}.`
                     },
                     {
                         role: 'user',
                         content: `Context from user's documents:${context}\n\n---\n\nQuestion: ${question}\n\nPlease answer in ${outputLanguage}.`
                     }
                 ],
-                temperature: 0.3,
-                max_tokens: 1000
+                projectId: projectId,
+                callLLM: callLLM
             });
 
-            const answer = response.choices[0]?.message?.content || 'Unable to generate answer.';
+            const answer = routeResult.content || 'Unable to generate answer.';
 
             return {
                 success: true,
@@ -2474,7 +2495,7 @@ For each variation:
 1. Headline (max 40 chars)
 2. Primary Text (max 125 chars)
 3. Description (max 30 chars)
-4. Call-to-Action button suggestion
+4. Call-to-action button suggestion
 5. Target emotion/appeal
 
 Include variations for: awareness, consideration, and conversion stages.`
@@ -2647,41 +2668,23 @@ exports.generateContentPlan = functions.https.onCall(async (data, context) => {
             brandContext += `\n\nSource Insights:${sourceInsights}`;
         }
 
-        // Generate plan with AI
-        const apiKey = await getSystemApiKey('openai');
-        const OpenAI = require('openai');
-        const openai = new OpenAI({ apiKey });
-
-        const systemPrompt = `You are an expert brand strategist and content marketing specialist. 
-Create professional, actionable content plans based on the provided brand context.
-Be specific and practical. Output should be well-structured and ready to implement.`;
-
-        const userPrompt = `Brand Context:
-${brandContext}
-
-${options.additionalContext ? `Additional Context: ${options.additionalContext}` : ''}
-
-Task: ${planConfig.prompt}
-
-Respond in JSON format:
-{
-    "title": "Plan title",
-    "content": { ... structured content based on plan type ... },
-    "summary": "Brief 1-2 sentence summary of the plan"
-}`;
-
-        const response = await openai.chat.completions.create({
-            model: 'gpt-4-turbo',
+        // Generate plan via LLM Router
+        const routeResult = await llmRouter.route({
+            feature: 'knowledge_hub.content_plan',
             messages: [
-                { role: 'system', content: systemPrompt },
+                {
+                    role: 'system',
+                    content: `You are the "Strategy Planner" agent. Your role is to create professional, actionable content plans based on the brand context. 
+Be specific and practical. Output should be well-structured and ready to implement.`
+                },
                 { role: 'user', content: userPrompt }
             ],
-            temperature: 0.7,
-            max_tokens: 3000,
-            response_format: { type: "json_object" }
+            response_format: { type: "json_object" },
+            projectId: projectId,
+            callLLM: callLLM
         });
 
-        const generatedContent = JSON.parse(response.choices[0]?.message?.content || '{}');
+        const generatedContent = JSON.parse(routeResult.content || '{}');
 
         // Save to Firestore
         const planData = {
