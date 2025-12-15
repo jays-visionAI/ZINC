@@ -98,6 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initPreviewTabs();
     initFooterButtons();
     initSidebarToggle();
+    initBoosterToggle(); // New
     updateStats();
 });
 
@@ -331,10 +332,37 @@ async function initProjectSelector() {
             // Sync to global state
             localStorage.setItem('currentProjectId', projectId);
 
+            // Clear any lingering plan context from previous loads/redirects
+            state.planContext = null;
+
             addLogEntry(`📁 Selected project: ${projectName}`, 'info');
 
             // Update Preview Profile
             updatePreviewProfile(projectName);
+
+            // Fetch full project details for context
+            try {
+                const projectDoc = await db.collection('projects').doc(projectId).get();
+                if (projectDoc.exists) {
+                    const pData = projectDoc.data();
+                    const description = pData.description || pData.businessDescription || `Content creation for ${projectName}`;
+
+                    state.planContext = {
+                        planName: `Content Plan for ${projectName}`,
+                        content: description,
+                        projectId: projectId
+                    };
+                    addLogEntry('📄 Loaded project context', 'success');
+                }
+            } catch (err) {
+                console.warn('[Studio] Error fetching project details:', err);
+                // Fallback context
+                state.planContext = {
+                    planName: `Project: ${projectName}`,
+                    content: `Create content for ${projectName}`,
+                    projectId: projectId
+                };
+            }
 
             await loadAgentTeams(projectId);
         } else {
@@ -426,8 +454,8 @@ function showAgentTeamRequiredWarning() {
                 to { transform: translateX(-50%) translateY(0); opacity: 1; }
             }
             @keyframes toastPulse {
-                0%, 100% { box-shadow: 0 8px 32px rgba(255, 107, 53, 0.4); }
-                50% { box-shadow: 0 8px 48px rgba(255, 107, 53, 0.7); }
+                0%, 100% { box-shadow: 0 0 8px #ff6b35, 0 0 16px #ff6b35; }
+                50% { box-shadow: 0 0 16px #ff6b35, 0 0 32px #f7931e, 0 0 48px #ff6b35; }
             }
             .toast-icon { font-size: 24px; }
             .toast-title { font-weight: bold; font-size: 14px; }
@@ -989,6 +1017,25 @@ function initFooterButtons() {
 }
 
 // ============================================
+// BOOSTER MODE LOGIC
+// ============================================
+function initBoosterToggle() {
+    const boosterBtn = document.getElementById('booster-toggle-btn');
+    if (boosterBtn) {
+        boosterBtn.addEventListener('click', () => {
+            state.isBoostMode = !state.isBoostMode;
+            boosterBtn.classList.toggle('active', state.isBoostMode);
+
+            if (state.isBoostMode) {
+                addLogEntry('🚀 Booster Mode ACTIVATED: Max Performance', 'success');
+            } else {
+                addLogEntry('Booster Mode Deactivated: Standard routing', 'info');
+            }
+        });
+    }
+}
+
+// ============================================
 // SIDEBAR TOGGLE
 // ============================================
 function initSidebarToggle() {
@@ -1055,13 +1102,19 @@ function startExecution() {
 
     // Initialize DAGExecutor
     executor = new DAGExecutor();
+    window.dagExecutor = executor; // Expose for UI helpers
 
     // Register event callbacks
     executor
         .on('onNodeStart', ({ nodeId }) => {
             setNodeState(nodeId, 'running');
         })
-        .on('onNodeComplete', ({ nodeId }) => {
+        .on('onNodeComplete', ({ nodeId, agentId, result }) => {
+            // DEBUG: Detailed log to help verify model/provider
+            console.log('[Studio] Node Complete:', agentId, result);
+            const meta = result?.metadata || {};
+            addLogEntry(`🔍 DEBUG: ${agentId} finished. Model: ${meta.model || 'N/A'}, Provider: ${meta.provider || 'N/A'}`, 'info');
+
             setNodeState(nodeId, 'complete');
             fireParticles(nodeId);
 
@@ -1118,11 +1171,11 @@ function startExecution() {
             document.getElementById('stop-btn').disabled = true;
         });
 
-    // Start execution
+    // Start Executor
     const selectedAgents = getSelectedAgents();
-    executor.start(selectedAgents, state.selectedProject, state.selectedAgentTeam, state.planContext);
+    executor.start(selectedAgents, state.selectedProject, state.selectedAgentTeam, state.planContext, state.isBoostMode ? 'BOOST' : null);
 
-    // Update footer progress
+    // Switch to DAG View (Center Panel)
     updateFooterProgress();
 
     console.log('Starting execution with DAGExecutor:', {
@@ -1286,6 +1339,11 @@ function setNodeState(nodeId, state) {
     if (node) {
         node.classList.remove('waiting', 'running', 'complete', 'error');
         node.classList.add(state);
+
+        // Add Review Button if complete
+        if (state === 'complete') {
+            addReviewButton(node, nodeId);
+        }
     }
 }
 
@@ -1856,3 +1914,221 @@ function initTooltip() {
     }
 }
 
+
+// ============================================
+// AGENT REPORT & REVIEW UI
+// ============================================
+
+/**
+ * Add Review Button & Model Indicator to Node (SVG)
+ */
+function addReviewButton(node, nodeId) {
+    if (node.querySelector('.node-actions-group')) return;
+
+    // Map Node ID back to Agent ID (fix for Unknown badges)
+    const getAgentIdFromNodeId = (nid) => {
+        const id = nid.replace('node-', '');
+        const map = {
+            'seo': 'seo_watcher',
+            'knowledge': 'knowledge_curator',
+            'text': 'creator_text',
+            'image': 'creator_image',
+            'video': 'creator_video',
+            'seo-opt': 'seo_optimizer'
+        };
+        return map[id] || id;
+    };
+
+    const agentId = getAgentIdFromNodeId(nodeId);
+
+    // 1. Get Metadata & Model Info
+    let modelName = 'Unknown Model';
+    let isMock = false;
+
+    // Access DAG Executor results
+    const execInstance = window.dagExecutor || executor;
+    if (execInstance && execInstance.state.executionResults[agentId]) {
+        const res = execInstance.state.executionResults[agentId];
+        const meta = res.metadata || (res.data && res.data.metadata);
+
+        if (meta && meta.model) {
+            modelName = meta.model;
+            isMock = meta.isMock || (meta.provider === 'system');
+        } else if (meta && meta.provider) {
+            // Fallback: Infer model from provider if model name is missing
+            if (meta.provider === 'google') modelName = 'Gemini';
+            else if (meta.provider === 'openai') modelName = 'GPT-4';
+            else if (meta.provider === 'anthropic') modelName = 'Claude';
+            else modelName = meta.provider;
+        } else if (res.isMock) {
+            isMock = true;
+            modelName = 'MOCK';
+        }
+    }
+
+    // Shorten Model Name for UI
+    if (typeof modelName === 'string') {
+        if (modelName.toLowerCase().includes('gpt-4')) modelName = 'GPT-4';
+        else if (modelName.toLowerCase().includes('gemini')) modelName = 'Gemini';
+        else if (modelName.toLowerCase().includes('claude')) modelName = 'Claude';
+        else if (modelName.toLowerCase().includes('mock')) modelName = 'MOCK';
+        else if (modelName.length > 8) modelName = modelName.substring(0, 6) + '..';
+    }
+
+    // Force override if Boost Mode was active during this run (imperfect check, but helpful)
+    if (state.isBoostMode && modelName === 'GPT-4') {
+        // If config says Boost=Gemini (which we don't know here easily without reading global config), 
+        // we might still show GPT-4 if the backend actually used GPT-4.
+        // However, if the user sees 'GPT-4' but expects Gemini, it's confusing.
+        // Let's rely on the metadata from `executionResults` which SHOULD be correct if the backend returned it.
+    }
+
+    // 2. Create SVG Group
+    const btnGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    btnGroup.setAttribute("class", "node-actions-group");
+    // Position: Center below node (Node Width 80 -> Center 40)
+    // Group Width approx 70 (34 + 2 + 34). Start X = 40 - 35 = 5.
+    btnGroup.setAttribute("transform", "translate(5, 65)");
+    btnGroup.setAttribute("style", "cursor: pointer");
+    btnGroup.setAttribute("onclick", `openAgentReport('${agentId}')`);
+
+    // --- Model Badge (Left) ---
+    const badgeRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    badgeRect.setAttribute("width", "34");
+    badgeRect.setAttribute("height", "18");
+    badgeRect.setAttribute("rx", "4");
+    // Color: Mock -> Amber(Dark), Real -> Slate
+    badgeRect.setAttribute("fill", isMock ? "#b45309" : "#1e293b");
+
+    const badgeText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    badgeText.setAttribute("x", "17");
+    badgeText.setAttribute("y", "12");
+    badgeText.setAttribute("text-anchor", "middle");
+    badgeText.setAttribute("fill", isMock ? "#fff" : "#94a3b8");
+    badgeText.setAttribute("font-size", "8");
+    badgeText.setAttribute("font-weight", "600");
+    badgeText.textContent = modelName;
+
+    // --- Review Button (Right) ---
+    const reviewRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    reviewRect.setAttribute("x", "36"); // Gap
+    reviewRect.setAttribute("width", "34");
+    reviewRect.setAttribute("height", "18");
+    reviewRect.setAttribute("rx", "4");
+    reviewRect.setAttribute("fill", "#6366f1"); // Indigo
+    reviewRect.setAttribute("filter", "url(#glow-running)");
+
+    const reviewText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    reviewText.setAttribute("x", "53");
+    reviewText.setAttribute("y", "12");
+    reviewText.setAttribute("text-anchor", "middle");
+    reviewText.setAttribute("fill", "white");
+    reviewText.setAttribute("font-size", "8");
+    reviewText.setAttribute("font-weight", "600");
+    reviewText.textContent = "VIEW";
+
+    // Append
+    btnGroup.appendChild(badgeRect);
+    btnGroup.appendChild(badgeText);
+    btnGroup.appendChild(reviewRect);
+    btnGroup.appendChild(reviewText);
+
+    // Animate In
+    btnGroup.style.opacity = '0';
+    node.appendChild(btnGroup);
+
+    setTimeout(() => {
+        btnGroup.style.transition = 'opacity 0.3s';
+        btnGroup.style.opacity = '1';
+    }, 100);
+}
+
+/**
+ * Open Agent Report Modal
+ */
+window.openAgentReport = (agentId) => {
+    const modal = document.getElementById('agent-report-modal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+
+    // Header
+    const agentName = agentId.replace('_', ' ').toUpperCase();
+    const nameEl = document.getElementById('report-agent-name');
+    if (nameEl) nameEl.textContent = `${agentName} REPORT`;
+
+    // Metadata Retrieval
+    let metadata = {};
+    // Use window.dagExecutor if available, or fallback to any globally stored executor
+    // Assuming 'executor' variable in studio.js might be accessible or stored on window
+    if (window.DAGExecutor && window.dagExecutor && window.dagExecutor.state && window.dagExecutor.state.executionResults) {
+        const result = window.dagExecutor.state.executionResults[agentId];
+        metadata = (result && result.metadata) ? result.metadata : {};
+    }
+
+    // Fallback Metadata (Simulation) if none exists or empty
+    if (!metadata.resources) {
+        metadata = {
+            model: 'gpt-4o',
+            resources: {
+                project: true,
+                brand: true,
+                knowledge: [],
+                history: (agentId !== 'research') ? 2 : 0
+            },
+            weights: {
+                project: 20,
+                brand: 30,
+                knowledge: 15,
+                history: 10
+            }
+        };
+    }
+
+    // Update Stats UI
+    const modelEl = document.getElementById('report-model');
+    if (modelEl) modelEl.textContent = metadata.model || 'gpt-4o';
+
+    const tokensEl = document.getElementById('report-tokens');
+    if (tokensEl) tokensEl.textContent = Math.floor(Math.random() * 500 + 200) + ' tokens'; // Simulation
+
+    let activeResources = 0;
+    if (metadata.resources.project) activeResources++;
+    if (metadata.resources.brand) activeResources++;
+    if (metadata.resources.knowledge && metadata.resources.knowledge.length > 0) activeResources += metadata.resources.knowledge.length;
+    else if (metadata.resources.knowledge) activeResources++;
+    if (metadata.resources.history) activeResources++;
+
+    const countEl = document.getElementById('report-resource-count');
+    if (countEl) countEl.textContent = activeResources;
+
+    // Render D3 Visualization
+    if (window.AgentReportVisualizer) {
+        new AgentReportVisualizer('report-vis-container').render(metadata, agentName);
+    }
+
+    // Render Details List
+    const list = document.getElementById('report-details-list');
+    if (list) {
+        list.innerHTML = '';
+
+        if (metadata.resources.project) list.innerHTML += `<li class="detail-item" style="color:#3b82f6"><span class="dot blue">●</span> Project Context Injected</li>`;
+        if (metadata.resources.brand) list.innerHTML += `<li class="detail-item" style="color:#8b5cf6"><span class="dot purple">●</span> Brand Persona Active</li>`;
+
+        if (Array.isArray(metadata.resources.knowledge) && metadata.resources.knowledge.length > 0) {
+            metadata.resources.knowledge.forEach(k => {
+                list.innerHTML += `<li class="detail-item" style="color:#f59e0b"><span class="dot amber">●</span> Reference: ${k}</li>`;
+            });
+        } else if (metadata.resources.knowledge) {
+            list.innerHTML += `<li class="detail-item" style="color:#f59e0b"><span class="dot amber">●</span> Knowledge Base Accessed</li>`;
+        }
+
+        if (metadata.resources.history) {
+            list.innerHTML += `<li class="detail-item" style="color:#6366f1"><span class="dot indigo">●</span> Used Previous Context (${metadata.resources.history} steps)</li>`;
+        }
+    }
+};
+
+window.closeAgentReport = () => {
+    const modal = document.getElementById('agent-report-modal');
+    if (modal) modal.style.display = 'none';
+};

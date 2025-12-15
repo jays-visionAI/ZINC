@@ -14,23 +14,14 @@
     </div>
 
     <div class="admin-card">
-        <div
-            style="background: rgba(234, 179, 8, 0.1); border: 1px solid rgba(234, 179, 8, 0.3); padding: 12px; border-radius: 6px; margin-bottom: 16px;">
-            <div style="display: flex; align-items: center; gap: 8px; color: #eab308;">
-                <span style="font-size: 20px;">⚠️</span>
-                <div style="font-size: 13px;">
-                    <strong>Read-only Mode:</strong> This page displays runtime profile rules for reference only.
-                    To create or modify rules, use Firestore Console or Seeder tools.
-                </div>
-            </div>
-        </div>
+        <!-- Read-only banner removed -->
 
         <table class="admin-table">
             <thead>
                 <tr>
                     <th>Rule ID / Engine Type</th>
                     <th>Language</th>
-                    <th>Tiers Configuration</th>
+                    <th>Base Engine</th>
                     <th>Status</th>
                     <th>Updated</th>
                     <th>Actions</th>
@@ -43,9 +34,9 @@
     </div>
 </div>
 
-<!-- Create/Edit Profile Modal -->
+<!-- Modal Wrapper -->
 <div id="profile-modal" class="admin-modal" style="display: none;">
-    <div class="admin-modal-content" style="max-width: 600px;">
+    <div class="admin-modal-content" style="max-width: 800px;">
         <div class="admin-modal-header">
             <h3 class="admin-modal-title" id="modal-title">Create Runtime Profile</h3>
             <button class="admin-modal-close" id="modal-close">&times;</button>
@@ -54,47 +45,88 @@
             <form id="profile-form">
                 <input type="hidden" id="profile-doc-id">
 
-                <div class="admin-form-group">
-                    <label class="admin-form-label">Profile ID (Unique)</label>
-                    <input type="text" id="profile-id" class="admin-form-input" required
-                        placeholder="e.g. rtp_chat_balanced_v1">
-                    <small style="color: rgba(255,255,255,0.5);">Used by templates to reference this profile.</small>
-                </div>
-
-                <div class="admin-form-group">
-                    <label class="admin-form-label">Display Name</label>
-                    <input type="text" id="profile-name" class="admin-form-input" required
-                        placeholder="e.g. Balanced Chat Model v1">
-                </div>
-
-                <div class="admin-form-group">
-                    <label class="admin-form-label">Description</label>
-                    <textarea id="profile-desc" class="admin-form-input" rows="2"
-                        placeholder="e.g. Good balance of performance and cost for general tasks"></textarea>
-                </div>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <!-- Top Section: Identity -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
                     <div class="admin-form-group">
-                        <label class="admin-form-label">Provider</label>
-                        <select id="profile-provider" class="admin-select" style="width: 100%;" required>
-                            <option value="openai">OpenAI</option>
-                            <option value="anthropic">Anthropic</option>
-                            <option value="google">Google Gemini</option>
-                            <option value="mock">Mock (Testing)</option>
-                            <option value="custom">Custom / Local</option>
+                        <label class="admin-form-label">Profile ID (Unique)</label>
+                        <input type="text" id="profile-id" class="admin-form-input" required
+                            placeholder="e.g. rtp_chat_balanced_v1">
+                    </div>
+                    <div class="admin-form-group">
+                        <label class="admin-form-label">Display Name</label>
+                        <input type="text" id="profile-name" class="admin-form-input" required
+                            placeholder="e.g. Balanced Chat Model v1">
+                    </div>
+                </div>
+
+                <!-- v2.1 Capability-based Fields (No Role) -->
+                <div
+                    style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+                    <div class="admin-form-group" style="margin-bottom: 0;">
+                        <label class="admin-form-label" style="font-size: 11px;">Language</label>
+                        <select id="profile-language" class="admin-select" style="width: 100%;" required>
+                            <!-- Populated by JS -->
                         </select>
                     </div>
-                    <div class="admin-form-group">
-                        <label class="admin-form-label">Model ID</label>
-                        <input type="text" id="profile-model" class="admin-form-input" required
-                            placeholder="e.g. gpt-4o-mini">
+                    <div class="admin-form-group" style="margin-bottom: 0;">
+                        <label class="admin-form-label" style="font-size: 11px;">Status</label>
+                        <select id="profile-status" class="admin-select" style="width: 100%;">
+                            <option value="active">Active</option>
+                            <option value="testing">Testing</option>
+                            <option value="deprecated">Deprecated</option>
+                        </select>
                     </div>
                 </div>
 
-                <div class="admin-form-group">
-                    <label class="admin-form-label">Capabilities</label>
+                <!-- Single Base Configuration -->
+                <div
+                    style="background: rgba(255,255,255,0.03); padding: 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
                     <div
-                        style="display: flex; gap: 16px; flex-wrap: wrap; background: rgba(255,255,255,0.05); padding: 12px; border-radius: 6px;">
+                        style="font-size: 12px; color: #16e0bd; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">
+                        Base Model Configuration
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 12px;">
+                        <div class="admin-form-group">
+                            <label class="admin-form-label">Provider</label>
+                            <select id="profile-provider" class="admin-select" style="width: 100%;" required
+                                onchange="toggleModelInputMode()">
+                                <option value="llm_router">LLM Router (Managed)</option>
+                                <option value="openai">OpenAI</option>
+                                <option value="anthropic">Anthropic</option>
+                                <option value="google">Google Gemini</option>
+                                <option value="mock">Mock (Testing)</option>
+                            </select>
+                        </div>
+                        <div class="admin-form-group">
+                            <label class="admin-form-label">Model Configuration</label>
+
+                            <!-- Standard Text Input -->
+                            <input type="text" id="profile-model" class="admin-form-input" style="display:none;"
+                                placeholder="e.g. gpt-4o">
+
+                            <!-- Router Abstract Select -->
+                            <select id="profile-model-select" class="admin-select" style="width: 100%; display:none;">
+                                <option value="reasoning_optimized">High Reasoning (Logic Optimized)</option>
+                                <option value="creative_optimized">Creative Writing (Flow Optimized)</option>
+                                <option value="technical_optimized">Technical Execution (Code Optimized)</option>
+                                <option value="speed_optimized">Economy Speed (Cost Optimized)</option>
+                                <option value="image_optimized">Visual Generation (Image Optimized)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div
+                        style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 6px; font-size: 11px; color: rgba(255,255,255,0.6);">
+                        <strong>ℹ️ Router Logic:</strong> The LLM Router will automatically adjust Temperature and
+                        Tokens
+                        based on the requested Quality Tier (Balanced/Creative/Precise) using this base model.
+                    </div>
+                </div>
+
+                <div class="admin-form-group" style="margin-top: 20px;">
+                    <label class="admin-form-label">Capabilities</label>
+                    <div style="display: flex; gap: 16px; flex-wrap: wrap;">
                         <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
                             <input type="checkbox" id="cap-chat" checked> Chat
                         </label>
@@ -110,45 +142,10 @@
                     </div>
                 </div>
 
-                <!-- v2.0 3-Axis Fields -->
-                <div
-                    style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 8px;">
-                    <div class="admin-form-group">
-                        <label class="admin-form-label">Role Type</label>
-                        <select id="profile-role" class="admin-select" style="width: 100%;" required>
-                            <!-- Populated by JS -->
-                        </select>
-                    </div>
-                    <div class="admin-form-group">
-                        <label class="admin-form-label">Language</label>
-                        <select id="profile-language" class="admin-select" style="width: 100%;" required>
-                            <!-- Populated by JS -->
-                        </select>
-                    </div>
-                    <div class="admin-form-group">
-                        <label class="admin-form-label">Tier</label>
-                        <select id="profile-tier" class="admin-select" style="width: 100%;" required>
-                            <option value="economy">Economy</option>
-                            <option value="balanced" selected>Balanced</option>
-                            <option value="premium">Premium</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                    <div class="admin-form-group">
-                        <label class="admin-form-label">Status</label>
-                        <select id="profile-status" class="admin-select" style="width: 100%;">
-                            <option value="active">Active</option>
-                            <option value="testing">Testing</option>
-                            <option value="deprecated">Deprecated</option>
-                        </select>
-                    </div>
-                    <div class="admin-form-group">
-                        <label class="admin-form-label">Cost Hint (Legacy)</label>
-                        <input type="text" id="profile-cost-hint" class="admin-form-input" readonly
-                            placeholder="Auto-set from Tier">
-                    </div>
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Description</label>
+                    <textarea id="profile-desc" class="admin-form-input" rows="2"
+                        placeholder="Internal notes about this profile..."></textarea>
                 </div>
 
             </form>
@@ -156,10 +153,7 @@
         <div class="admin-modal-footer">
             <button class="admin-btn-secondary" id="modal-cancel">Cancel</button>
             <button class="admin-btn-primary" id="modal-save">Save Profile</button>
-            <button class="admin-btn-primary" id="modal-save-as-new" style="display: none; background: #10b981;"
-                onclick="window.saveAsNewVersion(event)">
-                💾 Save as New Version
-            </button>
         </div>
     </div>
+</div>
 </div>

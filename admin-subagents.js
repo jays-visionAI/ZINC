@@ -784,34 +784,42 @@ Always prioritize accurate, up-to-date information.`
         setupSliders();
     }
 
-    function setupSliders() {
-        const tempSlider = document.getElementById('config-temperature-slider');
-        const tempInput = document.getElementById('config-temperature');
-        const tempDisplay = document.getElementById('temp-display');
+    async function loadRuntimeProfiles() {
+        const select = document.getElementById('subagent-runtime-profile');
+        if (!select) return;
 
-        const tokenSlider = document.getElementById('config-max-tokens-slider');
-        const tokenInput = document.getElementById('config-max-tokens');
-        const tokenDisplay = document.getElementById('tokens-display');
+        try {
+            select.innerHTML = '<option value="">Loading...</option>';
 
-        function sync(source, target, display) {
-            if (source && target) {
-                target.value = source.value;
-                if (display) display.textContent = source.value;
+            // Fetch active profiles from runtimeProfileRules
+            const snapshot = await db.collection('runtimeProfileRules')
+                .where('status', '==', 'active')
+                .get();
+
+            if (snapshot.empty) {
+                select.innerHTML = '<option value="">No active profiles found</option>';
+                return;
             }
-        }
 
-        if (tempSlider && tempInput) {
-            tempSlider.oninput = () => sync(tempSlider, tempInput, tempDisplay);
-            tempInput.oninput = () => sync(tempInput, tempSlider, tempDisplay);
-            // Init
-            sync(tempInput, tempSlider, tempDisplay);
-        }
+            let profileOptions = '<option value="">Select Runtime Profile...</option>';
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                const name = data.name || data.id;
+                // Add useful metadata to option for display or validation
+                profileOptions += `<option value="${doc.id}">${name} (${doc.id})</option>`;
+            });
 
-        if (tokenSlider && tokenInput) {
-            tokenSlider.oninput = () => sync(tokenSlider, tokenInput, tokenDisplay);
-            tokenInput.oninput = () => sync(tokenInput, tokenSlider, tokenDisplay);
-            // Init
-            sync(tokenInput, tokenSlider, tokenDisplay);
+            select.innerHTML = profileOptions;
+
+            // Add listener to show info
+            select.onchange = () => {
+                const infoSpan = document.getElementById('selected-profile-info');
+                if (infoSpan) infoSpan.textContent = select.value || '-';
+            };
+
+        } catch (error) {
+            console.error('[Admin] Error loading runtime profiles:', error);
+            select.innerHTML = '<option value="">Error loading profiles</option>';
         }
     }
 
@@ -889,6 +897,8 @@ Always prioritize accurate, up-to-date information.`
     window.editTemplate = async function (id) {
         console.log('Edit template called:', id);
         try {
+            await openModal(true); // Open modal and start loading profiles
+
             const doc = await db.collection('subAgentTemplates').doc(id).get();
             if (!doc.exists) {
                 alert('Template not found');
@@ -901,12 +911,23 @@ Always prioritize accurate, up-to-date information.`
             document.getElementById('subagent-type').value = tpl.type;
             document.getElementById('subagent-version').value = tpl.version;
             document.getElementById('subagent-status').value = tpl.status;
-            document.getElementById('subagent-prompt').value = tpl.system_prompt || '';
-            document.getElementById('model-llm-text').value = tpl.model_provider?.llmText?.model || 'gpt-4';
-            document.getElementById('config-temperature').value = tpl.config?.temperature || 0.7;
-            document.getElementById('config-max-tokens').value = tpl.config?.maxTokens || 2000;
-            document.getElementById('config-temperature').value = tpl.config?.temperature || 0.7;
-            document.getElementById('config-max-tokens').value = tpl.config?.maxTokens || 2000;
+            document.getElementById('subagent-prompt').value = tpl.system_prompt || tpl.systemPrompt || '';
+            // v4.0: Load Runtime Profile ID
+            // Wait for profiles to load if they haven't?
+            // Note: openModal calls loadRuntimeProfiles. 
+
+            // Wait a bit for profile load or manually set it
+            const profileSelect = document.getElementById('subagent-runtime-profile');
+            // We need to wait for innerHTML to populate.
+            await loadRuntimeProfiles();
+
+            if (profileSelect) {
+                profileSelect.value = tpl.runtime_profile_id || tpl.runtimeProfileId || '';
+                // If value didn't stick (profile missing?), maybe warn?
+                if (!profileSelect.value && (tpl.runtime_profile_id || tpl.runtimeProfileId)) {
+                    console.warn('Saved profile ID not found in active profiles list:', tpl.runtime_profile_id);
+                }
+            }
 
             // v2.0 Metadata
             // v2.0 Metadata
@@ -915,7 +936,7 @@ Always prioritize accurate, up-to-date information.`
             if (document.getElementById('subagent-tier')) document.getElementById('subagent-tier').value = tpl.preferredTier || tpl.preferred_tier || 'balanced';
 
             // v2.0 New Fields
-            if (document.getElementById('subagent-family')) document.getElementById('subagent-family').value = tpl.family || autoSelectFamily(tpl.type) || '';
+            if (document.getElementById('subagent-family')) document.getElementById('subagent-family').value = tpl.family || 'default'; oSelectFamily(tpl.type) || '';
             if (document.getElementById('subagent-requires-brand-brain')) document.getElementById('subagent-requires-brand-brain').checked = tpl.requiresBrandBrain || false;
             if (document.getElementById('subagent-brand-context-mode')) document.getElementById('subagent-brand-context-mode').value = tpl.brandContextMode || 'none';
 
@@ -1068,15 +1089,17 @@ Always prioritize accurate, up-to-date information.`
             const subAgentData = {
                 // Core Identity
                 type: document.getElementById('subagent-type').value,
-                engineTypeId: document.getElementById('subagent-type').value, // v2 alias
+                engineTypeId: document.getElementById('subagent-type').value,
                 version: newVersion,
                 status: document.getElementById('subagent-status').value,
-                system_prompt: document.getElementById('subagent-prompt').value,
-                systemPrompt: document.getElementById('subagent-prompt').value, // v2 alias
 
-                // v2.0 Metadata (for Dynamic Resolution)
-                roleTypeForRuntime: document.getElementById('subagent-role').value,
-                primaryLanguage: document.getElementById('subagent-language').value,
+                // Prompt - The "Job Description"
+                system_prompt: document.getElementById('subagent-prompt').value,
+                systemPrompt: document.getElementById('subagent-prompt').value,
+
+                // v4.0: Link to Runtime Profile (System Spec) - THE SOURCE OF TRUTH
+                runtime_profile_id: document.getElementById('subagent-runtime-profile').value,
+                runtimeProfileId: document.getElementById('subagent-runtime-profile').value, // camelCase alias
 
                 // v3.0 System Prompt Template Reference
                 systemPromptTemplateId: document.querySelector('input[name="prompt-source"]:checked').value === 'template'
@@ -1085,27 +1108,14 @@ Always prioritize accurate, up-to-date information.`
                 systemPromptTemplateVersion: document.querySelector('input[name="prompt-source"]:checked').value === 'template'
                     ? (promptTemplates.find(t => t.id === document.getElementById('prompt-template-select').value)?.version || null)
                     : null,
-                preferredTier: document.getElementById('subagent-tier').value,
 
-                // Legacy aliases for compatibility
-                role_type: document.getElementById('subagent-role').value,
-                primary_language: document.getElementById('subagent-language').value,
-                preferred_tier: document.getElementById('subagent-tier').value,
-
-                // v2.0 New Fields
+                // v2.0 Family Metadata
                 family: document.getElementById('subagent-family').value,
                 requiresBrandBrain: document.getElementById('subagent-requires-brand-brain').checked,
                 brandContextMode: document.getElementById('subagent-brand-context-mode').value,
 
-
-                // Legacy Config (Overridable by Runtime Rule)
-                config: {
-                    temperature: parseFloat(document.getElementById('config-temperature').value),
-                    maxTokens: parseInt(document.getElementById('config-max-tokens').value)
-                },
-
                 updated_at: firebase.firestore.FieldValue.serverTimestamp(),
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp(), // v2 alias
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
                 updated_by: firebase.auth().currentUser?.uid || 'system',
                 channel_adapters: currentAdapters,
             };

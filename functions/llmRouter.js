@@ -11,9 +11,10 @@
 const admin = require('firebase-admin');
 
 // Hardcoded fallback models (if DB config missing)
+// Hardcoded fallback models (if DB config missing)
 const FALLBACK_DEFAULTS = {
-    default: { provider: 'google', model: 'gemini-3.0-pro', creditMultiplier: 1.0 },
-    boost: { provider: 'google', model: 'nano-banana-pro', creditMultiplier: 3.0 }
+    default: { provider: 'openai', model: 'gpt-4o', creditMultiplier: 1.0 },
+    boost: { provider: 'openai', model: 'gpt-4o', creditMultiplier: 1.5 }
 };
 
 /**
@@ -22,12 +23,13 @@ const FALLBACK_DEFAULTS = {
  */
 class LLMRouter {
     constructor(db) {
+        console.log('!!! LLMRouter Initialized with ROUTER ABSTRACTION v3.0 !!!');
         this.db = db;
         this.policyCache = new Map();
         this.modelCache = new Map();
         this.globalDefaults = null; // Cache for global defaults
         this.cacheTime = 0;
-        this.CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+        this.CACHE_DURATION = 1000; // 1 second cache (Hotfix for immediate config updates)
     }
 
     /**
@@ -45,31 +47,55 @@ class LLMRouter {
     async route(options) {
         const {
             feature,
+            engineType,
+            runtimeProfileId, // v4.0: Direct Profile ID (Source of Truth)
             qualityTier = 'DEFAULT',
             messages,
             temperature = 0.7,
             userId,
             projectId,
-            callLLM
+            callLLM,
+            provider: explicitProvider, // Optional overrides
+            model: explicitModel
         } = options;
 
-        console.log(`[LLMRouter] Routing request: feature=${feature}, tier=${qualityTier}`);
+        console.log(`[LLMRouter] Routing request: feature=${feature}, engineType=${engineType}, profileId=${runtimeProfileId}, tier=${qualityTier}`);
 
-        // 1. Get feature policy & Global Defaults
-        const [policy, globalDefaults] = await Promise.all([
-            this.getFeaturePolicy(feature),
-            this.getGlobalDefaults()
-        ]);
+        // 1. Get configuration
+        // Priority: Runtime Profile ID > Engine Type Match > Feature Policy
+        let policy = null;
+        let globalDefaults = null;
 
-        // 2. Determine provider and model from policy (with global defaults fallback)
-        const tier = this.determineTier(policy, qualityTier, globalDefaults);
-        const { provider, model, creditMultiplier } = tier;
+        if (runtimeProfileId) {
+            console.log(`[LLMRouter] Resolving by ID: ${runtimeProfileId}`);
+            [policy, globalDefaults] = await Promise.all([
+                this.getRuntimeRuleById(runtimeProfileId),
+                this.getGlobalDefaults()
+            ]);
+        } else if (engineType) {
+            console.log(`[LLMRouter] Resolving by Engine Type: ${engineType}`);
+            [policy, globalDefaults] = await Promise.all([
+                this.getRuntimeRule(engineType),
+                this.getGlobalDefaults()
+            ]);
+        } else {
+            console.log(`[LLMRouter] Resolving by Feature Policy: ${feature}`);
+            [policy, globalDefaults] = await Promise.all([
+                this.getFeaturePolicy(feature),
+                this.getGlobalDefaults()
+            ]);
+        }
+
+        // 2. Resolve Configuration (New Router Logic)
+        const config = await this.resolveLLMConfig(explicitProvider, explicitModel, policy, qualityTier, globalDefaults, projectId, temperature);
+        const { provider, model, creditMultiplier = 1.0 } = config;
 
         console.log(`[LLMRouter] Selected: provider=${provider}, model=${model}, creditMultiplier=${creditMultiplier}`);
 
         // 3. Call the LLM
         const startTime = Date.now();
-        const result = await callLLM(provider, model, messages, temperature);
+        // Use the resolved config values
+        const result = await callLLM(provider, model, messages, config.temperature); // Use config.temperature (Router decided)
         const latencyMs = Date.now() - startTime;
 
         // 4. Calculate credit cost
@@ -79,7 +105,7 @@ class LLMRouter {
         await this.logUsage({
             userId,
             projectId,
-            feature,
+            feature: runtimeProfileId ? `profile:${runtimeProfileId}` : (engineType ? `engine:${engineType}` : feature),
             qualityTier,
             provider,
             model,
@@ -91,36 +117,118 @@ class LLMRouter {
         // 6. Check if BOOST was requested but premium model not available
         let warning = null;
         if (qualityTier === 'BOOST') {
-            // Check if we're actually using a premium model
-            const premiumModels = ['gpt-5', 'gpt-5.2', 'gpt-5-turbo', 'o1-preview', 'claude-3-opus', 'nano-banana-pro'];
-            if (!premiumModels.includes(model)) {
+            const premiumModels = ['gpt-5', 'gpt-5.2', 'gpt-5-turbo', 'o1-preview', 'claude-3-opus', 'nano-banana-pro', 'gemini-1.5-pro'];
+            if (!premiumModels.includes(model) && !model.includes('gpt-4')) {
                 warning = '⚠️ BOOST 모드: 상위 버전 LLM이 아직 지원되지 않아 가용한 최상위 모델로 처리됩니다.';
-                console.log(`[LLMRouter] Warning: BOOST requested but using ${model} (premium not available)`);
             }
         }
 
         // 7. Return enriched result
+        const finalModel = model || result.model || 'Unknown';
+
         return {
             ...result,
+            model: finalModel,
             warning,
             routing: {
                 feature,
-                qualityTier,
+                engineType,
+                runtimeProfileId,
                 provider,
-                model,
+                model: finalModel,
                 creditMultiplier,
-                creditCost,
-                latencyMs,
-                boostAvailable: !warning
+                creditCost
             }
         };
+    }
+
+    /**
+     * Get API Key securely (from System Settings or Env)
+     */
+    async getApiKey(provider, projectId) {
+        // Validation for security
+        try {
+            const doc = await this.db.collection('systemLLMProviders').doc(provider).get();
+            if (doc.exists && doc.data().apiKey) {
+                return doc.data().apiKey;
+            }
+        } catch (e) {
+            console.warn(`[LLMRouter] Failed to fetch API key for ${provider}`, e);
+        }
+        return null;
+    }
+
+    /**
+     * Get Runtime Rule directly by ID (v4.0)
+     */
+    async getRuntimeRuleById(id) {
+        const cacheKey = `rule_id:${id}`;
+        const now = Date.now();
+
+        if (this.policyCache.has(cacheKey) && (now - this.cacheTime < this.CACHE_DURATION)) {
+            return this.policyCache.get(cacheKey);
+        }
+
+        try {
+            const doc = await this.db.collection('runtimeProfileRules').doc(id).get();
+            if (!doc.exists) {
+                console.warn(`[LLMRouter] No rule found for ID: ${id}, using defaults`);
+                return null;
+            }
+            const rule = doc.data();
+            this.policyCache.set(cacheKey, rule);
+            return rule;
+        } catch (error) {
+            console.error(`[LLMRouter] Error loading rule ${id}:`, error);
+            return null;
+        }
+    }
+
+    /**
+     * Get Runtime Rule from Firestore based on Engine Type
+     */
+    async getRuntimeRule(engineType) {
+        const cacheKey = `rule:${engineType}`;
+        const now = Date.now();
+
+        if (this.policyCache.has(cacheKey) && (now - this.cacheTime < this.CACHE_DURATION)) {
+            return this.policyCache.get(cacheKey);
+        }
+
+        try {
+            const snapshot = await this.db.collection('runtimeProfileRules')
+                .where('engine_type', '==', engineType)
+                .where('status', '==', 'active')
+                .limit(1)
+                .get();
+
+            if (snapshot.empty) {
+                console.warn(`[LLMRouter] No active rule found for engine: ${engineType}, using defaults`);
+                return null;
+            }
+
+            const rule = snapshot.docs[0].data();
+            // Normalize for legacy support if needed
+            const normalizedPolicy = {
+                defaultTier: rule.tiers?.balanced || rule.models?.balanced,
+                boostTier: rule.tiers?.creative || rule.models?.creative,
+                forceTier: null,
+                ...rule // Keep all props including provider/model_id
+            };
+
+            this.policyCache.set(cacheKey, normalizedPolicy);
+            return normalizedPolicy;
+
+        } catch (error) {
+            console.error(`[LLMRouter] Error loading rule for ${engineType}:`, error);
+            return null;
+        }
     }
 
     /**
      * Get features policy from Firestore (with caching)
      */
     async getFeaturePolicy(feature) {
-        // Check cache
         const now = Date.now();
         if (this.policyCache.has(feature) && (now - this.cacheTime < this.CACHE_DURATION)) {
             return this.policyCache.get(feature);
@@ -128,19 +236,12 @@ class LLMRouter {
 
         try {
             const doc = await this.db.collection('featurePolicies').doc(feature).get();
-
             if (!doc.exists) {
                 console.warn(`[LLMRouter] Policy not found for feature: ${feature}, using defaults`);
                 return null;
             }
-
             const policy = doc.data();
             this.policyCache.set(feature, policy);
-            // Don't update cacheTime here, let getGlobalDefaults handle generic cache invalidation or unified timer
-            // For simplicity, we share cacheTime reset in getGlobalDefaults or check individually. 
-            // Better: update cacheTime here if it's the only load? No, simplest is independent timeouts or shared.
-            // Let's assume shared CACHE_DURATION checks is enough.
-
             return policy;
         } catch (error) {
             console.error(`[LLMRouter] Error loading policy for ${feature}:`, error);
@@ -149,10 +250,9 @@ class LLMRouter {
     }
 
     /**
-     * Get Global Defaults from Firestore (systemSettings/llmConfig)
+     * Get Global Defaults from Firestore
      */
     async getGlobalDefaults() {
-        // Check cache
         const now = Date.now();
         if (this.globalDefaults && (now - this.cacheTime < this.CACHE_DURATION)) {
             return this.globalDefaults;
@@ -162,15 +262,16 @@ class LLMRouter {
             const doc = await this.db.collection('systemSettings').doc('llmConfig').get();
             let defaults = FALLBACK_DEFAULTS;
 
-            if (doc.exists && doc.data().defaultModels) {
-                defaults = doc.data().defaultModels;
-                console.log('[LLMRouter] Loaded Global Defaults from DB:', defaults);
+            if (doc.exists) {
+                // Merge DB data with Fallbacks to ensure structure exists
+                defaults = { ...FALLBACK_DEFAULTS, ...doc.data() };
+                console.log('[LLMRouter] Loaded Global Defaults from DB:', JSON.stringify(defaults));
             } else {
                 console.warn('[LLMRouter] Global defaults not found in DB, using hardcoded fallback.');
             }
 
             this.globalDefaults = defaults;
-            this.cacheTime = now; // Update cache timestamp
+            this.cacheTime = now;
             return defaults;
 
         } catch (error) {
@@ -180,34 +281,112 @@ class LLMRouter {
     }
 
     /**
-     * Determine which tier to use based on policy and request
+     * Determine final config (provider/model/params)
      */
-    determineTier(policy, qualityTier, globalDefaults) {
-        const defaults = globalDefaults || FALLBACK_DEFAULTS;
+    async resolveLLMConfig(explicitProvider, explicitModel, policy, qualityTier, globalDefaults, projectId, temperature) {
 
-        // If no policy, use global defaults
-        if (!policy) {
-            return qualityTier === 'BOOST' ? defaults.boost : defaults.default;
-        }
+        // A. Resolve Abstract "LLM Router" Provider
+        let resolvedProvider = explicitProvider || policy?.provider || globalDefaults?.provider || 'openai';
+        let resolvedModel = explicitModel || policy?.model_id || globalDefaults?.model || 'gpt-4o';
 
-        // If force tier is set, always use it
-        if (policy.forceTier && policy.forceTier.model) {
-            console.log(`[LLMRouter] Force tier applied: ${policy.forceTier.model}`);
-            return policy.forceTier;
-        }
+        if (resolvedProvider === 'llm_router') {
+            const abstractTag = resolvedModel;
+            console.log(`[LLMRouter] resolving abstract model: ${abstractTag}`);
 
-        let selectedTier = policy.defaultTier || defaults.default;
+            // Dynamic Lookup from Global Defaults (Firestore)
+            // Expects structure: { reasoning_optimized: { provider: '...', model: '...' }, ... }
+            const tagMapping = globalDefaults?.tagMappings?.[abstractTag];
 
-        if (qualityTier === 'BOOST') {
-            if (policy.boostTier) {
-                selectedTier = policy.boostTier;
+            if (tagMapping && tagMapping.provider && tagMapping.model) {
+                resolvedProvider = tagMapping.provider;
+                resolvedModel = tagMapping.model;
+                console.log(`[LLMRouter] Mapped '${abstractTag}' -> ${resolvedProvider}/${resolvedModel}`);
             } else {
-                // Fallback to global boost default if policy doesn't specify boost
-                selectedTier = defaults.boost;
+                // FALLBACKS (If DB config is missing)
+                console.warn(`[LLMRouter] No mapping found for '${abstractTag}', using hardcoded fallback.`);
+                switch (abstractTag) {
+                    case 'reasoning_optimized':
+                        resolvedProvider = 'openai';
+                        resolvedModel = 'gpt-4o';
+                        break;
+                    case 'image_optimized':
+                        resolvedProvider = 'openai';
+                        resolvedModel = 'dall-e-3';
+                        break;
+                    case 'speed_optimized':
+                        resolvedProvider = 'openai';
+                        resolvedModel = 'gpt-4o-mini';
+                        break;
+                    default:
+                        resolvedProvider = 'openai';
+                        resolvedModel = 'gpt-4o';
+                }
             }
         }
 
-        return selectedTier;
+        // B. Dynamic Parameter Logic (Tier Handling)
+        let selectedTemp = temperature;
+        let selectedMaxTokens = 2000;
+
+        if (qualityTier) {
+            switch (qualityTier.toUpperCase()) { // Case insensitive
+                case 'BOOST':
+                case 'ULTRA':
+                    console.log('[LLMRouter] 🚀 BOOST MODE ACTIVATED');
+
+                    // 1. Try Root BOOST config (Script) OR Admin UI structure (defaultModels.boost)
+                    const boostConfig = globalDefaults?.boost || globalDefaults?.defaultModels?.boost;
+
+                    if (boostConfig) {
+                        resolvedProvider = boostConfig.provider;
+                        resolvedModel = boostConfig.model;
+                        console.log(`[LLMRouter] Boost overrides model to: ${resolvedProvider}/${resolvedModel}`);
+                    } else if (globalDefaults?.tagMappings?.reasoning_optimized) {
+                        // 2. Fallback: Use 'reasoning_optimized'
+                        const map = globalDefaults.tagMappings.reasoning_optimized;
+                        resolvedProvider = map.provider;
+                        resolvedModel = map.model;
+                        console.log(`[LLMRouter] Boost missing, falling back to reasoning_optimized: ${resolvedProvider}/${resolvedModel}`);
+                    } else {
+                        // Hardcoded Fallback
+                        resolvedProvider = 'openai';
+                        resolvedModel = 'gpt-4o';
+                        console.warn('[LLMRouter] Boost and Tag defaults missing, falling back to GPT-4o');
+                    }
+
+                    // Boost Params
+                    selectedTemp = 0.7; // Slightly higher for creativity
+                    selectedMaxTokens = 4000;
+                    break;
+                case 'CREATIVE':
+                    selectedTemp = 0.9;
+                    selectedMaxTokens = 4000;
+                    break;
+                case 'PRECISE':
+                    selectedTemp = 0.1;
+                    selectedMaxTokens = 4000;
+                    break;
+                case 'BALANCED':
+                default:
+                    selectedTemp = 0.7;
+                    selectedMaxTokens = 2000;
+                    break;
+            }
+        }
+
+        // C. Construct Final Config
+        const config = {
+            provider: resolvedProvider,
+            model: resolvedModel,
+            temperature: selectedTemp,
+            maxTokens: selectedMaxTokens,
+            apiKey: await this.getApiKey(resolvedProvider, projectId),
+            creditMultiplier: 1.0, // Default to 1.0, could implement dynamic multipliers later
+            systemPrompt: null
+        };
+
+        console.log(`[LLMRouter] Resolved Config: ${config.provider}/${config.model} (Abstract: ${policy?.model_id}) (Temp: ${config.temperature})`);
+        return config;
     }
 
     /**
@@ -218,7 +397,6 @@ class LLMRouter {
 
         // Try to get model cost from cache or Firestore
         let modelData = this.modelCache.get(modelId);
-
         if (!modelData) {
             try {
                 const doc = await this.db.collection('systemLLMModels').doc(modelId).get();
@@ -238,7 +416,6 @@ class LLMRouter {
 
         // Credit cost = (tokens / 1000) * baseRate * creditMultiplier
         const creditCost = Math.ceil((totalTokens / 1000) * baseRate * creditMultiplier);
-
         return creditCost;
     }
 
@@ -252,14 +429,12 @@ class LLMRouter {
                 createdAt: admin.firestore.FieldValue.serverTimestamp()
             });
         } catch (error) {
-            // Don't fail the request if logging fails
             console.error('[LLMRouter] Failed to log usage:', error);
         }
     }
 
     /**
      * Deduct credits from user balance
-     * @returns {Promise<{success: boolean, remaining: number}>}
      */
     async deductCredits(userId, creditCost, metadata = {}) {
         if (!userId || creditCost <= 0) {
@@ -268,40 +443,27 @@ class LLMRouter {
 
         try {
             const userRef = this.db.collection('users').doc(userId);
-
             return await this.db.runTransaction(async (transaction) => {
                 const userDoc = await transaction.get(userRef);
-
-                if (!userDoc.exists) {
-                    throw new Error('User not found');
-                }
+                if (!userDoc.exists) throw new Error('User not found');
 
                 const userData = userDoc.data();
                 const currentBalance = userData.creditBalance || 0;
-
-                if (currentBalance < creditCost) {
-                    throw new Error('Insufficient credits');
-                }
+                if (currentBalance < creditCost) throw new Error('Insufficient credits');
 
                 const newBalance = currentBalance - creditCost;
-
-                // Update balance
                 transaction.update(userRef, {
                     creditBalance: newBalance,
                     updated_at: admin.firestore.FieldValue.serverTimestamp()
                 });
 
-                // Log transaction
                 const transactionRef = this.db.collection('credit_transactions').doc();
                 transaction.set(transactionRef, {
                     userId,
                     type: 'llm_usage',
                     cost: creditCost,
                     balanceAfter: newBalance,
-                    metadata: {
-                        ...metadata,
-                        source: 'LLMRouter'
-                    },
+                    metadata: { ...metadata, source: 'LLMRouter' },
                     created_at: admin.firestore.FieldValue.serverTimestamp()
                 });
 
@@ -314,7 +476,7 @@ class LLMRouter {
     }
 
     /**
-     * Clear cache (for testing or manual refresh)
+     * Clear cache
      */
     clearCache() {
         this.policyCache.clear();

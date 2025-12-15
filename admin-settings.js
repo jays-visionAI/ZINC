@@ -30,65 +30,196 @@ const CHANNEL_API_FIELD_DEFS = {
     ]
 };
 
-window.initSettings = function (currentUser) {
-    console.log("⚙️ Initializing Settings Page...");
+// ==========================================
+// API TESTER UTILITIES (New Tab Logic)
+// ==========================================
 
-    // Provider Management State
-    let providers = [];
-    const tableBody = document.getElementById('providers-table-body-settings');
-    const modal = document.getElementById('provider-modal-settings');
-    const form = document.getElementById('provider-form-settings');
-    const testResultDiv = document.getElementById('connection-test-result-settings');
+window.initApiTester = async function () {
+    console.log("🧪 Initializing API Tester...");
+    await window.autoFillGeminiKey();
+}
 
-    // Initialize Provider Management
-    async function initProviderManagement() {
-        if (!window.LLMProviderService) {
-            console.error("LLMProviderService not found!");
-            if (tableBody) {
-                tableBody.innerHTML = '<tr><td colspan="5" style="color: red; text-align: center;">Error: Service not loaded</td></tr>';
-            }
-            return;
+/**
+ * Auto-fill Gemini Key from System Providers if available
+ */
+window.autoFillGeminiKey = async function () {
+    if (!window.LLMProviderService) return;
+    try {
+        const providers = await window.LLMProviderService.getProviders();
+        // Look for 'gemini' or 'google'
+        const googleProvider = providers.find(p => p.provider === 'google' || p.provider === 'gemini');
+
+        if (googleProvider && googleProvider.apiKey) {
+            const inputEl = document.getElementById('test-gemini-key');
+            if (inputEl) inputEl.value = googleProvider.apiKey;
+            console.log("✅ Auto-filled Gemini Key from System");
+        } else {
+            console.log("⚠️ No Google/Gemini provider found in system to auto-fill.");
         }
+    } catch (e) {
+        console.error("Failed to auto-load key:", e);
+    }
+}
 
-        setupProviderEventListeners();
-        await loadProviders();
-        await window.loadGlobalDefaults();
+/**
+ * Execute Gemini Model List (User's logic adapted)
+ */
+window.runGeminiModelList = async function () {
+    const key = document.getElementById('test-gemini-key').value.trim();
+    const statusEl = document.getElementById('test-gemini-list-status');
+    const outEl = document.getElementById('test-gemini-list-output');
+
+    if (!key) {
+        alert("Please enter an API Key first.");
+        return;
     }
 
-    function setupProviderEventListeners() {
-        const addBtn = document.getElementById('btn-add-provider-settings');
-        const saveBtn = document.getElementById('btn-save-provider-settings');
-        const testBtn = document.getElementById('btn-test-connection-settings');
+    statusEl.innerHTML = '<span style="color:#f59e0b">⏳ Fetching models...</span>';
+    outEl.textContent = "";
 
-        if (addBtn) addBtn.addEventListener('click', () => window.openProviderModal());
-        if (saveBtn) saveBtn.addEventListener('click', saveProvider);
-        if (testBtn) testBtn.addEventListener('click', testConnection);
-    }
+    try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`;
+        const res = await fetch(url, { method: "GET" });
+        const text = await res.text();
 
-    async function loadProviders() {
-        if (!tableBody) return;
-
-        try {
-            tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">Loading providers...</td></tr>';
-
-            providers = await window.LLMProviderService.getProviders();
-            renderProvidersTable();
-        } catch (error) {
-            console.error("Error loading providers:", error);
-            tableBody.innerHTML = `<tr><td colspan="5" style="color: red; text-align: center;">Error: ${error.message}</td></tr>`;
-        }
-    }
-
-    function renderProvidersTable() {
-        if (!tableBody) return;
-
-        if (providers.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">No LLM providers configured yet.</td></tr>';
-            return;
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status} ${res.statusText}\n${text}`);
         }
 
-        // Initial render with "Checking..." status
-        tableBody.innerHTML = providers.map(p => `
+        const data = JSON.parse(text);
+        const models = data.models || [];
+
+        // Filter and Format
+        const summary = models.map(m => `• ${m.name} (${m.displayName})`).join('\n');
+
+        outEl.textContent = JSON.stringify(data, null, 2); // Show full JSON for debugging
+        statusEl.innerHTML = `<span style="color:#10b981">✅ OK. Found ${models.length} models.</span>`;
+
+        // Auto-select a likely candidate for generation test
+        const bestModel = models.find(m => m.name.includes('gemini-2.0-flash-exp')) || models.find(m => m.name.includes('gemini-1.5-pro'));
+        if (bestModel) {
+            document.getElementById('test-gemini-model-id').value = bestModel.name.replace('models/', '');
+        }
+
+    } catch (e) {
+        statusEl.innerHTML = `<span style="color:#ef4444">❌ Error</span>`;
+        outEl.textContent = e.message;
+    }
+}
+
+/**
+ * Execute Gemini Generation Test
+ */
+window.runGeminiGeneration = async function () {
+    const key = document.getElementById('test-gemini-key').value.trim();
+    const modelId = document.getElementById('test-gemini-model-id').value.trim();
+    const prompt = document.getElementById('test-gemini-prompt').value.trim();
+
+    const statusEl = document.getElementById('test-gemini-gen-status');
+    const outEl = document.getElementById('test-gemini-gen-output');
+
+    if (!key || !modelId || !prompt) {
+        alert("Missing Key, Model ID, or Prompt.");
+        return;
+    }
+
+    statusEl.innerHTML = '<span style="color:#f59e0b">⏳ Generating...</span>';
+    outEl.textContent = "";
+
+    try {
+        // Handle "models/" prefix if user omitted it
+        const cleanModelId = modelId.replace('models/', '');
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModelId}:generateContent?key=${encodeURIComponent(key)}`;
+
+        const body = {
+            contents: [{ role: "user", parts: [{ text: prompt }] }]
+        };
+
+        const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+        });
+
+        const text = await res.text();
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status} ${res.statusText}\n${text}`);
+        }
+
+        const data = JSON.parse(text);
+        outEl.textContent = JSON.stringify(data, null, 2);
+
+        // Quick extraction
+        const answer = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (answer) {
+            statusEl.innerHTML = `<span style="color:#10b981">✅ Success!</span> <span style="color:#fff">"${answer.substring(0, 50)}..."</span>`;
+        } else {
+            statusEl.innerHTML = `<span style="color:#10b981">✅ Success (Raw JSON)</span>`;
+        }
+
+    } catch (e) {
+        statusEl.innerHTML = `<span style="color:#ef4444">❌ Error</span>`;
+        outEl.textContent = e.message;
+    }
+}
+console.log("⚙️ Initializing Settings Page...");
+
+// Provider Management State
+let providers = [];
+const tableBody = document.getElementById('providers-table-body-settings');
+const modal = document.getElementById('provider-modal-settings');
+const form = document.getElementById('provider-form-settings');
+const testResultDiv = document.getElementById('connection-test-result-settings');
+
+// Initialize Provider Management
+async function initProviderManagement() {
+    if (!window.LLMProviderService) {
+        console.error("LLMProviderService not found!");
+        if (tableBody) {
+            tableBody.innerHTML = '<tr><td colspan="5" style="color: red; text-align: center;">Error: Service not loaded</td></tr>';
+        }
+        return;
+    }
+
+    setupProviderEventListeners();
+    await loadProviders();
+    await window.loadGlobalDefaults();
+}
+
+function setupProviderEventListeners() {
+    const addBtn = document.getElementById('btn-add-provider-settings');
+    const saveBtn = document.getElementById('btn-save-provider-settings');
+    const testBtn = document.getElementById('btn-test-connection-settings');
+
+    if (addBtn) addBtn.addEventListener('click', () => window.openProviderModal());
+    if (saveBtn) saveBtn.addEventListener('click', saveProvider);
+    if (testBtn) testBtn.addEventListener('click', testConnection);
+}
+
+async function loadProviders() {
+    if (!tableBody) return;
+
+    try {
+        tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">Loading providers...</td></tr>';
+
+        providers = await window.LLMProviderService.getProviders();
+        renderProvidersTable();
+    } catch (error) {
+        console.error("Error loading providers:", error);
+        tableBody.innerHTML = `<tr><td colspan="5" style="color: red; text-align: center;">Error: ${error.message}</td></tr>`;
+    }
+}
+
+function renderProvidersTable() {
+    if (!tableBody) return;
+
+    if (providers.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">No LLM providers configured yet.</td></tr>';
+        return;
+    }
+
+    // Initial render with "Checking..." status
+    tableBody.innerHTML = providers.map(p => `
             <tr id="provider-row-${p.id}">
                 <td><strong style="color: #16e0bd;">${p.name}</strong></td>
                 <td>${capitalize(p.provider)}</td>
@@ -99,290 +230,305 @@ window.initSettings = function (currentUser) {
                 </td>
                 <td style="font-size: 12px; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${p.models?.join(', ')}">${p.models?.join(', ') || '-'}</td>
                 <td>
-                    <button class="admin-btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="editProviderSettings('${p.id}')">Edit</button>
+                    <div style="display: flex; gap: 4px;">
+                        <button class="admin-btn-secondary" onclick="editProvider('${p.id}')" style="padding: 4px 8px; font-size: 11px; flex: 1;">Edit</button>
+                        <button class="admin-btn-secondary" onclick="deleteProvider('${p.id}')" style="padding: 4px 8px; font-size: 11px; flex: 1; color: #ef4444; border-color: rgba(239,68,68,0.5);">Del</button>
+                    </div>
                 </td>
             </tr>
         `).join('');
 
-        // Test each provider's API in background
-        providers.forEach(p => testProviderHealth(p));
-    }
+    // Trigger asynchronous checks
+    providers.forEach(p => checkProviderHealth(p));
+}
 
-    async function testProviderHealth(provider) {
-        const statusCell = document.getElementById(`provider-status-${provider.id}`);
-        if (!statusCell) return;
+async function checkProviderHealth(provider) {
+    const statusCell = document.getElementById(`provider-status-${provider.id}`);
+    if (!statusCell) return;
 
-        console.log('[Provider Health] Testing:', provider.name, 'id:', provider.id, 'type:', provider.provider);
+    console.log('[Provider Health] Testing:', provider.name, 'id:', provider.id, 'type:', provider.provider);
 
-        try {
-            // Call Cloud Function to test provider connection
-            // The function will use the stored API key from Firestore
-            const testConnection = firebase.functions().httpsCallable('testLLMProviderConnection');
-            const result = await testConnection({
-                providerId: provider.id,
-                providerType: provider.provider
-            });
+    try {
+        // Call Cloud Function to test provider connection
+        // The function will use the stored API key from Firestore
+        const testConnection = firebase.functions().httpsCallable('testLLMProviderConnection');
+        const result = await testConnection({
+            providerId: provider.id,
+            providerType: provider.provider
+        });
 
-            if (result.data && result.data.success) {
-                statusCell.innerHTML = `
+        if (result.data && result.data.success) {
+            statusCell.innerHTML = `
                     <span style="color: #22c55e; border: 1px solid #22c55e; padding: 2px 8px; border-radius: 12px; font-size: 10px;">
                         ✓ Active
                     </span>
                 `;
-            } else {
-                statusCell.innerHTML = `
+        } else {
+            statusCell.innerHTML = `
                     <span style="color: #ef4444; border: 1px solid #ef4444; padding: 2px 8px; border-radius: 12px; font-size: 10px;" title="${result.data?.error || 'Connection failed'}">
                         ✗ Error
                     </span>
                 `;
-            }
-        } catch (error) {
-            console.error(`[Provider Health] ${provider.name} error:`, error);
-            // If Cloud Function doesn't exist yet, fall back to stored status
-            if (error.code === 'functions/not-found' || error.message.includes('not found')) {
-                // Use stored status as fallback
-                statusCell.innerHTML = provider.status === 'active'
-                    ? `<span style="color: #22c55e; border: 1px solid #22c55e; padding: 2px 8px; border-radius: 12px; font-size: 10px;">✓ Active</span>`
-                    : `<span style="color: #6b7280; border: 1px solid #6b7280; padding: 2px 8px; border-radius: 12px; font-size: 10px;">Disabled</span>`;
-            } else {
-                statusCell.innerHTML = `
+        }
+    } catch (error) {
+        console.error(`[Provider Health] ${provider.name} error:`, error);
+        // If Cloud Function doesn't exist yet, fall back to stored status
+        if (error.code === 'functions/not-found' || error.message.includes('not found')) {
+            // Use stored status as fallback
+            statusCell.innerHTML = provider.status === 'active'
+                ? `<span style="color: #22c55e; border: 1px solid #22c55e; padding: 2px 8px; border-radius: 12px; font-size: 10px;">✓ Active</span>`
+                : `<span style="color: #6b7280; border: 1px solid #6b7280; padding: 2px 8px; border-radius: 12px; font-size: 10px;">Disabled</span>`;
+        } else {
+            statusCell.innerHTML = `
                     <span style="color: #ef4444; border: 1px solid #ef4444; padding: 2px 8px; border-radius: 12px; font-size: 10px;" title="${error.message}">
                         ✗ Error
                     </span>
                 `;
-            }
         }
-    }
-
-    /**
-     * Sanitize LLM Providers (Standardize names & remove duplicates)
-     */
-    window.sanitizeLLMProviders = async function () {
-        if (!confirm('This will standardise provider names (OpenAI, Google Gemini, Anthropic) and remove duplicates. Continue?')) {
-            return;
-        }
-
-        try {
-            const db = firebase.firestore();
-            const snapshot = await db.collection('systemLLMProviders').get();
-            const allProviders = [];
-
-            snapshot.forEach(doc => {
-                allProviders.push({ id: doc.id, ...doc.data() });
-            });
-
-            // Standardize names mapping
-            const standardNames = {
-                'openai': 'OpenAI',
-                'gemini': 'Google Gemini',
-                'anthropic': 'Anthropic'
-            };
-
-            const uniqueProviders = {};
-            const batch = db.batch();
-            let changesCount = 0;
-
-            // Sort by update time (keep most recent) to prefer newer entries
-            allProviders.sort((a, b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
-
-            // 1. Identify unique providers & mark duplicates for deletion
-            // Also update names if needed
-            for (const p of allProviders) {
-                if (!p.provider) continue; // Skip invalid
-
-                const type = p.provider.toLowerCase();
-                if (!uniqueProviders[type]) {
-                    // This is the primary provider for this type
-                    uniqueProviders[type] = p;
-
-                    // Check if renaming is needed
-                    const newName = standardNames[type];
-                    if (newName && p.name !== newName) {
-                        console.log(`Renaming ${p.name} -> ${newName}`);
-                        batch.update(db.collection('systemLLMProviders').doc(p.id), {
-                            name: newName,
-                            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                        });
-                        changesCount++;
-                    }
-                } else {
-                    // Duplicate! Delete it.
-                    console.log(`Deleting duplicate provider: ${p.name} (${p.id})`);
-                    batch.delete(db.collection('systemLLMProviders').doc(p.id));
-                    changesCount++;
-                }
-            }
-
-            if (changesCount > 0) {
-                await batch.commit();
-                alert(`Cleanup complete! ${changesCount} items processed.`);
-                await loadProviders();
-            } else {
-                alert('Providers are already clean.');
-            }
-
-        } catch (error) {
-            console.error('Error sanitizing providers:', error);
-            alert('Error: ' + error.message);
-        }
-    };
-
-    window.openProviderModal = function (providerId = null) {
-        if (!modal || !form) return;
-
-        form.reset();
-        document.getElementById('provider-doc-id-settings').value = '';
-        if (testResultDiv) testResultDiv.innerHTML = '';
-
-        if (providerId) {
-            const p = providers.find(item => item.id === providerId);
-            if (p) {
-                document.getElementById('provider-modal-title-settings').textContent = 'Edit LLM Provider';
-                document.getElementById('provider-doc-id-settings').value = p.id;
-                document.getElementById('provider-type-settings').value = p.provider;
-                document.getElementById('provider-name-settings').value = p.name;
-                document.getElementById('provider-models-settings').value = p.models?.join(', ') || '';
-                document.getElementById('provider-status-settings').value = p.status;
-
-                document.getElementById('provider-api-key-settings').placeholder = "Leave blank to keep existing key";
-                document.getElementById('provider-api-key-settings').required = false;
-            }
-        } else {
-            document.getElementById('provider-modal-title-settings').textContent = 'Add LLM Provider';
-            document.getElementById('provider-api-key-settings').placeholder = "sk-...";
-            document.getElementById('provider-api-key-settings').required = true;
-            document.getElementById('provider-status-settings').value = 'active';
-        }
-
-        modal.classList.add('open');
-        modal.style.display = 'flex';
-    };
-
-    window.closeProviderModalSettings = function () {
-        if (modal) {
-            modal.classList.remove('open');
-            modal.style.display = 'none';
-        }
-    };
-
-    window.editProviderSettings = function (id) {
-        openProviderModal(id);
-    };
-
-    async function saveProvider(e) {
-        e.preventDefault();
-        const btn = document.getElementById('btn-save-provider-settings');
-        if (!btn) return;
-
-        btn.disabled = true;
-        btn.textContent = 'Saving...';
-
-        try {
-            const id = document.getElementById('provider-doc-id-settings').value;
-            const apiKeyInput = document.getElementById('provider-api-key-settings');
-
-            const data = {
-                provider: document.getElementById('provider-type-settings').value,
-                name: document.getElementById('provider-name-settings').value,
-                models: document.getElementById('provider-models-settings').value.split(',').map(s => s.trim()).filter(s => s),
-                status: document.getElementById('provider-status-settings').value
-            };
-
-            if (apiKeyInput.value) {
-                data.credentialRef = {
-                    storageType: 'direct',
-                    apiKeyMasked: maskApiKey(apiKeyInput.value),
-                    apiKeyEncrypted: apiKeyInput.value
-                };
-            } else if (!id) {
-                throw new Error("API Key is required for new provider");
-            }
-
-            await window.LLMProviderService.saveProvider(id || null, data);
-
-            closeProviderModalSettings();
-            await loadProviders();
-            alert('✅ Provider saved successfully');
-
-        } catch (error) {
-            console.error("Save failed:", error);
-            alert(`Error: ${error.message}`);
-        } finally {
-            btn.disabled = false;
-            btn.textContent = 'Save Provider';
-        }
-    }
-
-    async function testConnection() {
-        const apiKeyInput = document.getElementById('provider-api-key-settings');
-        const apiKey = apiKeyInput ? apiKeyInput.value : '';
-        const providerDocId = document.getElementById('provider-doc-id-settings').value;
-        const provider = document.getElementById('provider-type-settings').value;
-        const modelsStr = document.getElementById('provider-models-settings').value;
-        const model = modelsStr.split(',')[0]?.trim() || 'gpt-4o-mini';
-
-        if (!apiKey && !providerDocId) {
-            if (testResultDiv) testResultDiv.innerHTML = '<span style="color: #fbbf24;">⚠️ Please enter API Key (or save provider first) to test connection</span>';
-            return;
-        }
-
-        if (testResultDiv) testResultDiv.innerHTML = '<span style="color: #888;">Testing connection...</span>';
-
-        try {
-            // Call service which calls Cloud Function
-            // Pass providerId so backend can use stored key if apiKey is empty
-            const result = await window.LLMProviderService.testConnection({
-                provider,
-                apiKey,
-                providerId: providerDocId,
-                model
-            });
-
-            if (result.success) {
-                if (testResultDiv) testResultDiv.innerHTML = `<span style="color: #22c55e;">✅ ${result.message} (${result.latency}ms)</span>`;
-            } else {
-                if (testResultDiv) testResultDiv.innerHTML = `<span style="color: #ef4444;">❌ ${result.message}</span>`;
-            }
-        } catch (error) {
-            console.error("Test function error:", error);
-            if (testResultDiv) testResultDiv.innerHTML = `<span style="color: #ef4444;">❌ Error: ${error.message}</span>`;
-        }
-    }
-
-    function maskApiKey(key) {
-        if (!key || key.length < 8) return '****';
-        return key.substring(0, 3) + '...' + key.substring(key.length - 4);
-    }
-
-    function capitalize(str) {
-        return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
-    }
-
-    function getStatusBadge(status) {
-        const colors = {
-            active: '#22c55e',
-            disabled: '#94a3b8',
-            error: '#ef4444'
-        };
-        const color = colors[status] || '#94a3b8';
-        return `<span style="border: 1px solid ${color}; color: ${color}; padding: 2px 8px; border-radius: 12px; font-size: 11px;">${capitalize(status)}</span>`;
-    }
-
-    // Initialize Provider Management
-    initProviderManagement();
-
-    // Update Prompts Handler
-    const updatePromptsBtn = document.getElementById('update-prompts-btn');
-    if (updatePromptsBtn) {
-        updatePromptsBtn.addEventListener('click', () => {
-            if (confirm('Are you sure you want to update the system prompts for Planner, Creator, and Manager?')) {
-                const script = document.createElement('script');
-                script.src = 'scripts/update-subagent-prompts.js?v=' + Date.now();
-                document.body.appendChild(script);
-            }
-        });
     }
 }
+
+/**
+ * Sanitize LLM Providers (Standardize names & remove duplicates)
+ */
+window.sanitizeLLMProviders = async function () {
+    if (!confirm('This will standardise provider names (OpenAI, Google Gemini, Anthropic) and remove duplicates. Continue?')) {
+        return;
+    }
+
+    try {
+        const db = firebase.firestore();
+        const snapshot = await db.collection('systemLLMProviders').get();
+        const allProviders = [];
+
+        snapshot.forEach(doc => {
+            allProviders.push({ id: doc.id, ...doc.data() });
+        });
+
+        // Standardize names mapping
+        const standardNames = {
+            'openai': 'OpenAI',
+            'gemini': 'Google Gemini',
+            'anthropic': 'Anthropic'
+        };
+
+        const uniqueProviders = {};
+        const batch = db.batch();
+        let changesCount = 0;
+
+        // Sort by update time (keep most recent) to prefer newer entries
+        allProviders.sort((a, b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
+
+        // 1. Identify unique providers & mark duplicates for deletion
+        // Also update names if needed
+        for (const p of allProviders) {
+            if (!p.provider) continue; // Skip invalid
+
+            const type = p.provider.toLowerCase();
+            if (!uniqueProviders[type]) {
+                // This is the primary provider for this type
+                uniqueProviders[type] = p;
+
+                // Check if renaming is needed
+                const newName = standardNames[type];
+                if (newName && p.name !== newName) {
+                    console.log(`Renaming ${p.name} -> ${newName}`);
+                    batch.update(db.collection('systemLLMProviders').doc(p.id), {
+                        name: newName,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    changesCount++;
+                }
+            } else {
+                // Duplicate! Delete it.
+                console.log(`Deleting duplicate provider: ${p.name} (${p.id})`);
+                batch.delete(db.collection('systemLLMProviders').doc(p.id));
+                changesCount++;
+            }
+        }
+
+        if (changesCount > 0) {
+            await batch.commit();
+            alert(`Cleanup complete! ${changesCount} items processed.`);
+            await loadProviders();
+        } else {
+            alert('Providers are already clean.');
+        }
+
+    } catch (error) {
+        console.error('Error sanitizing providers:', error);
+        alert('Error: ' + error.message);
+    }
+};
+
+window.openProviderModal = function (providerId = null) {
+    if (!modal || !form) return;
+
+    form.reset();
+    document.getElementById('provider-doc-id-settings').value = '';
+    if (testResultDiv) testResultDiv.innerHTML = '';
+
+    if (providerId) {
+        const p = providers.find(item => item.id === providerId);
+        if (p) {
+            document.getElementById('provider-modal-title-settings').textContent = 'Edit LLM Provider';
+            document.getElementById('provider-doc-id-settings').value = p.id;
+            document.getElementById('provider-type-settings').value = p.provider;
+            document.getElementById('provider-name-settings').value = p.name;
+            document.getElementById('provider-models-settings').value = p.models?.join(', ') || '';
+            document.getElementById('provider-status-settings').value = p.status;
+
+            document.getElementById('provider-api-key-settings').placeholder = "Leave blank to keep existing key";
+            document.getElementById('provider-api-key-settings').required = false;
+        }
+    } else {
+        document.getElementById('provider-modal-title-settings').textContent = 'Add LLM Provider';
+        document.getElementById('provider-api-key-settings').placeholder = "sk-...";
+        document.getElementById('provider-api-key-settings').required = true;
+        document.getElementById('provider-status-settings').value = 'active';
+    }
+
+    modal.classList.add('open');
+    modal.style.display = 'flex';
+};
+
+window.closeProviderModalSettings = function () {
+    if (modal) {
+        modal.classList.remove('open');
+        modal.style.display = 'none';
+    }
+};
+
+window.editProviderSettings = function (id) {
+    openProviderModal(id);
+};
+
+async function saveProvider(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btn-save-provider-settings');
+    if (!btn) return;
+
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    try {
+        const id = document.getElementById('provider-doc-id-settings').value;
+        const apiKeyInput = document.getElementById('provider-api-key-settings');
+
+        const data = {
+            provider: document.getElementById('provider-type-settings').value,
+            name: document.getElementById('provider-name-settings').value,
+            models: document.getElementById('provider-models-settings').value.split(',').map(s => s.trim()).filter(s => s),
+            status: document.getElementById('provider-status-settings').value
+        };
+
+        if (apiKeyInput.value) {
+            data.credentialRef = {
+                storageType: 'direct',
+                apiKeyMasked: maskApiKey(apiKeyInput.value),
+                apiKeyEncrypted: apiKeyInput.value
+            };
+        } else if (!id) {
+            throw new Error("API Key is required for new provider");
+        }
+
+        await window.LLMProviderService.saveProvider(id || null, data);
+
+        closeProviderModalSettings();
+        await loadProviders();
+        alert('✅ Provider saved successfully');
+
+    } catch (error) {
+        console.error("Save failed:", error);
+        alert(`Error: ${error.message}`);
+    } finally {
+        btn.textContent = 'Save Provider';
+    }
+}
+
+window.deleteProvider = async function (id) {
+    if (!confirm("Are you sure you want to delete this provider? This action cannot be undone.")) return;
+
+    try {
+        await window.LLMProviderService.deleteProvider(id);
+        await loadProviders();
+        alert("Provider deleted successfully.");
+    } catch (e) {
+        console.error("Delete failed:", e);
+        alert("Error deleting provider: " + e.message);
+    }
+}
+
+async function testConnection() {
+    const apiKeyInput = document.getElementById('provider-api-key-settings');
+    const apiKey = apiKeyInput ? apiKeyInput.value : '';
+    const providerDocId = document.getElementById('provider-doc-id-settings').value;
+    const provider = document.getElementById('provider-type-settings').value;
+    const modelsStr = document.getElementById('provider-models-settings').value;
+    const model = modelsStr.split(',')[0]?.trim() || 'gpt-4o-mini';
+
+    if (!apiKey && !providerDocId) {
+        if (testResultDiv) testResultDiv.innerHTML = '<span style="color: #fbbf24;">⚠️ Please enter API Key (or save provider first) to test connection</span>';
+        return;
+    }
+
+    if (testResultDiv) testResultDiv.innerHTML = '<span style="color: #888;">Testing connection...</span>';
+
+    try {
+        // Call service which calls Cloud Function
+        // Pass providerId so backend can use stored key if apiKey is empty
+        const result = await window.LLMProviderService.testConnection({
+            provider,
+            apiKey,
+            providerId: providerDocId,
+            model
+        });
+
+        if (result.success) {
+            if (testResultDiv) testResultDiv.innerHTML = `<span style="color: #22c55e;">✅ ${result.message} (${result.latency}ms)</span>`;
+        } else {
+            if (testResultDiv) testResultDiv.innerHTML = `<span style="color: #ef4444;">❌ ${result.message}</span>`;
+        }
+    } catch (error) {
+        console.error("Test function error:", error);
+        if (testResultDiv) testResultDiv.innerHTML = `<span style="color: #ef4444;">❌ Error: ${error.message}</span>`;
+    }
+}
+
+function maskApiKey(key) {
+    if (!key || key.length < 8) return '****';
+    return key.substring(0, 3) + '...' + key.substring(key.length - 4);
+}
+
+function capitalize(str) {
+    return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
+}
+
+function getStatusBadge(status) {
+    const colors = {
+        active: '#22c55e',
+        disabled: '#94a3b8',
+        error: '#ef4444'
+    };
+    const color = colors[status] || '#94a3b8';
+    return `<span style="border: 1px solid ${color}; color: ${color}; padding: 2px 8px; border-radius: 12px; font-size: 11px;">${capitalize(status)}</span>`;
+}
+
+// Initialize Provider Management
+initProviderManagement();
+
+// Update Prompts Handler
+const updatePromptsBtn = document.getElementById('update-prompts-btn');
+if (updatePromptsBtn) {
+    updatePromptsBtn.addEventListener('click', () => {
+        if (confirm('Are you sure you want to update the system prompts for Planner, Creator, and Manager?')) {
+            const script = document.createElement('script');
+            script.src = 'scripts/update-subagent-prompts.js?v=' + Date.now();
+            document.body.appendChild(script);
+        }
+    });
+}
+
 
 // TODO (Future): channelApiSchemas collection
 // channelApiSchemas/{channelSlug} {
@@ -1302,65 +1448,256 @@ window.seedLLMRouterData = async function () {
 window.loadGlobalDefaults = async function () {
     try {
         if (!firebase.apps.length) return;
+
+        // Ensure models are loaded for dropdowns
+        if (!llmModels || llmModels.length === 0) {
+            await refreshLLMModels();
+        }
+
         const db = firebase.firestore();
         const doc = await db.collection('systemSettings').doc('llmConfig').get();
+        let config = {};
 
         if (doc.exists && doc.data().defaultModels) {
-            const defaults = doc.data().defaultModels;
-
-            // Set fields helper
-            const setField = (id, val) => {
-                const el = document.getElementById(id);
-                if (el) el.value = val;
-            };
-
-            setField('default-tier-provider', defaults.default?.provider || 'google');
-            setField('default-tier-model', defaults.default?.model || 'gemini-3.0-pro');
-            setField('boost-tier-provider', defaults.boost?.provider || 'google');
-            setField('boost-tier-model', defaults.boost?.model || 'nano-banana-pro');
-        } else {
-            // Defaults
-            const setField = (id, val) => {
-                const el = document.getElementById(id);
-                if (el) el.value = val;
-            };
-            setField('default-tier-provider', 'google');
-            setField('default-tier-model', 'gemini-3.0-pro');
-            setField('boost-tier-provider', 'google');
-            setField('boost-tier-model', 'nano-banana-pro');
+            config = doc.data().defaultModels;
         }
+
+        renderGlobalDefaultsUI(config);
     } catch (error) {
         console.error('Error loading global defaults:', error);
     }
 };
 
+function renderGlobalDefaultsUI(config) {
+    const container = document.getElementById('global-defaults-wrapper');
+    if (!container) return;
+
+    // Define Sections with Content Type Specifics
+    const sections = [
+        {
+            id: 'text', icon: '📝', title: 'LLM (Text Generation)',
+            models: llmModels.map(m => ({ id: m.modelId, name: m.displayName })),
+            defaultProvider: 'google', defaultModel: 'gemini-1.5-pro'
+        },
+        {
+            id: 'image', icon: '🎨', title: 'Image Generation',
+            models: [
+                { id: 'dall-e-3', name: 'DALL-E 3' },
+                { id: 'imagen-3', name: 'Google Imagen 3' },
+                { id: 'flux-pro', name: 'Flux Pro' },
+                { id: 'stable-diffusion-xl', name: 'Stable Diffusion XL' }
+            ],
+            defaultProvider: 'openai', defaultModel: 'dall-e-3'
+        },
+        {
+            id: 'video', icon: '🎥', title: 'Video Generation',
+            models: [
+                { id: 'runway-gen-3', name: 'Runway Gen-3' },
+                { id: 'luma-dream-machine', name: 'Luma Dream Machine' },
+                { id: 'sora-preview', name: 'Sora (Preview)' }
+            ],
+            defaultProvider: 'runway', defaultModel: 'runway-gen-3'
+        }
+    ];
+
+    let html = '';
+
+    sections.forEach(sec => {
+        // Fallback Logic: Try config[id] -> config (legacy root) -> Defaults
+        const secConfig = config[sec.id] || (sec.id === 'text' ? config : {}) || {};
+        const def = secConfig.default || { provider: sec.defaultProvider, model: sec.defaultModel };
+        const boost = secConfig.boost || { provider: sec.defaultProvider, model: sec.defaultModel };
+
+        html += `
+        <div style="margin-bottom: 24px; border: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.2); border-radius: 8px; padding: 20px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 10px;">
+                <span style="font-size: 20px;">${sec.icon}</span>
+                <h5 style="margin: 0; color: #fff; font-size: 14px;">${sec.title}</h5>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                <!-- Standard Tier -->
+                <div>
+                     <div style="margin-bottom: 8px; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">Standard Tier (Default)</div>
+                     <div style="display: grid; gap: 10px;">
+                        <div>
+                            <label style="display: block; font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 4px;">Provider</label>
+                            <select id="${sec.id}-def-provider" class="admin-input">
+                                <option value="google" ${def.provider === 'google' ? 'selected' : ''}>Google Gemini</option>
+                                <option value="openai" ${def.provider === 'openai' ? 'selected' : ''}>OpenAI</option>
+                                <option value="anthropic" ${def.provider === 'anthropic' ? 'selected' : ''}>Anthropic</option>
+                                <option value="replicate" ${def.provider === 'replicate' ? 'selected' : ''}>Replicate</option>
+                                <option value="runway" ${def.provider === 'runway' ? 'selected' : ''}>Runway</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 4px;">Model</label>
+                            <select id="${sec.id}-def-model" class="admin-input">
+                                ${sec.models.map(m => `<option value="${m.id}" ${m.id === def.model ? 'selected' : ''}>${m.name}</option>`).join('')}
+                            </select>
+                        </div>
+                     </div>
+                </div>
+
+                <!-- Boost Tier -->
+                <div>
+                     <div style="margin-bottom: 8px; font-size: 11px; color: #818cf8; font-weight: 600; text-transform: uppercase;">Premium Tier (Boost) 🚀</div>
+                     <div style="display: grid; gap: 10px;">
+                        <div>
+                            <label style="display: block; font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 4px;">Provider</label>
+                            <select id="${sec.id}-boost-provider" class="admin-input">
+                                <option value="google" ${boost.provider === 'google' ? 'selected' : ''}>Google Gemini</option>
+                                <option value="openai" ${boost.provider === 'openai' ? 'selected' : ''}>OpenAI</option>
+                                <option value="anthropic" ${boost.provider === 'anthropic' ? 'selected' : ''}>Anthropic</option>
+                                <option value="replicate" ${boost.provider === 'replicate' ? 'selected' : ''}>Replicate</option>
+                                <option value="runway" ${boost.provider === 'runway' ? 'selected' : ''}>Runway</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 4px;">Model</label>
+                            <select id="${sec.id}-boost-model" class="admin-input">
+                                ${sec.models.map(m => `<option value="${m.id}" ${m.id === boost.model ? 'selected' : ''}>${m.name}</option>`).join('')}
+                            </select>
+                        </div>
+                     </div>
+                </div>
+            </div>
+        </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
 window.saveGlobalDefaults = async function () {
     const db = firebase.firestore();
-    const defaultData = {
-        default: {
-            provider: document.getElementById('default-tier-provider').value,
-            model: document.getElementById('default-tier-model').value,
-            creditMultiplier: 1.0
-        },
-        boost: {
-            provider: document.getElementById('boost-tier-provider').value,
-            model: document.getElementById('boost-tier-model').value,
-            creditMultiplier: 3.0
-        }
+    const saveBtn = document.querySelector('button[onclick="saveGlobalDefaults()"]');
+
+    if (saveBtn) {
+        saveBtn.textContent = 'Saving...';
+        saveBtn.disabled = true;
+    }
+
+    // Helper to get values
+    const getVal = (id) => document.getElementById(id)?.value;
+
+    const textConfig = {
+        default: { provider: getVal('text-def-provider'), model: getVal('text-def-model'), creditMultiplier: 1.0 },
+        boost: { provider: getVal('text-boost-provider'), model: getVal('text-boost-model'), creditMultiplier: 3.0 }
+    };
+    const imageConfig = {
+        default: { provider: getVal('image-def-provider'), model: getVal('image-def-model'), creditMultiplier: 2.0 },
+        boost: { provider: getVal('image-boost-provider'), model: getVal('image-boost-model'), creditMultiplier: 5.0 }
+    };
+    const videoConfig = {
+        default: { provider: getVal('video-def-provider'), model: getVal('video-def-model'), creditMultiplier: 5.0 },
+        boost: { provider: getVal('video-boost-provider'), model: getVal('video-boost-model'), creditMultiplier: 10.0 }
     };
 
     try {
         await db.collection('systemSettings').doc('llmConfig').set({
-            defaultModels: defaultData,
+            defaultModels: {
+                text: textConfig,
+                image: imageConfig,
+                video: videoConfig,
+                // Backward Compatibility for existing Router (Text)
+                default: textConfig.default,
+                boost: textConfig.boost
+            },
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
 
-        alert('✅ Global defaults saved successfully!');
+        showCustomModal('Success', 'Global routing defaults updated successfully!', 'success');
     } catch (error) {
-        alert('❌ Error saving defaults: ' + error.message);
+        showCustomModal('Error', 'Error saving defaults: ' + error.message, 'error');
+    } finally {
+        if (saveBtn) {
+            saveBtn.textContent = 'Save Defaults';
+            saveBtn.disabled = false;
+        }
     }
 };
 
 window.updateModelOptions = function (tier) {
     // Optional: Could be used to update placeholders based on provider selection
+};
+
+// ============================================
+// CUSTOM MODAL UTILITY
+// ============================================
+
+window.showCustomModal = function (title, message, type = 'info') {
+    // Remove existing if any
+    const existing = document.getElementById('custom-modal-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'custom-modal-overlay';
+    Object.assign(overlay.style, {
+        position: 'fixed', top: '0', left: '0', width: '100vw', height: '100vh',
+        backgroundColor: 'rgba(0, 0, 0, 0.6)', zIndex: '9999',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        backdropFilter: 'blur(4px)', opacity: '0', transition: 'opacity 0.2s'
+    });
+
+    const modal = document.createElement('div');
+    Object.assign(modal.style, {
+        backgroundColor: '#1e293b', padding: '24px', borderRadius: '12px',
+        maxWidth: '400px', width: '90%', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)',
+        border: '1px solid rgba(255, 255, 255, 0.1)', transform: 'scale(0.95)', transition: 'transform 0.2s'
+    });
+
+    const icon = type === 'success' ? '✅' : (type === 'error' ? '❌' : 'ℹ️');
+    const titleColor = type === 'success' ? '#22c55e' : (type === 'error' ? '#ef4444' : '#fff');
+    const btnColor = type === 'success' ? '#16e0bd' : (type === 'error' ? '#ef4444' : '#64748b');
+    const btnTextColor = type === 'success' ? '#0f172a' : '#fff';
+
+    modal.innerHTML = `
+        <div style="text-align: center; margin-bottom: 20px;">
+            <div style="font-size: 36px; margin-bottom: 12px;">${icon}</div>
+            <h3 style="color: ${titleColor}; margin: 0 0 8px 0; font-size: 18px; font-weight: 600;">${title}</h3>
+            <p style="color: rgba(255, 255, 255, 0.8); margin: 0; line-height: 1.5; font-size: 14px;">${message}</p>
+        </div>
+        <div style="display: flex; justify-content: center;">
+            <button id="modal-ok-btn" style="
+                background: ${btnColor}; 
+                color: ${btnTextColor};
+                border: none; padding: 10px 32px; border-radius: 6px; 
+                font-weight: 600; font-size: 14px; cursor: pointer; 
+                transition: transform 0.1s; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);">
+                OK
+            </button>
+        </div>
+    `;
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    // Button Hover Effect
+    const btn = overlay.querySelector('#modal-ok-btn');
+    btn.onmouseover = () => btn.style.filter = 'brightness(1.1)';
+    btn.onmouseout = () => btn.style.filter = 'brightness(1)';
+    btn.onmousedown = () => btn.style.transform = 'scale(0.95)';
+    btn.onmouseup = () => btn.style.transform = 'scale(1)';
+
+    // Animation In
+    requestAnimationFrame(() => {
+        overlay.style.opacity = '1';
+        modal.style.transform = 'scale(1)';
+    });
+
+    // Close Handler
+    const close = () => {
+        overlay.style.opacity = '0';
+        modal.style.transform = 'scale(0.95)';
+        setTimeout(() => overlay.remove(), 200);
+    };
+
+    btn.onclick = close;
+    overlay.onclick = (e) => {
+        if (e.target === overlay) close();
+    };
+
+    // Auto Close Success after 3s (Optional, user said previous one was too fast, keep this one manual or long delay)
+    // if (type === 'success') setTimeout(close, 3000);
 };

@@ -462,52 +462,7 @@
                         </div>
                     </div>
 
-                    <!-- v2.0 Dynamic Runtime Configuration -->
-                    <div
-                        style="margin-bottom: 16px; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
-                        <label class="admin-form-label" style="margin-bottom: 12px; display: block; color: #16e0bd;">
-                            ⚙️ Dynamic Runtime Configuration
-                        </label>
-
-                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px;">
-                            <div class="admin-form-group" style="margin-bottom: 0;">
-                                <label class="admin-form-label" style="font-size: 12px;">Role Type</label>
-                                <select id="subagent-role" class="admin-select" style="width: 100%;"></select>
-                            </div>
-                            <div class="admin-form-group" style="margin-bottom: 0;">
-                                <label class="admin-form-label" style="font-size: 12px;">Language</label>
-                                <select id="subagent-language" class="admin-select" style="width: 100%;"></select>
-                            </div>
-                            <div class="admin-form-group" style="margin-bottom: 0;">
-                                <label class="admin-form-label" style="font-size: 12px;">Tier</label>
-                                <select id="subagent-tier" class="admin-select" style="width: 100%;"></select>
-                            </div>
-                        </div>
-
-                        <!-- Resolved Config Preview -->
-                        <div id="runtime-config-preview"
-                            style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
-                            <div
-                                style="font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
-                                Resolved Configuration (Preview)
-                            </div>
-                            <div
-                                style="display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 13px;">
-                                <div style="color: rgba(255,255,255,0.5);">Provider:</div>
-                                <div id="preview-provider" style="color: #60a5fa; font-weight: 500;">-</div>
-
-                                <div style="color: rgba(255,255,255,0.5);">Model:</div>
-                                <div id="preview-model" style="color: #fbbf24; font-weight: 500;">-</div>
-
-                                <div style="color: rgba(255,255,255,0.5);">Params:</div>
-                                <div id="preview-params" style="color: rgba(255,255,255,0.7);">-</div>
-
-                                <div style="color: rgba(255,255,255,0.5);">Rule ID:</div>
-                                <div id="preview-rule-id" style="color: rgba(255,255,255,0.3); font-family: monospace;">
-                                    -</div>
-                            </div>
-                        </div>
-                    </div>
+                    <!-- Dynamic Runtime Configuration Removed (Redundant Layer) -->
 
                     <!-- Version & Status in one row -->
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
@@ -560,66 +515,21 @@
 
                 <!-- Tab: Global Settings -->
                 <div id="tab-global" class="admin-tab-content">
-                    <div class="admin-form-group"
-                        style="background: rgba(22, 224, 189, 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(22, 224, 189, 0.2);">
-                        <label class="admin-form-label" style="color: #16e0bd;">🚀 Dynamic Runtime Resolution</label>
-                        <p style="font-size: 13px; color: rgba(255,255,255,0.7); margin-top: 4px; line-height: 1.4;">
-                            LLM configuration is now <strong>dynamically resolved</strong> at runtime based on:
-                            <br>• Engine Type (e.g., Planner)
-                            <br>• Role Type (e.g., Strategist)
-                            <br>• Language (e.g., Korean)
-                            <br>• Preferred Tier (e.g., Balanced)
-                            <br><br>
-                            This eliminates the need to manually select a Runtime Profile.
-                        </p>
-                    </div>
-
-                    <div class="admin-form-group">
-                        <label class="admin-form-label">Default LLM Model (Fallback)</label>
-                        <select id="model-llm-text" class="admin-select" style="width: 100%;">
-                            <option value="gpt-4">GPT-4 (OpenAI)</option>
-                            <option value="gpt-4-turbo">GPT-4 Turbo (OpenAI)</option>
-                            <option value="gpt-3.5-turbo">GPT-3.5 Turbo (OpenAI)</option>
-                            <option value="claude-3-opus">Claude 3 Opus (Anthropic)</option>
-                            <option value="claude-3-sonnet">Claude 3 Sonnet (Anthropic)</option>
-                            <option value="gemini-pro">Gemini Pro (Google)</option>
-                            <option value="gemini-1.5-pro">Gemini 1.5 Pro (Google)</option>
-                        </select>
-                    </div>
-
-                    <!-- Temp & Max Tokens in one row with Sliders -->
+                    <!-- runtime_profile_id Selection (Source of Truth) -->
                     <div
-                        style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; background: rgba(255,255,255,0.03); padding: 16px; border-radius: 8px;">
-                        <!-- Temperature -->
-                        <div class="admin-form-group" style="margin-bottom: 0;">
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                                <label class="admin-form-label" style="margin-bottom: 0;">Temperature</label>
-                                <span id="temp-display"
-                                    style="font-size: 12px; color: #16e0bd; font-weight: bold;">0.7</span>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <input type="range" id="config-temperature-slider" min="0" max="2" step="0.1"
-                                    value="0.7" style="flex: 1; cursor: pointer;">
-                                <input type="number" id="config-temperature" class="admin-form-input" min="0" max="2"
-                                    step="0.1" value="0.7" style="width: 60px; padding: 4px 8px; text-align: center;">
-                            </div>
-                        </div>
-
-                        <!-- Max Tokens -->
-                        <div class="admin-form-group" style="margin-bottom: 0;">
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                                <label class="admin-form-label" style="margin-bottom: 0;">Max Tokens</label>
-                                <span id="tokens-display"
-                                    style="font-size: 12px; color: #16e0bd; font-weight: bold;">2000</span>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <input type="range" id="config-max-tokens-slider" min="100" max="8000" step="100"
-                                    value="2000" style="flex: 1; cursor: pointer;">
-                                <input type="number" id="config-max-tokens" class="admin-form-input" min="100"
-                                    max="8000" step="100" value="2000"
-                                    style="width: 70px; padding: 4px 8px; text-align: center;">
-                            </div>
-                        </div>
+                        style="background: rgba(22, 224, 189, 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(22, 224, 189, 0.2); margin-bottom: 16px;">
+                        <label class="admin-form-label" style="color: #16e0bd;">🔌 Runtime Profile (System Spec)</label>
+                        <p
+                            style="font-size: 13px; color: rgba(255,255,255,0.7); margin-top: 4px; line-height: 1.4; margin-bottom: 12px;">
+                            Select the hardware/software spec for this agent. This controls the Model, Capabilities, and
+                            Cost.
+                        </p>
+                        <select id="subagent-runtime-profile" class="admin-select" style="width: 100%;" required>
+                            <option value="">Loading profiles...</option>
+                        </select>
+                        <p style="font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 8px;">
+                            Linked Profile: <span id="selected-profile-info">-</span>
+                        </p>
                     </div>
                 </div>
 

@@ -20,6 +20,10 @@
             style="padding-bottom: 12px; cursor: pointer; border-bottom: 2px solid transparent; color: rgba(255,255,255,0.5);">
             💰 Pricing & Credits
         </div>
+        <div class="settings-tab" onclick="switchSettingsTab('apitest')" id="tab-btn-apitest"
+            style="padding-bottom: 12px; cursor: pointer; border-bottom: 2px solid transparent; color: rgba(255,255,255,0.5);">
+            🧪 API Test
+        </div>
     </div>
 
     <!-- ========================================== -->
@@ -84,58 +88,17 @@
                 <div>
                     <h4 style="margin: 0; color: #fff;">Global Routing Defaults</h4>
                     <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin: 4px 0 0 0;">
-                        Set system-wide default models for Standard (Default) and Premium (Boost) tiers.
-                        These settings are used when no specific Feature Policy is defined.
+                        Set system-wide default models for each content type. Use <strong>Standard</strong> for regular
+                        tasks and <strong>Boost</strong> for high-quality generation.
                     </p>
                 </div>
                 <button onclick="saveGlobalDefaults()" class="admin-btn-primary">💾 Save Defaults</button>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
-                <!-- Default Tier -->
-                <div style="background: rgba(0,0,0,0.2); border-radius: 8px; padding: 16px;">
-                    <h5 style="margin: 0 0 12px 0; color: #94a3b8; font-size: 13px; text-transform: uppercase;">Standard
-                        Tier (Default)</h5>
-
-                    <div class="form-group" style="margin-bottom: 12px;">
-                        <label class="admin-label">Provider</label>
-                        <select id="default-tier-provider" class="admin-select">
-                            <option value="google">Google Gemini</option>
-                            <option value="openai">OpenAI</option>
-                            <option value="anthropic">Anthropic</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="admin-label">Model ID</label>
-                        <input type="text" id="default-tier-model" class="admin-input"
-                            placeholder="e.g. gemini-3.0-pro">
-                        <p style="font-size:10px; color:rgba(255,255,255,0.3); margin-top:4px;">Cost Multiplier: 1.0x
-                        </p>
-                    </div>
-                </div>
-
-                <!-- Boost Tier -->
-                <div
-                    style="background: rgba(0,0,0,0.2); border-radius: 8px; padding: 16px; border: 1px solid rgba(99,102,241,0.2);">
-                    <h5 style="margin: 0 0 12px 0; color: #818cf8; font-size: 13px; text-transform: uppercase;">Premium
-                        Tier (Boost) 🚀</h5>
-
-                    <div class="form-group" style="margin-bottom: 12px;">
-                        <label class="admin-label">Provider</label>
-                        <select id="boost-tier-provider" class="admin-select">
-                            <option value="google">Google Gemini</option>
-                            <option value="openai">OpenAI</option>
-                            <option value="anthropic">Anthropic</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="admin-label">Model ID</label>
-                        <input type="text" id="boost-tier-model" class="admin-input" placeholder="e.g. nano-banana-pro">
-                        <p style="font-size:10px; color:rgba(255,255,255,0.3); margin-top:4px;">Cost Multiplier: 3.0x
-                        </p>
-                    </div>
+            <!-- Dynamic Container for Text / Image / Video Sections -->
+            <div id="global-defaults-wrapper">
+                <div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">
+                    Loading settings...
                 </div>
             </div>
         </div>
@@ -498,6 +461,92 @@
         </div>
     </div>
 
+
+    <!-- ========================================== -->
+    <!-- TAB 5: API TESTER                          -->
+    <!-- ========================================== -->
+    <div id="tab-apitest" class="settings-tab-content"
+        style="display: none; max-width: 1200px; margin: 0 auto; padding-top: 20px;">
+
+        <!-- Google Gemini Tester -->
+        <div
+            style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 24px;">
+            <h4 style="margin: 0 0 16px 0; color: #fff;">💎 Google Gemini API Tester</h4>
+            <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 20px;">
+                Directly test the Gemini API (`generativelanguage.googleapis.com`) from your browser to verify Key and
+                Model access.
+            </p>
+
+            <!-- Key Input -->
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-size: 12px; color: #aaa; margin-bottom: 8px;">Gemini API Key</label>
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <div style="flex: 1; min-width: 0;">
+                        <input type="password" id="test-gemini-key" class="admin-input" placeholder="AIza..."
+                            style="margin: 0; width: 100%; display: block;">
+                    </div>
+                    <button onclick="autoFillGeminiKey()" class="admin-btn-secondary"
+                        style="width: auto; white-space: nowrap; flex-shrink: 0; padding: 0 16px;">📥
+                        Load from System</button>
+                </div>
+                <div style="margin-top: 6px;">
+                    <label style="font-size: 12px; color: #888; cursor: pointer;">
+                        <input type="checkbox"
+                            onchange="document.getElementById('test-gemini-key').type = this.checked ? 'text' : 'password'">
+                        Show Key
+                    </label>
+                </div>
+            </div>
+
+            <!-- List Models Action -->
+            <div style="margin-bottom: 20px; padding: 16px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <strong style="color: #fff; font-size: 14px;">1. Check Available Models</strong>
+                    <button onclick="runGeminiModelList()" class="admin-btn-primary">List Models</button>
+                </div>
+                <div id="test-gemini-list-status" style="font-size: 12px; color: #888; margin-bottom: 8px;"></div>
+                <pre id="test-gemini-list-output"
+                    style="background: #111; padding: 10px; border-radius: 4px; color: #0f0; font-size: 11px; min-height: 150px; overflow-y: auto; resize: vertical;">(Click List Models to see result)</pre>
+            </div>
+
+            <!-- Generate Content Action -->
+            <div style="padding: 16px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <strong style="color: #fff; font-size: 14px;">2. Test Generation (generateContent)</strong>
+                    <button onclick="runGeminiGeneration()" class="admin-btn-primary">🚀 Send Prompt</button>
+                </div>
+
+                <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+                    <div style="flex: 1;">
+                        <input type="text" id="test-gemini-model-id" class="admin-input"
+                            placeholder="Model ID (e.g. gemini-2.0-flash-exp)" style="margin: 0;">
+                    </div>
+                    <div style="flex: 2;">
+                        <input type="text" id="test-gemini-prompt" class="admin-input" value="Hello, are you working?"
+                            placeholder="Enter prompt..." style="margin: 0;">
+                    </div>
+                </div>
+
+                <div id="test-gemini-gen-status" style="font-size: 12px; color: #888; margin-bottom: 8px;"></div>
+                <pre id="test-gemini-gen-output"
+                    style="background: #111; padding: 10px; border-radius: 4px; color: #0bceaf; font-size: 11px; min-height: 200px; overflow-y: auto; resize: vertical;">(Response will appear here)</pre>
+            </div>
+        </div>
+
+        <!-- OpenAI Tester (Placeholder) -->
+        <div
+            style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h4 style="margin: 0; color: #fff;">🤖 OpenAI API Tester</h4>
+                <button onclick="alert('Coming soon!')" class="admin-btn-secondary">Check Connection</button>
+            </div>
+            <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 8px;">
+                Simple connectivity check for OpenAI keys (Planned).
+            </p>
+        </div>
+
+    </div>
+
 </div>
 
 <!-- Provider Modal -->
@@ -650,6 +699,8 @@
     }
 </style>
 
+
+<script src="admin-apitester.js"></script>
 <script>
     // Tab switching function
     function switchSettingsTab(tabId) {
@@ -687,6 +738,9 @@
         }
         else if (tabId === 'pricing') {
             if (window.loadPricingData) window.loadPricingData();
+        }
+        else if (tabId === 'apitest') {
+            if (window.initApiTester) window.initApiTester();
         }
     }
 
