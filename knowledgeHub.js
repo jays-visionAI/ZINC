@@ -4321,7 +4321,7 @@ function confirmUseInStudio() {
         window.location.href = 'studio/index.html';
     }
 }
-}
+
 
 /**
  * Load saved plans for sidebar
