@@ -1686,11 +1686,13 @@ function regenerateContent() {
     // Clear feedback input
     document.getElementById('feedback-input').value = '';
 
-    // Simulate regeneration
-    setTimeout(() => {
-        streamTextContent();
-        addLogEntry('✓ Content regenerated', 'success');
-    }, 500);
+    // Trigger Real Regeneration via DAG Executor
+    if (window.dagExecutor) {
+        window.dagExecutor.regenerateCreation(feedback);
+    } else {
+        console.error('DAG Executor not found');
+        addLogEntry('❌ System Error: DAG Executor not initialized', 'error');
+    }
 }
 
 function approveContent() {

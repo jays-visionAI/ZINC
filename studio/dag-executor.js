@@ -185,6 +185,43 @@ class DAGExecutor {
     }
 
     /**
+     * Regenerate Creation Logic with Feedback
+     */
+    async regenerateCreation(feedback) {
+        if (this.state.isRunning) {
+            console.warn('Execution already in progress');
+            return;
+        }
+
+        this.emit('onLog', { message: `🔄 Regenerating content with feedback: "${feedback}"`, type: 'info' });
+
+        // Restore state for re-run
+        this.state.isRunning = true;
+        this.state.isPaused = false;
+
+        // Store feedback in context
+        if (!this.state.context) this.state.context = {};
+        this.state.context.userFeedback = feedback;
+
+        try {
+            // Find Creation Phase
+            const phaseIndex = this.phases.findIndex(p => p.name === 'Creation');
+            if (phaseIndex !== -1) {
+                this.state.currentPhase = phaseIndex;
+                // Re-execute Creation Phase
+                await this.executePhase(this.phases[phaseIndex], this.state.selectedAgents);
+            }
+            this.emit('onLog', { message: '✅ Regeneration completed!', type: 'success' });
+        } catch (error) {
+            this.emit('onLog', { message: `❌ Regeneration failed: ${error.message}`, type: 'error' });
+        }
+
+        this.state.isRunning = false;
+        // Optional: Clear feedback so it doesn't stick for next completely new run? 
+        // For now, keep it as it might be relevant history.
+    }
+
+    /**
      * Execute a single phase
      */
     async executePhase(phase, selectedAgents) {
@@ -382,8 +419,9 @@ class DAGExecutor {
     getAgentConfig(agentId, context) {
         // Ensure planContent is never empty to prevent LLM hallucinations
         const planContent = context?.content || context?.planName || 'Create engaging content relevant to the project and brand.';
+        const userFeedback = context?.userFeedback ? `\n\nIMPORTANT USER FEEDBACK FOR REGENERATION:\n"${context.userFeedback}"\n\nYou MUST incorporate this feedback into your output.` : '';
 
-        console.log(`[DAGExecutor] getAgentConfig for ${agentId}:`, { planContent, context });
+        console.log(`[DAGExecutor] getAgentConfig for ${agentId}:`, { planContent, context, userFeedback });
 
         // Determine global model based on selected provider and Global Defaults
         // 1. Team Preference -> 2. Global Default Preference -> 3. Hardcoded Fallback
@@ -478,13 +516,13 @@ class DAGExecutor {
             }),
             creator_text: configWithProvider({
                 systemPrompt: `You are an expert social media content creator. Write engaging, platform-optimized content. Be creative, authentic, and compelling. Use emojis appropriately. Make content shareable and engaging.`,
-                taskPrompt: `Create a social media post based on this content plan:\n\n${planContent}\n\nRequirements:\n- Write the COMPLETE post content (not just a summary)\n- Use the actual messaging from the plan\n- Include relevant hashtags\n- Make it engaging and ready to publish\n- Target platform: Twitter/X\n- Maximum 280 characters for standard tweets, or up to 4000 for premium accounts\n\nWrite the post now:`,
+                taskPrompt: `Create a social media post based on this content plan:\n\n${planContent}\n\nRequirements:\n- Write the COMPLETE post content (not just a summary)\n- Use the actual messaging from the plan\n- Include relevant hashtags\n- Make it engaging and ready to publish\n- Target platform: Twitter/X\n- Maximum 280 characters for standard tweets, or up to 4000 for premium accounts\n\nWrite the post now:${userFeedback}`,
                 model: globalModel,
                 temperature: 0.8
             }),
             creator_video: configWithProvider({
                 systemPrompt: `You are a video content specialist. Create scripts and storyboards.`,
-                taskPrompt: `Create a video script based on:\n${planContent}\n\nProvide:\n1. Hook (first 3 seconds)\n2. Main content structure\n3. Call to action\n4. Suggested visuals`,
+                taskPrompt: `Create a video script based on:\n${planContent}\n\nProvide:\n1. Hook (first 3 seconds)\n2. Main content structure\n3. Call to action\n4. Suggested visuals${userFeedback}`,
                 model: globalModel,
                 temperature: 0.7
             }),
