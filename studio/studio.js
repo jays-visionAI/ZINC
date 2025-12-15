@@ -1659,6 +1659,73 @@ function setContentStatus(status) {
     if (activeBadge) activeBadge.classList.add('active');
 }
 
+// Edit Mode State
+let isEditMode = false;
+
+/**
+ * Toggle edit mode for content preview
+ */
+function toggleEditMode() {
+    isEditMode = !isEditMode;
+
+    const editBtn = document.getElementById('btn-edit');
+    const editBtnText = document.getElementById('btn-edit-text');
+    const twitterContent = document.getElementById('twitter-content');
+    const instagramContent = document.getElementById('instagram-content');
+    const facebookContent = document.getElementById('facebook-content');
+    const linkedinContent = document.getElementById('linkedin-content');
+
+    const editableElements = [twitterContent, instagramContent, facebookContent, linkedinContent];
+
+    if (isEditMode) {
+        // Enable edit mode
+        editableElements.forEach(el => {
+            if (el) {
+                el.contentEditable = 'true';
+                el.classList.add('editable-active');
+                el.style.outline = '2px solid #6366f1';
+                el.style.outlineOffset = '2px';
+                el.style.borderRadius = '4px';
+                el.style.padding = '8px';
+                el.style.backgroundColor = 'rgba(99, 102, 241, 0.1)';
+                el.style.cursor = 'text';
+            }
+        });
+
+        if (editBtn) {
+            editBtn.classList.add('active');
+            editBtn.style.backgroundColor = '#6366f1';
+            editBtn.style.color = '#fff';
+        }
+        if (editBtnText) editBtnText.textContent = 'Done';
+
+        addLogEntry('✏️ Edit mode enabled - Click on content to edit', 'info');
+    } else {
+        // Disable edit mode
+        editableElements.forEach(el => {
+            if (el) {
+                el.contentEditable = 'false';
+                el.classList.remove('editable-active');
+                el.style.outline = '';
+                el.style.outlineOffset = '';
+                el.style.borderRadius = '';
+                el.style.padding = '';
+                el.style.backgroundColor = '';
+                el.style.cursor = '';
+            }
+        });
+
+        if (editBtn) {
+            editBtn.classList.remove('active');
+            editBtn.style.backgroundColor = '';
+            editBtn.style.color = '';
+        }
+        if (editBtnText) editBtnText.textContent = 'Edit';
+
+        addLogEntry('✅ Edit mode disabled - Changes saved', 'success');
+    }
+}
+
 function discardContent() {
     if (!confirm('Are you sure you want to discard this content?')) return;
 
