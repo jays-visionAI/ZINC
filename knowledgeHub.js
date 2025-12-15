@@ -555,28 +555,28 @@ function updateSummarySection() {
 
     if (!summaryToShow) {
         // Initial State or No Summary
-    if (!summaryToShow) {
-        // Initial State or No Summary
-        renderSummaryHeader('brand'); // Reset header style
-        summaryTitle.innerHTML = '🤖 <span class="ml-2">Brand Intelligence</span>';
-        summaryContent.textContent = 'Add sources from the left panel to generate your Brand Summary.';
-        keyInsights.classList.add('hidden');
-        document.getElementById('summary-actions').classList.add('hidden');
-        // Hide card if no summary? Or show placeholder?
-        // User requested: "Chat starts with hidden slot, shown when source selected"
-        // But also "Brand Summary is history managed".
-        // Let's keep it visible but with welcome text if no history.
-    } else {
-        // If this is a source view, show additional metadata
-        if (summaryToShow.isSourceView && summaryToShow.sourceId) {
-            renderSummaryHeader('source'); // Style for source view
-            summaryTitle.innerHTML = `<span class="text-emerald-400">📄</span> <span class="ml-2">${summaryToShow.title}</span>`;
+        if (!summaryToShow) {
+            // Initial State or No Summary
+            renderSummaryHeader('brand'); // Reset header style
+            summaryTitle.innerHTML = '🤖 <span class="ml-2">Brand Intelligence</span>';
+            summaryContent.textContent = 'Add sources from the left panel to generate your Brand Summary.';
+            keyInsights.classList.add('hidden');
+            document.getElementById('summary-actions').classList.add('hidden');
+            // Hide card if no summary? Or show placeholder?
+            // User requested: "Chat starts with hidden slot, shown when source selected"
+            // But also "Brand Summary is history managed".
+            // Let's keep it visible but with welcome text if no history.
+        } else {
+            // If this is a source view, show additional metadata
+            if (summaryToShow.isSourceView && summaryToShow.sourceId) {
+                renderSummaryHeader('source'); // Style for source view
+                summaryTitle.innerHTML = `<span class="text-emerald-400">📄</span> <span class="ml-2">${summaryToShow.title}</span>`;
 
-            const importance = summaryToShow.importance || 2;
-            const summarizedAt = summaryToShow.summarizedAt || 'Not yet';
+                const importance = summaryToShow.importance || 2;
+                const summarizedAt = summaryToShow.summarizedAt || 'Not yet';
 
-            // Build star rating HTML
-            const starsHtml = [1, 2, 3].map(star => `
+                // Build star rating HTML
+                const starsHtml = [1, 2, 3].map(star => `
                 <span class="importance-star cursor-pointer text-lg transition-transform hover:scale-125 ${star <= importance ? 'text-yellow-400' : 'text-slate-600'}" 
                       onclick="updateSourceImportance('${summaryToShow.sourceId}', ${star})"
                       title="Set importance to ${star}">
@@ -584,8 +584,8 @@ function updateSummarySection() {
                 </span>
             `).join('');
 
-            // Update summary content to include metadata
-            summaryContent.innerHTML = `
+                // Update summary content to include metadata
+                summaryContent.innerHTML = `
                 <div class="flex items-center justify-between mb-4 pb-4 border-b border-slate-700/50">
                      <div class="flex items-center gap-4">
                         <div class="flex items-center gap-2">
@@ -626,40 +626,20 @@ function updateSummarySection() {
                     </button>
                 </div>
             `;
-            
-            // Hide standard actions in source view
-            document.getElementById('summary-actions').classList.add('hidden');
 
-        } else {
-            // Standard Brand Summary View
-            renderSummaryHeader('brand');
-            summaryTitle.innerHTML = `🤖 <span class="ml-2">${summaryToShow.title}</span>`;
-            
-            summaryContent.innerHTML = `
-                <div class="text-base text-slate-300 leading-relaxed">
-                    ${summaryToShow.content}
-                </div>
-            `;
-            // Show standard actions
-            document.getElementById('summary-actions').classList.remove('hidden');
-        }
-                    </button>
-                    <input type="hidden" id="summary-boost-active" value="false">
-                    <button onclick="confirmDeleteSource('${summaryToShow.sourceId}', '${escapeHtml(summaryToShow.title || 'this source')}')" 
-                            class="px-3 py-1.5 text-xs bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-lg transition-all flex items-center gap-2 border border-red-600/30">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
-                        </svg>
-                        Delete
-                    </button>
-                </div>
-            `;
-        } else {
-            // For Brand Summary, show content with weight breakdown
-            let weightBreakdownHtml = '';
-            if (summaryToShow.weightBreakdown && summaryToShow.weightBreakdown.length > 0) {
-                const maxPercent = Math.max(...summaryToShow.weightBreakdown.map(w => w.percent));
-                weightBreakdownHtml = `
+                // Hide standard actions in source view
+                document.getElementById('summary-actions').classList.add('hidden');
+
+            } else {
+                // Standard Brand Summary View
+                renderSummaryHeader('brand');
+                summaryTitle.innerHTML = `🤖 <span class="ml-2">${summaryToShow.title}</span>`;
+
+                // For Brand Summary, show content with weight breakdown
+                let weightBreakdownHtml = '';
+                if (summaryToShow.weightBreakdown && summaryToShow.weightBreakdown.length > 0) {
+                    const maxPercent = Math.max(...summaryToShow.weightBreakdown.map(w => w.percent));
+                    weightBreakdownHtml = `
                     <div class="mb-4 p-3 bg-slate-800/50 rounded-xl border border-slate-700/50">
                         <div class="flex items-center justify-between mb-3">
                             <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
@@ -696,8 +676,16 @@ function updateSummarySection() {
                         </div>
                     </div>
                 `;
+                }
+
+                summaryContent.innerHTML = weightBreakdownHtml + `
+                <div class="text-base text-slate-300 leading-relaxed">
+                    ${summaryToShow.content}
+                </div>
+            `;
+                // Show standard actions
+                document.getElementById('summary-actions').classList.remove('hidden');
             }
-            summaryContent.innerHTML = weightBreakdownHtml + `<div class="text-base text-slate-300 leading-relaxed">${summaryToShow.content}</div>`;
         }
 
         // Key Insights (Chips)
