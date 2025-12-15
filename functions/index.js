@@ -2089,18 +2089,20 @@ exports.onKnowledgeSourceCreated = onDocumentCreated(
                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
             });
 
-            let extractedText = '';
+            let extractedText = source.extractedText || ''; // Use client-provided text if available
 
-            // Extract text based on source type
-            switch (source.sourceType) {
-                case 'link':
-                    extractedText = await extractTextFromUrl(source.link?.url);
-                    break;
-                case 'google_drive':
-                    extractedText = await extractTextFromDrive(source.googleDrive);
-                    break;
-                default:
-                    extractedText = source.description || '';
+            if (!extractedText) {
+                // Extract text based on source type if not already provided
+                switch (source.sourceType) {
+                    case 'link':
+                        extractedText = await extractTextFromUrl(source.link?.url);
+                        break;
+                    case 'google_drive':
+                        extractedText = await extractTextFromDrive(source.googleDrive);
+                        break;
+                    default:
+                        extractedText = source.description || '';
+                }
             }
 
             if (!extractedText || extractedText.length < 10) {

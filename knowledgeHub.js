@@ -258,11 +258,51 @@ async function handlePickerCallback(data) {
  */
 async function addGoogleDriveSource(file) {
     try {
+        showNotification(`Extracting content from ${file.name}...`, 'info');
+
+        let extractedText = '';
+
+        // 1. Fetch File Content using GAPI (Client-side)
+        // We use the accessToken already obtained from the Picker flow
+        if (gapiInited && accessToken) {
+            try {
+                // Determine if it's a Google Doc or binary file
+                const isGoogleDoc = file.mimeType.startsWith('application/vnd.google-apps.');
+
+                if (isGoogleDoc) {
+                    // Export Google Docs as plain text
+                    const response = await gapi.client.drive.files.export({
+                        fileId: file.id,
+                        mimeType: 'text/plain'
+                    });
+                    extractedText = response.body || '';
+                } else {
+                    // For PDFs/Text files, try to get media content if text-based
+                    // Note: Browser-side binary extraction is complex. 
+                    // For now, we prioritize Google Docs. 
+                    // If it's a text file, download it.
+                    if (file.mimeType.startsWith('text/') || file.mimeType === 'application/json') {
+                        const response = await gapi.client.drive.files.get({
+                            fileId: file.id,
+                            alt: 'media'
+                        });
+                        extractedText = response.body || '';
+                    } else {
+                        extractedText = `(Binary file: ${file.name}. Analysis relies on metadata.)`;
+                    }
+                }
+            } catch (err) {
+                console.warn('Failed to extract Drive content client-side:', err);
+                extractedText = `(Content extraction failed: ${err.message})`;
+            }
+        }
+
         const sourceData = {
             sourceType: 'google_drive',
             title: file.name,
             isActive: true,
             status: 'pending',
+            extractedText: extractedText, // Save extracted text directly
             googleDrive: {
                 fileId: file.id,
                 fileName: file.name,
@@ -282,7 +322,7 @@ async function addGoogleDriveSource(file) {
             .collection('knowledgeSources')
             .add(sourceData);
 
-        console.log('Added Drive source:', file.name);
+        console.log('Added Drive source with content:', file.name);
 
     } catch (error) {
         console.error('Error adding Drive source:', error);
@@ -308,6 +348,17 @@ function showGoogleDriveSetupInstructions() {
                     <li>Replace <code class="bg-slate-700 px-1 rounded">GOOGLE_CLIENT_ID</code> and <code class="bg-slate-700 px-1 rounded">GOOGLE_API_KEY</code> in the code</li>
                 </ol>
             </div>
+            <div class="mt-4 p-4 bg-slate-800/50 rounded-xl border border-slate-700">
+                 <h4 class="text-xs font-semibold text-slate-300 mb-2">Supported Formats</h4>
+                 <ul class="text-xs text-slate-500 list-disc list-inside space-y-1">
+                    <li>Google Docs (converted to text)</li>
+                    <li>PDF (text-based)</li>
+                    <li>Text Files (.txt, .md, .json)</li>
+                    <li>Word (.docx), PowerPoint (.pptx)</li>
+                 </ul>
+                 <p class="text-[10px] text-slate-600 mt-2">* Large files (>5MB) may take longer to process.</p>
+            </div>
+
         `;
     }
 }
@@ -504,7 +555,10 @@ function updateSummarySection() {
 
     if (!summaryToShow) {
         // Initial State or No Summary
-        summaryTitle.textContent = 'Welcome to Brand Intelligence';
+    if (!summaryToShow) {
+        // Initial State or No Summary
+        renderSummaryHeader('brand'); // Reset header style
+        summaryTitle.innerHTML = '🤖 <span class="ml-2">Brand Intelligence</span>';
         summaryContent.textContent = 'Add sources from the left panel to generate your Brand Summary.';
         keyInsights.classList.add('hidden');
         document.getElementById('summary-actions').classList.add('hidden');
@@ -513,11 +567,11 @@ function updateSummarySection() {
         // But also "Brand Summary is history managed".
         // Let's keep it visible but with welcome text if no history.
     } else {
-        // Render Summary
-        summaryTitle.textContent = summaryToShow.title || 'Brand Summary';
-
         // If this is a source view, show additional metadata
         if (summaryToShow.isSourceView && summaryToShow.sourceId) {
+            renderSummaryHeader('source'); // Style for source view
+            summaryTitle.innerHTML = `<span class="text-emerald-400">📄</span> <span class="ml-2">${summaryToShow.title}</span>`;
+
             const importance = summaryToShow.importance || 2;
             const summarizedAt = summaryToShow.summarizedAt || 'Not yet';
 
@@ -532,32 +586,63 @@ function updateSummarySection() {
 
             // Update summary content to include metadata
             summaryContent.innerHTML = `
-                <div class="flex items-center gap-4 mb-4 pb-4 border-b border-slate-700/50">
-                    <div class="flex items-center gap-2">
-                        <span class="text-xs text-slate-500">Importance:</span>
-                        <div class="flex gap-1">${starsHtml}</div>
-                    </div>
-                    <div class="text-xs text-slate-500">
-                        Summarized: <span class="text-slate-400">${summarizedAt}</span>
-                    </div>
+                <div class="flex items-center justify-between mb-4 pb-4 border-b border-slate-700/50">
+                     <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-slate-500">Importance:</span>
+                            <div class="flex gap-1">${starsHtml}</div>
+                        </div>
+                        <div class="text-xs text-slate-500">
+                            Summarized: <span class="text-slate-400">${summarizedAt}</span>
+                        </div>
+                     </div>
+                     <button onclick="closeSourceView()" class="text-xs text-slate-400 hover:text-white flex items-center gap-1 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        Close
+                     </button>
                 </div>
-                <div class="text-base text-slate-300 leading-relaxed">
+                <div class="text-base text-slate-300 leading-relaxed font-light">
                     ${summaryToShow.content || 'No summary available for this source.'}
                 </div>
-                <div class="mt-4 pt-4 border-t border-slate-700/50 flex gap-2">
-                    <button onclick="regenerateSourceSummary('${summaryToShow.sourceId}')" 
-                            class="px-3 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-all flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 12a9 9 0 0 0-9-9 9.75 9 0 0 0-6.74 2.74L3 8"/>
-                            <path d="M3 3v5h5"/>
-                        </svg>
-                        Regenerate Summary
+                <div class="mt-6 pt-4 border-t border-slate-700/50 flex items-center justify-between">
+                    <div class="flex gap-2">
+                        <button onclick="regenerateSourceSummary('${summaryToShow.sourceId}')" 
+                                class="px-3 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-all flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 12a9 9 0 0 0-9-9 9.75 9 0 0 0-6.74 2.74L3 8"/>
+                                <path d="M3 3v5h5"/>
+                            </svg>
+                            Regenerate Analysis
+                        </button>
+                        <button onclick="useSourceInStudio()" 
+                                class="px-3 py-1.5 text-xs bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 rounded-lg transition-all flex items-center gap-2 border border-emerald-500/30">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                            Use in Studio
+                        </button>
+                    </div>
+                    <button onclick="closeSourceView()" 
+                            class="px-3 py-1.5 text-xs bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-all">
+                        Back to Overview
                     </button>
-                    <button id="btn-boost-summary" 
-                            onclick="toggleBoost('summary')" 
-                            class="px-3 py-1.5 text-xs bg-slate-700/50 hover:bg-slate-700 text-slate-300 rounded-lg transition-all flex items-center gap-2 border border-slate-600/50">
-                        <span id="boost-icon-summary" class="grayscale">🚀</span>
-                        Boost
+                </div>
+            `;
+            
+            // Hide standard actions in source view
+            document.getElementById('summary-actions').classList.add('hidden');
+
+        } else {
+            // Standard Brand Summary View
+            renderSummaryHeader('brand');
+            summaryTitle.innerHTML = `🤖 <span class="ml-2">${summaryToShow.title}</span>`;
+            
+            summaryContent.innerHTML = `
+                <div class="text-base text-slate-300 leading-relaxed">
+                    ${summaryToShow.content}
+                </div>
+            `;
+            // Show standard actions
+            document.getElementById('summary-actions').classList.remove('hidden');
+        }
                     </button>
                     <input type="hidden" id="summary-boost-active" value="false">
                     <button onclick="confirmDeleteSource('${summaryToShow.sourceId}', '${escapeHtml(summaryToShow.title || 'this source')}')" 
@@ -1000,6 +1085,14 @@ async function addLinkSource() {
         return;
     }
 
+    // Block Google Drive/Docs Links
+    if (url.includes('docs.google.com') || url.includes('drive.google.com')) {
+        showNotification('Please use the "Drive" tab to add Google Docs/Drive files.', 'warning');
+        // Optional: Auto-switch tab?
+        // document.querySelector('[data-type="drive"]').click();
+        return;
+    }
+
     try {
         const sourceData = {
             sourceType: 'link',
@@ -1214,7 +1307,30 @@ async function updateSourceImportance(sourceId, importance) {
 // INDIVIDUAL SOURCE SUMMARY REGENERATION
 // ============================================================
 
-// Regenerate summary for a single source document
+// Helper to switch visual styles
+function renderSummaryHeader(mode) {
+    const card = document.getElementById('brand-summary-card');
+    if (!card) return;
+
+    if (mode === 'source') {
+        // Active Source View Style
+        card.classList.remove('border-slate-800', 'bg-slate-900/50');
+        card.classList.add('border-indigo-500/30', 'bg-slate-900');
+    } else {
+        // Default Brand Summary Style
+        card.classList.remove('border-indigo-500/30', 'bg-slate-900');
+        card.classList.add('border-slate-800', 'bg-slate-900/50');
+    }
+}
+
+function closeSourceView() {
+    currentDisplayedSummary = null; // Reset to show default/latest
+    updateSummarySection();
+}
+
+/**
+ * Regenerate Source Summary
+ */
 async function regenerateSourceSummary(sourceId) {
     if (!currentProjectId || !sourceId) return;
 
@@ -2888,16 +3004,25 @@ async function useChatInStudio(messageId, btn) {
         planName: 'Insight from Brand Intelligence'
     };
 
-    // Open the Agent Team Selection Modal
-    const modal = document.getElementById('modal-select-agent-team');
-    if (modal) {
-        modal.classList.remove('hidden');
-        loadAgentTeamsForStudio(); // Load teams
-    } else {
-        console.error('Agent Team Modal not found');
-        showNotification('System Error: Modal missing', 'error');
-    }
+    openAgentSelectionModal();
 }
+
+/**
+ * Send Source Summary to Studio (Opens Agent Team Modal)
+ */
+function useSourceInStudio() {
+    if (!currentDisplayedSummary) return;
+
+    pendingStudioContent = {
+        type: 'chat', // Treating summary as chat/text content for now
+        content: currentDisplayedSummary.content,
+        planName: `Source: ${currentDisplayedSummary.title.replace('📄 ', '')}`
+    };
+
+    openAgentSelectionModal();
+}
+
+/* Function openStudioAgentModal removed as it duplicated/broke openAgentSelectionModal */
 
 /**
  * Copy text to clipboard
