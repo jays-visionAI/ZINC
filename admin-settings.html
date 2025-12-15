@@ -533,16 +533,71 @@
             </div>
         </div>
 
-        <!-- OpenAI Tester (Placeholder) -->
+        <!-- OpenAI API Tester -->
         <div
             style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05);">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h4 style="margin: 0; color: #fff;">🤖 OpenAI API Tester</h4>
-                <button onclick="alert('Coming soon!')" class="admin-btn-secondary">Check Connection</button>
             </div>
-            <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 8px;">
-                Simple connectivity check for OpenAI keys (Planned).
+
+            <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 20px;">
+                Directly test the OpenAI API (`api.openai.com`) from your browser.
             </p>
+
+            <!-- Key Input -->
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-size: 12px; color: #aaa; margin-bottom: 8px;">OpenAI API Key</label>
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <div style="flex: 1; min-width: 0;">
+                        <input type="password" id="test-openai-key" class="admin-input" placeholder="sk-..."
+                            style="margin: 0; width: 100%; display: block;">
+                    </div>
+                    <button onclick="autoFillOpenAIKey()" class="admin-btn-secondary"
+                        style="width: auto; white-space: nowrap; flex-shrink: 0; padding: 0 16px;">📥
+                        Load from System</button>
+                </div>
+                <div style="margin-top: 6px;">
+                    <label style="font-size: 12px; color: #888; cursor: pointer;">
+                        <input type="checkbox"
+                            onchange="document.getElementById('test-openai-key').type = this.checked ? 'text' : 'password'">
+                        Show Key
+                    </label>
+                </div>
+            </div>
+
+            <!-- List Models Action -->
+            <div style="margin-bottom: 20px; padding: 16px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <strong style="color: #fff; font-size: 14px;">1. Check Available Models</strong>
+                    <button onclick="runOpenAIModelList()" class="admin-btn-primary">List Models</button>
+                </div>
+                <div id="test-openai-list-status" style="font-size: 12px; color: #888; margin-bottom: 8px;"></div>
+                <pre id="test-openai-list-output"
+                    style="background: #111; padding: 10px; border-radius: 4px; color: #0f0; font-size: 11px; min-height: 150px; overflow-y: auto; resize: vertical;">(Click List Models to see result)</pre>
+            </div>
+
+            <!-- Generate Content Action -->
+            <div style="padding: 16px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <strong style="color: #fff; font-size: 14px;">2. Test Generation (Chat Completion)</strong>
+                    <button onclick="runOpenAIGeneration()" class="admin-btn-primary">🚀 Send Prompt</button>
+                </div>
+
+                <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+                    <div style="flex: 1;">
+                        <input type="text" id="test-openai-model-id" class="admin-input"
+                            placeholder="Model ID (e.g. gpt-4o)" style="margin: 0;">
+                    </div>
+                    <div style="flex: 2;">
+                        <input type="text" id="test-openai-prompt" class="admin-input" value="Hello, are you working?"
+                            placeholder="Enter prompt..." style="margin: 0;">
+                    </div>
+                </div>
+
+                <div id="test-openai-gen-status" style="font-size: 12px; color: #888; margin-bottom: 8px;"></div>
+                <pre id="test-openai-gen-output"
+                    style="background: #111; padding: 10px; border-radius: 4px; color: #0bceaf; font-size: 11px; min-height: 200px; overflow-y: auto; resize: vertical;">(Response will appear here)</pre>
+            </div>
         </div>
 
     </div>

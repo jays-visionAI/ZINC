@@ -323,6 +323,13 @@ class DAGExecutor {
         let attempts = 0;
         const maxAttempts = 2;
         let currentProvider = agentConfig.provider;
+
+        // PATCH (Gemini Fix): Backend Cloud Function expects 'gemini' as provider ID (matching DB doc ID), 
+        // but frontend might have 'google'. Map it here until backend aliasing is deployed.
+        if (currentProvider === 'google') {
+            console.log('[DAGExecutor] Auto-mapping provider google -> gemini for backend compatibility');
+            currentProvider = 'gemini';
+        }
         // Ensure we start with the mapped model
         let currentModel = finalModel;
 

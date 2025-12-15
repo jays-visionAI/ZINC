@@ -111,57 +111,151 @@ window.runGeminiModelList = async function () {
  * Execute Gemini Generation Test
  */
 window.runGeminiGeneration = async function () {
-    const key = document.getElementById('test-gemini-key').value.trim();
-    const modelId = document.getElementById('test-gemini-model-id').value.trim();
+    const outputPre = document.getElementById('test-gemini-gen-output');
+    const statusDiv = document.getElementById('test-gemini-gen-status');
+    const modelId = document.getElementById('test-gemini-model-id').value.trim() || 'gemini-1.5-flash';
     const prompt = document.getElementById('test-gemini-prompt').value.trim();
+    const apiKey = document.getElementById('test-gemini-key').value.trim();
 
-    const statusEl = document.getElementById('test-gemini-gen-status');
-    const outEl = document.getElementById('test-gemini-gen-output');
+    if (!apiKey) { alert('Please enter or load a Gemini API Key first.'); return; }
+    if (!prompt) { alert('Please enter a prompt.'); return; }
 
-    if (!key || !modelId || !prompt) {
-        alert("Missing Key, Model ID, or Prompt.");
-        return;
-    }
-
-    statusEl.innerHTML = '<span style="color:#f59e0b">⏳ Generating...</span>';
-    outEl.textContent = "";
+    statusDiv.innerHTML = '🚀 Sending prompt...';
+    outputPre.textContent = 'Generating...';
+    outputPre.style.color = '#0bceaf';
 
     try {
-        // Handle "models/" prefix if user omitted it
-        const cleanModelId = modelId.replace('models/', '');
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModelId}:generateContent?key=${encodeURIComponent(key)}`;
-
-        const body = {
-            contents: [{ role: "user", parts: [{ text: prompt }] }]
-        };
-
-        const res = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(body)
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }]
+            })
         });
 
-        const text = await res.text();
-        if (!res.ok) {
-            throw new Error(`HTTP ${res.status} ${res.statusText}\n${text}`);
-        }
+        const data = await response.json();
+        outputPre.textContent = JSON.stringify(data, null, 2);
 
-        const data = JSON.parse(text);
-        outEl.textContent = JSON.stringify(data, null, 2);
-
-        // Quick extraction
-        const answer = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (answer) {
-            statusEl.innerHTML = `<span style="color:#10b981">✅ Success!</span> <span style="color:#fff">"${answer.substring(0, 50)}..."</span>`;
+        if (response.ok) {
+            const answer = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No text in response';
+            statusDiv.innerHTML = `✅ Success! "${answer.substring(0, 50)}..."`;
         } else {
-            statusEl.innerHTML = `<span style="color:#10b981">✅ Success (Raw JSON)</span>`;
+            statusDiv.innerHTML = `❌ Error: ${data.error?.message || response.statusText}`;
+            outputPre.style.color = '#ef4444';
         }
 
-    } catch (e) {
-        statusEl.innerHTML = `<span style="color:#ef4444">❌ Error</span>`;
-        outEl.textContent = e.message;
+    } catch (error) {
+        statusDiv.innerHTML = `❌ Network Error: ${error.message}`;
+        outputPre.textContent = error.stack;
+        outputPre.style.color = '#ef4444';
     }
-}
+};
+
+// ============================================
+// OPENAI API TESTER LOGIC
+// ============================================
+
+// 1. Auto-fill OpenAI Key
+window.autoFillOpenAIKey = async function () {
+    try {
+        const key = await getSystemApiKey('openai');
+        if (key) {
+            document.getElementById('test-openai-key').value = key;
+            alert('✅ Loaded OpenAI API Key from System!');
+        } else {
+            alert('❌ No OpenAI API Key found in System Settings (systemLLMProviders).');
+        }
+    } catch (e) {
+        console.error(e);
+        alert('Error loading key: ' + e.message);
+    }
+};
+
+// 2. Run OpenAI Model List
+window.runOpenAIModelList = async function () {
+    const outputPre = document.getElementById('test-openai-list-output');
+    const statusDiv = document.getElementById('test-openai-list-status');
+    const apiKey = document.getElementById('test-openai-key').value.trim();
+
+    if (!apiKey) { alert('Please enter or load an OpenAI API Key first.'); return; }
+
+    statusDiv.innerHTML = '⏳ Fetching models...';
+    outputPre.textContent = 'Loading...';
+    outputPre.style.color = '#0f0';
+
+    try {
+        const response = await fetch('https://api.openai.com/v1/models', {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${apiKey}` }
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            const models = data.data || [];
+            models.sort((a, b) => b.created - a.created); // Newest first
+            const count = models.length;
+
+            statusDiv.innerHTML = `✅ OK. Found ${count} models.`;
+            outputPre.textContent = JSON.stringify(models, null, 2);
+        } else {
+            statusDiv.innerHTML = `❌ Error: ${data.error?.message || response.statusText}`;
+            outputPre.textContent = JSON.stringify(data, null, 2);
+            outputPre.style.color = '#ef4444';
+        }
+    } catch (error) {
+        statusDiv.innerHTML = `❌ Network Error: ${error.message}`;
+        outputPre.textContent = error.stack;
+        outputPre.style.color = '#ef4444';
+    }
+};
+
+// 3. Run OpenAI Generation
+window.runOpenAIGeneration = async function () {
+    const outputPre = document.getElementById('test-openai-gen-output');
+    const statusDiv = document.getElementById('test-openai-gen-status');
+    const modelId = document.getElementById('test-openai-model-id').value.trim() || 'gpt-4o';
+    const prompt = document.getElementById('test-openai-prompt').value.trim();
+    const apiKey = document.getElementById('test-openai-key').value.trim();
+
+    if (!apiKey) { alert('Please enter or load an OpenAI API Key first.'); return; }
+    if (!prompt) { alert('Please enter a prompt.'); return; }
+
+    statusDiv.innerHTML = '🚀 Sending prompt...';
+    outputPre.textContent = 'Generating...';
+    outputPre.style.color = '#0bceaf';
+
+    try {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                model: modelId,
+                messages: [{ role: 'user', content: prompt }]
+            })
+        });
+
+        const data = await response.json();
+        outputPre.textContent = JSON.stringify(data, null, 2);
+
+        if (response.ok) {
+            const answer = data.choices?.[0]?.message?.content || 'No text in response';
+            statusDiv.innerHTML = `✅ Success! "${answer.substring(0, 50)}..."`;
+        } else {
+            statusDiv.innerHTML = `❌ Error: ${data.error?.message || response.statusText}`;
+            outputPre.style.color = '#ef4444';
+        }
+
+    } catch (error) {
+        statusDiv.innerHTML = `❌ Network Error: ${error.message}`;
+        outputPre.textContent = error.stack;
+        outputPre.style.color = '#ef4444';
+    }
+};
 console.log("⚙️ Initializing Settings Page...");
 
 // Provider Management State
@@ -1303,19 +1397,45 @@ window.seedLLMRouterData = async function () {
         const batch = db.batch();
 
         const models = [
-            // --- Google Gemini ---
+            // --- Google Gemini (Image/Video) ---
             {
-                id: 'nano-banana-pro',
+                id: 'nano-banana-pro-preview',
                 provider: 'gemini',
-                modelId: 'nano-banana-pro',
-                displayName: 'Nano Banana Pro (Image)',
+                modelId: 'nano-banana-pro-preview',
+                displayName: 'Nano Banana Pro (Preview)',
                 tier: 'premium',
                 creditPer1kTokens: 5.0,
                 costPer1kInputTokens: 0.0100,
                 costPer1kOutputTokens: 0.0400,
-                maxContextTokens: 1000000,
+                maxContextTokens: 0,
                 isActive: true,
-                codeReady: false
+                codeReady: true
+            },
+            {
+                id: 'veo-3.0-fast-generate-001',
+                provider: 'gemini', // or 'google_veo' based on router, but usually grouped
+                modelId: 'veo-3.0-fast-generate-001',
+                displayName: 'Veo 3.0 Fast',
+                tier: 'premium',
+                creditPer1kTokens: 10.0,
+                costPer1kInputTokens: 0,
+                costPer1kOutputTokens: 0, // Video pricing varies
+                maxContextTokens: 0,
+                isActive: true,
+                codeReady: true
+            },
+            {
+                id: 'veo-3.1-fast-generate-preview',
+                provider: 'gemini',
+                modelId: 'veo-3.1-fast-generate-preview',
+                displayName: 'Veo 3.1 Fast (Preview)',
+                tier: 'premium',
+                creditPer1kTokens: 10.0,
+                costPer1kInputTokens: 0,
+                costPer1kOutputTokens: 0,
+                maxContextTokens: 0,
+                isActive: true,
+                codeReady: true
             },
             {
                 id: 'gemini-3-pro-preview',
@@ -1371,6 +1491,58 @@ window.seedLLMRouterData = async function () {
             },
 
             // --- OpenAI ---
+            {
+                id: 'gpt-5.2-pro',
+                provider: 'openai',
+                modelId: 'gpt-5.2-pro',
+                displayName: 'GPT-5.2 Pro',
+                tier: 'premium',
+                creditPer1kTokens: 5.0,
+                costPer1kInputTokens: 0.03,
+                costPer1kOutputTokens: 0.06,
+                maxContextTokens: 200000,
+                isActive: true,
+                codeReady: false
+            },
+            {
+                id: 'gpt-5.1',
+                provider: 'openai',
+                modelId: 'gpt-5.1',
+                displayName: 'GPT-5.1',
+                tier: 'standard',
+                creditPer1kTokens: 2.0,
+                costPer1kInputTokens: 0.01,
+                costPer1kOutputTokens: 0.02,
+                maxContextTokens: 128000,
+                isActive: true,
+                codeReady: false
+            },
+            {
+                id: 'sora-2-pro',
+                provider: 'openai',
+                modelId: 'sora-2-pro',
+                displayName: 'Sora 2.0 Pro',
+                tier: 'premium',
+                creditPer1kTokens: 20.0,
+                costPer1kInputTokens: 0,
+                costPer1kOutputTokens: 0,
+                maxContextTokens: 0,
+                isActive: true,
+                codeReady: false
+            },
+            {
+                id: 'sora-2',
+                provider: 'openai',
+                modelId: 'sora-2',
+                displayName: 'Sora 2.0',
+                tier: 'standard',
+                creditPer1kTokens: 10.0,
+                costPer1kInputTokens: 0,
+                costPer1kOutputTokens: 0,
+                maxContextTokens: 0,
+                isActive: true,
+                codeReady: false
+            },
             {
                 id: 'gpt-4o',
                 provider: 'openai',
@@ -1484,6 +1656,7 @@ function renderGlobalDefaultsUI(config) {
             models: [
                 { id: 'dall-e-3', name: 'DALL-E 3' },
                 { id: 'imagen-3', name: 'Google Imagen 3' },
+                { id: 'nano-banana-pro-preview', name: 'Nano Banana Pro (Preview)' },
                 { id: 'flux-pro', name: 'Flux Pro' },
                 { id: 'stable-diffusion-xl', name: 'Stable Diffusion XL' }
             ],
@@ -1494,7 +1667,11 @@ function renderGlobalDefaultsUI(config) {
             models: [
                 { id: 'runway-gen-3', name: 'Runway Gen-3' },
                 { id: 'luma-dream-machine', name: 'Luma Dream Machine' },
-                { id: 'sora-preview', name: 'Sora (Preview)' }
+                { id: 'sora-preview', name: 'Sora (Preview)' },
+                { id: 'sora-2', name: 'Sora 2.0' },
+                { id: 'sora-2-pro', name: 'Sora 2.0 Pro' },
+                { id: 'veo-3.0-fast-generate-001', name: 'Veo 3.0 Fast' },
+                { id: 'veo-3.1-fast-generate-preview', name: 'Veo 3.1 Fast (Preview)' }
             ],
             defaultProvider: 'runway', defaultModel: 'runway-gen-3'
         }
@@ -1507,6 +1684,28 @@ function renderGlobalDefaultsUI(config) {
         const secConfig = config[sec.id] || (sec.id === 'text' ? config : {}) || {};
         const def = secConfig.default || { provider: sec.defaultProvider, model: sec.defaultModel };
         const boost = secConfig.boost || { provider: sec.defaultProvider, model: sec.defaultModel };
+
+        // Provider Options (Dynamic per section)
+        let providerOptions = `
+            <option value="google" ${def.provider === 'google' ? 'selected' : ''}>Google Gemini</option>
+            <option value="openai" ${def.provider === 'openai' ? 'selected' : ''}>OpenAI</option>
+            <option value="anthropic" ${def.provider === 'anthropic' ? 'selected' : ''}>Anthropic</option>
+            <option value="replicate" ${def.provider === 'replicate' ? 'selected' : ''}>Replicate</option>
+            <option value="runway" ${def.provider === 'runway' ? 'selected' : ''}>Runway</option>
+        `;
+
+        // Special handling for Video Providers
+        if (sec.id === 'video') {
+            providerOptions += `<option value="google_veo" ${def.provider === 'google_veo' ? 'selected' : ''}>Google Veo</option>`;
+            providerOptions += `<option value="openai_sora" ${def.provider === 'openai_sora' ? 'selected' : ''}>OpenAI SORA</option>`;
+        }
+        // Special handling for Image Providers (Add Nano Banana if distinct from Gemini)
+        if (sec.id === 'image') {
+            providerOptions += `<option value="google_nano" ${def.provider === 'google_nano' ? 'selected' : ''}>Google Nano Banana</option>`;
+        }
+
+        const boostProviderOptions = providerOptions.replace(`value="${def.provider}" selected`, `value="${def.provider}"`).replace(`value="${boost.provider}"`, `value="${boost.provider}" selected`);
+
 
         html += `
         <div style="margin-bottom: 24px; border: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.2); border-radius: 8px; padding: 20px;">
@@ -1523,11 +1722,7 @@ function renderGlobalDefaultsUI(config) {
                         <div>
                             <label style="display: block; font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 4px;">Provider</label>
                             <select id="${sec.id}-def-provider" class="admin-input">
-                                <option value="google" ${def.provider === 'google' ? 'selected' : ''}>Google Gemini</option>
-                                <option value="openai" ${def.provider === 'openai' ? 'selected' : ''}>OpenAI</option>
-                                <option value="anthropic" ${def.provider === 'anthropic' ? 'selected' : ''}>Anthropic</option>
-                                <option value="replicate" ${def.provider === 'replicate' ? 'selected' : ''}>Replicate</option>
-                                <option value="runway" ${def.provider === 'runway' ? 'selected' : ''}>Runway</option>
+                                ${providerOptions}
                             </select>
                         </div>
                         <div>
@@ -1546,11 +1741,7 @@ function renderGlobalDefaultsUI(config) {
                         <div>
                             <label style="display: block; font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 4px;">Provider</label>
                             <select id="${sec.id}-boost-provider" class="admin-input">
-                                <option value="google" ${boost.provider === 'google' ? 'selected' : ''}>Google Gemini</option>
-                                <option value="openai" ${boost.provider === 'openai' ? 'selected' : ''}>OpenAI</option>
-                                <option value="anthropic" ${boost.provider === 'anthropic' ? 'selected' : ''}>Anthropic</option>
-                                <option value="replicate" ${boost.provider === 'replicate' ? 'selected' : ''}>Replicate</option>
-                                <option value="runway" ${boost.provider === 'runway' ? 'selected' : ''}>Runway</option>
+                                ${boostProviderOptions}
                             </select>
                         </div>
                         <div>
