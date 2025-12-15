@@ -28,6 +28,10 @@ let brandSummaries = []; // Store brand summary history
 let currentDisplayedSummary = null; // Currently displayed summary (could be history or latest)
 const MAX_SUMMARY_HISTORY = 20; // Maximum number of summary notes to keep
 
+// Plan Management State
+let currentPlanCategory = 'knowledge'; // Default
+let cachedSavedPlans = []; // Store fetched plans for client-side filtering
+
 // Chat Configuration
 let chatConfig = {
     style: 'default',      // default, learning, custom
@@ -553,174 +557,175 @@ function updateSummarySection() {
         summaryToShow = brandSummaries[0];
     }
 
+    // 2. Render Based on State
     if (!summaryToShow) {
-        // Initial State or No Summary
-        if (!summaryToShow) {
-            // Initial State or No Summary
-            renderSummaryHeader('brand'); // Reset header style
-            summaryTitle.innerHTML = '🤖 <span class="ml-2">Brand Intelligence</span>';
-            summaryContent.textContent = 'Add sources from the left panel to generate your Brand Summary.';
-            keyInsights.classList.add('hidden');
-            document.getElementById('summary-actions').classList.add('hidden');
-            // Hide card if no summary? Or show placeholder?
-            // User requested: "Chat starts with hidden slot, shown when source selected"
-            // But also "Brand Summary is history managed".
-            // Let's keep it visible but with welcome text if no history.
-        } else {
-            // If this is a source view, show additional metadata
-            if (summaryToShow.isSourceView && summaryToShow.sourceId) {
-                renderSummaryHeader('source'); // Style for source view
-                summaryTitle.innerHTML = `<span class="text-emerald-400">📄</span> <span class="ml-2">${summaryToShow.title}</span>`;
+        // State: No Summary Available (Welcome Screen)
+        renderSummaryHeader('brand');
+        summaryTitle.innerHTML = '🤖 <span class="ml-2">Brand Intelligence</span>';
+        summaryContent.textContent = 'Add sources from the left panel to generate your Brand Summary.';
 
-                const importance = summaryToShow.importance || 2;
-                const summarizedAt = summaryToShow.summarizedAt || 'Not yet';
+        // Hide details
+        keyInsights.classList.add('hidden');
+        document.getElementById('summary-actions').classList.add('hidden');
 
-                // Build star rating HTML
-                const starsHtml = [1, 2, 3].map(star => `
-                <span class="importance-star cursor-pointer text-lg transition-transform hover:scale-125 ${star <= importance ? 'text-yellow-400' : 'text-slate-600'}" 
-                      onclick="updateSourceImportance('${summaryToShow.sourceId}', ${star})"
-                      title="Set importance to ${star}">
-                    ${star <= importance ? '★' : '☆'}
-                </span>
-            `).join('');
+        const questionsContainer = document.getElementById('suggested-questions-container');
+        if (questionsContainer) questionsContainer.classList.add('hidden');
+        return;
+    }
 
-                // Update summary content to include metadata
-                summaryContent.innerHTML = `
-                <div class="flex items-center justify-between mb-4 pb-4 border-b border-slate-700/50">
-                     <div class="flex items-center gap-4">
-                        <div class="flex items-center gap-2">
-                            <span class="text-xs text-slate-500">Importance:</span>
-                            <div class="flex gap-1">${starsHtml}</div>
-                        </div>
-                        <div class="text-xs text-slate-500">
-                            Summarized: <span class="text-slate-400">${summarizedAt}</span>
-                        </div>
-                     </div>
-                     <button onclick="closeSourceView()" class="text-xs text-slate-400 hover:text-white flex items-center gap-1 transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                        Close
-                     </button>
-                </div>
-                <div class="text-base text-slate-300 leading-relaxed font-light">
-                    ${summaryToShow.content || 'No summary available for this source.'}
-                </div>
-                <div class="mt-6 pt-4 border-t border-slate-700/50 flex items-center justify-between">
-                    <div class="flex gap-2">
-                        <button onclick="regenerateSourceSummary('${summaryToShow.sourceId}')" 
-                                class="px-3 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-all flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M21 12a9 9 0 0 0-9-9 9.75 9 0 0 0-6.74 2.74L3 8"/>
-                                <path d="M3 3v5h5"/>
-                            </svg>
-                            Regenerate Analysis
-                        </button>
-                        <button onclick="useSourceInStudio()" 
-                                class="px-3 py-1.5 text-xs bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 rounded-lg transition-all flex items-center gap-2 border border-emerald-500/30">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                            Use in Studio
-                        </button>
+    // State: Summary Content Available
+
+    // A. Render Main Card (Choice: Source View vs Brand Summary)
+    if (summaryToShow.isSourceView && summaryToShow.sourceId) {
+        // --- Source View ---
+        renderSummaryHeader('source');
+        summaryTitle.innerHTML = `<span class="text-emerald-400">📄</span> <span class="ml-2">${summaryToShow.title}</span>`;
+
+        const importance = summaryToShow.importance || 2;
+        const summarizedAt = summaryToShow.summarizedAt || 'Not yet';
+
+        // Build star rating HTML
+        const starsHtml = [1, 2, 3].map(star => `
+            <span class="importance-star cursor-pointer text-lg transition-transform hover:scale-125 ${star <= importance ? 'text-yellow-400' : 'text-slate-600'}" 
+                  onclick="updateSourceImportance('${summaryToShow.sourceId}', ${star})"
+                  title="Set importance to ${star}">
+                ${star <= importance ? '★' : '☆'}
+            </span>
+        `).join('');
+
+        summaryContent.innerHTML = `
+            <div class="flex items-center justify-between mb-4 pb-4 border-b border-slate-700/50">
+                 <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-slate-500">Importance:</span>
+                        <div class="flex gap-1">${starsHtml}</div>
                     </div>
-                    <button onclick="closeSourceView()" 
-                            class="px-3 py-1.5 text-xs bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-all">
-                        Back to Overview
+                    <div class="text-xs text-slate-500">
+                        Summarized: <span class="text-slate-400">${summarizedAt}</span>
+                    </div>
+                 </div>
+                 <button onclick="closeSourceView()" class="text-xs text-slate-400 hover:text-white flex items-center gap-1 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    Close
+                 </button>
+            </div>
+            <div class="text-base text-slate-300 leading-relaxed font-light">
+                ${summaryToShow.content || 'No summary available for this source.'}
+            </div>
+            <div class="mt-6 pt-4 border-t border-slate-700/50 flex items-center justify-between">
+                <div class="flex gap-2">
+                    <button onclick="regenerateSourceSummary('${summaryToShow.sourceId}')" 
+                            class="px-3 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-all flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 12a9 9 0 0 0-9-9 9.75 9 0 0 0-6.74 2.74L3 8"/>
+                            <path d="M3 3v5h5"/>
+                        </svg>
+                        Regenerate Analysis
+                    </button>
+                    <button onclick="useSourceInStudio()" 
+                            class="px-3 py-1.5 text-xs bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 rounded-lg transition-all flex items-center gap-2 border border-emerald-500/30">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                        Use in Studio
                     </button>
                 </div>
-            `;
+                <button onclick="closeSourceView()" 
+                        class="px-3 py-1.5 text-xs bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-all">
+                    Back to Overview
+                </button>
+            </div>
+        `;
 
-                // Hide standard actions in source view
-                document.getElementById('summary-actions').classList.add('hidden');
+        // Hide standard actions in source view
+        document.getElementById('summary-actions').classList.add('hidden');
 
-            } else {
-                // Standard Brand Summary View
-                renderSummaryHeader('brand');
-                summaryTitle.innerHTML = `🤖 <span class="ml-2">${summaryToShow.title}</span>`;
+    } else {
+        // --- Brand Summary View ---
+        renderSummaryHeader('brand');
+        summaryTitle.innerHTML = `🤖 <span class="ml-2">${summaryToShow.title}</span>`;
 
-                // For Brand Summary, show content with weight breakdown
-                let weightBreakdownHtml = '';
-                if (summaryToShow.weightBreakdown && summaryToShow.weightBreakdown.length > 0) {
-                    const maxPercent = Math.max(...summaryToShow.weightBreakdown.map(w => w.percent));
-                    weightBreakdownHtml = `
-                    <div class="mb-4 p-3 bg-slate-800/50 rounded-xl border border-slate-700/50">
-                        <div class="flex items-center justify-between mb-3">
-                            <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M3 3v18h18"/>
-                                    <path d="M7 16l4-8 4 4 5-9"/>
-                                </svg>
-                                Weight Distribution
-                            </h4>
-                            <button onclick="openWeightReport(currentDisplayedSummary?.weightBreakdown, currentDisplayedSummary?.title)" 
-                                    class="px-2 py-1 text-xs bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 rounded-lg transition-all flex items-center gap-1.5 border border-indigo-600/30">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M21 12a9 9 0 0 1-9 9m9-9a9 9 0 0 0-9-9m9 9H3m9 9a9 9 0 0 1-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 0 1 9-9"/>
-                                </svg>
-                                View Report
-                            </button>
-                        </div>
-                        <div class="space-y-2">
-                            ${summaryToShow.weightBreakdown.slice(0, 4).map(w => `
-                                <div class="flex items-center gap-3">
-                                    <span class="text-xs ${w.importance === 3 ? 'text-red-400' : (w.importance === 2 ? 'text-yellow-400' : 'text-slate-400')}">
-                                        ${'⭐'.repeat(w.importance)}
-                                    </span>
-                                    <span class="text-xs text-slate-300 truncate flex-1" title="${escapeHtml(w.title)}">${escapeHtml(w.title.substring(0, 30))}${w.title.length > 30 ? '...' : ''}</span>
-                                    <div class="w-20 h-1.5 bg-slate-700 rounded-full overflow-hidden">
-                                        <div class="h-full bg-indigo-500 rounded-full transition-all" style="width: ${(w.percent / maxPercent) * 100}%"></div>
-                                    </div>
-                                    <span class="text-xs text-indigo-400 font-medium w-8 text-right">${w.percent}%</span>
-                                </div>
-                            `).join('')}
-                            ${summaryToShow.weightBreakdown.length > 4 ? `
-                                <div class="text-xs text-slate-500 text-center pt-1">+${summaryToShow.weightBreakdown.length - 4} more documents • Click "View Report" for details</div>
-                            ` : ''}
-                        </div>
+        // Weight Breakdown Logic
+        let weightBreakdownHtml = '';
+        if (summaryToShow.weightBreakdown && summaryToShow.weightBreakdown.length > 0) {
+            const maxPercent = Math.max(...summaryToShow.weightBreakdown.map(w => w.percent));
+            weightBreakdownHtml = `
+                <div class="mb-4 p-3 bg-slate-800/50 rounded-xl border border-slate-700/50">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 3v18h18"/>
+                                <path d="M7 16l4-8 4 4 5-9"/>
+                            </svg>
+                            Weight Distribution
+                        </h4>
+                        <button onclick="openWeightReport(currentDisplayedSummary?.weightBreakdown, currentDisplayedSummary?.title)" 
+                                class="px-2 py-1 text-xs bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 rounded-lg transition-all flex items-center gap-1.5 border border-indigo-600/30">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 12a9 9 0 0 1-9 9m9-9a9 9 0 0 0-9-9m9 9H3m9 9a9 9 0 0 1-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 0 1 9-9"/>
+                            </svg>
+                            View Report
+                        </button>
                     </div>
-                `;
-                }
-
-                summaryContent.innerHTML = weightBreakdownHtml + `
-                <div class="text-base text-slate-300 leading-relaxed">
-                    ${summaryToShow.content}
+                    <div class="space-y-2">
+                        ${summaryToShow.weightBreakdown.slice(0, 4).map(w => `
+                            <div class="flex items-center gap-3">
+                                <span class="text-xs ${w.importance === 3 ? 'text-red-400' : (w.importance === 2 ? 'text-yellow-400' : 'text-slate-400')}">
+                                    ${'⭐'.repeat(w.importance)}
+                                </span>
+                                <span class="text-xs text-slate-300 truncate flex-1" title="${escapeHtml(w.title)}">${escapeHtml(w.title.substring(0, 30))}${w.title.length > 30 ? '...' : ''}</span>
+                                <div class="w-20 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                                    <div class="h-full bg-indigo-500 rounded-full transition-all" style="width: ${(w.percent / maxPercent) * 100}%"></div>
+                                </div>
+                                <span class="text-xs text-indigo-400 font-medium w-8 text-right">${w.percent}%</span>
+                            </div>
+                        `).join('')}
+                        ${summaryToShow.weightBreakdown.length > 4 ? `
+                            <div class="text-xs text-slate-500 text-center pt-1">+${summaryToShow.weightBreakdown.length - 4} more documents • Click "View Report" for details</div>
+                        ` : ''}
+                    </div>
                 </div>
             `;
-                // Show standard actions
-                document.getElementById('summary-actions').classList.remove('hidden');
-            }
         }
 
-        // Key Insights (Chips)
-        if (summaryToShow.keyInsights && summaryToShow.keyInsights.length > 0) {
-            keyInsights.classList.remove('hidden');
-            insightsList.innerHTML = summaryToShow.keyInsights.map(insight => `
-                <span class="px-3 py-1 text-xs font-medium text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 rounded-full">
-                    ${escapeHtml(insight)}
-                </span>
-            `).join('');
-        } else {
-            keyInsights.classList.add('hidden');
-        }
-
-        // Suggested Questions (Chips in Summary Card)
-        const questionsContainer = document.getElementById('suggested-questions-container');
-        if (questionsContainer) {
-            if (summaryToShow.suggestedQuestions && summaryToShow.suggestedQuestions.length > 0) {
-                questionsContainer.classList.remove('hidden');
-                const questionsList = questionsContainer.querySelector('.flex');
-                if (questionsList) {
-                    questionsList.innerHTML = summaryToShow.suggestedQuestions.map(q => `
-                        <button class="suggested-question px-4 py-2 text-sm text-slate-300 bg-slate-800 rounded-full hover:bg-slate-700 hover:text-white transition-all border border-slate-700"
-                             onclick="setInput('${escapeHtml(q)}')">${escapeHtml(q)}
-                        </button>
-                    `).join('');
-                }
-            } else {
-                questionsContainer.classList.add('hidden');
-            }
-        }
-
+        summaryContent.innerHTML = weightBreakdownHtml + `
+            <div class="text-base text-slate-300 leading-relaxed">
+                ${summaryToShow.content}
+            </div>
+        `;
+        // Show standard actions
         document.getElementById('summary-actions').classList.remove('hidden');
-        currentSummary = summaryToShow; // Update global current for actions
     }
+
+    // B. Render Key Insights (Common)
+    if (summaryToShow.keyInsights && summaryToShow.keyInsights.length > 0) {
+        keyInsights.classList.remove('hidden');
+        insightsList.innerHTML = summaryToShow.keyInsights.map(insight => `
+            <span class="px-3 py-1 text-xs font-medium text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 rounded-full">
+                ${escapeHtml(insight)}
+            </span>
+        `).join('');
+    } else {
+        keyInsights.classList.add('hidden');
+    }
+
+    // C. Render Suggested Questions (Common)
+    const questionsContainer = document.getElementById('suggested-questions-container');
+    if (questionsContainer) {
+        if (summaryToShow.suggestedQuestions && summaryToShow.suggestedQuestions.length > 0) {
+            questionsContainer.classList.remove('hidden');
+            const questionsList = questionsContainer.querySelector('.flex');
+            if (questionsList) {
+                questionsList.innerHTML = summaryToShow.suggestedQuestions.map(q => `
+                    <button class="suggested-question px-4 py-2 text-sm text-slate-300 bg-slate-800 rounded-full hover:bg-slate-700 hover:text-white transition-all border border-slate-700"
+                            onclick="setInput('${escapeHtml(q)}')">${escapeHtml(q)}
+                    </button>
+                `).join('');
+            }
+        } else {
+            questionsContainer.classList.add('hidden');
+        }
+    }
+
+    currentSummary = summaryToShow; // Update global current for actions
 
     // 2. Logic for Regenerate Button
     // Check if new sources added or updated since last summary
@@ -1515,6 +1520,9 @@ function selectPlanCategory(category) {
 
     // Render category items
     renderCategoryItems(category);
+
+    // Filter and render saved plans for this category
+    renderSavedPlansList();
 }
 
 /**
@@ -1591,60 +1599,117 @@ async function handlePlanClick(planType) {
 }
 
 async function loadSavedPlans() {
-    const savedPlansList = document.getElementById('saved-plans-list');
-
+    // If no project, clear and returrn
     if (!currentProjectId) {
-        savedPlansList.innerHTML = '<p class="text-[11px] text-slate-600 text-center py-2">No saved plans yet</p>';
+        const savedPlansList = document.getElementById('saved-plans-list');
+        if (savedPlansList) savedPlansList.innerHTML = '<p class="text-[11px] text-slate-600 text-center py-2">No saved plans yet</p>';
         return;
     }
 
     try {
+        // Fetch more items to ensure we have enough after filtering (limit 50)
         const snapshot = await firebase.firestore()
             .collection('projects')
             .doc(currentProjectId)
             .collection('contentPlans')
-            // .orderBy('createdAt', 'desc') // Removed to prevent index error
-            .limit(20)
+            .limit(50)
             .get();
 
         if (snapshot.empty) {
-            savedPlansList.innerHTML = '<p class="text-[11px] text-slate-600 text-center py-2">No saved plans yet</p>';
-            return;
+            cachedSavedPlans = [];
+        } else {
+            // Cache and sort results
+            cachedSavedPlans = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+                .sort((a, b) => {
+                    const tA = a.createdAt ? (a.createdAt.toMillis ? a.createdAt.toMillis() : new Date(a.createdAt).getTime()) : 0;
+                    const tB = b.createdAt ? (b.createdAt.toMillis ? b.createdAt.toMillis() : new Date(b.createdAt).getTime()) : 0;
+                    return tB - tA;
+                });
         }
 
-        // Client-side sort
-        const plans = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-            .sort((a, b) => {
-                const tA = a.createdAt ? (a.createdAt.toMillis ? a.createdAt.toMillis() : new Date(a.createdAt).getTime()) : 0;
-                const tB = b.createdAt ? (b.createdAt.toMillis ? b.createdAt.toMillis() : new Date(b.createdAt).getTime()) : 0;
-                return tB - tA;
-            });
-
-        savedPlansList.innerHTML = '';
-        plans.forEach(plan => {
-            const planEl = document.createElement('div');
-            planEl.className = 'group flex items-center justify-between p-2 bg-slate-800/30 rounded-lg hover:bg-slate-800/50 cursor-pointer transition-all';
-            planEl.onclick = () => showPlanResultModal(plan, plan.id);
-
-            planEl.innerHTML = `
-                <div class="flex-1 min-w-0">
-                    <p class="text-xs font-medium text-slate-300 truncate">${escapeHtml(plan.title || formatPlanType(plan.type))}</p>
-                    <p class="text-[10px] text-slate-500">${getStatusBadgeText(plan.status)}</p>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="text-[10px] text-slate-600">${getPlanIcon(plan.category)}</span>
-                    <button onclick="deletePlan(event, '${plan.id}')" class="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded opacity-60 hover:opacity-100 transition-all duration-200" title="Delete">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c0-1-2-2-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c0 1 1 2 2 2v2"></path></svg>
-                    </button>
-                </div>
-            `;
-            savedPlansList.appendChild(planEl);
-        });
+        // Render the filtered list
+        renderSavedPlansList();
 
     } catch (error) {
         console.error('Error loading saved plans:', error);
     }
 }
+
+/**
+ * Render saved plans list filtered by current category
+ */
+function renderSavedPlansList() {
+    const savedPlansList = document.getElementById('saved-plans-list');
+    if (!savedPlansList) return;
+
+    // Map UI category to DB category
+    const categoryMap = {
+        'knowledge': 'knowledge',
+        'strategic': 'strategic',
+        'quick': 'quick_action',
+        'create': 'create_now'
+    };
+
+    const targetDbCategory = categoryMap[currentPlanCategory];
+
+    // Filter plans
+    // If category is set, show only matches. If invalid/all, show all?
+    // User requested sorting/filtering by category.
+    const filteredPlans = currentPlanCategory ?
+        cachedSavedPlans.filter(p => p.category === targetDbCategory) :
+        cachedSavedPlans;
+
+    if (filteredPlans.length === 0) {
+        const catName = currentPlanCategory ? currentPlanCategory.charAt(0).toUpperCase() + currentPlanCategory.slice(1) : 'Saved';
+        savedPlansList.innerHTML = `<p class="text-[11px] text-slate-600 text-center py-2">No ${catName} plans found</p>`;
+        return;
+    }
+
+    savedPlansList.innerHTML = '';
+    filteredPlans.forEach(plan => {
+        const planEl = document.createElement('div');
+        planEl.className = 'group flex items-center justify-between p-2 bg-slate-800/30 rounded-lg hover:bg-slate-800/50 cursor-pointer transition-all';
+        planEl.onclick = () => showPlanResultModal(plan, plan.id);
+
+        planEl.innerHTML = `
+            <div class="flex-1 min-w-0">
+                <p class="text-xs font-medium text-slate-300 truncate">${escapeHtml(plan.title || formatPlanType(plan.type))}</p>
+                <div class="flex items-center gap-2 mt-0.5">
+                     <p class="text-[10px] text-slate-500">${getStatusBadgeText(plan.status)}</p>
+                     <span class="text-[9px] text-slate-600">• ${timeAgo(plan.createdAt)}</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-[10px] text-slate-600">${getPlanIcon(plan.category)}</span>
+                <button onclick="deletePlan(event, '${plan.id}')" class="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded opacity-60 hover:opacity-100 transition-all duration-200" title="Delete">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c0-1-2-2-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c0 1 1 2 2 2v2"></path></svg>
+                </button>
+            </div>
+        `;
+        savedPlansList.appendChild(planEl);
+    });
+}
+
+function timeAgo(dateParam) {
+    if (!dateParam) return '';
+    const date = typeof dateParam === 'object' && dateParam.toDate ? dateParam.toDate() : new Date(dateParam);
+    const today = new Date();
+    const seconds = Math.round((today - date) / 1000);
+    const minutes = Math.round(seconds / 60);
+    const hours = Math.round(minutes / 60);
+    const days = Math.round(hours / 24);
+    const months = Math.round(days / 30);
+    const years = Math.round(days / 365);
+
+    if (seconds < 5) return 'just now';
+    if (seconds < 60) return `${seconds}s ago`;
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    if (days < 30) return `${days}d ago`;
+    if (months < 12) return `${months}mo ago`;
+    return `${years}y ago`;
+}
+
 
 function getStatusBadgeText(status) {
     switch (status) {
