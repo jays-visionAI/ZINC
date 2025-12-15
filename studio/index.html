@@ -112,7 +112,20 @@
             </div>
 
             <div class="panel-section flex-grow">
-                <h3 class="panel-title">Agent Roster <span class="agent-count">(12)</span></h3>
+                <div class="panel-header-row"
+                    style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 class="panel-title">Agent Roster <span class="agent-count">(12)</span></h3>
+                    <button id="btn-team-settings" class="team-settings-btn" onclick="openTeamSettingsModal()"
+                        title="Team Settings">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path
+                                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+                            </path>
+                        </svg>
+                    </button>
+                </div>
                 <div id="agent-roster" class="agent-roster-grid">
                     <!-- Phase 1: Research -->
                     <div class="agent-card active" data-agent="research">
@@ -866,6 +879,74 @@
             </div>
             <div class="modal-footer">
                 <button class="btn-primary" onclick="closeAgentReport()">Close Report</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Team Settings Modal -->
+    <div id="team-settings-modal" class="modal-backdrop" style="display: none;">
+        <div class="modal-content team-settings-modal">
+            <div class="modal-header">
+                <h3 class="modal-title flex items-center gap-2">
+                    <span>🧠</span>
+                    <span>Team Brain Settings</span>
+                </h3>
+                <button class="modal-close-btn" onclick="closeTeamSettingsModal()">×</button>
+            </div>
+            <div class="modal-body" style="overflow-y: auto; max-height: 60vh; padding: 20px;">
+                <!-- Team Info Section -->
+                <div class="team-settings-section">
+                    <div class="section-label">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                        Team Information
+                    </div>
+                    <div class="team-info-card">
+                        <div class="team-name" id="settings-team-name">Loading...</div>
+                        <div class="team-channel" id="settings-team-channel"></div>
+                    </div>
+                </div>
+
+                <!-- Team Goal Section -->
+                <div class="team-settings-section">
+                    <div class="section-label">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <circle cx="12" cy="12" r="6"></circle>
+                            <circle cx="12" cy="12" r="2"></circle>
+                        </svg>
+                        Team Goal (Active Directive)
+                    </div>
+                    <div class="team-goal-card" id="settings-team-goal">
+                        <p class="placeholder-text">No team goal defined yet.</p>
+                    </div>
+                </div>
+
+                <!-- Sub-Agents Configuration Section -->
+                <div class="team-settings-section">
+                    <div class="section-label">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="3" y1="9" x2="21" y2="9"></line>
+                            <line x1="9" y1="21" x2="9" y2="9"></line>
+                        </svg>
+                        Sub-Agent Configurations
+                    </div>
+                    <div id="settings-subagents-list" class="subagents-config-list">
+                        <div class="loading-placeholder">Loading agent configurations...</div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeTeamSettingsModal()">Close</button>
+                <button class="btn-primary" onclick="applyTeamSettings()">Apply to Agents</button>
             </div>
         </div>
     </div>

@@ -130,6 +130,34 @@ class DAGExecutor {
     }
 
     /**
+     * Set Team Context from Team Brain Settings
+     * @param {Object} teamContext - Contains teamName, directive, and subAgents config
+     */
+    setTeamContext(teamContext) {
+        this.state.teamContext = teamContext;
+        console.log('[DAGExecutor] Team Context set:', teamContext?.teamName, 'Directive:', teamContext?.directive?.substring(0, 50) + '...');
+    }
+
+    /**
+     * Get team directive for injection into agent prompts
+     */
+    getTeamDirective() {
+        return this.state.teamContext?.directive || '';
+    }
+
+    /**
+     * Get sub-agent specific system prompt if available
+     */
+    getSubAgentPrompt(agentType) {
+        if (!this.state.teamContext?.subAgents) return null;
+
+        const agent = this.state.teamContext.subAgents.find(
+            a => a.id?.includes(agentType) || a.name?.toLowerCase().includes(agentType)
+        );
+        return agent?.systemPrompt || agent?.system_prompt || null;
+    }
+
+    /**
      * Start workflow execution
      */
     async start(selectedAgents, projectId, teamId, context = null, qualityTier = null) {
@@ -137,6 +165,9 @@ class DAGExecutor {
             console.warn('Execution already in progress');
             return;
         }
+
+        // Preserve teamContext if already set
+        const existingTeamContext = this.state.teamContext || null;
 
         this.state = {
             isRunning: true,
@@ -153,7 +184,8 @@ class DAGExecutor {
             context: context || {}, // Ensure context is never null
             qualityTier, // Store Tier (e.g. 'BOOST')
             executionResults: {},
-            routingDefaults: this.state.routingDefaults // Preserve loaded defaults
+            routingDefaults: this.state.routingDefaults, // Preserve loaded defaults
+            teamContext: existingTeamContext // Preserve Team Brain settings
         };
 
         this.emit('onLog', { message: '🚀 Starting workflow execution...', type: 'info' });

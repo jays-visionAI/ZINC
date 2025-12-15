@@ -2127,6 +2127,7 @@
         display: none;
     }
 }
+
 /* ============================================
    BOOSTER MODE BUTTON
    ============================================ */
@@ -2169,7 +2170,185 @@
     0% {
         box-shadow: 0 0 10px rgba(255, 107, 107, 0.4);
     }
+
     100% {
         box-shadow: 0 0 20px rgba(255, 107, 107, 0.7);
     }
+}
+
+/* ============================================
+   TEAM SETTINGS BUTTON & MODAL
+   ============================================ */
+
+.team-settings-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.team-settings-btn:hover {
+    background: rgba(139, 92, 246, 0.15);
+    border-color: rgba(139, 92, 246, 0.4);
+    color: #a78bfa;
+}
+
+.team-settings-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* Team Settings Modal */
+.team-settings-modal {
+    max-width: 600px;
+    width: 90%;
+    background: #13131a;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
+.team-settings-section {
+    margin-bottom: 24px;
+}
+
+.team-settings-section .section-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 12px;
+}
+
+.team-settings-section .section-label svg {
+    color: #8b5cf6;
+}
+
+.team-info-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 16px;
+}
+
+.team-info-card .team-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 4px;
+}
+
+.team-info-card .team-channel {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.team-goal-card {
+    background: rgba(234, 179, 8, 0.05);
+    border: 1px solid rgba(234, 179, 8, 0.15);
+    border-radius: 12px;
+    padding: 16px;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.8);
+    line-height: 1.6;
+}
+
+.team-goal-card .placeholder-text {
+    color: rgba(255, 255, 255, 0.4);
+    font-style: italic;
+}
+
+.subagents-config-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.subagent-config-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.subagent-config-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.subagent-config-header:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.subagent-config-header .agent-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #fff;
+}
+
+.subagent-config-header .agent-badge {
+    font-size: 10px;
+    padding: 3px 8px;
+    background: rgba(22, 224, 189, 0.1);
+    border: 1px solid rgba(22, 224, 189, 0.2);
+    border-radius: 10px;
+    color: #16e0bd;
+}
+
+.subagent-config-header .expand-icon {
+    color: rgba(255, 255, 255, 0.4);
+    transition: transform 0.2s;
+}
+
+.subagent-config-card.expanded .expand-icon {
+    transform: rotate(180deg);
+}
+
+.subagent-config-body {
+    display: none;
+    padding: 0 16px 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.subagent-config-card.expanded .subagent-config-body {
+    display: block;
+}
+
+.subagent-prompt {
+    font-size: 12px;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.7);
+    background: rgba(0, 0, 0, 0.3);
+    padding: 12px;
+    border-radius: 8px;
+    margin-top: 12px;
+    max-height: 150px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    font-family: 'Fira Code', 'Consolas', monospace;
+}
+
+.loading-placeholder {
+    text-align: center;
+    padding: 24px;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 13px;
 }

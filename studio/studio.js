@@ -2201,3 +2201,180 @@ window.closeAgentReport = () => {
     const modal = document.getElementById('agent-report-modal');
     if (modal) modal.style.display = 'none';
 };
+
+// ============================================
+// TEAM SETTINGS MODAL FUNCTIONS
+// ============================================
+
+// State for team settings
+let teamSettingsCache = null;
+
+/**
+ * Open the Team Settings modal and load data
+ */
+window.openTeamSettingsModal = async function () {
+    const modal = document.getElementById('team-settings-modal');
+    if (!modal) return;
+
+    modal.style.display = 'flex';
+
+    // Load team settings
+    await loadTeamSettings();
+};
+
+/**
+ * Close the Team Settings modal
+ */
+window.closeTeamSettingsModal = function () {
+    const modal = document.getElementById('team-settings-modal');
+    if (modal) modal.style.display = 'none';
+};
+
+/**
+ * Load team settings from Firestore
+ */
+async function loadTeamSettings() {
+    const teamId = state.selectedAgentTeam;
+
+    if (!teamId) {
+        document.getElementById('settings-team-name').textContent = 'No Agent Team Selected';
+        document.getElementById('settings-team-goal').innerHTML = '<p class="placeholder-text">Please select an Agent Team first.</p>';
+        document.getElementById('settings-subagents-list').innerHTML = '<div class="loading-placeholder">No team selected</div>';
+        return;
+    }
+
+    try {
+        // Fetch team instance data
+        const teamDoc = await firebase.firestore()
+            .collection('projectAgentTeamInstances')
+            .doc(teamId)
+            .get();
+
+        if (!teamDoc.exists) {
+            document.getElementById('settings-team-name').textContent = 'Team Not Found';
+            return;
+        }
+
+        const teamData = teamDoc.data();
+        teamSettingsCache = teamData;
+
+        // Update Team Name & Channel
+        document.getElementById('settings-team-name').textContent = teamData.name || teamData.teamName || 'Unnamed Team';
+        document.getElementById('settings-team-channel').textContent = `Channel: ${teamData.channel || 'X (Twitter)'}`;
+
+        // Update Team Goal/Directive
+        const goalEl = document.getElementById('settings-team-goal');
+        if (teamData.directive || teamData.goal || teamData.teamGoal) {
+            goalEl.innerHTML = `<p>${teamData.directive || teamData.goal || teamData.teamGoal}</p>`;
+        } else {
+            goalEl.innerHTML = '<p class="placeholder-text">No team goal defined. Set one in Mission Control.</p>';
+        }
+
+        // Fetch and render sub-agents
+        const subAgentsSnap = await firebase.firestore()
+            .collection('projectAgentTeamInstances')
+            .doc(teamId)
+            .collection('subAgents')
+            .get();
+
+        const subAgents = [];
+        subAgentsSnap.forEach(doc => subAgents.push({ id: doc.id, ...doc.data() }));
+
+        renderSubAgentConfigs(subAgents);
+
+        // Store in state for DAG Executor
+        state.teamSettings = {
+            teamName: teamData.name || teamData.teamName,
+            directive: teamData.directive || teamData.goal || teamData.teamGoal || '',
+            subAgents: subAgents
+        };
+
+        console.log('[Studio] Team Settings loaded:', state.teamSettings);
+        addLogEntry('✅ Team Brain settings loaded', 'success');
+
+    } catch (error) {
+        console.error('[Studio] Error loading team settings:', error);
+        document.getElementById('settings-team-name').textContent = 'Error Loading Team';
+        document.getElementById('settings-subagents-list').innerHTML = '<div class="loading-placeholder">Error loading configuration</div>';
+    }
+}
+
+/**
+ * Render sub-agent configuration cards
+ */
+function renderSubAgentConfigs(subAgents) {
+    const listEl = document.getElementById('settings-subagents-list');
+    if (!listEl) return;
+
+    if (subAgents.length === 0) {
+        listEl.innerHTML = '<div class="loading-placeholder">No sub-agents configured</div>';
+        return;
+    }
+
+    listEl.innerHTML = subAgents.map(agent => {
+        const displayName = agent.displayName || agent.name || agent.id || 'Unknown Agent';
+        const systemPrompt = agent.systemPrompt || agent.system_prompt || 'No system prompt defined';
+        const truncatedPrompt = systemPrompt.length > 300 ? systemPrompt.substring(0, 300) + '...' : systemPrompt;
+
+        return `
+            <div class="subagent-config-card" data-agent-id="${agent.id}">
+                <div class="subagent-config-header" onclick="toggleSubAgentCard('${agent.id}')">
+                    <div class="agent-name">
+                        <span>🤖</span>
+                        <span>${displayName}</span>
+                        <span class="agent-badge">Agent</span>
+                    </div>
+                    <svg class="expand-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </div>
+                <div class="subagent-config-body">
+                    <div style="font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 12px; margin-bottom: 4px;">
+                        📝 Behavior Instructions (System Prompt)
+                    </div>
+                    <div class="subagent-prompt">${escapeHtml(truncatedPrompt)}</div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+/**
+ * Toggle sub-agent config card expand/collapse
+ */
+window.toggleSubAgentCard = function (agentId) {
+    const card = document.querySelector(`.subagent-config-card[data-agent-id="${agentId}"]`);
+    if (card) {
+        card.classList.toggle('expanded');
+    }
+};
+
+/**
+ * Apply team settings to agents (inject into DAG Executor context)
+ */
+window.applyTeamSettings = function () {
+    if (!state.teamSettings) {
+        addLogEntry('⚠️ No team settings to apply', 'warning');
+        return;
+    }
+
+    // Inject settings into DAG Executor if available
+    if (window.dagExecutor) {
+        window.dagExecutor.setTeamContext(state.teamSettings);
+        addLogEntry('✅ Team Brain settings applied to agents', 'success');
+    } else {
+        console.log('[Studio] DAGExecutor not ready, settings will be applied on execution');
+    }
+
+    closeTeamSettingsModal();
+};
+
+/**
+ * Helper: Escape HTML for safe display
+ */
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
