@@ -445,12 +445,12 @@ exports.routeLLM = functions.https.onCall(async (data, context) => {
             console.warn('[routeLLM] ⚠️ Initiating Auto-Failover to OpenAI...');
 
             try {
-                // BOOST -> gemini-2.0-flash-exp (Premium) or openai gpt-4o
+                // BOOST -> gemini-3.0-pro-preview (Premium)
                 // DEFAULT -> gemini-2.0-flash-exp (Standard/Speed)
                 // User requested to prioritize Gemini/Banana ecosystem.
 
                 const fallbackProvider = 'google';
-                const fallbackModel = 'gemini-2.0-flash-exp'; // Valid model for all tiers
+                const fallbackModel = (qualityTier === 'BOOST') ? 'gemini-3.0-pro-preview' : 'gemini-2.0-flash-exp';
 
                 // Retry Generation
                 let fallbackTemp = temperature;
@@ -582,7 +582,7 @@ async function callLLM(provider, model, messages, temperature = 0.7) {
         case 'banana':      // Nano Banana
         case 'nano':        // Nano
         case 'nano-banana': // explicit
-            return await callGeminiInternal(apiKey, model || 'gemini-2.0-flash-exp', messages, temperature);
+            return await callGeminiInternal(apiKey, model || 'gemini-3.0-pro-preview', messages, temperature);
 
         case 'anthropic':
         case 'claude':

@@ -468,11 +468,11 @@ class DAGExecutor {
         // If still on fallback logic (or defaults not matching provider), use hardcoded safe defaults
         if (globalModel === 'gpt-4o' && tierKey === 'boost') {
             // Fallback for Boost if config missing
-            globalModel = 'gemini-2.0-flash-exp';
+            globalModel = 'gemini-3.0-pro-preview';
             providerName = 'google';
         } else if (globalModel === 'gpt-4o') {
             if (providerName.includes('google') || providerName.includes('gemini')) {
-                globalModel = 'gemini-2.0-flash-exp';
+                globalModel = 'gemini-3.0-pro-preview';
             } else if (providerName.includes('anthropic') || providerName.includes('claude')) {
                 globalModel = 'claude-3-opus';
             } else if (providerName.includes('openai')) {
