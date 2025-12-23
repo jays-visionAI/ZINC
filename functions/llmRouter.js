@@ -23,7 +23,7 @@ const FALLBACK_DEFAULTS = {
  */
 class LLMRouter {
     constructor(db) {
-        console.log('!!! LLMRouter Initialized with ROUTER ABSTRACTION v3.0 !!!');
+        // console.log('!!! LLMRouter Initialized with ROUTER ABSTRACTION v3.0 !!!');
         this.db = db;
         this.policyCache = new Map();
         this.modelCache = new Map();

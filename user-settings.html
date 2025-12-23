@@ -223,6 +223,7 @@
                     <div class="settings-tabs">
                         <div class="settings-tab active" data-tab="connections" onclick="switchTab('connections')">
                             Connections</div>
+                        <div class="settings-tab" data-tab="memory" onclick="switchTab('memory')">🧠 Memory</div>
                         <div class="settings-tab" data-tab="profile" onclick="switchTab('profile')">Profile</div>
                         <div class="settings-tab" data-tab="billing" onclick="switchTab('billing')">Billing</div>
                     </div>
@@ -270,6 +271,143 @@
                                     </tr>
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+
+                    <!-- Memory Tab Content -->
+                    <div id="tab-memory" class="tab-content" style="display: none;">
+                        <div style="max-width: 700px;">
+                            <!-- Memory Overview -->
+                            <div
+                                style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(99, 102, 241, 0.1)); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 16px; padding: 24px; margin-bottom: 24px;">
+                                <div
+                                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                                    <div>
+                                        <p style="font-size: 12px; color: rgba(255,255,255,0.5); margin: 0 0 4px 0;">
+                                            Agent Memory</p>
+                                        <h3 style="font-size: 20px; margin: 0; color: white;">🧠 Context Memory Settings
+                                        </h3>
+                                    </div>
+                                </div>
+                                <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin: 0;">
+                                    에이전트가 이전 작업 결과를 기억하고 다음 작업에 활용합니다. Knowledge Hub 소스와 이전 실행 결과가 자동으로 주입됩니다.
+                                </p>
+                            </div>
+
+                            <!-- Current Tier Limits -->
+                            <div
+                                style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 24px; margin-bottom: 24px;">
+                                <h4 style="margin: 0 0 16px 0; color: white; font-size: 16px;">📊 현재 플랜 제한</h4>
+                                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
+                                    <div
+                                        style="text-align: center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 12px;">
+                                        <p style="font-size: 28px; font-weight: bold; margin: 0; color: #8B5CF6;"
+                                            id="memory-max-count">--</p>
+                                        <p style="font-size: 12px; color: rgba(255,255,255,0.5); margin: 4px 0 0 0;">최대
+                                            메모리 개수</p>
+                                    </div>
+                                    <div
+                                        style="text-align: center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 12px;">
+                                        <p style="font-size: 28px; font-weight: bold; margin: 0; color: #6366f1;"
+                                            id="memory-retention">30</p>
+                                        <p style="font-size: 12px; color: rgba(255,255,255,0.5); margin: 4px 0 0 0;">보존
+                                            기간 (일)</p>
+                                    </div>
+                                    <div
+                                        style="text-align: center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 12px;">
+                                        <p style="font-size: 28px; font-weight: bold; margin: 0; color: #10B981;"
+                                            id="memory-max-sources">--</p>
+                                        <p style="font-size: 12px; color: rgba(255,255,255,0.5); margin: 4px 0 0 0;">
+                                            Knowledge Hub 소스</p>
+                                    </div>
+                                    <div
+                                        style="text-align: center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 12px;">
+                                        <p style="font-size: 28px; font-weight: bold; margin: 0; color: #f59e0b;"
+                                            id="memory-current">--</p>
+                                        <p style="font-size: 12px; color: rgba(255,255,255,0.5); margin: 4px 0 0 0;">현재
+                                            저장된 메모리</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Tier Comparison -->
+                            <div
+                                style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 24px;">
+                                <h4 style="margin: 0 0 16px 0; color: white; font-size: 16px;">📋 플랜별 제한</h4>
+                                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                                    <thead>
+                                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                                            <th
+                                                style="text-align: left; padding: 12px 8px; color: rgba(255,255,255,0.6);">
+                                                플랜</th>
+                                            <th
+                                                style="text-align: center; padding: 12px 8px; color: rgba(255,255,255,0.6);">
+                                                메모리 개수</th>
+                                            <th
+                                                style="text-align: center; padding: 12px 8px; color: rgba(255,255,255,0.6);">
+                                                보존 기간</th>
+                                            <th
+                                                style="text-align: center; padding: 12px 8px; color: rgba(255,255,255,0.6);">
+                                                소스 개수</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);" id="tier-row-free">
+                                            <td style="padding: 12px 8px; color: white;">Free</td>
+                                            <td
+                                                style="text-align: center; padding: 12px 8px; color: rgba(255,255,255,0.7);">
+                                                5개</td>
+                                            <td
+                                                style="text-align: center; padding: 12px 8px; color: rgba(255,255,255,0.7);">
+                                                30일</td>
+                                            <td
+                                                style="text-align: center; padding: 12px 8px; color: rgba(255,255,255,0.7);">
+                                                3개</td>
+                                        </tr>
+                                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);"
+                                            id="tier-row-starter">
+                                            <td style="padding: 12px 8px; color: white;">🚀 Starter</td>
+                                            <td
+                                                style="text-align: center; padding: 12px 8px; color: rgba(255,255,255,0.7);">
+                                                10개</td>
+                                            <td
+                                                style="text-align: center; padding: 12px 8px; color: rgba(255,255,255,0.7);">
+                                                30일</td>
+                                            <td
+                                                style="text-align: center; padding: 12px 8px; color: rgba(255,255,255,0.7);">
+                                                5개</td>
+                                        </tr>
+                                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);" id="tier-row-pro">
+                                            <td style="padding: 12px 8px; color: white;">⭐ Pro</td>
+                                            <td
+                                                style="text-align: center; padding: 12px 8px; color: rgba(255,255,255,0.7);">
+                                                50개</td>
+                                            <td
+                                                style="text-align: center; padding: 12px 8px; color: rgba(255,255,255,0.7);">
+                                                30일</td>
+                                            <td
+                                                style="text-align: center; padding: 12px 8px; color: rgba(255,255,255,0.7);">
+                                                10개</td>
+                                        </tr>
+                                        <tr id="tier-row-enterprise">
+                                            <td style="padding: 12px 8px; color: white;">💎 Enterprise</td>
+                                            <td
+                                                style="text-align: center; padding: 12px 8px; color: rgba(255,255,255,0.7);">
+                                                무제한</td>
+                                            <td
+                                                style="text-align: center; padding: 12px 8px; color: rgba(255,255,255,0.7);">
+                                                30일</td>
+                                            <td
+                                                style="text-align: center; padding: 12px 8px; color: rgba(255,255,255,0.7);">
+                                                20개</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                <p style="margin: 16px 0 0 0; font-size: 12px; color: rgba(255,255,255,0.4);">
+                                    💡 더 많은 메모리가 필요하시면 <a href="#" onclick="switchTab('billing'); return false;"
+                                        style="color: #8B5CF6;">플랜 업그레이드</a>를 고려해 주세요.
+                                </p>
+                            </div>
                         </div>
                     </div>
 
@@ -536,11 +674,11 @@
 
 
     <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-functions.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-functions-compat.js"></script>
 
     <!-- App Scripts -->
     <script src="firebase-config.js"></script>

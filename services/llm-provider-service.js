@@ -92,6 +92,8 @@
                     return await this._testAnthropic(apiKey, model);
                 } else if (provider === 'gemini') {
                     return await this._testGemini(apiKey, model);
+                } else if (provider === 'deepseek') {
+                    return await this._testDeepSeek(apiKey, model);
                 } else {
                     throw new Error(`Provider '${provider}' testing not implemented yet.`);
                 }
@@ -109,93 +111,101 @@
 
         async _testOpenAI(apiKey, model = 'gpt-4o-mini') {
             const startTime = Date.now();
-            const response = await fetch('https://api.openai.com/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`
-                },
-                body: JSON.stringify({
-                    model: model,
-                    messages: [{ role: 'user', content: 'Ping' }],
-                    max_tokens: 5
-                })
-            });
+            try {
+                const testFn = firebase.functions().httpsCallable('testLLMProviderConnection');
+                const result = await testFn({
+                    providerType: 'openai',
+                    apiKey: apiKey
+                });
+                const response = result.data;
+                if (!response.success) throw new Error(response.error || 'Connection check failed');
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error?.message || `HTTP ${response.status}`);
+                return {
+                    success: true,
+                    message: `Connected to OpenAI`,
+                    latency: Date.now() - startTime
+                };
+            } catch (error) {
+                console.error("[LLMProviderService] OpenAI test failed:", error);
+                return { success: false, message: error.message, latency: Date.now() - startTime };
             }
-
-            return {
-                success: true,
-                message: `Connected to OpenAI (${model})`,
-                latency: Date.now() - startTime
-            };
         }
 
         async _testAnthropic(apiKey, model = 'claude-3-haiku-20240307') {
             const startTime = Date.now();
-            const response = await fetch('https://api.anthropic.com/v1/messages', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-api-key': apiKey,
-                    'anthropic-version': '2023-06-01'
-                },
-                body: JSON.stringify({
-                    model: model,
-                    max_tokens: 5,
-                    messages: [{ role: 'user', content: 'Ping' }]
-                })
-            });
+            try {
+                const testFn = firebase.functions().httpsCallable('testLLMProviderConnection');
+                const result = await testFn({
+                    providerType: 'anthropic',
+                    apiKey: apiKey
+                });
+                const response = result.data;
+                if (!response.success) throw new Error(response.error || 'Connection check failed');
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error?.message || `HTTP ${response.status}`);
+                return {
+                    success: true,
+                    message: `Connected to Anthropic`,
+                    latency: Date.now() - startTime
+                };
+            } catch (error) {
+                console.error("[LLMProviderService] Anthropic test failed:", error);
+                return { success: false, message: error.message, latency: Date.now() - startTime };
             }
-
-            return {
-                success: true,
-                message: `Connected to Anthropic (${model})`,
-                latency: Date.now() - startTime
-            };
         }
 
         async _testGemini(apiKey, model = 'gemini-pro') {
-            // Enhanced Gemini Test: Use listModels to validate API Key first
-            // This avoids "Model not found" errors when the key is valid but the specific model string is tricky
             const startTime = Date.now();
-
-            // 1. Try to list models (Best validation for API Key)
-            const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}&pageSize=1`;
-
             try {
-                const listResponse = await fetch(listUrl);
+                const testFn = firebase.functions().httpsCallable('testLLMProviderConnection');
+                const result = await testFn({
+                    providerType: 'gemini',
+                    apiKey: apiKey
+                });
+                const response = result.data;
+                if (!response.success) throw new Error(response.error || 'Connection check failed');
 
-                if (!listResponse.ok) {
-                    const errorData = await listResponse.json();
-                    throw new Error(errorData.error?.message || `HTTP ${listResponse.status} (ListModels failed)`);
+                return {
+                    success: true,
+                    message: `Connected to Gemini`,
+                    latency: Date.now() - startTime
+                };
+            } catch (error) {
+                console.error("[LLMProviderService] Gemini test failed:", error);
+                return { success: false, message: error.message, latency: Date.now() - startTime };
+            }
+        }
+
+        async _testDeepSeek(apiKey, model = 'deepseek-chat') {
+            const startTime = Date.now();
+            try {
+                console.log('[LLMProviderService] Testing DeepSeek via Cloud Function (CORS bypass)...');
+
+                // Use Cloud Function to verify connection server-side
+                const testFn = firebase.functions().httpsCallable('testLLMProviderConnection');
+                const result = await testFn({
+                    providerType: 'deepseek',
+                    apiKey: apiKey
+                });
+
+                const response = result.data; // Callable result payload
+
+                if (!response.success) {
+                    throw new Error(response.error || 'Connection check failed');
                 }
 
                 return {
                     success: true,
-                    message: `Connected to Gemini API (Valid Key)`,
+                    message: `Connected to DeepSeek (verified by server)`,
                     latency: Date.now() - startTime
                 };
-
             } catch (error) {
-                // If listModels fails, we might try generation as fallback or just throw
-                console.warn("[LLMProviderService] Gemini listModels failed, checking error:", error);
-
-                // If it's a 403 or 400 with API Key issues, throw immediately
-                if (error.message.includes('API key') || error.message.includes('403') || error.message.includes('400')) {
-                    throw error;
-                }
-
-                // Fallback: Try generation if listModels failed for some other reason (e.g. scope)
-                // But usually listModels is the open door.
-                throw error;
+                console.error("[LLMProviderService] DeepSeek test failed:", error);
+                // Return failure instead of throwing to prevent UI crash
+                return {
+                    success: false,
+                    message: error.message || "DeepSeek Connection Failed",
+                    latency: Date.now() - startTime
+                };
             }
         }
     }

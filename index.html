@@ -361,6 +361,18 @@
     </footer>
 
 
+    <!-- Firebase SDKs - MUST load first before any Firebase-dependent scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+
+    <!-- Firebase Config & Auth -->
+    <script src="firebase-config.js"></script>
+    <script src="env-config.js"></script>
+    <script src="auth.js"></script>
+
+    <!-- i18n and UI Scripts -->
     <script src="i18n-inject.js"></script>
     <script src="translations.js"></script>
     <script src="script.js"></script>
@@ -368,13 +380,6 @@
     <!-- Service Worker (Disabled & Unregistering) -->
     <script>
         if ('serviceWorker' in navigator) {
-            // navigator.serviceWorker.register('service-worker.js')
-            //     .then(function (registration) {
-            //         console.log('ServiceWorker registration successful with scope: ', registration.scope);
-            //     }, function (err) {
-            //         console.log('ServiceWorker registration failed: ', err);
-            //     });
-
             // Force unregister existing service workers
             navigator.serviceWorker.getRegistrations().then(function (registrations) {
                 for (let registration of registrations) {
@@ -385,16 +390,7 @@
         }
     </script>
 
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-storage-compat.js"></script>
-
-    <!-- Firebase Config & Auth -->
-    <script src="firebase-config.js"></script>
-    <script src="env-config.js"></script>
-    <script src="auth.js"></script>
+    <!-- Landing page specific script -->
     <script src="scripts/landing.js"></script>
 </body>
 

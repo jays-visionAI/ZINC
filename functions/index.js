@@ -3,6 +3,14 @@
  * Handles secure API calls to LLM providers (OpenAI, etc.)
  */
 
+// [CRITICAL FIX] Suppress 'Serving at port' log from firebase-functions SDK
+// This log corrupts the Firebase CLI's build specification parsing.
+const originalLog = console.log;
+console.log = (...args) => {
+    if (typeof args[0] === 'string' && args[0].includes('Serving at port')) return;
+    originalLog(...args);
+};
+
 const functions = require('firebase-functions');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { onRequest, onCall } = require('firebase-functions/v2/https');
@@ -96,24 +104,32 @@ exports.callOpenAI = functions.https.onCall(async (data, context) => {
 exports.testLLMProviderConnection = functions.https.onCall(async (data, context) => {
     // Handle nested data structure (v2 compatibility)
     const payload = (data && data.data) ? data.data : data;
-    const { providerId, providerType } = payload || {};
+    const { providerId, providerType, apiKey: inputApiKey } = payload || {};
 
-    console.log('[testLLMProviderConnection] Parsed:', providerId, providerType);
+    console.log('[testLLMProviderConnection] Parsed:', providerId, providerType, inputApiKey ? '(API Key provided)' : '(No API Key)');
 
-    if (!providerId || !providerType) {
-        throw new functions.https.HttpsError('invalid-argument', 'providerId and providerType are required');
+    if (!providerType) {
+        throw new functions.https.HttpsError('invalid-argument', 'providerType is required');
     }
 
     try {
-        // Get the provider's API key from Firestore
-        const providerDoc = await admin.firestore().collection('systemLLMProviders').doc(providerId).get();
+        let apiKey = inputApiKey;
 
-        if (!providerDoc.exists) {
-            return { success: false, error: 'Provider not found' };
+        // If no API key provided directly, try to get from Firestore
+        if (!apiKey) {
+            if (!providerId) {
+                return { success: false, error: 'providerId required when no API key provided' };
+            }
+
+            const providerDoc = await admin.firestore().collection('systemLLMProviders').doc(providerId).get();
+
+            if (!providerDoc.exists) {
+                return { success: false, error: 'Provider not found' };
+            }
+
+            const providerData = providerDoc.data();
+            apiKey = getApiKeyFromData(providerData);
         }
-
-        const providerData = providerDoc.data();
-        const apiKey = getApiKeyFromData(providerData);
 
         if (!apiKey) {
             return { success: false, error: 'No API key configured' };
@@ -131,6 +147,9 @@ exports.testLLMProviderConnection = functions.https.onCall(async (data, context)
                 break;
             case 'anthropic':
                 testResult = await testAnthropicConnectionQuick(apiKey);
+                break;
+            case 'deepseek':
+                testResult = await testDeepSeekConnectionQuick(apiKey);
                 break;
             default:
                 return { success: false, error: `Unknown provider type: ${providerType}` };
@@ -172,6 +191,20 @@ async function testAnthropicConnectionQuick(apiKey) {
         const client = new Anthropic({ apiKey });
         // Check if client is created successfully
         return { success: !!client };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+async function testDeepSeekConnectionQuick(apiKey) {
+    try {
+        const OpenAI = require('openai');
+        const openai = new OpenAI({
+            apiKey,
+            baseURL: 'https://api.deepseek.com'
+        });
+        await openai.models.list();
+        return { success: true };
     } catch (error) {
         return { success: false, error: error.message };
     }
@@ -588,6 +621,9 @@ async function callLLM(provider, model, messages, temperature = 0.7) {
         case 'claude':
             return await callClaudeInternal(apiKey, model || 'claude-3-5-sonnet-20241022', messages, temperature);
 
+        case 'deepseek':
+            return await callDeepSeekInternal(apiKey, model || 'deepseek-chat', messages, temperature);
+
         default:
             // Fallback to OpenAI
             console.warn(`[callLLM] Unknown provider ${provider}, falling back to OpenAI`);
@@ -700,6 +736,31 @@ async function callClaudeInternal(apiKey, model, messages, temperature) {
             total_tokens: (response.usage?.input_tokens || 0) + (response.usage?.output_tokens || 0)
         },
         provider: 'anthropic'
+    };
+}
+
+/**
+ * DeepSeek Internal Call
+ */
+async function callDeepSeekInternal(apiKey, model, messages, temperature) {
+    const OpenAI = require('openai');
+    const openai = new OpenAI({
+        apiKey,
+        baseURL: 'https://api.deepseek.com'
+    });
+
+    const response = await openai.chat.completions.create({
+        model,
+        messages,
+        temperature,
+        max_completion_tokens: 4000
+    });
+
+    return {
+        content: response.choices[0]?.message?.content || '',
+        model: response.model,
+        usage: response.usage,
+        provider: 'deepseek'
     };
 }
 
@@ -2771,14 +2832,42 @@ exports.getContentPlans = functions.https.onCall(async (data, context) => {
 
 /**
  * Image provider configurations
+ * Primary: Nano Banana Pro (via Gemini API)
+ * DALL-E removed per user request (quality insufficient for this service)
  */
 const IMAGE_PROVIDERS = {
-    dalle: {
-        name: 'DALL-E 3',
+    'nano-banana': {
+        name: 'Nano Banana Pro',
+        costPerImage: 0.03,
+        maxResolution: '2048x2048',
+        supportsText: false,  // Policy: no text in images
+        provider: 'google',
+        model: 'nano-banana-pro-preview',
+        isDefault: true
+    },
+    imagen: {
+        name: 'Google Imagen 4',
         costPerImage: 0.04,
-        maxResolution: '1792x1024',
-        supportsText: true,
-        provider: 'openai'
+        maxResolution: '2048x2048',
+        supportsText: false,
+        provider: 'google',
+        model: 'imagen-4.0-generate-001'
+    },
+    'imagen-fast': {
+        name: 'Google Imagen 4 Fast',
+        costPerImage: 0.02,
+        maxResolution: '1024x1024',
+        supportsText: false,
+        provider: 'google',
+        model: 'imagen-4.0-fast-generate-001'
+    },
+    'imagen-ultra': {
+        name: 'Google Imagen 4 Ultra',
+        costPerImage: 0.06,
+        maxResolution: '2048x2048',
+        supportsText: false,
+        provider: 'google',
+        model: 'imagen-4.0-ultra-generate-001'
     },
     stability: {
         name: 'Stability AI (SDXL)',
@@ -2800,23 +2889,17 @@ const IMAGE_PROVIDERS = {
         maxResolution: '1024x1024',
         supportsText: true,
         provider: 'ideogram'
-    },
-    imagen: {
-        name: 'Google Imagen 3',
-        costPerImage: 0.03,
-        maxResolution: '2048x2048',
-        supportsText: true,
-        provider: 'google'
     }
 };
 
 /**
  * Generate image using selected provider
+ * Default: Nano Banana Pro (highest quality via Gemini API)
  */
 exports.generateImage = functions.https.onCall(async (data, context) => {
     const {
         prompt,
-        provider = 'flux', // Default to Flux (cheapest quality option)
+        provider = 'nano-banana', // Default to Nano Banana Pro (best quality)
         size = '1024x1024',
         style = 'vivid',
         projectId,
@@ -2829,7 +2912,7 @@ exports.generateImage = functions.https.onCall(async (data, context) => {
 
     const providerConfig = IMAGE_PROVIDERS[provider];
     if (!providerConfig) {
-        throw new functions.https.HttpsError('invalid-argument', `Unknown provider: ${provider}`);
+        throw new functions.https.HttpsError('invalid-argument', `Unknown provider: ${provider}. Available: ${Object.keys(IMAGE_PROVIDERS).join(', ')}`);
     }
 
     console.log(`[generateImage] Using ${providerConfig.name} for: "${prompt.substring(0, 50)}..."`);
@@ -2839,8 +2922,13 @@ exports.generateImage = functions.https.onCall(async (data, context) => {
         let metadata = {};
 
         switch (provider) {
-            case 'dalle':
-                imageUrl = await generateWithDALLE(prompt, size, style);
+            case 'nano-banana':
+                imageUrl = await generateWithImagen(prompt, size, 'nano-banana-pro-preview');
+                break;
+            case 'imagen':
+            case 'imagen-fast':
+            case 'imagen-ultra':
+                imageUrl = await generateWithImagen(prompt, size, providerConfig.model);
                 break;
             case 'stability':
                 imageUrl = await generateWithStability(prompt, size);
@@ -2850,9 +2938,6 @@ exports.generateImage = functions.https.onCall(async (data, context) => {
                 break;
             case 'ideogram':
                 imageUrl = await generateWithIdeogram(prompt, size);
-                break;
-            case 'imagen':
-                imageUrl = await generateWithImagen(prompt, size);
                 break;
             default:
                 throw new Error(`Provider ${provider} not implemented`);
@@ -3012,14 +3097,150 @@ async function generateWithIdeogram(prompt, size) {
 }
 
 /**
- * Google Imagen 3 (Vertex AI)
+ * Google Imagen / Nano Banana Pro (via Gemini REST API)
+ * Uses Imagen 4 models for high-quality image generation
+ * Note: Nano Banana Pro is actually Gemini 3 Pro Image Preview (text model with image understanding)
+ *       For actual image GENERATION, we use Imagen 4 models
  */
-async function generateWithImagen(prompt, size) {
-    // Google Imagen requires Vertex AI setup
-    // For now, return placeholder - needs service account configuration
-    console.log('[generateWithImagen] Not yet implemented - requires Vertex AI setup');
-    throw new Error('Google Imagen not yet configured. Please use another provider.');
+async function generateWithImagen(prompt, size, model = 'imagen-4.0-fast-generate-001') {
+    const axios = require('axios');
+
+    // Get Google/Gemini API key from system providers
+    const apiKey = await getSystemApiKey('google');
+    if (!apiKey) {
+        throw new Error('Google API key not configured. Add it in Admin → System → LLM Providers.');
+    }
+
+    // Map size to aspect ratio
+    const aspectRatioMap = {
+        '1024x1024': '1:1',
+        '1792x1024': '16:9',
+        '1024x1792': '9:16',
+        '2048x2048': '1:1'
+    };
+    const aspectRatio = aspectRatioMap[size] || '1:1';
+
+    // Clean the prompt - ensure no text instruction in image
+    const cleanPrompt = prompt + '. Style: Professional, high-quality, no text, no logos, no watermarks, no letters, no numbers.';
+
+    console.log(`[generateWithImagen] Using model: ${model}, aspect: ${aspectRatio}, prompt: "${prompt.substring(0, 50)}..."`);
+
+    // Try Imagen 4 models in order of preference
+    const modelsToTry = [
+        'imagen-4.0-fast-generate-001',  // Fastest
+        'imagen-4.0-generate-001',        // Standard
+        'imagen-4.0-ultra-generate-001'   // Highest quality
+    ];
+
+    for (const modelName of modelsToTry) {
+        try {
+            console.log(`[generateWithImagen] Trying model: ${modelName}`);
+
+            // Use Gemini API REST endpoint for image generation
+            // Reference: https://ai.google.dev/gemini-api/docs/imagen
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:predict?key=${apiKey}`;
+
+            const response = await axios.post(url, {
+                instances: [{
+                    prompt: cleanPrompt
+                }],
+                parameters: {
+                    sampleCount: 1,
+                    aspectRatio: aspectRatio,
+                    personGeneration: 'ALLOW_ADULT',
+                    safetyFilterLevel: 'BLOCK_MEDIUM_AND_ABOVE'
+                }
+            }, {
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                timeout: 60000 // 60 second timeout
+            });
+
+            // Parse response - Imagen returns predictions with bytesBase64Encoded
+            const predictions = response.data.predictions || [];
+            if (predictions.length > 0 && predictions[0].bytesBase64Encoded) {
+                console.log(`[generateWithImagen] ✅ Success with ${modelName}`);
+                const base64Data = predictions[0].bytesBase64Encoded;
+                // Upload to Firebase Storage and return public URL
+                return await uploadBase64ToStorage(base64Data, 'imagen');
+            }
+
+            // Alternative response format
+            if (predictions.length > 0 && predictions[0].image) {
+                console.log(`[generateWithImagen] ✅ Success with ${modelName} (image format)`);
+                return predictions[0].image;
+            }
+
+            console.log(`[generateWithImagen] ${modelName}: No image in response, trying next...`);
+
+        } catch (error) {
+            console.log(`[generateWithImagen] ${modelName} failed:`, error.response?.data?.error?.message || error.message);
+
+            // If it's a quota/billing error, stop trying
+            if (error.response?.status === 429 || error.response?.status === 403) {
+                throw new Error(`API quota exceeded or billing issue: ${error.response?.data?.error?.message || error.message}`);
+            }
+
+            // Continue to next model
+            continue;
+        }
+    }
+
+    // All models failed - try generateContent as last resort with gemini-2.0-flash-exp
+    console.log(`[generateWithImagen] All Imagen models failed, trying Gemini 2.0 Flash with image generation...`);
+    return await generateWithGeminiFlashImage(prompt, size, apiKey);
 }
+
+/**
+ * Fallback: Gemini 2.0 Flash Experimental (supports native image generation)
+ */
+async function generateWithGeminiFlashImage(prompt, size, apiKey) {
+    const { GoogleGenerativeAI } = require('@google/generative-ai');
+
+    console.log(`[generateWithGeminiFlashImage] Using gemini-2.0-flash-exp...`);
+
+    try {
+        const genAI = new GoogleGenerativeAI(apiKey);
+
+        // Gemini 2.0 Flash Experimental supports image generation
+        const model = genAI.getGenerativeModel({
+            model: 'gemini-2.0-flash-exp',
+            generationConfig: {
+                temperature: 1,
+                maxOutputTokens: 8192,
+            }
+        });
+
+        const enhancedPrompt = `Generate an image: ${prompt}. 
+Do not include any text, letters, numbers, logos, or watermarks in the image.
+Create only visual design elements.`;
+
+        const result = await model.generateContent({
+            contents: [{ role: 'user', parts: [{ text: enhancedPrompt }] }],
+        });
+
+        const response = result.response;
+        const parts = response.candidates?.[0]?.content?.parts || [];
+
+        for (const part of parts) {
+            if (part.inlineData && part.inlineData.mimeType?.startsWith('image/')) {
+                console.log('[generateWithGeminiFlashImage] ✅ Image generated');
+                return await uploadBase64ToStorage(part.inlineData.data, 'gemini-flash');
+            }
+        }
+
+        // No image generated - return error
+        const textResponse = parts.find(p => p.text)?.text || 'No response';
+        console.log('[generateWithGeminiFlashImage] No image generated, text response:', textResponse.substring(0, 100));
+        throw new Error('Image generation not supported. The AI returned text instead of an image.');
+
+    } catch (error) {
+        console.error('[generateWithGeminiFlashImage] Error:', error.message);
+        throw new Error(`Gemini Flash image generation failed: ${error.message}`);
+    }
+}
+
 
 /**
  * Helper: Get image provider API key
@@ -4588,3 +4809,198 @@ exports.scheduledBrandSync = onSchedule({
     }
 });
 
+// ============================================================
+// GOOGLE SLIDES RENDERER - PRD v13
+// ============================================================
+
+/**
+ * Render a Google Slides presentation from a template
+ * Uses semantic specification from LLM to fill in content
+ */
+exports.renderSlides = functions.https.onCall(async (data, context) => {
+    const { slidesRenderer } = require('./slidesRenderer');
+
+    // Handle v2 nested data structure
+    const payload = (data && data.data) ? data.data : data;
+
+    const {
+        templateId,
+        semanticSpec,
+        projectId,
+        shareWithUser = true
+    } = payload;
+
+    console.log('[renderSlides] Received payload:', JSON.stringify({ templateId, hasSpec: !!semanticSpec }));
+
+    if (!templateId) {
+        throw new functions.https.HttpsError('invalid-argument', 'templateId is required');
+    }
+
+
+    if (!semanticSpec || !semanticSpec.title) {
+        throw new functions.https.HttpsError('invalid-argument', 'semanticSpec with title is required');
+    }
+
+    console.log(`[renderSlides] Starting render for template: ${templateId}`);
+    console.log(`[renderSlides] Title: ${semanticSpec.title}`);
+
+    try {
+        // Add user email for sharing if authenticated
+        if (shareWithUser && context.auth?.token?.email) {
+            semanticSpec.shareWithEmail = context.auth.token.email;
+        }
+
+        // Render the presentation
+        const result = await slidesRenderer.render(templateId, semanticSpec);
+
+        console.log(`[renderSlides] ✅ Created presentation: ${result.presentationId}`);
+
+        // Save to project if projectId provided
+        if (projectId) {
+            await db.collection('projects').doc(projectId)
+                .collection('documents').add({
+                    type: 'one-pager',
+                    presentationId: result.presentationId,
+                    url: result.url,
+                    viewUrl: result.viewUrl,
+                    title: semanticSpec.title,
+                    templateId,
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                    createdBy: context.auth?.uid || 'system'
+                });
+
+            console.log(`[renderSlides] Saved to project ${projectId}`);
+        }
+
+        return {
+            success: true,
+            ...result
+        };
+
+    } catch (error) {
+        console.error('[renderSlides] Error:', error);
+        throw new functions.https.HttpsError('internal', `Slides render failed: ${error.message}`);
+    }
+});
+
+/**
+ * Create a One-Pager from Content Plan
+ * Convenience function that combines LLM spec generation + Slides rendering
+ */
+exports.createOnePager = functions.https.onCall(async (data, context) => {
+    const { slidesRenderer } = require('./slidesRenderer');
+
+    const {
+        contentPlanId,
+        projectId,
+        templateId,
+        customSpec
+    } = data;
+
+    if (!projectId) {
+        throw new functions.https.HttpsError('invalid-argument', 'projectId is required');
+    }
+
+    console.log(`[createOnePager] Starting for project: ${projectId}`);
+
+    try {
+        let semanticSpec = customSpec;
+
+        // If contentPlanId provided, fetch and generate spec
+        if (contentPlanId && !customSpec) {
+            const contentPlanDoc = await db.collection('projects').doc(projectId)
+                .collection('contentPlans').doc(contentPlanId).get();
+
+            if (!contentPlanDoc.exists) {
+                throw new Error('Content plan not found');
+            }
+
+            const contentPlan = contentPlanDoc.data();
+
+            // Generate semantic spec using LLM
+            const apiKey = await getSystemApiKey('google');
+            const llmResult = await callLLM('google', 'gemini-2.0-flash', [
+                {
+                    role: 'system',
+                    content: `You are a marketing content specialist. Generate a semantic specification for a one-pager document based on the content plan.
+                    
+Return a JSON object with these fields:
+- title: Main headline (max 10 words)
+- subtitle: Supporting text (max 20 words)
+- headline: Key value proposition (max 15 words)
+- bodyText: Main content (2-3 paragraphs)
+- features: Key features as bullet points (3-5 items)
+- benefits: Customer benefits (3-5 items)
+- cta: Call to action text
+- contact: Contact information`
+                },
+                {
+                    role: 'user',
+                    content: `Content Plan: ${JSON.stringify(contentPlan)}`
+                }
+            ], 0.7);
+
+            try {
+                // Parse JSON from LLM response
+                const jsonMatch = llmResult.content.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    semanticSpec = JSON.parse(jsonMatch[0]);
+                } else {
+                    throw new Error('Could not parse semantic spec from LLM response');
+                }
+            } catch (parseError) {
+                console.error('[createOnePager] Failed to parse LLM response:', parseError);
+                throw new Error('Failed to generate content specification');
+            }
+        }
+
+        if (!semanticSpec) {
+            throw new Error('No semantic specification provided or generated');
+        }
+
+        // Default template ID if not provided
+        const finalTemplateId = templateId || process.env.DEFAULT_ONEPAGER_TEMPLATE_ID;
+
+        if (!finalTemplateId) {
+            throw new functions.https.HttpsError(
+                'failed-precondition',
+                'No template ID provided and DEFAULT_ONEPAGER_TEMPLATE_ID not configured'
+            );
+        }
+
+        // Add user email for sharing
+        if (context.auth?.token?.email) {
+            semanticSpec.shareWithEmail = context.auth.token.email;
+        }
+
+        // Render the slides
+        const result = await slidesRenderer.render(finalTemplateId, semanticSpec);
+
+        // Save document record
+        const docRef = await db.collection('projects').doc(projectId)
+            .collection('documents').add({
+                type: 'one-pager',
+                presentationId: result.presentationId,
+                url: result.url,
+                viewUrl: result.viewUrl,
+                title: semanticSpec.title,
+                templateId: finalTemplateId,
+                contentPlanId: contentPlanId || null,
+                semanticSpec,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                createdBy: context.auth?.uid || 'system'
+            });
+
+        console.log(`[createOnePager] ✅ Created: ${result.url}`);
+
+        return {
+            success: true,
+            documentId: docRef.id,
+            ...result
+        };
+
+    } catch (error) {
+        console.error('[createOnePager] Error:', error);
+        throw new functions.https.HttpsError('internal', error.message);
+    }
+});

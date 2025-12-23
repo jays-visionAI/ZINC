@@ -27,6 +27,34 @@
                     parallel: false
                 }
             };
+
+            // Memory Tier Limits by Subscription Plan
+            this.MEMORY_TIER_LIMITS = {
+                free: {
+                    maxMemoryCount: 5,        // 최대 저장 개수
+                    retentionDays: 30,        // 보존 기간 (일) - 모든 플랜 동일
+                    maxContextSources: 3,     // 주입할 최대 소스 수
+                    maxTokensPerSource: 500   // 소스당 최대 토큰
+                },
+                starter: {
+                    maxMemoryCount: 10,
+                    retentionDays: 30,
+                    maxContextSources: 5,
+                    maxTokensPerSource: 1000
+                },
+                pro: {
+                    maxMemoryCount: 50,
+                    retentionDays: 30,
+                    maxContextSources: 10,
+                    maxTokensPerSource: 2000
+                },
+                enterprise: {
+                    maxMemoryCount: -1,       // Unlimited
+                    retentionDays: 30,
+                    maxContextSources: 20,
+                    maxTokensPerSource: 5000
+                }
+            };
         }
 
         /**
@@ -108,6 +136,24 @@
                     console.log(`[AgentExecutionService] ⚠️ No Brand Context synced for this team`);
                 }
 
+                // 4.6 Load Knowledge Context (Phase 3: Knowledge Hub Integration)
+                const tierLimits = await this._getUserTierLimits();
+                const knowledgeContext = await this._loadKnowledgeContext(projectId, tierLimits);
+                if (knowledgeContext.sources.length > 0) {
+                    console.log(`[AgentExecutionService] 📚 Knowledge Context loaded:`, {
+                        sourceCount: knowledgeContext.sources.length,
+                        sources: knowledgeContext.sources.map(s => s.title)
+                    });
+                }
+
+                // 4.7 Load Memory Context (Phase 3: Cross-Run Context)
+                const memoryContext = await this._loadMemoryContext(projectId, tierLimits);
+                if (memoryContext.memories.length > 0) {
+                    console.log(`[AgentExecutionService] 🧠 Memory Context loaded:`, {
+                        memoryCount: memoryContext.memories.length
+                    });
+                }
+
                 // 5. Execute stages in order (with parallel support for creation stage)
                 const results = [];
                 const stageResults = [];
@@ -116,6 +162,9 @@
                     teamDirective: team.active_directive?.summary || team.activeDirective,
                     customInstructions: run.custom_instructions,
                     brandContext: brandContext, // Phase 2: Brand Brain integration
+                    knowledgeContext: knowledgeContext, // Phase 3: Knowledge Hub integration
+                    memoryContext: memoryContext, // Phase 3: Cross-Run context
+                    tierLimits: tierLimits, // User's tier-based limits
                     previousResults: results
                 };
 
@@ -223,12 +272,16 @@
                 // 6. Save generated content
                 const contentIds = await this._saveGeneratedContent(projectId, runId, teamId, results);
 
+                // 6.5 Save to Memory (Phase 2: Memory Storage)
+                await this._saveToMemory(projectId, runId, teamId, results, tierLimits);
+
                 // 7. Update run as completed with stage info
                 await this._updateRunStatus(projectId, runId, 'completed', {
                     completed_at: firebase.firestore.FieldValue.serverTimestamp(),
                     generated_content_ids: Array.isArray(contentIds) ? contentIds : [contentIds],
                     execution_mode: 'parallel',
-                    stages: stageResults
+                    stages: stageResults,
+                    knowledge_sources_used: knowledgeContext.sources.length // Track knowledge usage
                 });
 
                 console.log(`[AgentExecutionService] ✅ Run completed successfully! (Parallel mode)`);
@@ -325,8 +378,13 @@
         async _executeSubAgent(subAgent, context) {
             const baseSystemPrompt = subAgent.system_prompt || this._getDefaultPrompt(subAgent.role_type);
 
-            // Phase 2: Inject Brand Context into System Prompt
-            const systemPrompt = this._buildSystemPromptWithBrandContext(baseSystemPrompt, context.brandContext);
+            // Phase 3: Inject Brand Context, Knowledge Context, AND Memory Context into System Prompt
+            const systemPrompt = this._buildFullSystemPrompt(
+                baseSystemPrompt,
+                context.brandContext,
+                context.knowledgeContext,
+                context.memoryContext
+            );
             const userMessage = this._buildUserMessage(subAgent.role_type, context);
 
             console.log(`[AgentExecutionService] 🤖 ${subAgent.role_name || subAgent.role_type}:`);
@@ -334,6 +392,12 @@
             console.log(`  💬 User Message: ${userMessage.substring(0, 100)}...`);
             if (context.brandContext) {
                 console.log(`  🏷️ Brand: ${context.brandContext.brandName || 'N/A'}`);
+            }
+            if (context.knowledgeContext?.sources?.length > 0) {
+                console.log(`  📚 Knowledge: ${context.knowledgeContext.sources.length} sources injected`);
+            }
+            if (context.memoryContext?.memories?.length > 0) {
+                console.log(`  🧠 Memory: ${context.memoryContext.memories.length} previous runs referenced`);
             }
 
             // apiKey is handled by Cloud Function
@@ -399,9 +463,298 @@ ${brandContext.donts?.length > 0 ? brandContext.donts.map(d => `- ${d}`).join('\
         }
 
         /**
-         * Call OpenAI API via Firebase Cloud Functions
-         * This avoids CORS issues by proxying through the backend
+         * Build System Prompt with Brand Context, Knowledge Context, AND Memory Context
+         * Phase 1-3: Full Context Integration
          */
+        _buildFullSystemPrompt(basePrompt, brandContext, knowledgeContext, memoryContext = null) {
+            let prompt = this._buildSystemPromptWithBrandContext(basePrompt, brandContext);
+
+            // Add Knowledge Hub context if available
+            if (knowledgeContext?.sources?.length > 0) {
+                const knowledgeSection = `
+## Reference Materials (from Knowledge Hub)
+Use these materials as reference for accurate, on-brand content:
+
+${knowledgeContext.sources.map((src, i) => `### ${i + 1}. ${src.title}
+${src.summary || src.content || 'No content available'}
+`).join('\n')}
+---
+`;
+                prompt = knowledgeSection + prompt;
+            }
+
+            // Add Memory Context from previous runs if available
+            if (memoryContext?.memories?.length > 0) {
+                const memorySection = `
+## Previous Work (Agent Memory)
+Learn from these previous successful outputs for consistency:
+
+${memoryContext.memories.map((mem, i) => `### Previous Run ${i + 1} (${mem.agent_role || 'Agent'})
+${mem.summary.substring(0, 500)}${mem.summary.length > 500 ? '...' : ''}
+`).join('\n')}
+---
+`;
+                prompt = memorySection + prompt;
+            }
+
+            return prompt;
+        }
+
+        /**
+         * Load Knowledge Context from Knowledge Hub sources
+         * @param {string} projectId - Project ID
+         * @param {object} tierLimits - User's tier limits
+         * @returns {Promise<object>} Knowledge context with sources
+         */
+        async _loadKnowledgeContext(projectId, tierLimits) {
+            try {
+                console.log(`[AgentExecutionService] 📚 Loading Knowledge Context...`);
+
+                // Query active knowledge sources
+                const sourcesSnap = await this.db.collection('projects')
+                    .doc(projectId)
+                    .collection('knowledgeSources')
+                    .where('status', '==', 'active')
+                    .orderBy('updatedAt', 'desc')
+                    .limit(tierLimits.maxContextSources)
+                    .get();
+
+                if (sourcesSnap.empty) {
+                    console.log(`[AgentExecutionService] 📚 No active knowledge sources found`);
+                    return { sources: [], summary: null };
+                }
+
+                const sources = [];
+                sourcesSnap.forEach(doc => {
+                    const data = doc.data();
+
+                    // Extract summary or truncate content
+                    let content = data.analysis?.summary || data.content || '';
+                    if (content.length > tierLimits.maxTokensPerSource * 4) { // ~4 chars per token
+                        content = content.substring(0, tierLimits.maxTokensPerSource * 4) + '...';
+                    }
+
+                    sources.push({
+                        id: doc.id,
+                        title: data.title || 'Untitled',
+                        type: data.sourceType,
+                        summary: content,
+                        keyInsights: data.analysis?.keyInsights || []
+                    });
+                });
+
+                console.log(`[AgentExecutionService] 📚 Loaded ${sources.length} knowledge sources`);
+
+                return {
+                    sources,
+                    loadedAt: new Date().toISOString()
+                };
+
+            } catch (error) {
+                console.error('[AgentExecutionService] Error loading knowledge context:', error);
+                return { sources: [], error: error.message };
+            }
+        }
+
+        /**
+         * Get user's subscription tier and memory limits
+         * @param {string} userId - User ID (optional, uses current user if not provided)
+         * @returns {Promise<object>} Tier limits
+         */
+        async _getUserTierLimits(userId = null) {
+            try {
+                const uid = userId || firebase.auth().currentUser?.uid;
+                if (!uid) {
+                    console.warn('[AgentExecutionService] No user ID, using free tier limits');
+                    return this.MEMORY_TIER_LIMITS.free;
+                }
+
+                const userDoc = await this.db.collection('users').doc(uid).get();
+                if (!userDoc.exists) {
+                    return this.MEMORY_TIER_LIMITS.free;
+                }
+
+                const userData = userDoc.data();
+                const plan = (userData.plan || userData.subscription?.plan || 'free').toLowerCase();
+
+                console.log(`[AgentExecutionService] 👤 User plan: ${plan}`);
+
+                return this.MEMORY_TIER_LIMITS[plan] || this.MEMORY_TIER_LIMITS.free;
+
+            } catch (error) {
+                console.error('[AgentExecutionService] Error getting user tier:', error);
+                return this.MEMORY_TIER_LIMITS.free;
+            }
+        }
+
+        /**
+         * Save execution results to Memory Store (Phase 2)
+         * @param {string} projectId - Project ID
+         * @param {string} runId - Run ID
+         * @param {string} teamId - Team ID
+         * @param {Array} results - Execution results
+         * @param {object} tierLimits - User's tier limits
+         */
+        async _saveToMemory(projectId, runId, teamId, results, tierLimits) {
+            try {
+                console.log(`[AgentExecutionService] 💾 Saving to Memory...`);
+
+                // Extract key insights from results (use reviewer/final output)
+                const finalResult = results.find(r =>
+                    r.stage === 'review' ||
+                    r.subAgentRole?.toLowerCase().includes('review')
+                ) || results[results.length - 1];
+
+                if (!finalResult?.output) {
+                    console.log(`[AgentExecutionService] 💾 No output to save to memory`);
+                    return;
+                }
+
+                // Create memory entry
+                const memoryRef = this.db.collection('projects')
+                    .doc(projectId)
+                    .collection('agentMemory');
+
+                const memoryData = {
+                    created_at: firebase.firestore.FieldValue.serverTimestamp(),
+                    run_id: runId,
+                    team_id: teamId,
+                    memory_type: 'execution_result',
+                    content: {
+                        summary: finalResult.output.substring(0, 1000), // Truncate for storage
+                        agent_role: finalResult.subAgentRole,
+                        stage: finalResult.stage || 'unknown',
+                        full_output_preview: finalResult.output.substring(0, 500)
+                    },
+                    relevance_score: 1.0, // New memories start with high relevance
+                    usage_count: 0,
+                    is_active: true,
+                    expires_at: this._calculateExpiryDate(tierLimits.retentionDays)
+                };
+
+                await memoryRef.add(memoryData);
+                console.log(`[AgentExecutionService] 💾 Memory saved (retention: ${tierLimits.retentionDays} days)`);
+
+                // Cleanup old memories based on tier limits
+                await this._cleanupOldMemories(projectId, tierLimits);
+
+            } catch (error) {
+                console.error('[AgentExecutionService] Error saving to memory:', error);
+                // Don't throw - memory save failure shouldn't break execution
+            }
+        }
+
+        /**
+         * Calculate expiry date based on retention days
+         */
+        _calculateExpiryDate(retentionDays) {
+            const expiryDate = new Date();
+            expiryDate.setDate(expiryDate.getDate() + retentionDays);
+            return firebase.firestore.Timestamp.fromDate(expiryDate);
+        }
+
+        /**
+         * Cleanup old memories based on tier limits
+         * @param {string} projectId - Project ID
+         * @param {object} tierLimits - User's tier limits
+         */
+        async _cleanupOldMemories(projectId, tierLimits) {
+            try {
+                const memoryRef = this.db.collection('projects')
+                    .doc(projectId)
+                    .collection('agentMemory');
+
+                // 1. Delete expired memories
+                const now = firebase.firestore.Timestamp.now();
+                const expiredSnap = await memoryRef
+                    .where('expires_at', '<=', now)
+                    .limit(10)
+                    .get();
+
+                if (!expiredSnap.empty) {
+                    const batch = this.db.batch();
+                    expiredSnap.forEach(doc => batch.delete(doc.ref));
+                    await batch.commit();
+                    console.log(`[AgentExecutionService] 🗑️ Deleted ${expiredSnap.size} expired memories`);
+                }
+
+                // 2. Enforce max memory count (if not unlimited)
+                if (tierLimits.maxMemoryCount > 0) {
+                    const countSnap = await memoryRef
+                        .orderBy('created_at', 'desc')
+                        .get();
+
+                    if (countSnap.size > tierLimits.maxMemoryCount) {
+                        const toDelete = countSnap.docs.slice(tierLimits.maxMemoryCount);
+                        const deleteBatch = this.db.batch();
+                        toDelete.forEach(doc => deleteBatch.delete(doc.ref));
+                        await deleteBatch.commit();
+                        console.log(`[AgentExecutionService] 🗑️ Deleted ${toDelete.length} memories (over limit)`);
+                    }
+                }
+
+            } catch (error) {
+                console.error('[AgentExecutionService] Error cleaning up memories:', error);
+            }
+        }
+
+        /**
+         * Load Memory Context from previous runs (Phase 3: Cross-Run Context)
+         * @param {string} projectId - Project ID
+         * @param {object} tierLimits - User's tier limits
+         * @returns {Promise<object>} Memory context with recent runs
+         */
+        async _loadMemoryContext(projectId, tierLimits) {
+            try {
+                console.log(`[AgentExecutionService] 🧠 Loading Memory Context...`);
+
+                const memoryRef = this.db.collection('projects')
+                    .doc(projectId)
+                    .collection('agentMemory');
+
+                // Query recent active memories
+                const memoriesSnap = await memoryRef
+                    .where('is_active', '==', true)
+                    .orderBy('created_at', 'desc')
+                    .limit(Math.min(5, tierLimits.maxContextSources)) // Use up to 5 recent memories
+                    .get();
+
+                if (memoriesSnap.empty) {
+                    console.log(`[AgentExecutionService] 🧠 No previous memories found`);
+                    return { memories: [] };
+                }
+
+                const memories = [];
+                memoriesSnap.forEach(doc => {
+                    const data = doc.data();
+                    memories.push({
+                        id: doc.id,
+                        run_id: data.run_id,
+                        summary: data.content?.summary || '',
+                        agent_role: data.content?.agent_role,
+                        created_at: data.created_at?.toDate?.()?.toISOString() || 'Unknown'
+                    });
+
+                    // Update usage count
+                    doc.ref.update({
+                        usage_count: firebase.firestore.FieldValue.increment(1),
+                        last_used_at: firebase.firestore.FieldValue.serverTimestamp()
+                    }).catch(() => { }); // Ignore update errors
+                });
+
+                console.log(`[AgentExecutionService] 🧠 Loaded ${memories.length} memories from previous runs`);
+
+                return {
+                    memories,
+                    loadedAt: new Date().toISOString()
+                };
+
+            } catch (error) {
+                console.error('[AgentExecutionService] Error loading memory context:', error);
+                return { memories: [], error: error.message };
+            }
+        }
+
         /**
          * Call OpenAI API via Firebase Cloud Functions
          * This avoids CORS issues by proxying through the backend

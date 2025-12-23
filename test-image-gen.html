@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎨 Image Generation Test</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 100%);
+            color: #fff;
+            min-height: 100vh;
+            margin: 0;
+            padding: 40px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            background: linear-gradient(90deg, #8B5CF6, #EC4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #888;
+            font-size: 14px;
+        }
+
+        textarea,
+        select,
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .row {
+            display: flex;
+            gap: 16px;
+        }
+
+        .row>div {
+            flex: 1;
+        }
+
+        button {
+            width: 100%;
+            padding: 16px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #8B5CF6, #6D28D9);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(139, 92, 246, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        #result {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 8px;
+            padding: 16px;
+            min-height: 200px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        #result.success {
+            border: 2px solid #10B981;
+        }
+
+        #result.error {
+            border: 2px solid #EF4444;
+        }
+
+        #generatedImage {
+            max-width: 100%;
+            border-radius: 12px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top: 3px solid #8B5CF6;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🎨 Nano Banana Image Generator</h1>
+
+        <div class="card">
+            <label>Prompt</label>
+            <textarea id="prompt"
+                placeholder="Describe the image you want to generate...">A minimalist tech illustration showing an AI brain with neural network connections, modern flat design, purple and blue gradients</textarea>
+
+            <div class="row">
+                <div>
+                    <label>Provider</label>
+                    <select id="provider">
+                        <option value="nano-banana" selected>🍌 Nano Banana Pro (Default)</option>
+                        <option value="imagen">🖼️ Google Imagen 4</option>
+                        <option value="imagen-fast">⚡ Google Imagen 4 Fast</option>
+                        <option value="imagen-ultra">💎 Google Imagen 4 Ultra</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Size</label>
+                    <select id="size">
+                        <option value="1024x1024" selected>1024x1024 (Square)</option>
+                        <option value="1792x1024">1792x1024 (Landscape)</option>
+                        <option value="1024x1792">1024x1792 (Portrait)</option>
+                    </select>
+                </div>
+            </div>
+
+            <button id="generateBtn" class="btn-primary" onclick="generateImage()">
+                🚀 Generate Image
+            </button>
+        </div>
+
+        <div class="card">
+            <h3 style="margin-top: 0;">Result</h3>
+            <div id="result">Click "Generate Image" to start...</div>
+            <img id="generatedImage" alt="Generated Image">
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-functions-compat.js"></script>
+    <script src="firebase-config.js"></script>
+
+    <script>
+        const resultDiv = document.getElementById('result');
+        const imageEl = document.getElementById('generatedImage');
+        const btn = document.getElementById('generateBtn');
+
+        let currentUser = null;
+
+        // Check auth state on page load
+        window.addEventListener('load', () => {
+            if (typeof firebase !== 'undefined' && firebase.app) {
+                firebase.auth().onAuthStateChanged((user) => {
+                    if (user) {
+                        currentUser = user;
+                        btn.disabled = false;
+                        resultDiv.textContent = `✅ Logged in as: ${user.email}\n\nProvider: Nano Banana Pro (via Gemini API)\nModels: nano-banana-pro-preview, imagen-4.0-*\n\nReady to generate images!`;
+                        resultDiv.className = 'success';
+                    } else {
+                        currentUser = null;
+                        btn.disabled = true;
+                        resultDiv.textContent = '🔐 Please sign in first to use image generation.\n\nClick the button below to sign in with Google.';
+                        resultDiv.innerHTML += '\n\n<button onclick="signIn()" style="padding: 12px 24px; background: #4285f4; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">🔑 Sign in with Google</button>';
+                    }
+                });
+            } else {
+                resultDiv.textContent = '❌ Firebase not initialized. Check firebase-config.js';
+                resultDiv.className = 'error';
+            }
+        });
+
+        async function signIn() {
+            try {
+                const provider = new firebase.auth.GoogleAuthProvider();
+                await firebase.auth().signInWithPopup(provider);
+            } catch (error) {
+                console.error('Sign in error:', error);
+                resultDiv.textContent = `❌ Sign in failed: ${error.message}`;
+                resultDiv.className = 'error';
+            }
+        }
+
+        async function generateImage() {
+            if (!currentUser) {
+                alert('Please sign in first');
+                return;
+            }
+
+            const prompt = document.getElementById('prompt').value.trim();
+            const provider = document.getElementById('provider').value;
+            const size = document.getElementById('size').value;
+
+            if (!prompt) {
+                alert('Please enter a prompt');
+                return;
+            }
+
+            // Update UI
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Generating...';
+            resultDiv.className = '';
+            resultDiv.textContent = '⏳ Calling generateImage Cloud Function...\n\n';
+            imageEl.style.display = 'none';
+
+            const startTime = Date.now();
+
+            try {
+                resultDiv.textContent += `Provider: ${provider}\nSize: ${size}\nPrompt: ${prompt}\n\n`;
+
+                const generateImageFn = firebase.functions().httpsCallable('generateImage');
+                const result = await generateImageFn({
+                    prompt: prompt + '. IMPORTANT: No text, letters, logos, or watermarks in the image.',
+                    provider,
+                    size
+                });
+
+                const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+
+                resultDiv.className = 'success';
+                resultDiv.textContent += `✅ SUCCESS! (${elapsed}s)\n\n`;
+                resultDiv.textContent += JSON.stringify(result.data, null, 2);
+
+                if (result.data.imageUrl) {
+                    imageEl.src = result.data.imageUrl;
+                    imageEl.style.display = 'block';
+                }
+
+            } catch (error) {
+                const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+                resultDiv.className = 'error';
+                resultDiv.textContent += `❌ ERROR (${elapsed}s)\n\n`;
+                resultDiv.textContent += `Code: ${error.code || 'unknown'}\n`;
+                resultDiv.textContent += `Message: ${error.message}\n`;
+                if (error.details) {
+                    resultDiv.textContent += `Details: ${JSON.stringify(error.details, null, 2)}`;
+                }
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '🚀 Generate Image';
+            }
+        }
+    </script>
+</body>
+
+</html>

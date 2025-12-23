@@ -739,7 +739,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
 
                 renderProjectCards(projects);
-                updatePortfolioStats(projects);
+
             }, (error) => {
                 console.error("Error loading projects:", error);
                 // Even if error, ensure Add button is visible
@@ -827,17 +827,8 @@ document.addEventListener("DOMContentLoaded", () => {
             </div>
         `;
         card.addEventListener("click", openModal);
-
         // Always append as last child
         hiveGrid.appendChild(card);
-    }
-
-    function updatePortfolioStats(projects) {
-        document.getElementById("stat-total-projects").textContent = projects.length;
-        document.getElementById("stat-total-agents").textContent = projects.length * 2; // Mock
-
-        const totalPending = projects.reduce((sum, p) => sum + (p.pendingApprovals || 0), 0);
-        document.getElementById("stat-pending-approvals").textContent = totalPending;
     }
 
     // 🔹 Language Switching Logic (Preserved)

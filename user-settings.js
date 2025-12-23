@@ -810,6 +810,76 @@ window.switchTab = function (tabName) {
     if (targetTab) {
         targetTab.style.display = 'block';
     }
+
+    // Load Memory data when Memory tab is selected
+    if (tabName === 'memory') {
+        loadMemoryData();
+    }
+}
+
+// Memory Tab: Load and display memory settings
+window.loadMemoryData = async function () {
+    try {
+        const db = firebase.firestore();
+        const uid = firebase.auth().currentUser?.uid;
+        if (!uid) return;
+
+        // 1. Get user's plan
+        const userDoc = await db.collection('users').doc(uid).get();
+        const userData = userDoc.exists ? userDoc.data() : {};
+        const plan = (userData.plan || userData.subscription?.plan || 'free').toLowerCase();
+
+        // 2. Define tier limits (synced with agent-execution-service.js)
+        const MEMORY_TIER_LIMITS = {
+            free: { maxMemoryCount: 5, retentionDays: 30, maxContextSources: 3 },
+            starter: { maxMemoryCount: 10, retentionDays: 30, maxContextSources: 5 },
+            pro: { maxMemoryCount: 50, retentionDays: 30, maxContextSources: 10 },
+            enterprise: { maxMemoryCount: -1, retentionDays: 30, maxContextSources: 20 }
+        };
+
+        const limits = MEMORY_TIER_LIMITS[plan] || MEMORY_TIER_LIMITS.free;
+
+        // 3. Update UI with current limits
+        document.getElementById('memory-max-count').textContent =
+            limits.maxMemoryCount === -1 ? '∞' : limits.maxMemoryCount;
+        document.getElementById('memory-retention').textContent = limits.retentionDays;
+        document.getElementById('memory-max-sources').textContent = limits.maxContextSources;
+
+        // 4. Count current memories across all user's projects
+        const projectsSnap = await db.collection('projects')
+            .where('userId', '==', uid)
+            .get();
+
+        let totalMemories = 0;
+        for (const projectDoc of projectsSnap.docs) {
+            const memorySnap = await db.collection('projects')
+                .doc(projectDoc.id)
+                .collection('agentMemory')
+                .get();
+            totalMemories += memorySnap.size;
+        }
+
+        document.getElementById('memory-current').textContent = totalMemories;
+
+        // 5. Highlight current tier row
+        ['free', 'starter', 'pro', 'enterprise'].forEach(tier => {
+            const row = document.getElementById(`tier-row-${tier}`);
+            if (row) {
+                if (tier === plan) {
+                    row.style.background = 'rgba(139, 92, 246, 0.1)';
+                    row.style.borderLeft = '3px solid #8B5CF6';
+                } else {
+                    row.style.background = 'transparent';
+                    row.style.borderLeft = 'none';
+                }
+            }
+        });
+
+        console.log(`[MemorySettings] Loaded: plan=${plan}, memories=${totalMemories}`);
+
+    } catch (error) {
+        console.error('[MemorySettings] Error loading memory data:', error);
+    }
 }
 
 

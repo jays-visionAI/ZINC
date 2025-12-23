@@ -308,7 +308,7 @@ function renderProvidersTable() {
     if (!tableBody) return;
 
     if (providers.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">No LLM providers configured yet.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">No LLM providers configured yet.</td></tr>';
         return;
     }
 
@@ -322,10 +322,9 @@ function renderProvidersTable() {
                         ⏳ Checking...
                     </span>
                 </td>
-                <td style="font-size: 12px; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${p.models?.join(', ')}">${p.models?.join(', ') || '-'}</td>
                 <td>
                     <div style="display: flex; gap: 4px;">
-                        <button class="admin-btn-secondary" onclick="editProvider('${p.id}')" style="padding: 4px 8px; font-size: 11px; flex: 1;">Edit</button>
+                        <button class="admin-btn-secondary" onclick="editProviderSettings('${p.id}')" style="padding: 4px 8px; font-size: 11px; flex: 1;">Edit</button>
                         <button class="admin-btn-secondary" onclick="deleteProvider('${p.id}')" style="padding: 4px 8px; font-size: 11px; flex: 1; color: #ef4444; border-color: rgba(239,68,68,0.5);">Del</button>
                     </div>
                 </td>
@@ -403,7 +402,8 @@ window.sanitizeLLMProviders = async function () {
         const standardNames = {
             'openai': 'OpenAI',
             'gemini': 'Google Gemini',
-            'anthropic': 'Anthropic'
+            'anthropic': 'Anthropic',
+            'deepseek': 'DeepSeek'
         };
 
         const uniqueProviders = {};
@@ -469,7 +469,6 @@ window.openProviderModal = function (providerId = null) {
             document.getElementById('provider-doc-id-settings').value = p.id;
             document.getElementById('provider-type-settings').value = p.provider;
             document.getElementById('provider-name-settings').value = p.name;
-            document.getElementById('provider-models-settings').value = p.models?.join(', ') || '';
             document.getElementById('provider-status-settings').value = p.status;
 
             document.getElementById('provider-api-key-settings').placeholder = "Leave blank to keep existing key";
@@ -512,7 +511,6 @@ async function saveProvider(e) {
         const data = {
             provider: document.getElementById('provider-type-settings').value,
             name: document.getElementById('provider-name-settings').value,
-            models: document.getElementById('provider-models-settings').value.split(',').map(s => s.trim()).filter(s => s),
             status: document.getElementById('provider-status-settings').value
         };
 
@@ -558,8 +556,6 @@ async function testConnection() {
     const apiKey = apiKeyInput ? apiKeyInput.value : '';
     const providerDocId = document.getElementById('provider-doc-id-settings').value;
     const provider = document.getElementById('provider-type-settings').value;
-    const modelsStr = document.getElementById('provider-models-settings').value;
-    const model = modelsStr.split(',')[0]?.trim() || 'gpt-4o-mini';
 
     if (!apiKey && !providerDocId) {
         if (testResultDiv) testResultDiv.innerHTML = '<span style="color: #fbbf24;">⚠️ Please enter API Key (or save provider first) to test connection</span>';
@@ -1596,6 +1592,34 @@ window.seedLLMRouterData = async function () {
                 maxContextTokens: 200000,
                 isActive: true,
                 codeReady: true
+            },
+
+            // --- DeepSeek ---
+            {
+                id: 'deepseek-chat',
+                provider: 'deepseek',
+                modelId: 'deepseek-chat',
+                displayName: 'DeepSeek Chat',
+                tier: 'economy',
+                creditPer1kTokens: 0.1,
+                costPer1kInputTokens: 0.00014,
+                costPer1kOutputTokens: 0.00028,
+                maxContextTokens: 64000,
+                isActive: true,
+                codeReady: true
+            },
+            {
+                id: 'deepseek-reasoner',
+                provider: 'deepseek',
+                modelId: 'deepseek-reasoner',
+                displayName: 'DeepSeek Reasoner (R1)',
+                tier: 'standard',
+                creditPer1kTokens: 0.5,
+                costPer1kInputTokens: 0.00055,
+                costPer1kOutputTokens: 0.00219,
+                maxContextTokens: 64000,
+                isActive: true,
+                codeReady: true
             }
         ];
 
@@ -1654,13 +1678,14 @@ function renderGlobalDefaultsUI(config) {
         {
             id: 'image', icon: '🎨', title: 'Image Generation',
             models: [
-                { id: 'dall-e-3', name: 'DALL-E 3' },
-                { id: 'imagen-3', name: 'Google Imagen 3' },
-                { id: 'nano-banana-pro-preview', name: 'Nano Banana Pro (Preview)' },
+                { id: 'nano-banana-pro-preview', name: 'Nano Banana Pro (Default)' },
+                { id: 'imagen-4.0-generate-001', name: 'Google Imagen 4' },
+                { id: 'imagen-4.0-fast-generate-001', name: 'Google Imagen 4 Fast' },
+                { id: 'imagen-4.0-ultra-generate-001', name: 'Google Imagen 4 Ultra' },
                 { id: 'flux-pro', name: 'Flux Pro' },
                 { id: 'stable-diffusion-xl', name: 'Stable Diffusion XL' }
             ],
-            defaultProvider: 'openai', defaultModel: 'dall-e-3'
+            defaultProvider: 'google', defaultModel: 'nano-banana-pro-preview'
         },
         {
             id: 'video', icon: '🎥', title: 'Video Generation',

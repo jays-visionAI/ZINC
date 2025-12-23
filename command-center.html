@@ -100,41 +100,7 @@
                         </div>
                     </section>
 
-                    <div class="dashboard-bottom-grid">
-                        <!-- Section 2: Portfolio Overview -->
-                        <section class="dashboard-section">
-                            <div class="section-header">
-                                <h2 data-i18n="dashboard.section2">2. Portfolio Overview</h2>
-                            </div>
-                            <div class="stats-grid">
-                                <div class="stat-card">
-                                    <div class="stat-value" id="stat-total-projects">0</div>
-                                    <div class="stat-label" data-i18n="dashboard.totalProjects">Total Projects</div>
-                                </div>
-                                <div class="stat-card">
-                                    <div class="stat-value" id="stat-total-agents">0</div>
-                                    <div class="stat-label" data-i18n="dashboard.totalAgents">Total Agents</div>
-                                </div>
-                                <div class="stat-card">
-                                    <div class="stat-value" id="stat-pending-approvals">0</div>
-                                    <div class="stat-label" data-i18n="dashboard.pendingApprovals">Portfolio Pending
-                                        Approvals</div>
-                                </div>
-                            </div>
-                        </section>
 
-                        <!-- Section 3: Global Action Center -->
-                        <section class="dashboard-section">
-                            <div class="section-header">
-                                <h2 data-i18n="dashboard.section3">3. Global Action Center</h2>
-                            </div>
-                            <div class="action-center-box">
-                                <div class="empty-action-state">
-                                    <p data-i18n="dashboard.noActions">No pending global actions.</p>
-                                </div>
-                            </div>
-                        </section>
-                    </div>
                 </div> <!-- 🔹 dashboard-inner 끝 -->
             </div>
         </main>
@@ -347,17 +313,18 @@
         </div>
     </div>
 
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-storage-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-functions-compat.js"></script>
+    <!-- Firebase SDKs - MUST load before any Firebase-dependent scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-functions-compat.js"></script>
 
     <!-- Config & Auth -->
     <script src="firebase-config.js"></script>
     <script src="env-config.js"></script>
     <script src="auth.js"></script>
+
     <!-- Scripts -->
     <script src="translations.js"></script>
     <script src="scripts/sidebar-loader.js"></script>
