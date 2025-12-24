@@ -159,8 +159,14 @@ class DAGExecutor {
 
     /**
      * Start workflow execution
+     * @param {Array} selectedAgents - List of selected agent IDs to execute
+     * @param {string} projectId - Project ID
+     * @param {string} teamId - Core Agent Team ID
+     * @param {Object} context - Plan context from Knowledge Hub
+     * @param {string} qualityTier - Quality tier (e.g., 'BOOST')
+     * @param {Array} targetChannels - 🎯 Target channels for multi-channel content (e.g., ['x', 'instagram'])
      */
-    async start(selectedAgents, projectId, teamId, context = null, qualityTier = null) {
+    async start(selectedAgents, projectId, teamId, context = null, qualityTier = null, targetChannels = ['x']) {
         if (this.state.isRunning) {
             console.warn('Execution already in progress');
             return;
@@ -183,12 +189,17 @@ class DAGExecutor {
             selectedAgents,
             context: context || {}, // Ensure context is never null
             qualityTier, // Store Tier (e.g. 'BOOST')
+            targetChannels: targetChannels || ['x'], // 🎯 Multi-channel targeting
             executionResults: {},
             routingDefaults: this.state.routingDefaults, // Preserve loaded defaults
             teamContext: existingTeamContext // Preserve Team Brain settings
         };
 
+        // 🎯 Log multi-channel targeting
+        console.log(`[DAGExecutor] 🎯 Target channels: ${this.state.targetChannels.join(', ')}`);
+
         this.emit('onLog', { message: '🚀 Starting workflow execution...', type: 'info' });
+        this.emit('onLog', { message: `🎯 Target channels: ${targetChannels.join(', ')}`, type: 'info' });
 
         try {
             for (let i = 0; i < this.phases.length; i++) {
@@ -541,14 +552,43 @@ class DAGExecutor {
                 temperature: 0.3
             }),
             planner: configWithProvider({
-                systemPrompt: `You are a content strategist. Create detailed execution plans.`,
-                taskPrompt: `Create an execution strategy for:\n${planContent}\n\nProvide:\n1. Content structure\n2. Key talking points\n3. Tone and style guidelines\n4. Publishing recommendations`,
+                systemPrompt: `You are a content strategist. Create detailed execution plans for multi-channel social media campaigns.`,
+                taskPrompt: `Create a multi-channel execution strategy for:
+                       ${planContent}
+                       
+                       Target Channels: ${this.state.targetChannels ? this.state.targetChannels.join(', ') : 'X'}
+                       
+                       Provide:
+                       1. Content structure (tailored for each channel)
+                       2. Key talking points
+                       3. Tone and style guidelines for each platform
+                       4. Best publishing times and format recommendations`,
                 model: globalModel,
                 temperature: 0.6
             }),
             creator_text: configWithProvider({
-                systemPrompt: `You are an expert social media content creator. Write engaging, platform-optimized content. Be creative, authentic, and compelling. Use emojis appropriately. Make content shareable and engaging.`,
-                taskPrompt: `Create a social media post based on this content plan:\n\n${planContent}\n\nRequirements:\n- Write the COMPLETE post content (not just a summary)\n- Use the actual messaging from the plan\n- Include relevant hashtags\n- Make it engaging and ready to publish\n- Target platform: Twitter/X\n- Maximum 280 characters for standard tweets, or up to 4000 for premium accounts\n\nWrite the post now:${userFeedback}`,
+                systemPrompt: `You are an expert multi-channel social media content creator. Write engaging, platform-optimized content for multiple social networks simultaneously. Be creative, authentic, and compelling.`,
+                taskPrompt: this.state.targetChannels && this.state.targetChannels.length > 1
+                    ? `Create optimized social media posts for these channels: ${this.state.targetChannels.join(', ')}.
+                       
+                       Base your content on this plan:
+                       ${planContent}
+                       
+                       IMPORTANT: Output your response ONLY as a valid JSON object where keys are the channel names (lowercase) and values are the generated text content.
+                       Example: {"x": "content for x", "instagram": "content for instagram", "linkedin": "content for linkedin"}
+                       Do NOT include any preamble or extra text.
+                       
+                       ${userFeedback}`
+                    : `Create a social media post for ${this.state.targetChannels ? this.state.targetChannels[0] || 'X' : 'X'} based on this plan:
+                       ${planContent}
+                       
+                       Requirements:
+                       - Write the COMPLETE post content ready for publishing
+                       - Include relevant hashtags
+                       - Target: ${this.state.targetChannels ? this.state.targetChannels[0] || 'X' : 'X'}
+                       
+                       Write the post now:
+                       ${userFeedback}`,
                 model: globalModel,
                 temperature: 0.8
             }),
@@ -639,12 +679,17 @@ class DAGExecutor {
     }
 
     parseAgentOutput(agentId, rawOutput, usage, metadata = {}) {
+        // Cleaning common LLM artifacts (markdown code blocks)
+        let cleanOutput = rawOutput;
+        if (typeof rawOutput === 'string') {
+            cleanOutput = rawOutput.replace(/```json/g, '').replace(/```/g, '').trim();
+        }
+
         // For creator_text, ensure we have the content field
         if (agentId === 'creator_text') {
-            let content = rawOutput;
-            if (typeof rawOutput === 'object' && rawOutput !== null) {
-                // Try to extract content if it's wrapped in an object
-                content = rawOutput.content || rawOutput.text || rawOutput.message || rawOutput.output || JSON.stringify(rawOutput);
+            let content = cleanOutput;
+            if (typeof cleanOutput === 'object' && cleanOutput !== null) {
+                content = cleanOutput.content || cleanOutput.text || cleanOutput.message || cleanOutput.output || JSON.stringify(cleanOutput);
             }
             return { content: content, usage, metadata };
         }

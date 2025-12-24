@@ -18,7 +18,7 @@ const translations = {
         'hero.cta.demo': 'Watch Demo',
         'hero.stats.users': 'Active Users',
         'hero.stats.content': 'Content Created',
-        'hero.stats.uptime': 'Uptime',
+        'hero.stats.platforms': 'Supported Platforms',
 
         // Floating Cards
         'card.agent.title': 'AI Agent Active',
@@ -95,7 +95,51 @@ const translations = {
         // Chat Suggestions
         'chat.suggestion.differentiators': 'What are the key differentiators?',
         'chat.suggestion.audience': 'Who is the target audience?',
-        'chat.suggestion.voice': 'Summarize brand voice'
+        'chat.suggestion.voice': 'Summarize brand voice',
+
+        // Market Pulse
+        'market.title': 'Market Pulse',
+        'market.refresh': 'Refresh',
+        'market.lastUpdated': 'Last updated:',
+        'market.justNow': 'Just now',
+        'market.trends.title': 'Live Trends',
+        'market.trends.setup': 'Setup Keywords',
+        'market.trends.empty': 'Please set core keywords ✨',
+        'market.heatmap.title': 'Sentiment Heatmap (Last 7 Days)',
+        'market.brand.title': 'Your Brand',
+        'market.brand.mentions': 'mentions this week',
+        'market.brand.vsLastWeek': 'vs last week',
+        'market.sentiment.title': 'Sentiment Breakdown',
+        'market.sentiment.positive': 'Positive',
+        'market.sentiment.neutral': 'Neutral',
+        'market.sentiment.negative': 'Negative',
+        'market.mentions.recent': 'Recent Mentions',
+        'market.mentions.viewAll': 'View All Mentions',
+        'market.lab.title': 'Intelligence Lab',
+        'market.lab.subtitle': 'High-performance research agent orchestrator',
+        'market.lab.targetLabel': 'Target Domain/Topic',
+        'market.lab.focusLabel': 'Research Focus',
+        'market.lab.targetPlaceholder': 'e.g., reddit.com/r/SkincareAddiction',
+        'market.lab.focusPlaceholder': 'e.g., Analysis of consumer sentiment and pain points',
+        'market.lab.deploy': 'START DISCOVERY MISSION',
+        'market.lab.previous': 'Previous Investigations',
+        'market.lab.empty.title': 'No research history',
+        'market.lab.empty.desc': 'Dispatch an agent to start your first market survey.',
+        'market.missions.title': 'AI Missions',
+        'market.missions.empty.title': 'No active AI missions',
+        'market.missions.empty.desc': 'AI will suggest strategic missions based on research results after agent deployment.',
+        'market.radar.title': 'Competitor Radar',
+        'market.radar.suggest': 'AI: Suggest Competitors',
+        'market.radar.add': 'Add',
+        'market.radar.empty.title': 'No competitors found',
+        'market.radar.empty.desc': 'Analyze the market competition through research missions. Detected patterns will appear here.',
+        'market.status.offline': 'OFFLINE',
+        'market.status.ready': 'READY',
+        'market.chip.reddit': 'Reddit',
+        'market.chip.x': 'X (Twitter)',
+        'market.chip.competitor': 'Competitor Site',
+        'market.chip.competitorGaps': 'Competitor Gaps',
+        'market.credits': 'Credits'
     },
     ko: {
         // Navigation
@@ -115,7 +159,7 @@ const translations = {
         'hero.cta.demo': '데모 보기',
         'hero.stats.users': '활성 사용자',
         'hero.stats.content': '생성된 콘텐츠',
-        'hero.stats.uptime': '가동 시간',
+        'hero.stats.platforms': '지원 채널',
 
         // Floating Cards
         'card.agent.title': 'AI 에이전트 활성',
@@ -192,7 +236,51 @@ const translations = {
         // Chat Suggestions
         'chat.suggestion.differentiators': '주요 차별화 포인트는 무엇인가요?',
         'chat.suggestion.audience': '타겟 고객은 누구인가요?',
-        'chat.suggestion.voice': '브랜드 보이스 요약해줘'
+        'chat.suggestion.voice': '브랜드 보이스 요약해줘',
+
+        // Market Pulse
+        'market.title': '마켓 펄스',
+        'market.refresh': '새로고침',
+        'market.lastUpdated': '최근 업데이트:',
+        'market.justNow': '방금 전',
+        'market.trends.title': '라이브 트렌드',
+        'market.trends.setup': '키워드 설정',
+        'market.trends.empty': '핵심 키워드를 설정해 주세요 ✨',
+        'market.heatmap.title': '감정 히트맵 (최근 7일)',
+        'market.brand.title': '브랜드 현황',
+        'market.brand.mentions': '이번 주 언급 횟수',
+        'market.brand.vsLastWeek': '지난주 대비',
+        'market.sentiment.title': '감정 분석 통계',
+        'market.sentiment.positive': '긍정',
+        'market.sentiment.neutral': '중립',
+        'market.sentiment.negative': '부정',
+        'market.mentions.recent': '최근 언급',
+        'market.mentions.viewAll': '전체 보기',
+        'market.lab.title': '인텔리전스 랩',
+        'market.lab.subtitle': '고성능 리서치 에이전트 오케스트레이터',
+        'market.lab.targetLabel': '타겟 도메인/토픽',
+        'market.lab.focusLabel': '리서치 포커스',
+        'market.lab.targetPlaceholder': '예: reddit.com/r/SkincareAddiction',
+        'market.lab.focusPlaceholder': '예: 소비자 감정 및 페인 포인트 분석',
+        'market.lab.deploy': '디스커버리 미션 시작',
+        'market.lab.previous': '이전 리서치 기록',
+        'market.lab.empty.title': '리서치 기록이 없습니다',
+        'market.lab.empty.desc': '에이전트를 파견하여 첫 번째 시장 조사를 시작해 보세요.',
+        'market.missions.title': 'AI 미션',
+        'market.missions.empty.title': '활성화된 AI 미션이 없습니다',
+        'market.missions.empty.desc': '에이전트 파견 후 리서치 결과에 따라 AI가 맞춤형 전략 미션을 제안합니다.',
+        'market.radar.title': '경쟁사 레이더',
+        'market.radar.suggest': 'AI 경쟁사 추천',
+        'market.radar.add': '추가',
+        'market.radar.empty.title': '발견된 경쟁사가 없습니다',
+        'market.radar.empty.desc': '리서치 미션을 통해 시장의 경쟁 구도를 분석해 보세요. 발견된 패턴이 이곳에 표시됩니다.',
+        'market.status.offline': '오프라인',
+        'market.status.ready': '준비됨',
+        'market.chip.reddit': '레딧',
+        'market.chip.x': 'X (트위터)',
+        'market.chip.competitor': '경쟁사 사이트',
+        'market.chip.competitorGaps': '경쟁사 약점',
+        'market.credits': '보유 크레딧'
     }
 };
 
@@ -201,11 +289,12 @@ let currentLang = localStorage.getItem('zynk-language') || 'ko';
 
 // Function to translate the page
 function translatePage(lang) {
+    if (!lang) lang = currentLang;
     currentLang = lang;
     localStorage.setItem('zynk-language', lang);
 
-    // Update all elements with data-i18n attribute
-    document.querySelectorAll('[data-i18n]').forEach(element => {
+    // Update all elements with data-i18n or data-i18n-placeholder attribute
+    document.querySelectorAll('[data-i18n], [data-i18n-placeholder]').forEach(element => {
         const key = element.getAttribute('data-i18n');
 
         // Check if element has HTML content
@@ -217,6 +306,12 @@ function translatePage(lang) {
         } else if (translations[lang] && translations[lang][key]) {
             element.textContent = translations[lang][key];
         }
+
+        // Check for placeholder translation
+        const placeholderKey = element.getAttribute('data-i18n-placeholder');
+        if (placeholderKey && translations[lang] && translations[lang][placeholderKey]) {
+            element.setAttribute('placeholder', translations[lang][placeholderKey]);
+        }
     });
 
     // Update HTML lang attribute
@@ -224,6 +319,9 @@ function translatePage(lang) {
 
     // Update language toggle button
     updateLanguageToggle();
+
+    // Notify other scripts that language has changed
+    window.dispatchEvent(new CustomEvent('zynk-lang-changed', { detail: { lang } }));
 }
 
 // Function to update language toggle button
@@ -239,6 +337,11 @@ function updateLanguageToggle() {
 function toggleLanguage() {
     const newLang = currentLang === 'ko' ? 'en' : 'ko';
     translatePage(newLang);
+}
+
+// Helper function to get a translation by key
+function t(key) {
+    return (translations[currentLang] && translations[currentLang][key]) || key;
 }
 
 // Initialize on page load

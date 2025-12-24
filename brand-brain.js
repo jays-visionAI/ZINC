@@ -748,7 +748,13 @@ function initializeEventListeners() {
     // Save Identity Button
     document.getElementById('btn-save-identity').addEventListener('click', () => {
         saveData();
-        showNotification('Changes saved successfully!');
+        showNotification('Identity saved!');
+    });
+
+    // Save Strategy Button (New)
+    document.getElementById('btn-save-strategy')?.addEventListener('click', async () => {
+        await saveData();
+        await syncWithHiveMind(); // Includes notification
     });
 
     // Add Link

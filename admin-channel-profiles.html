@@ -75,11 +75,29 @@
                         <div style="flex: 1;">
                             <input type="file" id="channel-icon-upload" accept=".svg,.png,.jpg,.jpeg"
                                 class="admin-form-input">
-                            <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px;">
-                                <input type="checkbox" id="remove-bg-checkbox" checked>
-                                <label for="remove-bg-checkbox" style="font-size: 13px; color: #ddd; cursor: pointer;">
-                                    Auto-remove Background (White/Black)
-                                </label>
+                            <div
+                                style="margin-top: 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 15px;">
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <input type="checkbox" id="remove-bg-checkbox" checked>
+                                    <label for="remove-bg-checkbox"
+                                        style="font-size: 13px; color: #ddd; cursor: pointer;">
+                                        Remove BG
+                                    </label>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <input type="checkbox" id="trim-square-checkbox" checked>
+                                    <label for="trim-square-checkbox"
+                                        style="font-size: 13px; color: #ddd; cursor: pointer;">
+                                        Trim & Square
+                                    </label>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <input type="checkbox" id="round-corners-checkbox" checked>
+                                    <label for="round-corners-checkbox"
+                                        style="font-size: 13px; color: #ddd; cursor: pointer;">
+                                        Round Corners
+                                    </label>
+                                </div>
                             </div>
                             <p style="font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 5px;">
                                 Upload <strong>SVG</strong> (recommended) or <strong>PNG/JPG</strong>.<br>

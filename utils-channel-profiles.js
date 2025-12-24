@@ -6,32 +6,44 @@
  */
 
 const ChannelProfilesUtils = {
+    cache: null,
+
     /**
      * Loads all available (active) channel profiles from Firestore.
      * @returns {Promise<Array>} Array of channel profile objects
      */
-    loadAvailableChannels: async function () {
+    loadAvailableChannels: async function (forceRefresh = false) {
+        if (this.cache && !forceRefresh) return this.cache;
+
         try {
+            const db = firebase.firestore();
             const snapshot = await db.collection('channelProfiles')
-                .where('isActive', '==', true)
-                // .orderBy('name', 'asc') // Requires index, skipping for now or sorting client-side
+                .where('status', '==', 'active')
                 .get();
 
             const channels = [];
             snapshot.forEach(doc => {
+                const data = doc.data();
                 channels.push({
                     id: doc.id,
-                    ...doc.data()
+                    ...data,
+                    key: data.key || doc.id // Ensure key exists
                 });
             });
 
-            // Client-side sort by name
-            channels.sort((a, b) => (a.name || a.key || '').localeCompare(b.name || b.key || ''));
+            // Client-side sort by order or name
+            channels.sort((a, b) => {
+                if (a.order !== undefined && b.order !== undefined) {
+                    return a.order - b.order;
+                }
+                return (a.displayName || a.name || '').localeCompare(b.displayName || b.name || '');
+            });
 
+            this.cache = channels;
             return channels;
         } catch (error) {
             console.error("Error loading available channels:", error);
-            throw error;
+            return []; // Return empty array on error
         }
     }
 };

@@ -157,9 +157,17 @@
                 // 5. Execute stages in order (with parallel support for creation stage)
                 const results = [];
                 const stageResults = [];
+
+                // Load project-level teamDirective (Unified Brain architecture)
+                const projectDoc = await this.db.collection('projects').doc(projectId).get();
+                const projectData = projectDoc.data() || {};
+                const teamDirective = projectData.teamDirective ||
+                    team.active_directive?.summary ||
+                    team.activeDirective || '';
+
                 const executionContext = {
                     projectId,
-                    teamDirective: team.active_directive?.summary || team.activeDirective,
+                    teamDirective: teamDirective, // Use project-level first
                     customInstructions: run.custom_instructions,
                     brandContext: brandContext, // Phase 2: Brand Brain integration
                     knowledgeContext: knowledgeContext, // Phase 3: Knowledge Hub integration
@@ -193,33 +201,69 @@
                     console.log(`[AgentExecutionService] ✅ Planning stage complete (${Date.now() - stageStart}ms)`);
                 }
 
-                // Stage 2: Creation (PARALLEL)
+                // Stage 2: Creation (PARALLEL + MULTI-CHANNEL)
                 if (stagedAgents.creation.length > 0) {
-                    console.log(`[AgentExecutionService] 🎨 Stage 2: CREATION - PARALLEL (${stagedAgents.creation.length} agents)`);
+                    // Get target channels from run context (default to ['x'] if not specified)
+                    const targetChannels = run.targetChannels || executionContext.targetChannels || ['x'];
+                    console.log(`[AgentExecutionService] 🎨 Stage 2: CREATION - PARALLEL (${stagedAgents.creation.length} agents x ${targetChannels.length} channels)`);
                     const stageStart = Date.now();
 
                     // Update run status to show parallel execution
                     await this.db.collection('projects').doc(projectId).collection('agentRuns').doc(runId).update({
                         current_stage: 'creation',
-                        parallel_execution: true
+                        parallel_execution: true,
+                        target_channels: targetChannels
                     });
 
                     // Execute all creation agents in parallel
-                    const parallelPromises = stagedAgents.creation.map(async (subAgent) => {
-                        console.log(`[AgentExecutionService] ⚡ Starting parallel: ${subAgent.role_name}`);
+                    // For text creators, we spawn one execution PER target channel
+                    const parallelPromises = [];
 
-                        const result = await this._executeSubAgent(subAgent, {
-                            ...executionContext,
-                            previousResults: [...results] // Snapshot of results so far
-                        });
+                    for (const subAgent of stagedAgents.creation) {
+                        const isTextCreator = subAgent.role_type === 'creator_text' || subAgent.role_type === 'writer';
 
-                        return {
-                            subAgentId: subAgent.id,
-                            subAgentRole: subAgent.role_name || subAgent.role_type,
-                            stage: 'creation',
-                            ...result
-                        };
-                    });
+                        if (isTextCreator && targetChannels.length > 0) {
+                            // 🎯 MULTI-CHANNEL: Execute text creator once per target channel
+                            for (const channel of targetChannels) {
+                                parallelPromises.push((async () => {
+                                    console.log(`[AgentExecutionService] ⚡ Starting parallel: ${subAgent.role_name} → ${channel.toUpperCase()}`);
+
+                                    const result = await this._executeSubAgent(subAgent, {
+                                        ...executionContext,
+                                        previousResults: [...results],
+                                        currentTargetChannel: channel, // 🎯 Specific channel for this execution
+                                        targetChannels: targetChannels // All channels for context
+                                    });
+
+                                    return {
+                                        subAgentId: subAgent.id,
+                                        subAgentRole: subAgent.role_name || subAgent.role_type,
+                                        stage: 'creation',
+                                        targetChannel: channel, // 🏷️ Tag with target channel
+                                        ...result
+                                    };
+                                })());
+                            }
+                        } else {
+                            // Non-text creators (image, video) execute once
+                            parallelPromises.push((async () => {
+                                console.log(`[AgentExecutionService] ⚡ Starting parallel: ${subAgent.role_name}`);
+
+                                const result = await this._executeSubAgent(subAgent, {
+                                    ...executionContext,
+                                    previousResults: [...results],
+                                    targetChannels: targetChannels
+                                });
+
+                                return {
+                                    subAgentId: subAgent.id,
+                                    subAgentRole: subAgent.role_name || subAgent.role_type,
+                                    stage: 'creation',
+                                    ...result
+                                };
+                            })());
+                        }
+                    }
 
                     // Wait for all creation agents to complete
                     const creationResults = await Promise.all(parallelPromises);
@@ -236,9 +280,10 @@
                         stage: 'creation',
                         duration_ms: Date.now() - stageStart,
                         agents: stagedAgents.creation.length,
+                        channels: targetChannels.length,
                         parallel: true
                     });
-                    console.log(`[AgentExecutionService] ✅ Creation stage complete - PARALLEL (${Date.now() - stageStart}ms)`);
+                    console.log(`[AgentExecutionService] ✅ Creation stage complete - PARALLEL (${Date.now() - stageStart}ms, ${creationResults.length} outputs)`);
                 }
 
                 // Stage 3: Review (sequential)
@@ -343,6 +388,7 @@
 
                 const result = await this._executeSubAgent(subAgent, {
                     projectId,
+                    // Note: For sequential mode, load project-level directive if available
                     teamDirective: team.active_directive?.summary || team.activeDirective,
                     customInstructions: run.custom_instructions,
                     previousResults: results
@@ -928,26 +974,76 @@ The agent has successfully processed the request and generated this placeholder 
 
         /**
          * Build user message based on role type
+         * Now supports multi-channel targeting for Creator agents
          */
         _buildUserMessage(roleType, context) {
             const directive = context.teamDirective || 'Create engaging content';
             const customInstructions = context.customInstructions || '';
             const previousOutputs = context.previousResults.map(r => `[${r.subAgentRole}]: ${r.output}`).join('\n\n');
 
+            // Multi-channel support: Get target channel from context
+            const targetChannel = context.currentTargetChannel || 'x'; // Default to X/Twitter
+            const allTargetChannels = context.targetChannels || ['x'];
+
+            // Channel-specific formatting instructions
+            const CHANNEL_FORMATS = {
+                'x': {
+                    name: 'X (Twitter)',
+                    charLimit: 280,
+                    style: 'Concise, punchy, with relevant hashtags. Max 280 characters.',
+                    hashtagStyle: 'Use 2-3 relevant hashtags at the end.'
+                },
+                'instagram': {
+                    name: 'Instagram',
+                    charLimit: 2200,
+                    style: 'Engaging caption with emojis, storytelling approach. Can be longer and more personal.',
+                    hashtagStyle: 'Use 5-10 relevant hashtags, can be in a separate comment or at the end.'
+                },
+                'linkedin': {
+                    name: 'LinkedIn',
+                    charLimit: 3000,
+                    style: 'Professional tone, industry insights, thought leadership. Use line breaks for readability.',
+                    hashtagStyle: 'Use 3-5 professional hashtags.'
+                },
+                'facebook': {
+                    name: 'Facebook',
+                    charLimit: 63206,
+                    style: 'Conversational, community-oriented, can include questions to encourage engagement.',
+                    hashtagStyle: 'Minimal hashtags, focus on organic engagement.'
+                },
+                'youtube': {
+                    name: 'YouTube',
+                    charLimit: 5000,
+                    style: 'Descriptive, SEO-friendly, include timestamps if applicable.',
+                    hashtagStyle: 'Use 3-5 relevant hashtags.'
+                },
+                'tiktok': {
+                    name: 'TikTok',
+                    charLimit: 2200,
+                    style: 'Trendy, fun, use popular sounds/trends references. Short and catchy.',
+                    hashtagStyle: 'Use trending hashtags and challenges if relevant.'
+                }
+            };
+
+            const channelConfig = CHANNEL_FORMATS[targetChannel] || CHANNEL_FORMATS['x'];
+
             switch (roleType) {
                 case 'planner':
-                    return `Team Directive: ${directive}\n\nCustom Instructions: ${customInstructions}\n\nCreate a content plan for the next post. Include topic, key points, and target audience.`;
+                    // Planner knows about ALL target channels to create a unified strategy
+                    const channelList = allTargetChannels.map(ch => CHANNEL_FORMATS[ch]?.name || ch).join(', ');
+                    return `Team Directive: ${directive}\n\nCustom Instructions: ${customInstructions}\n\nTarget Channels: ${channelList}\n\nCreate a unified content strategy that can be adapted to each target channel. Include:\n1. Core message/theme\n2. Key points to emphasize\n3. Target audience insights\n4. Tone and style guidelines`;
 
                 case 'writer':
                 case 'creator_text':
-                    return `Team Directive: ${directive}\n\nPrevious Planning:\n${previousOutputs}\n\nWrite engaging content based on the plan above. Keep it concise and impactful.`;
+                    // Creator Text generates for a SPECIFIC channel
+                    return `Team Directive: ${directive}\n\nPrevious Planning:\n${previousOutputs}\n\n🎯 TARGET CHANNEL: ${channelConfig.name}\n\nFORMATTING REQUIREMENTS:\n- Character Limit: ${channelConfig.charLimit}\n- Style: ${channelConfig.style}\n- Hashtags: ${channelConfig.hashtagStyle}\n\nWrite engaging content optimized for ${channelConfig.name}. Make it ready to publish.`;
 
                 case 'reviewer':
-                    return `Team Directive: ${directive}\n\nContent to Review:\n${previousOutputs}\n\nReview the content and suggest improvements. Ensure it aligns with the directive.`;
+                    return `Team Directive: ${directive}\n\nContent to Review:\n${previousOutputs}\n\nReview the content and suggest improvements. Ensure it aligns with the directive and is appropriate for the target platform.`;
 
                 case 'publisher':
                 case 'engagement':
-                    return `Team Directive: ${directive}\n\nFinal Content:\n${previousOutputs}\n\nFormat this content for X (Twitter). Add relevant hashtags if appropriate. Keep under 280 characters.`;
+                    return `Team Directive: ${directive}\n\nFinal Content:\n${previousOutputs}\n\nFormat this content for ${channelConfig.name}. ${channelConfig.style}\n${channelConfig.hashtagStyle}`;
 
                 default:
                     return `Team Directive: ${directive}\n\nCustom Instructions: ${customInstructions}\n\nPrevious Context:\n${previousOutputs}\n\nPerform your role and generate output.`;
@@ -1120,6 +1216,7 @@ The agent has successfully processed the request and generated this placeholder 
 
         /**
          * Save generated content - saves each sub-agent's output as individual content
+         * Now includes targetChannel for multi-channel content and prompt_metadata for transparency
          */
         async _saveGeneratedContent(projectId, runId, teamId, results) {
             const contentIds = [];
@@ -1135,6 +1232,18 @@ The agent has successfully processed the request and generated this placeholder 
                 // NEW: content_category for UI filtering
                 const contentCategory = isMetaContent ? 'work_log' : 'publishable';
 
+                // 🎯 MULTI-CHANNEL: Determine platform from targetChannel
+                const targetChannel = result.targetChannel || null;
+                const platformMap = {
+                    'x': 'X',
+                    'instagram': 'Instagram',
+                    'linkedin': 'LinkedIn',
+                    'facebook': 'Facebook',
+                    'youtube': 'YouTube',
+                    'tiktok': 'TikTok'
+                };
+                const platform = isMetaContent ? 'internal' : (platformMap[targetChannel] || 'X');
+
                 const contentDoc = await this.db.collection('projects')
                     .doc(projectId)
                     .collection('generatedContents')
@@ -1147,14 +1256,15 @@ The agent has successfully processed the request and generated this placeholder 
                         content_category: contentCategory,  // NEW: 'publishable' or 'work_log'
                         is_meta: isMetaContent,     // Flag for meta content (not publishable)
                         execution_stage: result.stage || null,  // NEW: 'planning', 'creation', 'review'
-                        platform: isMetaContent ? 'internal' : 'X',
+                        platform: platform,
+                        target_channel: targetChannel,  // 🆕 Raw channel identifier
                         status: isMetaContent ? 'complete' : 'pending',
                         title: this._generateContentTitle(result.subAgentRole),
                         description: result.subAgentRole,
                         preview_text: result.output?.substring(0, 280) || '',
                         content_text: result.output || '',
-                        // Input prompts for transparency
-                        input_prompts: result.input || null,
+                        // 🔍 PROMPT TRANSPARENCY: Full prompt metadata for inspection
+                        prompt_metadata: result.input || null,
                         created_at: firebase.firestore.FieldValue.serverTimestamp()
                     });
 

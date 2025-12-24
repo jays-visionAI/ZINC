@@ -46,6 +46,12 @@
             grid.innerHTML = html;
             console.log(`✅ Loaded ${snapshot.size} channels.`);
 
+            // Update platform count display if element exists
+            const countEl = document.getElementById('platform-count');
+            if (countEl) {
+                countEl.textContent = `${snapshot.size}+`;
+            }
+
         } catch (error) {
             console.error("❌ Error loading channels:", error);
             grid.innerHTML = `<p style="color:red; grid-column: 1/-1; text-align:center;">Failed to load channels: ${error.message}</p>`;

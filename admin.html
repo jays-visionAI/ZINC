@@ -187,6 +187,15 @@
                     <h2 id="admin-page-title">Overview</h2>
                 </div>
                 <div class="admin-header-right">
+                    <!-- Credit Display -->
+                    <div class="admin-credit-display"
+                        style="display: flex; align-items: center; gap: 8px; background: rgba(16, 224, 189, 0.1); border: 1px solid rgba(16, 224, 189, 0.2); padding: 4px 12px; border-radius: 20px; margin-right: 16px;">
+                        <span
+                            style="color: #16e0bd; font-size: 11px; font-weight: 700; text-transform: uppercase;">Credits</span>
+                        <span id="user-credits"
+                            style="color: #fff; font-size: 14px; font-weight: 700; font-family: 'JetBrains Mono', monospace;">0</span>
+                        <span style="font-size: 14px;">🪙</span>
+                    </div>
                     <div id="admin-user-profile" class="admin-user-profile"></div>
                 </div>
             </header>
@@ -229,6 +238,9 @@
 
     <!-- PRD 11.6 - LLM Models Seed Script -->
     <script src="scripts/seed-llm-models.js"></script>
+
+    <!-- Services -->
+    <script src="services/credit-service.js"></script>
 
     <!-- UI Loader (For Admin Menu Management) -->
     <script src="utils-ui-config.js"></script>

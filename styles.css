@@ -1691,6 +1691,27 @@ body {
     border-color: rgba(255, 255, 255, 0.2);
 }
 
+.btn-brain {
+    width: 44px;
+    background: rgba(139, 92, 246, 0.1);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    border-radius: 8px;
+    color: #a78bfa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 1.1rem;
+}
+
+.btn-brain:hover {
+    background: rgba(139, 92, 246, 0.2);
+    color: #c4b5fd;
+    border-color: rgba(139, 92, 246, 0.5);
+    box-shadow: 0 0 12px rgba(139, 92, 246, 0.3);
+}
+
 /* Bottom Grid */
 .dashboard-bottom-grid {
     display: grid;

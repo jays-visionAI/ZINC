@@ -41,17 +41,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         ]
     };
 
-    // Deployment Wizard State
-    let deployStep = 1;
-    let deployData = {
-        channelId: '',
-        channelName: '',
-        templateId: '',
-        templateName: '',
-        roles: []
-    };
-    let channelProfiles = [];
-    let teamTemplates = [];
+    // --- Deployment Wizard Logic REMOVED ---
+    // Core Agent Team is now auto-initialized during project creation (command-center.js)
+    // The "Deploy Team" wizard is no longer needed. See initializeCoreAgentTeam() in command-center.js.
 
     // Credential listener (for real-time updates)
     let credentialListener = null;
@@ -84,9 +76,13 @@ document.addEventListener("DOMContentLoaded", async () => {
             // Load Agent Swarm (Active Deployments)
             loadAgentSwarm(id);
 
+            // Load Execution History (Recent Runs)
+            loadExecutionHistory(id);
+
             // Load KPIs (using project data for now)
             renderKPIs(project);
 
+            // Setup function stub (kept for backward compatibility, but does nothing)
             setupDeploymentListeners();
 
         } catch (error) {
@@ -259,734 +255,27 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    // --- Deployment Wizard Logic ---
+    // --- Deployment Wizard Logic REMOVED ---
+    // Core Agent Team is now auto-initialized during project creation (command-center.js)
+    // The "Deploy Team" wizard is no longer needed. See initializeCoreAgentTeam() in command-center.js.
 
+    // Setup function stub (kept for backward compatibility, but does nothing)
     function setupDeploymentListeners() {
-        const deployBtn = document.getElementById("btn-deploy-team");
-        const modalClose = document.getElementById("deploy-modal-close");
-        const modalCancel = document.getElementById("deploy-cancel");
-        const nextBtn = document.getElementById("deploy-next");
-        const prevBtn = document.getElementById("deploy-prev");
-
-        if (deployBtn) deployBtn.addEventListener("click", openDeployWizard);
-        if (modalClose) modalClose.addEventListener("click", closeDeployWizard);
-        if (modalCancel) modalCancel.addEventListener("click", closeDeployWizard);
-
-        if (nextBtn) nextBtn.addEventListener("click", handleDeployNext);
-        if (prevBtn) prevBtn.addEventListener("click", handleDeployPrev);
+        // Deploy wizard removed - Core Team auto-initialized
+        console.log('[Mission Control] Deployment wizard disabled - using Unified Brain architecture');
     }
 
+    // Legacy function stubs (in case they're called from elsewhere)
     window.openDeployWizard = function () {
-        console.log('[DEBUG] openDeployWizard called');
-        deployStep = 1;
-        deployData = {
-            teamName: '',
-            description: '',
-            templateId: '',
-            templateName: '',
-            roles: [],
-            channels: [] // Array of { provider, credentialId, enabled }
-        };
-
-        const modal = document.getElementById("deploy-modal");
-        if (!modal) return;
-
-        modal.style.display = "flex";
-        modal.classList.add('open');
-
-        // Reset inputs
-        document.getElementById("team-name").value = "";
-        document.getElementById("team-description").value = "";
-
-        updateDeployUI();
-        loadDeployChannels();
+        alert('Agent Team is now automatically created with your project. Use the Studio to generate content.');
+        window.location.href = 'studio/studio.html?projectId=' + projectId;
     };
 
-    function loadDeployChannels() {
-        const selectElement = document.getElementById('deploy-channel-select');
-        if (!selectElement) return;
+    window.closeDeployWizard = function () { /* No-op */ };
+    window.selectChannel = function () { /* No-op */ };
+    window.selectTemplate = function () { /* No-op */ };
+    window.updateDeployChannelCredential = function () { /* No-op */ };
 
-        db.collection('channelProfiles')
-            .get()
-            .then(snapshot => {
-                const channels = [];
-                snapshot.forEach(doc => {
-                    channels.push({ id: doc.id, ...doc.data() });
-                });
-
-                channels.sort((a, b) => a.name.localeCompare(b.name));
-
-                selectElement.innerHTML = '<option value="">-- Select a channel --</option>';
-
-                channels.forEach(channel => {
-                    const slug = channel.slug || channel.channel_type;
-                    const option = document.createElement('option');
-                    option.value = JSON.stringify({ id: channel.id, name: channel.name, slug: slug, icon: channel.icon || '📺' });
-                    // Fix: Check if icon is SVG/HTML and exclude it from textContent if so
-                    const iconStr = channel.icon || '📺';
-                    const isHtml = iconStr.trim().startsWith('<');
-                    option.textContent = isHtml ? channel.name : `${iconStr} ${channel.name}`;
-                    selectElement.appendChild(option);
-                });
-
-                selectElement.onchange = async function () {
-                    if (this.value) {
-                        const channelData = JSON.parse(this.value);
-                        deployData.targetChannel = channelData;
-
-                        // Load credentials for selected channel
-                        await loadCredentialsForChannel(channelData.slug);
-                    } else {
-                        deployData.targetChannel = null;
-
-                        // Hide credential group
-                        const credGroup = document.getElementById('deploy-credential-group');
-                        if (credGroup) credGroup.style.display = 'none';
-                    }
-                    updateDeployTeamNamePrefix();
-                };
-            })
-            .catch(error => {
-                console.error("Error loading channels:", error);
-                selectElement.innerHTML = '<option value="">Error loading channels</option>';
-            });
-    }
-
-    /**
-     * Load user credentials for selected channel
-     */
-    async function loadCredentialsForChannel(channelKey) {
-        const credGroup = document.getElementById('deploy-credential-group');
-        const credSelect = document.getElementById('deploy-credential-select');
-
-        if (!credGroup || !credSelect || !currentUser) return;
-
-        try {
-            // Get all user credentials
-            const credentials = await AgentRuntimeService.getAllUserCredentials(currentUser.uid);
-
-            // Filter credentials for this channel
-            const matchingCreds = credentials.filter(c => c.provider === channelKey);
-
-            // Clear and populate dropdown
-            credSelect.innerHTML = '<option value="">-- No credential (configure later) --</option>';
-
-            matchingCreds.forEach(cred => {
-                const option = document.createElement('option');
-                option.value = cred.id;
-
-                // Show status indicator
-                const statusIcon = cred.status === 'connected' ? '✓' : '⚠';
-                const statusText = cred.status === 'connected' ? 'Connected' : 'Not tested';
-
-                option.textContent = `${statusIcon} ${cred.accountName || 'Unnamed'} (${statusText})`;
-                credSelect.appendChild(option);
-            });
-
-            // Show credential group
-            credGroup.style.display = 'block';
-
-            // Auto-select first connected credential if available
-            const connectedCred = matchingCreds.find(c => c.status === 'connected');
-            if (connectedCred) {
-                credSelect.value = connectedCred.id;
-            }
-
-        } catch (error) {
-            console.error('Error loading credentials:', error);
-            credSelect.innerHTML = '<option value="">Error loading credentials</option>';
-            credGroup.style.display = 'block';
-        }
-    }
-
-    function updateDeployTeamNamePrefix() {
-        const teamNameInput = document.getElementById('team-name');
-        if (!teamNameInput) return;
-
-        const currentValue = teamNameInput.value;
-        const withoutPrefix = currentValue.replace(/^\[.*?\]\s*/, '');
-
-        if (deployData.targetChannel && deployData.targetChannel.name) {
-            teamNameInput.value = `[${deployData.targetChannel.name}] ${withoutPrefix}`.trim();
-        } else {
-            teamNameInput.value = withoutPrefix;
-        }
-    }
-
-    window.updateDeployChannelCredential = function (key, value) {
-        if (!deployData.channelCredentials) deployData.channelCredentials = {};
-        deployData.channelCredentials[key] = value;
-    };
-
-    window.closeDeployWizard = function () {
-        const modal = document.getElementById("deploy-modal");
-        if (modal) {
-            modal.style.display = "none";
-            modal.classList.remove('open');
-        }
-    }
-
-    function updateDeployUI() {
-        document.getElementById("deploy-step-num").textContent = deployStep;
-        const titles = {
-            1: "Basic Info & Credentials",
-            2: "Select Template",
-            3: "Runtime Summary"
-        };
-        document.getElementById("deploy-step-title").textContent = titles[deployStep];
-
-        const progress = (deployStep / 3) * 100;
-        document.getElementById("deploy-progress").style.width = `${progress}%`;
-
-        // Hide all steps
-        for (let i = 1; i <= 3; i++) {
-            const stepEl = document.getElementById(`deploy-step-${i}`);
-            if (stepEl) stepEl.style.display = "none";
-        }
-
-        // Show current step
-        const currentStepEl = document.getElementById(`deploy-step-${deployStep}`);
-        if (currentStepEl) currentStepEl.style.display = "block";
-
-        // Buttons
-        document.getElementById("deploy-prev").style.visibility = deployStep === 1 ? "hidden" : "visible";
-
-        const nextBtn = document.getElementById("deploy-next");
-        if (deployStep === 3) {
-            nextBtn.textContent = "Create Agent Team";
-        } else {
-            nextBtn.textContent = "Next Step";
-        }
-
-        // Load data for specific steps
-        if (deployStep === 2) {
-            loadTeamTemplates();
-        }
-    }
-
-    async function loadChannels() {
-        const grid = document.getElementById("channel-selection-grid");
-        grid.innerHTML = '<div style="text-align: center; padding: 20px;">Loading Channels...</div>';
-
-        try {
-            console.log('[DEBUG] Loading channels for projectId:', projectId);
-
-            // 1. Get all active channels
-            const snapshot = await db.collection("channelProfiles").where("status", "==", "active").get();
-            let allChannels = [];
-            snapshot.forEach(doc => allChannels.push({ id: doc.id, ...doc.data() }));
-
-            // [MOCK DATA REMOVED] - We only use real data from channelProfiles
-            // If no channels are found, auto-generate them
-            if (allChannels.length === 0) {
-                console.log('[DEBUG] No channels in DB. Auto-generating channel profiles...');
-                await window.generateChannelProfiles();
-                // Reload channels after generation
-                const retrySnapshot = await db.collection("channelProfiles").where("status", "==", "active").get();
-                retrySnapshot.forEach(doc => allChannels.push({ id: doc.id, ...doc.data() }));
-            }
-
-            console.log('[DEBUG] All active channels found:', allChannels.length, allChannels);
-
-            // 2. Get already deployed channels for this project
-            const deployedSnapshot = await db.collection("projectAgentTeamInstances")
-                .where("projectId", "==", projectId)
-                .where("status", "==", "active")
-                .get();
-
-            const deployedChannelIds = new Set();
-            const deployedPlatforms = new Set(); // Track platforms for demo mode filtering
-
-            deployedSnapshot.forEach(doc => {
-                const data = doc.data();
-                if (data.channelId) deployedChannelIds.add(data.channelId);
-                if (data.platform) deployedPlatforms.add(data.platform);
-            });
-            console.log('[DEBUG] Already deployed channelIds:', Array.from(deployedChannelIds));
-
-            // 3. Filter out already deployed channels
-            // If no real instances exist, we are in "Demo Mode" showing placeholders for X and LinkedIn
-            // So we should filter out X and LinkedIn from the available options
-            if (deployedSnapshot.empty) {
-                console.log('[DEBUG] No real instances found. Filtering out demo placeholders (X, LinkedIn)');
-                channelProfiles = allChannels.filter(channel =>
-                    channel.platform !== 'x' && channel.platform !== 'linkedin'
-                );
-            } else {
-                // [MODIFIED] We allow multiple teams per channel, so we DO NOT filter out deployed channels.
-                // channelProfiles = allChannels.filter(channel => !deployedChannelIds.has(channel.id));
-                channelProfiles = allChannels;
-            }
-
-            console.log('[DEBUG] Available channels after filtering:', channelProfiles.length, channelProfiles);
-
-            if (channelProfiles.length === 0) {
-                if (deployedChannelIds.size > 0 || deployedSnapshot.empty) {
-                    grid.innerHTML = '<div style="text-align: center; padding: 20px;">All available channels already have agent teams deployed.</div>';
-                } else {
-                    grid.innerHTML = '<div style="text-align: center; padding: 20px;">No active channels found.</div>';
-                }
-                return;
-            }
-
-            grid.innerHTML = channelProfiles.map(channel => `
-                <div class="channel-card-select ${deployData.channelId === channel.id ? 'selected' : ''}" 
-                     onclick="selectChannel('${channel.id}', '${channel.name}')"
-                     style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 8px; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); text-align: center;">
-                    <div style="font-size: 24px; margin-bottom: 8px;">${getChannelIcon(channel.platform)}</div>
-                    <div style="font-weight: 600;">${channel.name}</div>
-                    <div style="font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 4px;">${channel.name} Team</div>
-                </div>
-            `).join('');
-
-            // Add style for selection
-            if (!document.getElementById('channel-select-style')) {
-                const style = document.createElement('style');
-                style.id = 'channel-select-style';
-                style.innerHTML = `.channel-card-select.selected { border-color: #16e0bd !important; background: rgba(22, 224, 189, 0.1) !important; }`;
-                document.head.appendChild(style);
-            }
-
-        } catch (error) {
-            console.error("Error loading channels:", error);
-            grid.innerHTML = '<div style="text-align: center; color: #ef4444;">Error loading channels.</div>';
-        }
-    }
-
-    window.selectChannel = function (id, name) {
-        deployData.channelId = id;
-        deployData.channelName = name;
-        loadChannels(); // Re-render to show selection
-    };
-
-    async function loadTeamTemplates() {
-        const grid = document.getElementById("template-selection-grid");
-        grid.innerHTML = '<div style="text-align: center; padding: 20px;">Loading Templates...</div>';
-
-        try {
-            const snapshot = await db.collection("agentSetTemplates").get();
-            teamTemplates = [];
-            snapshot.forEach(doc => teamTemplates.push({ id: doc.id, ...doc.data() }));
-
-            if (teamTemplates.length === 0) {
-                grid.innerHTML = '<div style="text-align: center; padding: 20px;">No active templates found.</div>';
-                return;
-            }
-
-            grid.innerHTML = teamTemplates.map(tpl => {
-                // Get role icons
-                const roleIcons = (tpl.roles || []).map(role => getRoleIcon(role.type)).join(' ');
-                const description = tpl.description || 'No description available';
-
-                return `
-                <div class="template-card-select ${deployData.templateId === tpl.id ? 'selected' : ''}" 
-                     onclick="selectTemplate('${tpl.id}', '${tpl.name}')"
-                     style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); transition: all 0.2s;">
-                    <div style="font-weight: 600; font-size: 16px; margin-bottom: 8px; color: #fff;">${tpl.name}</div>
-                    <div style="font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 12px; line-height: 1.4;">${description}</div>
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1);">
-                        <div style="font-size: 20px; display: flex; gap: 6px;">${roleIcons}</div>
-                        <div style="font-size: 12px; color: rgba(255,255,255,0.5);">${tpl.roles ? tpl.roles.length : 0} Roles</div>
-                    </div>
-                </div>
-            `}).join('');
-
-            // Add style for selection
-            if (!document.getElementById('template-select-style')) {
-                const style = document.createElement('style');
-                style.id = 'template-select-style';
-                style.innerHTML = `.template-card-select.selected { border-color: #16e0bd !important; background: rgba(22, 224, 189, 0.1) !important; }`;
-                document.head.appendChild(style);
-            }
-
-        } catch (error) {
-            console.error("Error loading templates:", error);
-            grid.innerHTML = '<div style="text-align: center; color: #ef4444;">Error loading templates.</div>';
-        }
-    }
-
-    window.selectTemplate = function (id, name) {
-        deployData.templateId = id;
-        deployData.templateName = name;
-
-        const tpl = teamTemplates.find(t => t.id === id);
-        if (tpl) {
-            deployData.roles = tpl.roles || [];
-        }
-
-        loadTeamTemplates(); // Re-render
-    };
-
-    async function handleDeployNext() {
-        if (deployStep === 1) {
-            // Validate Step 1
-            if (!deployData.targetChannel) {
-                alert("Please select a target channel.");
-                return;
-            }
-
-            let teamName = document.getElementById("team-name").value.trim();
-            // If team name is empty or only has the prefix, use default name
-            if (!teamName || teamName === `[${deployData.targetChannel.name}]`) {
-                teamName = `[${deployData.targetChannel.name}] Team`;
-            }
-
-            // Ensure the team name has the channel prefix
-            if (!teamName.startsWith(`[${deployData.targetChannel.name}]`)) {
-                teamName = `[${deployData.targetChannel.name}] ${teamName}`;
-            }
-
-            deployData.teamName = teamName;
-            deployData.description = document.getElementById("team-description").value;
-
-            // Capture selected credential ID
-            const credSelect = document.getElementById("deploy-credential-select");
-            deployData.selectedCredentialId = credSelect ? credSelect.value : null;
-
-            deployStep++;
-            updateDeployUI();
-            return;
-        } else if (deployStep === 2) {
-            if (!deployData.templateId) { alert("Please select a template."); return; }
-            deployStep++;
-            await renderDeployStep3();
-        } else if (deployStep === 3) {
-            await deployTeam();
-            return; // Don't call updateDeployUI after team creation
-        }
-        updateDeployUI();
-    }
-
-    function handleDeployPrev() {
-        if (deployStep > 1) {
-            deployStep--;
-            updateDeployUI();
-        }
-    }
-
-    async function renderDeployStep3() {
-        const container = document.getElementById("runtime-summary-container");
-        container.innerHTML = `
-            <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 8px; margin-bottom: 24px;">
-                <h4 style="margin: 0 0 12px 0; color: #16e0bd;">Team Summary</h4>
-                <div style="display: grid; grid-template-columns: 120px 1fr; gap: 8px; font-size: 14px;">
-                    <div style="color: rgba(255,255,255,0.5);">Team Name:</div>
-                    <div style="font-weight: 600;">${deployData.teamName}</div>
-
-                    <div style="color: rgba(255,255,255,0.5);">Template:</div>
-                    <div style="font-weight: 600;">${deployData.templateName}</div>
-                </div>
-            </div>
-
-            <h4 style="margin: 0 0 12px 0;">Runtime Configuration (Read-only)</h4>
-            <div style="font-size: 12px; color: rgba(255,255,255,0.6); margin-bottom: 16px; padding: 12px; background: rgba(234, 179, 8, 0.1); border: 1px solid rgba(234, 179, 8, 0.3); border-radius: 6px;">
-                ℹ️ Runtime settings are automatically optimized for your current plan.<br>
-                Advanced customization (Tier, Language) will be available in premium plans.
-            </div>
-            <div id="runtime-configs-list" style="display: flex; flex-direction: column; gap: 8px;">
-                <div style="text-align: center; padding: 20px; color: rgba(255,255,255,0.5);">
-                    Resolving runtime configurations...
-                </div>
-            </div>
-        `;
-
-        // Resolve runtime configs for each role
-        try {
-            const runtimeConfigs = [];
-
-            for (const role of deployData.roles) {
-                const roleType = role.type || role.role_type || 'planner';
-                const runtimeConfig = await RuntimeResolver.resolveRuntimeConfig({
-                    role_type: roleType,
-                    language: 'global',
-                    tier: 'balanced'
-                });
-
-                runtimeConfigs.push({
-                    role: role,
-                    runtime: runtimeConfig
-                });
-            }
-
-            // Store resolved configs in deployData for later use
-            deployData.resolvedRuntimes = runtimeConfigs;
-
-            // Render runtime configs
-            const configsList = document.getElementById('runtime-configs-list');
-            if (configsList) {
-                configsList.innerHTML = runtimeConfigs.map(({ role, runtime }) => `
-                    <div style="padding: 16px; background: rgba(255,255,255,0.05); border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);">
-                        <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 16px;">
-                            <div>
-                                <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">${role.name || role.role}</div>
-                                <div style="font-size: 12px; color: rgba(255,255,255,0.5);">Engine: ${role.type || 'N/A'}</div>
-                            </div>
-                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; font-size: 12px;">
-                                <div>
-                                    <div style="color: rgba(255,255,255,0.5); margin-bottom: 2px;">Provider / Model</div>
-                                    <div style="font-weight: 500;">${runtime.provider} / ${runtime.model_id}</div>
-                                </div>
-                                <div>
-                                    <div style="color: rgba(255,255,255,0.5); margin-bottom: 2px;">Tier / Language</div>
-                                    <div style="font-weight: 500;">${RuntimeResolver.getTierLabel(runtime.tier)} / ${RuntimeResolver.getLanguageLabel(runtime.language)}</div>
-                                </div>
-                                <div>
-                                    <div style="color: rgba(255,255,255,0.5); margin-bottom: 2px;">Max Tokens</div>
-                                    <div style="font-weight: 500;">${runtime.max_tokens}</div>
-                                </div>
-                                <div>
-                                    <div style="color: rgba(255,255,255,0.5); margin-bottom: 2px;">Temperature</div>
-                                    <div style="font-weight: 500;">${runtime.temperature}</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `).join('');
-            }
-
-        } catch (error) {
-            console.error('[Deploy Wizard] Error resolving runtime configs:', error);
-            const configsList = document.getElementById('runtime-configs-list');
-            if (configsList) {
-                configsList.innerHTML = `
-                    <div style="text-align: center; padding: 20px; color: #ef4444;">
-                        Error loading runtime configurations. Please try again.
-                    </div>
-                `;
-            }
-        }
-    }
-
-    async function renderDeployStep4() {
-        const container = document.getElementById("channel-config-list");
-        container.innerHTML = '<div style="text-align: center; padding: 20px;">Loading Channels...</div>';
-
-        try {
-            // 1. Load Available Channels from channelProfiles
-            const channels = await ChannelProfilesUtils.loadAvailableChannels();
-
-            if (channels.length === 0) {
-                container.innerHTML = '<div style="text-align: center; color: rgba(255,255,255,0.5); padding: 40px;">No active channels found. Please contact admin.</div>';
-                return;
-            }
-
-            // Store channels in deployData for later use
-            deployData.availableChannels = channels;
-
-            // 2. Load User Credentials
-            const credsSnapshot = await db.collection("userApiCredentials")
-                .where("userId", "==", currentUser.uid)
-                .where("status", "==", "active")
-                .get();
-
-            const credentials = [];
-            credsSnapshot.forEach(doc => credentials.push({ id: doc.id, ...doc.data() }));
-
-            // 3. Render UI dynamically based on channelProfiles
-            container.innerHTML = channels.map(ch => {
-                // Match credentials by provider (using 'key' field from channelProfiles)
-                const channelKey = ch.key || ch.id;
-                const chCreds = credentials.filter(c => c.provider === channelKey);
-                const options = chCreds.map(c => `<option value="${c.id}">${c.label} (${c.maskedKey})</option>`).join('');
-
-                // Get icon (use emoji from channelProfiles or fallback)
-                const icon = getChannelIconById(channelKey);
-
-                return `
-                <div class="channel-config-item" style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
-                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-                        <input type="checkbox" id="ch-enable-${ch.id}" class="admin-checkbox" 
-                               data-channel-key="${channelKey}"
-                               onchange="toggleChannelConfig('${ch.id}')">
-                        <div style="font-size: 20px;">${icon}</div>
-                        <div style="font-weight: 600;">${ch.name || channelKey}</div>
-                    </div>
-                    
-                    <div id="ch-config-${ch.id}" style="display: none; padding-left: 28px;">
-                        <div style="font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 4px;">Select API Credential</div>
-                        <div style="display: flex; gap: 8px;">
-                            <select id="ch-cred-${ch.id}" class="admin-form-input" style="flex: 1;">
-                                <option value="">-- Select Credential --</option>
-                                ${options}
-                            </select>
-                            <button class="admin-btn-secondary" onclick="window.open('user-settings.html', '_blank')">Manage Keys</button>
-                        </div>
-                        ${chCreds.length === 0 ? '<div style="font-size: 11px; color: #ef4444; margin-top: 4px;">No credentials found. Please add one in Settings.</div>' : ''}
-                    </div>
-                </div>
-            `}).join('');
-
-            // Helper to toggle visibility
-            window.toggleChannelConfig = function (chId) {
-                const isChecked = document.getElementById(`ch-enable-${chId}`).checked;
-                document.getElementById(`ch-config-${chId}`).style.display = isChecked ? "block" : "none";
-            };
-
-        } catch (error) {
-            console.error("Error loading Step 4:", error);
-            container.innerHTML = '<div style="text-align: center; color: #ef4444;">Error loading channels. Please try again.</div>';
-        }
-    }
-
-    async function deployTeam() {
-        const btn = document.getElementById("deploy-next");
-
-        // Collect Channel Config from deployData
-        const selectedChannels = [];
-        const targetChannelIds = [];
-        const targetChannelKeys = [];
-        const channelBindings = {};
-
-        // Use the target channel selected in Step 1
-        if (deployData.targetChannel) {
-            const ch = deployData.targetChannel;
-            const channelKey = ch.slug || ch.channel_type || ch.id;
-
-            // Use credential ID from Step 1
-            const selectedCredId = deployData.selectedCredentialId || null;
-
-            // Construct channel object
-            const channelObj = {
-                provider: channelKey,
-                credentialId: selectedCredId, // Phase 2: Link to userApiCredentials
-                enabled: true,
-                updatedAt: firebase.firestore.Timestamp.now(),
-                lastErrorMessage: null,
-                config: deployData.channelCredentials || {}
-            };
-
-            // Compute status
-            channelObj.status = selectedCredId ? 'ready' : 'missing_key';
-
-            selectedChannels.push(channelObj);
-            targetChannelIds.push(ch.id);
-            targetChannelKeys.push(channelKey);
-
-            if (selectedCredId) {
-                channelBindings[channelKey] = selectedCredId;
-            }
-        }
-
-        const hasApiKeys = Object.keys(channelBindings).length > 0;
-
-        if (!hasApiKeys) {
-            if (!confirm("For the agent team to operate properly, you must configure the API key information in the Settings menu.\n\nDo you want to continue creating the team without API credentials?")) return;
-        }
-
-        try {
-            btn.disabled = true;
-            btn.textContent = "Creating Team...";
-
-            // 1. Create projectAgentTeamInstance
-            const instanceId = `team_${Date.now()}`;
-            const instanceData = {
-                id: instanceId,
-                projectId: projectId,
-                templateId: deployData.templateId,
-                name: deployData.teamName,
-                description: deployData.description,
-                status: 'active',
-
-                // PRD 12.0 Phase 2: Channel Bindings
-                channelBindings: channelBindings,
-
-                // PRD 11.0 Phase 2: Channels Array
-                channels: selectedChannels,
-
-                // PRD 11.0 Phase 3: Target Channels (channelProfiles references)
-                targetChannels: targetChannelIds,
-                targetChannelKeys: targetChannelKeys,
-
-                // Legacy Compatibility
-                channelId: selectedChannels.length > 0 ? selectedChannels[0].provider : 'none',
-                platform: selectedChannels.length > 0 ? selectedChannels[0].provider : 'none',
-
-                deployedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                deployedBy: currentUser.uid,
-
-                // PRD 5.0 Metadata
-                configProfileId: 'default',
-                engineVersionSet: 'v1.0.0',
-                channel: 'stable',
-                ruleProfileId: null
-            };
-
-            await db.collection("projectAgentTeamInstances").doc(instanceId).set(instanceData);
-
-            // 2. Create Sub-Agent Instances
-            const templateIds = deployData.roles.map(r => r.defaultTemplateId).filter(id => id);
-            const templateMap = {};
-
-            if (templateIds.length > 0) {
-                try {
-                    // Chunk queries if > 10 items (omitted for brevity as roles usually < 10)
-                    const templatesSnap = await db.collection('subAgentTemplates')
-                        .where(firebase.firestore.FieldPath.documentId(), 'in', templateIds)
-                        .get();
-                    templatesSnap.forEach(doc => {
-                        templateMap[doc.id] = doc.data();
-                    });
-                } catch (err) {
-                    console.error("Error fetching templates:", err);
-                }
-            }
-
-            const batch = db.batch();
-
-            deployData.roles.forEach((role, index) => {
-                const agentId = `agent_${instanceId}_${index}`;
-                const agentRef = db.collection('projectAgentTeamInstances').doc(instanceId).collection('subAgents').doc(agentId);
-
-                const templateId = role.defaultTemplateId || 'tpl_default';
-                const template = templateMap[templateId] || {};
-                const runtimeProfileId = template.runtime_profile_id || null;
-
-                // Get resolved runtime config from Step 3
-                const resolvedRuntime = deployData.resolvedRuntimes?.find(r => r.role === role);
-                const runtimeBase = resolvedRuntime?.runtime || null;
-
-                batch.set(agentRef, {
-                    id: agentId,
-                    project_id: projectId,
-                    team_instance_id: instanceId,
-                    role_name: role.name,
-                    role_type: role.type,
-                    template_id: templateId,
-                    runtime_profile_id: runtimeProfileId, // Legacy field
-                    display_order: index,
-                    status: 'active',
-
-                    // Phase 3: Runtime Configuration Snapshots
-                    runtime_base: runtimeBase,
-                    runtime_override: null, // Reserved for future premium plan customization
-                    effective_runtime: runtimeBase, // Currently same as runtime_base
-
-                    metrics: {
-                        success_rate: 100,
-                        total_runs: 0,
-                        daily_actions_completed: 0,
-                        daily_actions_quota: 10,
-                        last_active_at: null
-                    },
-                    version: '1.0.0',
-                    created_at: firebase.firestore.FieldValue.serverTimestamp(),
-                    updated_at: firebase.firestore.FieldValue.serverTimestamp()
-                });
-            });
-
-            await batch.commit();
-
-            alert("✅ Agent Team Created Successfully!");
-            closeDeployWizard();
-            loadAgentSwarm(projectId);
-
-        } catch (error) {
-            console.error("Error creating team:", error);
-            alert(`Creation failed: ${error.message}`);
-        } finally {
-            btn.disabled = false;
-        }
-    }
 
     async function loadAgentSwarm(projectId) {
         const grid = document.getElementById("agent-swarm-grid");
@@ -1069,19 +358,22 @@ document.addEventListener("DOMContentLoaded", async () => {
         const channelIcon = getChannelIconById(primaryChannel.provider);
         const channelType = primaryChannel.provider || 'unknown';
 
-        // 3. Status mapping
+        // 3. Status mapping with fallback for undefined status
+        const instStatus = inst.status || 'idle';
         const statusMap = {
             'active': 'ACTIVE',
             'paused': 'PAUSED',
             'cooldown': 'COOLDOWN',
-            'error': 'NEEDS SETUP'
+            'error': 'NEEDS SETUP',
+            'idle': 'IDLE'
         };
-        const displayStatus = statusMap[inst.status] || inst.status.toUpperCase();
+        const displayStatus = statusMap[instStatus] || instStatus.toUpperCase();
 
         // 4. Status class for styling
         let statusClass = 'agent-card--active';
-        if (inst.status === 'cooldown') statusClass = 'agent-card--cooldown';
-        if (inst.status === 'error' || inst.status === 'paused') statusClass = 'agent-card--needs-setup';
+        if (instStatus === 'cooldown') statusClass = 'agent-card--cooldown';
+        if (instStatus === 'idle') statusClass = 'agent-card--idle';
+        if (instStatus === 'error' || instStatus === 'paused') statusClass = 'agent-card--needs-setup';
 
         // 5. Extract metrics with fallbacks
         const dailyActionsCurrent = inst.metrics?.daily_actions_completed || inst.metrics?.dailyActions?.current || 0;
@@ -1110,7 +402,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         // 9. Alert icon using Runtime Context
         const isReady = runtimeContext?.isReady || false;
-        const hasAlert = !isReady || inst.status === 'error';
+        const hasAlert = !isReady || instStatus === 'error';
 
         // Build detailed alert message
         let alertMessage = 'All systems operational';
@@ -1120,7 +412,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return `${providerName}: ${err.error}`;
             });
             alertMessage = errorMessages.join('\n');
-        } else if (inst.status === 'error') {
+        } else if (instStatus === 'error') {
             alertMessage = 'Agent team error - check configuration';
         }
 
@@ -1151,8 +443,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 <!-- Status Row: Status Pill + Pulse + Actions -->
                 <div class="agent-card__status-row">
                     <div class="agent-card__status-left">
-                        <span class="agent-card__status-pill agent-card__status-pill--${inst.status}">${displayStatus}</span>
-                        ${inst.status === 'running' || inst.status === 'active' ? `
+                        <span class="agent-card__status-pill agent-card__status-pill--${instStatus}">${displayStatus}</span>
+                        ${instStatus === 'running' || instStatus === 'active' ? `
                             <div class="agent-card__pulse-wave">
                                 <span></span><span></span><span></span><span></span>
                             </div>
@@ -1163,13 +455,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <polyline points="3 6 5 6 21 6"></polyline>
                                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                            </svg>
-                        </button>
-                        <button class="agent-card__icon-btn" onclick="handleOpenSettings(event, '${inst.id}')" title="Agent Brain">
-                            <!-- Brain Icon -->
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-1.54"></path>
-                                <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-1.54"></path>
                             </svg>
                         </button>
                     </div>
@@ -1185,7 +470,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                             Connected
                         </div>
                     ` : `
-                        <div class="agent-card__api-badge agent-card__api-badge--disconnected" onclick="handleOpenSettings(event, '${inst.id}')">
+                        <div class="agent-card__api-badge agent-card__api-badge--disconnected" onclick="openProjectAgentSettings()">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <circle cx="12" cy="12" r="10"></circle>
                                 <line x1="12" y1="8" x2="12" y2="12"></line>
@@ -1308,7 +593,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 
                 <!-- Footer Actions -->
                 <div class="agent-card__footer">
-                    ${inst.status === 'paused' ? `
+                    ${instStatus === 'paused' ? `
                         <button class="agent-card__action-btn agent-card__action-btn--activate" onclick="handleActivateTeam(event, '${inst.id}')">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <polygon points="5 3 19 12 5 21 5 3"></polygon>
@@ -1336,6 +621,135 @@ document.addEventListener("DOMContentLoaded", async () => {
                 </div>
             </div>
         `;
+    }
+
+    /**
+     * Load Execution History - Recent Campaign Runs
+     */
+    async function loadExecutionHistory(projectId) {
+        const container = document.getElementById('execution-history-list');
+        if (!container) return;
+
+        try {
+            // Query recent runs, sorted by startedAt descending
+            const runsSnap = await db.collection('projects')
+                .doc(projectId)
+                .collection('agentRuns')
+                .orderBy('started_at', 'desc')
+                .limit(10)
+                .get();
+
+            if (runsSnap.empty) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px 20px; color: rgba(255,255,255,0.5);">
+                        No execution history yet. Run your first campaign to see results here.
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            runsSnap.forEach(doc => {
+                const run = doc.data();
+                const runId = doc.id;
+                const status = run.status || 'unknown';
+                const teamName = run.team_name || 'Agent Team';
+                const targetChannels = run.targetChannels || ['x'];
+
+                // Status styling
+                const statusStyles = {
+                    'running': { bg: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6', icon: '⚡' },
+                    'completed': { bg: 'rgba(16, 185, 129, 0.15)', color: '#10b981', icon: '✓' },
+                    'success': { bg: 'rgba(16, 185, 129, 0.15)', color: '#10b981', icon: '✓' },
+                    'failed': { bg: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', icon: '✗' },
+                    'error': { bg: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', icon: '✗' }
+                };
+                const style = statusStyles[status] || { bg: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.6)', icon: '?' };
+
+                // Format timestamp
+                let timeAgo = 'Unknown time';
+                if (run.started_at) {
+                    const startedAt = run.started_at.toDate ? run.started_at.toDate() : new Date(run.started_at);
+                    timeAgo = formatTimeAgo(startedAt);
+                }
+
+                // Channel icons
+                const channelIcons = targetChannels.map(ch => {
+                    const icons = {
+                        x: '𝕏', instagram: '📸', linkedin: '💼', youtube: '▶️', facebook: '📘',
+                        tiktok: '🎵', threads: '🧵', medium: '📝', pinterest: '📌', reddit: '🔴',
+                        snapchat: '👻', discord: '💬', telegram: '✈️'
+                    };
+                    return icons[ch] || '📌';
+                }).join(' ');
+
+                html += `
+                    <div class="execution-history-item" style="
+                        background: rgba(255,255,255,0.03);
+                        border: 1px solid rgba(255,255,255,0.08);
+                        border-radius: 10px;
+                        padding: 16px;
+                        display: flex;
+                        align-items: center;
+                        gap: 16px;
+                    ">
+                        <div style="
+                            width: 36px; height: 36px;
+                            background: ${style.bg};
+                            border-radius: 50%;
+                            display: flex; align-items: center; justify-content: center;
+                            font-size: 16px; color: ${style.color};
+                        ">${style.icon}</div>
+                        <div style="flex: 1;">
+                            <div style="font-size: 14px; font-weight: 500; color: #fff; margin-bottom: 4px;">
+                                ${teamName} ${channelIcons}
+                            </div>
+                            <div style="font-size: 12px; color: rgba(255,255,255,0.5);">
+                                ${timeAgo} · ${status.charAt(0).toUpperCase() + status.slice(1)}
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <span style="
+                                padding: 4px 10px;
+                                background: ${style.bg};
+                                color: ${style.color};
+                                border-radius: 12px;
+                                font-size: 11px;
+                                font-weight: 600;
+                            ">${status.toUpperCase()}</span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+
+        } catch (error) {
+            console.error('[loadExecutionHistory] Error:', error);
+            container.innerHTML = `
+                <div style="text-align: center; padding: 40px 20px; color: rgba(255,255,255,0.5);">
+                    Failed to load execution history.
+                </div>
+            `;
+        }
+    }
+
+    /**
+     * Format time ago helper
+     */
+    function formatTimeAgo(date) {
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMinutes = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        if (diffMinutes < 1) return 'Just now';
+        if (diffMinutes < 60) return `${diffMinutes} min ago`;
+        if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+        if (diffDays === 1) return 'Yesterday';
+        if (diffDays < 7) return `${diffDays} days ago`;
+        return date.toLocaleDateString();
     }
 
     function renderPlaceholderCard(platform, name, role, status) {

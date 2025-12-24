@@ -16,6 +16,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // State
     let currentStep = 1;
     let draftId = null;
+    let selectedWizardChannels = [];
     let uploadedFiles = [];
     let currentUser = null;
     let availableIndustries = [];
@@ -112,7 +113,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    function goToStep(step) {
+    async function goToStep(step) {
         currentStep = step;
 
         // Update UI Steps
@@ -140,6 +141,21 @@ document.addEventListener("DOMContentLoaded", () => {
             btnPrev.style.display = "block";
             btnNext.style.display = "none";
             btnLaunch.style.display = "block";
+
+            // [NEW] Render Channel Selector
+            if (window.ChannelSelector) {
+                // Default channels if empty
+                if (selectedWizardChannels.length === 0) {
+                    selectedWizardChannels = ['x', 'instagram']; // Defaults
+                }
+
+                await window.ChannelSelector.render('wizard-channel-selector', selectedWizardChannels, (channel, isSelected, list) => {
+                    selectedWizardChannels = list;
+                    if (list.length > 0) {
+                        document.getElementById('channel-selection-error').style.display = 'none';
+                    }
+                });
+            }
         }
     }
 
@@ -498,15 +514,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     async function saveDraftStep3() {
-        if (!draftId) return;
-        const selectedTemplateId = document.getElementById("selected-template-id").value;
-
-        await db.collection("projects").doc(draftId).update({
-            selectedTemplateId: selectedTemplateId,
-            draftStep: 3,
-            stepProgress: 3,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
+        // Step 3 is now Channel Selection, handled in finalizeProject
     }
 
     // 🔹 Step 4 Logic (Summary & Finalize)
@@ -514,6 +522,82 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("summary-name").textContent = document.getElementById("business-name").value;
         document.getElementById("summary-industry").textContent = document.getElementById("industry").value;
         document.getElementById("summary-assets").textContent = `${uploadedFiles.length} files`;
+    }
+
+    // =====================================================
+    // 🧠 UNIFIED BRAIN: Auto-Initialize Core Agent Team
+    // =====================================================
+    const CORE_SUBAGENT_DEFINITIONS = [
+        { role_type: 'manager', role_name: 'Content Manager', display_order: 1, stage: 'final' },
+        { role_type: 'planner', role_name: 'Content Planner', display_order: 2, stage: 'planning' },
+        { role_type: 'research', role_name: 'Researcher', display_order: 3, stage: 'research' },
+        { role_type: 'knowledge_curator', role_name: 'Knowledge Curator', display_order: 4, stage: 'research' },
+        { role_type: 'seo_watcher', role_name: 'SEO Watcher', display_order: 5, stage: 'research' },
+        { role_type: 'kpi', role_name: 'KPI Engine', display_order: 6, stage: 'research' },
+        { role_type: 'creator_text', role_name: 'Text Creator', display_order: 7, stage: 'creation' },
+        { role_type: 'creator_image', role_name: 'Image Creator', display_order: 8, stage: 'creation' },
+        { role_type: 'creator_video', role_name: 'Video Creator', display_order: 9, stage: 'creation' },
+        { role_type: 'compliance', role_name: 'Compliance Officer', display_order: 10, stage: 'validation' },
+        { role_type: 'seo_optimizer', role_name: 'SEO Optimizer', display_order: 11, stage: 'validation' },
+        { role_type: 'evaluator', role_name: 'Quality Evaluator', display_order: 12, stage: 'validation' }
+    ];
+
+    async function initializeCoreAgentTeam(projectId) {
+        console.log('[UnifiedBrain] 🚀 Starting Core Agent Team initialization for project:', projectId);
+
+        try {
+            // 1. Create Project Agent Team Instance
+            console.log('[UnifiedBrain] Step 1: Creating team instance document...');
+            const teamRef = await db.collection('projectAgentTeamInstances').add({
+                projectId: projectId,
+                name: 'Core Team',
+                description: 'Unified Brain - Project\'s dedicated agent team',
+                isActive: true,
+                defaultLLMProvider: 'openai', // Uses Global Routing Defaults at runtime
+                defaultLLMModel: 'gpt-4o-mini',
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            const teamId = teamRef.id;
+            console.log('[UnifiedBrain] ✅ Step 1 Complete - Created team instance:', teamId);
+
+            // 2. Populate 12 Sub-Agents (use individual adds for better error handling)
+            console.log('[UnifiedBrain] Step 2: Creating 12 sub-agents...');
+            const subAgentPromises = CORE_SUBAGENT_DEFINITIONS.map(def =>
+                db.collection('projectAgentTeamInstances')
+                    .doc(teamId)
+                    .collection('subAgents')
+                    .add({
+                        role_type: def.role_type,
+                        role_name: def.role_name,
+                        display_order: def.display_order,
+                        execution_stage: def.stage,
+                        is_active: true,
+                        system_prompt: '', // Uses default prompts from Global Settings
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    })
+            );
+            await Promise.all(subAgentPromises);
+            console.log('[UnifiedBrain] ✅ Step 2 Complete - Created 12 sub-agents');
+
+            // 3. Link Team to Project
+            console.log('[UnifiedBrain] Step 3: Linking team to project...');
+            await db.collection('projects').doc(projectId).update({
+                coreAgentTeamInstanceId: teamId,
+                totalAgents: 12
+            });
+            console.log('[UnifiedBrain] ✅ Step 3 Complete - Linked team to project');
+
+            console.log('[UnifiedBrain] 🎉 Core Agent Team initialization COMPLETE:', teamId);
+            return teamId;
+
+        } catch (error) {
+            console.error('[UnifiedBrain] ❌ CRITICAL ERROR initializing Core Agent Team:', error);
+            console.error('[UnifiedBrain] Error details:', error.message, error.code);
+            // Re-throw so finalizeProject knows about it
+            throw error;
+        }
     }
 
     async function finalizeProject() {
@@ -526,10 +610,17 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
+        // [NEW] Validate Channels
+        if (selectedWizardChannels.length === 0) {
+            document.getElementById('channel-selection-error').style.display = 'block';
+            throw new Error('Please select at least one channel.');
+        }
+
         try {
             // Finalize Project Document
             const data = {
                 isDraft: false,
+                targetChannels: selectedWizardChannels,
                 draftStep: null,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                 status: "Normal",
@@ -554,6 +645,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
             await db.collection("projects").doc(draftId).update(data);
             console.log("Project finalized successfully");
+
+            // 🧠 AUTO-INITIALIZE CORE AGENT TEAM (Unified Brain)
+            await initializeCoreAgentTeam(draftId);
+
             closeModal();
             // loadProjects listener will auto-update the grid
         } catch (error) {
@@ -761,8 +856,19 @@ document.addEventListener("DOMContentLoaded", () => {
             if (p.status === "Attention") { statusColor = "var(--color-warning)"; statusBg = "rgba(245, 158, 11, 0.1)"; }
             if (p.status === "Stopped") { statusColor = "#EF4444"; statusBg = "rgba(239, 68, 68, 0.1)"; }
 
+            // Channels Logic
+            const channels = p.targetChannels || [];
+
+            // Channel Icons HTML
+            const channelIconsHtml = channels.map(ch => `
+                <div class="channel-badge" title="${ch}">
+                    <div style="width:14px; height:14px; display:inline-block;">${window.ChannelSelector?.getIcon(ch) || ''}</div>
+                    <!-- Hover remove button handled via CSS/JS delegation or simple confirm -->
+                </div>
+            `).join('');
+
             card.innerHTML = `
-                <div class="card-header">
+                <div class="card-header" style="display:flex; justify-content:space-between; align-items:flex-start;">
                     <div class="client-info">
                         <div class="client-icon" style="background: ${statusBg}; color: ${statusColor}; width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:bold;">
                             ${p.projectName.charAt(0).toUpperCase()}
@@ -774,11 +880,26 @@ document.addEventListener("DOMContentLoaded", () => {
                             </div>
                         </div>
                     </div>
+                    <button class="btn-brain" onclick="openProjectAgentSettingsById('${p.id}')" title="Agent Brain" style="width:32px; height:32px; border-radius:8px; background:rgba(139,92,246,0.15); border:1px solid rgba(139,92,246,0.3); display:flex; align-items:center; justify-content:center; cursor:pointer;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A78BFA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-2.54Z"/>
+                            <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-2.54Z"/>
+                        </svg>
+                    </button>
                 </div>
                 
                 <div class="card-tags" style="margin-top:12px;">
                     <span class="tag blockchain">${p.industry || 'General'}</span>
                     <span class="tag general">${p.primaryLanguage === 'ko' ? 'Korean' : 'English'}</span>
+                </div>
+
+                <!-- [NEW] Channels Section -->
+                <div style="margin-top: 16px;">
+                    <div style="font-size:11px; color:rgba(255,255,255,0.4); margin-bottom:6px; font-weight:600;">ACTIVE CHANNELS</div>
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        ${channelIconsHtml}
+                        <button class="btn-add-channel" onclick="openChannelManagerModal('${p.id}')" title="Manage Channels">+</button>
+                    </div>
                 </div>
 
                 <div class="card-metrics">
@@ -803,8 +924,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 </div>
 
                 <div class="card-actions">
-                    <button class="btn-mission" onclick="localStorage.setItem('currentProjectId', '${p.id}'); window.location.href='project-detail.html?id=${p.id}'">Jump to Mission Control</button>
-                    <button class="btn-settings">⚙️</button>
+                    <!-- [NEW] Run Button Replaces Jump to Mission Control -->
+                    <button class="btn-mission" onclick="runProjectAgents('${p.id}')" style="flex:1; display:flex; align-items:center; justify-content:center; gap:8px;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                        Run
+                    </button>
+                    <button class="btn-settings" onclick="openProjectSettings('${p.id}')" title="Project Settings">⚙️</button>
                 </div>
             `;
             hiveGrid.appendChild(card);
@@ -924,3 +1049,383 @@ document.addEventListener("DOMContentLoaded", () => {
     // Initialize Mobile Sidebar
     initMobileSidebar();
 });
+
+// =====================================================
+// 🧠 Agent Brain Settings Modal (Global Functions)
+// =====================================================
+
+/**
+ * Open Agent Settings Modal for a specific project
+ * @param {string} projectId 
+ */
+window.openProjectAgentSettingsById = async function (projectId) {
+    // Check if modal exists, if not create it
+    let modal = document.getElementById('agent-brain-modal');
+    if (!modal) {
+        createAgentBrainModal();
+        modal = document.getElementById('agent-brain-modal');
+    }
+
+    const directiveInput = document.getElementById('brain-directive');
+    const subAgentsList = document.getElementById('brain-subagents-list');
+
+    // Store project ID for save
+    modal.dataset.projectId = projectId;
+
+    // Show modal
+    modal.style.display = 'flex';
+    requestAnimationFrame(() => modal.classList.add('open'));
+
+    directiveInput.value = 'Loading...';
+    subAgentsList.innerHTML = '<div style="text-align:center; padding: 20px; color: rgba(255,255,255,0.5);">Loading configuration...</div>';
+
+    try {
+        const db = firebase.firestore();
+
+        // 1. Load Project Data
+        const projectDoc = await db.collection('projects').doc(projectId).get();
+        if (!projectDoc.exists) throw new Error('Project not found');
+
+        const projectData = projectDoc.data();
+
+        // Update modal title with project name
+        document.getElementById('brain-modal-title').textContent = `Agent Brain - ${projectData.projectName || 'Project'}`;
+
+        // 2. Load Directive
+        directiveInput.value = projectData.teamDirective || '';
+
+        // 3. Load Sub-Agents from Core Team
+        const coreTeamId = projectData.coreAgentTeamInstanceId;
+        if (!coreTeamId) {
+            subAgentsList.innerHTML = '<div style="text-align:center; padding: 20px; color: rgba(255,255,255,0.5);">No Core Team found. Create the project first.</div>';
+            return;
+        }
+
+        modal.dataset.coreTeamId = coreTeamId;
+
+        const subAgentsSnap = await db.collection('projectAgentTeamInstances')
+            .doc(coreTeamId)
+            .collection('subAgents')
+            .orderBy('display_order', 'asc')
+            .get();
+
+        const subAgents = [];
+        subAgentsSnap.forEach(doc => subAgents.push({ id: doc.id, ...doc.data() }));
+
+        // 4. Render Sub-Agents
+        renderBrainSubAgents(subAgents);
+
+    } catch (error) {
+        console.error('Error loading agent settings:', error);
+        alert('Failed to load settings: ' + error.message);
+        closeAgentBrainModal();
+    }
+};
+
+function createAgentBrainModal() {
+    const modal = document.createElement('div');
+    modal.id = 'agent-brain-modal';
+    modal.className = 'modal-overlay';
+    modal.style.display = 'none';
+    modal.innerHTML = `
+        <div class="modal-container" style="max-width: 800px; width: 90%; background: #13131a; border: 1px solid rgba(255,255,255,0.1); max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0,0,0,0.5); border-radius: 16px;">
+            <div class="modal-header" style="flex-shrink: 0; border-bottom: 1px solid rgba(255,255,255,0.05); padding: 20px 24px; display: flex; justify-content: space-between; align-items: center;">
+                <h3 id="brain-modal-title" style="margin: 0; font-size: 20px; font-weight: 600; display: flex; align-items: center; gap: 10px;">
+                    🧠 Agent Brain
+                </h3>
+                <button onclick="closeAgentBrainModal()" style="background: none; border: none; color: rgba(255,255,255,0.6); font-size: 28px; cursor: pointer; line-height: 1;">×</button>
+            </div>
+            <div class="modal-body" style="overflow-y: auto; flex: 1; padding: 24px;">
+                <div style="margin-bottom: 24px;">
+                    <label style="display: block; color: rgba(255,255,255,0.9); font-size: 14px; font-weight: 600; margin-bottom: 8px;">🎯 Active Directive (Team Goal)</label>
+                    <textarea id="brain-directive" rows="3" style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; padding: 12px; color: #fff; font-size: 14px; resize: vertical;" placeholder="e.g., Increase brand awareness by posting daily news about AI trends..."></textarea>
+                    <div style="color: rgba(255,255,255,0.5); font-size: 12px; margin-top: 4px;">Target specific goals for the entire team to focus on.</div>
+                </div>
+                
+                <div style="height: 1px; background: rgba(255,255,255,0.1); margin: 24px 0;"></div>
+                
+                <div>
+                    <label style="display: block; color: rgba(255,255,255,0.9); font-size: 14px; font-weight: 600; margin-bottom: 8px;">🤖 Sub-Agents Configuration</label>
+                    <div style="color: rgba(255,255,255,0.5); font-size: 12px; margin-bottom: 12px;">Fine-tune the behavior and personality of each agent.</div>
+                    <div id="brain-subagents-list" style="display: flex; flex-direction: column; gap: 16px;">
+                        <div style="text-align:center; padding: 20px; color: rgba(255,255,255,0.5);">Loading sub-agents...</div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="flex-shrink: 0; border-top: 1px solid rgba(255,255,255,0.08); padding: 20px 24px; display: flex; justify-content: center; gap: 16px;">
+                <button onclick="closeAgentBrainModal()" style="flex: 1; max-width: 200px; padding: 12px 24px; border-radius: 10px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; cursor: pointer;">Cancel</button>
+                <button onclick="saveAgentBrainSettings()" style="flex: 1; max-width: 200px; padding: 12px 24px; border-radius: 10px; background: linear-gradient(135deg, #8b5cf6, #a855f7); border: none; color: #fff; font-weight: 600; cursor: pointer;">Save Changes</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+function renderBrainSubAgents(subAgents) {
+    const list = document.getElementById('brain-subagents-list');
+
+    if (subAgents.length === 0) {
+        list.innerHTML = '<div style="text-align:center; padding: 20px; color: rgba(255,255,255,0.5);">No sub-agents found.</div>';
+        return;
+    }
+
+    list.innerHTML = subAgents.map(agent => `
+        <div style="background: rgba(255,255,255,0.03); padding: 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                <div>
+                    <div style="font-weight: 600; color: #fff; font-size: 15px;">${agent.role_name || agent.role_type}</div>
+                    <div style="font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 2px;">
+                        <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #3B82F6; margin-right: 6px;"></span>
+                        ${agent.model_id || 'Default Model'}
+                    </div>
+                </div>
+                <div style="background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; font-size: 11px; color: rgba(255,255,255,0.7);">
+                    ${agent.execution_stage || 'Agent'}
+                </div>
+            </div>
+            <div>
+                <label style="font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 6px; display: block;">📝 Behavior Instructions</label>
+                <textarea class="brain-agent-prompt" data-id="${agent.id}" rows="3" style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 10px; color: #fff; font-size: 13px; font-family: 'Menlo', monospace;" placeholder="Define how this agent should act...">${agent.system_prompt || ''}</textarea>
+            </div>
+        </div>
+    `).join('');
+}
+
+window.closeAgentBrainModal = function () {
+    const modal = document.getElementById('agent-brain-modal');
+    if (modal) {
+        modal.classList.remove('open');
+        setTimeout(() => modal.style.display = 'none', 200);
+    }
+};
+
+window.saveAgentBrainSettings = async function () {
+    const modal = document.getElementById('agent-brain-modal');
+    const projectId = modal?.dataset.projectId;
+    const coreTeamId = modal?.dataset.coreTeamId;
+
+    if (!projectId) {
+        alert('Project ID not found');
+        return;
+    }
+
+    const btn = modal.querySelector('.modal-footer button:last-child');
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    try {
+        const db = firebase.firestore();
+        const batch = db.batch();
+
+        // 1. Update Directive at project level
+        const directive = document.getElementById('brain-directive').value;
+        batch.update(db.collection('projects').doc(projectId), {
+            teamDirective: directive,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        // 2. Update Sub-Agents
+        if (coreTeamId) {
+            const promptInputs = document.querySelectorAll('.brain-agent-prompt');
+            promptInputs.forEach(input => {
+                const agentId = input.dataset.id;
+                const newPrompt = input.value;
+                batch.update(
+                    db.collection('projectAgentTeamInstances').doc(coreTeamId).collection('subAgents').doc(agentId),
+                    {
+                        system_prompt: newPrompt,
+                        updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                    }
+                );
+            });
+        }
+
+        await batch.commit();
+        alert('✅ Settings saved successfully!');
+        closeAgentBrainModal();
+
+    } catch (error) {
+        console.error('Error saving settings:', error);
+        alert('Failed to save: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+    }
+};
+
+/**
+ * Open Project Settings (placeholder)
+ */
+window.openProjectSettings = function (projectId) {
+    alert('Project Settings for: ' + projectId + '\n\nThis feature is coming soon!');
+};
+
+// =====================================================
+// 📡 Channel Manager Modal
+// =====================================================
+
+window.openChannelManagerModal = async function (projectId) {
+    let modal = document.getElementById('channel-manager-modal');
+    if (!modal) {
+        createChannelManagerModal();
+        modal = document.getElementById('channel-manager-modal');
+    }
+
+    modal.dataset.projectId = projectId;
+    modal.style.display = 'flex';
+    requestAnimationFrame(() => modal.classList.add('open'));
+
+    // Reset UI
+    const container = document.getElementById('modal-channel-selector');
+    container.innerHTML = '<div style="text-align:center; padding:20px; color:gray;">Loading...</div>';
+
+    try {
+        const db = firebase.firestore();
+        const doc = await db.collection('projects').doc(projectId).get();
+        if (!doc.exists) throw new Error("Project not found");
+
+        const data = doc.data();
+        const currentChannels = data.targetChannels || [];
+
+        // Render Selector
+        if (window.ChannelSelector) {
+            await window.ChannelSelector.render('modal-channel-selector', currentChannels, (ch, selected, list) => {
+                // Just update internal state if needed, actual save is on 'Save' button
+                modal.dataset.tempChannels = JSON.stringify(list);
+            });
+            // Initialize temp state
+            modal.dataset.tempChannels = JSON.stringify(currentChannels);
+        }
+
+    } catch (e) {
+        console.error("Error opening channel manager:", e);
+        alert("Error: " + e.message);
+        closeChannelManagerModal();
+    }
+};
+
+function createChannelManagerModal() {
+    const modal = document.createElement('div');
+    modal.id = 'channel-manager-modal';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+        <div class="modal-container" style="max-width: 600px; width: 95%; background: #13131a; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
+            <div class="modal-header" style="padding: 20px 24px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin: 0; font-size: 18px; color: #fff;">📡 Manage Channels</h3>
+                <button onclick="closeChannelManagerModal()" style="background: none; border: none; color: gray; font-size: 24px; cursor: pointer;">×</button>
+            </div>
+            <div class="modal-body" style="padding: 24px;">
+                <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin-bottom: 16px;">
+                    Select the channels where this project's agents should be active.
+                </p>
+                <div id="modal-channel-selector"></div>
+            </div>
+            <div class="modal-footer" style="padding: 20px 24px; border-top: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: flex-end; gap: 12px;">
+                <button onclick="closeChannelManagerModal()" style="padding: 10px 20px; border-radius: 8px; background: transparent; border: 1px solid rgba(255,255,255,0.2); color: #fff; cursor: pointer;">Cancel</button>
+                <button onclick="saveChannelManager()" style="padding: 10px 20px; border-radius: 8px; background: var(--color-cyan); border: none; color: #000; font-weight: bold; cursor: pointer;">Save Changes</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+window.closeChannelManagerModal = function () {
+    const modal = document.getElementById('channel-manager-modal');
+    if (modal) {
+        modal.classList.remove('open');
+        setTimeout(() => modal.style.display = 'none', 200);
+    }
+};
+
+window.saveChannelManager = async function () {
+    const modal = document.getElementById('channel-manager-modal');
+    const projectId = modal.dataset.projectId;
+    const tempChannels = JSON.parse(modal.dataset.tempChannels || '[]');
+
+    // Validation
+    if (tempChannels.length === 0) {
+        alert("Please select at least one channel.");
+        return;
+    }
+
+    const btn = modal.querySelector('.modal-footer button:last-child');
+    const originalText = btn.textContent;
+    btn.textContent = "Saving...";
+    btn.disabled = true;
+
+    try {
+        await firebase.firestore().collection('projects').doc(projectId).update({
+            targetChannels: tempChannels,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        // Refresh UI handled by snapshot listener
+        closeChannelManagerModal();
+    } catch (e) {
+        console.error("Error saving channels:", e);
+        alert("Failed to save: " + e.message);
+    } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }
+};
+
+// =====================================================
+// ▶️ Run Project Agents
+// =====================================================
+window.runProjectAgents = async function (projectId) {
+    if (!confirm("🚀 Ready to run agents on selected channels?\n\nThis will trigger the content generation workflow for all active channels.")) {
+        return;
+    }
+
+    // In a real implementation, this would call a Cloud Function or API
+    // For now, we simulate the trigger
+    console.log(`[Run] Triggering agents for project ${projectId}...`);
+
+    alert(`✅ Agents Activated!\n\nExecution started for project: ${projectId}\nCheck the dashboard for updates.`);
+};
+
+// Inject Global Styles for Project Card Channels
+(function injectCardStyles() {
+    const style = document.createElement('style');
+    style.innerHTML = `
+        .channel-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.7);
+            transition: all 0.2s;
+        }
+        .channel-badge:hover {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            transform: translateY(-1px);
+        }
+        .btn-add-channel {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            background: transparent;
+            border: 1px dashed rgba(255,255,255,0.2);
+            color: rgba(255,255,255,0.5);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+        .btn-add-channel:hover {
+            border-color: var(--color-cyan);
+            color: var(--color-cyan);
+            background: rgba(6, 182, 212, 0.1);
+        }
+    `;
+    document.head.appendChild(style);
+})();

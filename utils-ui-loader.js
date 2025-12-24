@@ -335,6 +335,26 @@
             if (cleanPath.startsWith(cleanLink + '/')) return true;
 
             return false;
+        },
+        /**
+         * Update Credit Balance display in the UI
+         * @param {string} userId - Current User ID
+         */
+        updateCreditBalance: async function (userId) {
+            if (!userId || typeof CreditService === 'undefined') return;
+
+            try {
+                const balance = await CreditService.getBalance(userId);
+                const elements = document.querySelectorAll('[id="user-credits"]');
+                elements.forEach(el => {
+                    // Animate if balance changed? For now just update.
+                    el.textContent = balance.toLocaleString() || '0';
+                });
+                console.log(`[UI Loader] Credit balance updated: ${balance}`);
+                return balance;
+            } catch (error) {
+                console.error('[UI Loader] Failed to update credit balance:', error);
+            }
         }
     };
 

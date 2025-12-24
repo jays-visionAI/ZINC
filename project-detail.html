@@ -106,13 +106,27 @@
                             <div style="display: flex; gap: 12px; align-items: center;">
                                 <span id="team-status-badge" class="status-badge"
                                     style="background: rgba(34, 197, 94, 0.2); color: #22c55e;">Active</span>
-                                <button class="admin-btn-primary" id="btn-deploy-team">
+                                <button class="admin-btn-secondary" id="btn-agent-brain"
+                                    onclick="openProjectAgentSettings()"
+                                    style="display: flex; align-items: center; gap: 6px;">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path
+                                            d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-1.54">
+                                        </path>
+                                        <path
+                                            d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-1.54">
+                                        </path>
+                                    </svg>
+                                    Agent Brain
+                                </button>
+                                <button class="admin-btn-primary" id="btn-open-studio"
+                                    onclick="window.location.href='studio/studio.html?projectId=' + new URLSearchParams(window.location.search).get('id')">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                         stroke-width="2" style="margin-right: 6px;">
-                                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
                                     </svg>
-                                    Deploy Team
+                                    Open Studio
                                 </button>
                             </div>
                         </div>
@@ -162,6 +176,20 @@
                             <div
                                 style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5); grid-column: 1 / -1; border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px;">
                                 Loading agent swarm...
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Execution History Section -->
+                    <section class="agent-swarm-section" style="margin-top: 32px;">
+                        <div class="agent-swarm-header">
+                            <h2>Execution History</h2>
+                            <span style="font-size: 12px; color: rgba(255,255,255,0.5);">Recent campaign runs</span>
+                        </div>
+                        <div id="execution-history-list" class="execution-history-list"
+                            style="display: grid; gap: 12px;">
+                            <div style="text-align: center; padding: 40px 20px; color: rgba(255,255,255,0.5);">
+                                Loading execution history...
                             </div>
                         </div>
                     </section>
@@ -291,139 +319,7 @@
         </main>
     </div>
 
-    <!-- Deployment Wizard Modal -->
-    <div id="deploy-modal" class="admin-modal" style="display: none;">
-        <div class="admin-modal-content"
-            style="max-width: 900px; min-height: 600px; display: flex; flex-direction: column;">
-
-            <!-- Wizard Header -->
-            <div class="admin-modal-header">
-                <div class="modal-header">
-                    <h3 class="modal-title">Create Agent Team Instance</h3>
-                    <button class="modal-close" onclick="closeDeployWizard()">×</button>
-                </div>
-                <div style="font-size: 13px; color: rgba(255,255,255,0.5); margin-top: 4px;">
-                    Step <span id="deploy-step-num">1</span> of 3: <span id="deploy-step-title">Basic Info</span>
-                </div>
-                <button class="admin-modal-close" id="deploy-modal-close">&times;</button>
-            </div>
-
-            <!-- Wizard Progress -->
-            <div style="background: rgba(255,255,255,0.1); height: 4px; width: 100%;">
-                <div id="deploy-progress"
-                    style="background: #16e0bd; height: 100%; width: 33.33%; transition: width 0.3s ease;"></div>
-            </div>
-
-            <!-- Wizard Body -->
-            <div class="admin-modal-body" style="flex: 1; overflow-y: auto; padding: 24px;">
-
-                <!-- Step 1: Basic Info & Credential Selection -->
-                <div id="deploy-step-1" class="wizard-step">
-                    <p style="margin-bottom: 24px; color: rgba(255,255,255,0.7);">
-                        Define the identity of your new Agent Team.
-                    </p>
-
-                    <div class="admin-form-group">
-                        <label class="admin-form-label">Select Channel <span style="color: #ef4444;">*</span></label>
-                        <select id="deploy-channel-select" class="admin-form-input" required>
-                            <option value="">-- Select a channel --</option>
-                            <!-- Channels injected by JS -->
-                        </select>
-                        <small style="color: rgba(255,255,255,0.5);">Choose the target channel for this agent
-                            team.</small>
-                    </div>
-
-                    <div class="admin-form-group">
-                        <label class="admin-form-label">Team Name</label>
-                        <input type="text" id="team-name" class="admin-form-input" placeholder="e.g. Marketing Team">
-                        <small style="color: rgba(255,255,255,0.5);">Optional. Channel name will be automatically
-                            prefixed (e.g. [Instagram] Marketing Team).</small>
-                    </div>
-
-                    <div class="admin-form-group">
-                        <label class="admin-form-label">Description</label>
-                        <textarea id="team-description" class="admin-form-input" rows="3"
-                            placeholder="Describe the team's purpose..."></textarea>
-                    </div>
-                </div>
-
-                <!-- Step 2: Sub-Agent Selection (Template) -->
-                <div id="deploy-step-2" class="wizard-step" style="display: none;">
-                    <p style="margin-bottom: 16px; color: rgba(255,255,255,0.7);">
-                        Select a template to define the team's composition.
-                    </p>
-                    <div id="template-selection-grid"
-                        style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;">
-                        <!-- Populated by JS -->
-                        <div style="text-align: center; padding: 20px;">Loading Templates...</div>
-                    </div>
-                </div>
-
-                <!-- Step 3: Runtime Profile Summary -->
-                <div id="deploy-step-3" class="wizard-step" style="display: none;">
-                    <p style="margin-bottom: 24px; color: rgba(255,255,255,0.7);">
-                        Review the runtime configuration for each agent.
-                    </p>
-                    <div id="runtime-summary-container">
-                        <!-- Populated by JS -->
-                        <div style="text-align: center; padding: 20px;">Loading Runtime Profiles...</div>
-                    </div>
-                </div>
-
-            </div>
-
-            <!-- Wizard Footer -->
-            <div class="admin-modal-footer" style="justify-content: space-between;">
-                <button class="admin-btn-secondary" id="deploy-prev" style="visibility: hidden;">Back</button>
-                <div style="display: flex; gap: 12px;">
-                    <button class="admin-btn-secondary" id="deploy-cancel">Cancel</button>
-                    <button class="admin-btn-primary" id="deploy-next">Next Step</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Configuration Slide-in Panel -->
-    <div class="config-panel-overlay" id="config-overlay"></div>
-    <div class="config-panel" id="config-panel">
-        <div class="config-header">
-            <button class="config-close" id="config-close">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-            </button>
-            <div class="config-title">
-                <span id="config-channel-icon"></span>
-                <span id="config-channel-name">Configure Channel</span>
-            </div>
-            <div class="config-subtitle">
-                <span id="config-template-name">Template: Loading...</span>
-                <span id="config-profile-name">Runtime Profile: Loading...</span>
-            </div>
-        </div>
-
-        <div class="config-tabs">
-            <div class="config-tab active" data-tab="goals">🎯 Goals & KPI</div>
-            <div class="config-tab" data-tab="planner">📝 Content Strategy</div>
-            <div class="config-tab" data-tab="creator_text">💬 Tone & Copy</div>
-            <div class="config-tab" data-tab="engagement">🤖 Engagement</div>
-            <div class="config-tab" data-tab="advanced">⚙️ Advanced</div>
-        </div>
-
-        <div class="config-content" id="config-content">
-            <!-- Dynamic Content Loaded Here -->
-            <div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">
-                Select a tab to configure settings.
-            </div>
-        </div>
-
-        <div class="config-footer">
-            <button class="admin-btn-secondary" id="config-reset-all">Reset All to Template</button>
-            <button class="admin-btn-primary" id="config-save">Save Changes</button>
-        </div>
-    </div>
-
+    <!-- Deployment Wizard and Configuration Panel REMOVED (Unified Brain auto-initialization) -->
     <!-- Load ConfigResolver -->
     <script src="scripts/config-resolver.js"></script>
 

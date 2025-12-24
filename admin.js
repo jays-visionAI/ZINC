@@ -59,6 +59,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             // Render user profile
             renderUserProfile(user, userData);
 
+            // Fetch and display credit balance
+            if (window.UI) {
+                window.UI.updateCreditBalance(user.uid);
+            }
+
             // Initialize page routing
             initRouting();
         } catch (error) {

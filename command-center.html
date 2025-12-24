@@ -264,10 +264,22 @@
                     </div>
                 </div>
 
-                <!-- Step 3: Summary (formerly Step 4) -->
+                <!-- Step 3: Channels & Launch -->
                 <div class="wizard-step" id="step-3">
-                    <div class="summary-card">
-                        <h4>Ready to Initialize Hive</h4>
+                    <div style="margin-bottom: 24px;">
+                        <h4 style="margin-bottom: 12px; color: var(--color-cyan);">Select Target Channels</h4>
+                        <p style="font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 16px;">
+                            Where should your AI agents publish content? You can change this later.
+                        </p>
+                        <div id="wizard-channel-selector"></div>
+                        <div id="channel-selection-error"
+                            style="color:#ef4444; font-size:12px; margin-top:8px; display:none;">
+                            Please select at least one channel.
+                        </div>
+                    </div>
+
+                    <div class="summary-card" style="margin-top: 24px;">
+                        <h4 style="font-size: 14px; margin-bottom: 12px;">Project Summary</h4>
                         <div class="summary-item">
                             <span class="label">Project:</span>
                             <span class="value" id="summary-name">-</span>
@@ -276,7 +288,6 @@
                             <span class="label">Industry:</span>
                             <span class="value" id="summary-industry">-</span>
                         </div>
-
                         <div class="summary-item">
                             <span class="label">Assets:</span>
                             <span class="value" id="summary-assets">0 files</span>
@@ -327,8 +338,9 @@
 
     <!-- Scripts -->
     <script src="translations.js"></script>
+    <script src="utils-channel-selector.js"></script>
     <script src="scripts/sidebar-loader.js"></script>
-    <script src="command-center.js?v=2"></script>
+    <script src="command-center.js?v=3"></script>
 
     <!-- Auth Check Script -->
     <script>

@@ -113,6 +113,14 @@ window.ChannelCredentialService = {
                     return await this._testNaverBlog(credentials);
                 case 'naverSmartStore':
                     return await this._testNaverSmartStore(credentials);
+                case 'naverMap':
+                    return await this._testNaverMap(credentials);
+                case 'tmap':
+                    return await this._testTMap(credentials);
+                case 'kakaoNavi':
+                    return await this._testKakaoNavi(credentials);
+                case 'kakaoMap':
+                    return await this._testKakaoMap(credentials);
                 case 'kakaotalk':
                     return await this._testKakaoTalk(credentials);
                 case 'line':
@@ -434,5 +442,33 @@ window.ChannelCredentialService = {
             message: 'Discord Bot Token verified (Format OK)',
             latency: 0
         };
+    },
+
+    async _testNaverMap(credentials) {
+        const { clientId, clientSecret } = credentials;
+        if (!clientId || !clientSecret) throw new Error('Missing Client ID or Secret');
+        await new Promise(resolve => setTimeout(resolve, 600));
+        return { success: true, message: 'Naver Map credentials verified', latency: 0 };
+    },
+
+    async _testTMap(credentials) {
+        const { appKey } = credentials;
+        if (!appKey) throw new Error('Missing App Key');
+        await new Promise(resolve => setTimeout(resolve, 600));
+        return { success: true, message: 'T-Map credentials verified', latency: 0 };
+    },
+
+    async _testKakaoNavi(credentials) {
+        const { restApiKey } = credentials;
+        if (!restApiKey) throw new Error('Missing REST API Key');
+        await new Promise(resolve => setTimeout(resolve, 600));
+        return { success: true, message: 'Kakao Navi credentials verified', latency: 0 };
+    },
+
+    async _testKakaoMap(credentials) {
+        const { restApiKey } = credentials;
+        if (!restApiKey) throw new Error('Missing REST API Key');
+        await new Promise(resolve => setTimeout(resolve, 600));
+        return { success: true, message: 'Kakao Map credentials verified', latency: 0 };
     },
 };

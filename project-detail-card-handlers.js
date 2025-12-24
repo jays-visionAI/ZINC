@@ -5,6 +5,78 @@
 let selectedTeamId = null;
 
 /**
+ * Open Project-level Agent Settings Modal
+ * This is the main entry point from the Project Header "Agent Brain" button
+ * Loads directive from project level and sub-agents from Core Team
+ */
+window.openProjectAgentSettings = async function () {
+    const projectId = new URLSearchParams(window.location.search).get('id');
+    if (!projectId) {
+        alert('Project ID not found');
+        return;
+    }
+
+    const modal = document.getElementById('agent-settings-modal');
+    const directiveInput = document.getElementById('setting-directive');
+    const subAgentsList = document.getElementById('setting-subagents-list');
+
+    if (!modal) return;
+
+    // Show modal with loading state
+    modal.style.display = 'flex';
+    requestAnimationFrame(() => {
+        modal.classList.add('open');
+    });
+
+    directiveInput.value = 'Loading...';
+    subAgentsList.innerHTML = '<div class="loading-state">Loading configuration...</div>';
+
+    try {
+        const db = firebase.firestore();
+
+        // 1. Load Project Data
+        const projectDoc = await db.collection('projects').doc(projectId).get();
+        if (!projectDoc.exists) throw new Error('Project not found');
+
+        const projectData = projectDoc.data();
+
+        // 2. Load Directive from project-level
+        directiveInput.value = projectData.teamDirective || '';
+
+        // 3. Load Sub-Agents from Core Team
+        const coreTeamId = projectData.coreAgentTeamInstanceId;
+        if (!coreTeamId) {
+            subAgentsList.innerHTML = '<div class="empty-state">No Core Team found. Please create an agent team first.</div>';
+            return;
+        }
+
+        const subAgentsSnap = await db.collection('projectAgentTeamInstances')
+            .doc(coreTeamId)
+            .collection('subAgents')
+            .orderBy('display_order', 'asc')
+            .get();
+
+        const subAgents = [];
+        subAgentsSnap.forEach(doc => subAgents.push({ id: doc.id, ...doc.data() }));
+
+        // 4. Render Sub-Agents
+        renderSettingsSubAgents(subAgents);
+
+        // Store for save function
+        currentSettingsProjectId = projectId;
+        currentSettingsTeamId = coreTeamId;
+
+    } catch (error) {
+        console.error('Error loading project settings:', error);
+        alert('Failed to load settings: ' + error.message);
+        modal.classList.remove('open');
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 200);
+    }
+};
+
+/**
  * Handle card click for selection
  */
 window.handleCardClick = function (event, teamId) {
@@ -236,6 +308,7 @@ window.handleActivateAgentTeam = function (event, teamId) {
 /**
  * Open Activation Modal
  * Shows team info and custom instructions input
+ * Now loads directive from project-level (Unified Brain architecture)
  */
 async function openActivationModal(teamId) {
     // Remove existing modal
@@ -245,12 +318,27 @@ async function openActivationModal(teamId) {
     // Get project ID
     const projectId = new URLSearchParams(window.location.search).get('id');
 
+    // Fetch project data first (for Unified Brain directive)
+    let projectData = {};
+    try {
+        const projectDoc = await firebase.firestore()
+            .collection('projects')
+            .doc(projectId)
+            .get();
+        if (projectDoc.exists) {
+            projectData = projectDoc.data();
+        }
+    } catch (e) {
+        console.error('Error fetching project:', e);
+    }
+
     // Fetch team data
-    let teamData = { name: 'Agent Team', subAgentCount: 0 };
+    let teamData = { name: 'Core Agent Team', subAgentCount: 12 };
+    const coreTeamId = projectData.coreAgentTeamInstanceId || teamId;
     try {
         const teamDoc = await firebase.firestore()
             .collection('projectAgentTeamInstances')
-            .doc(teamId)
+            .doc(coreTeamId)
             .get();
         if (teamDoc.exists) {
             teamData = { ...teamData, ...teamDoc.data() };
@@ -258,6 +346,12 @@ async function openActivationModal(teamId) {
     } catch (e) {
         console.error('Error fetching team:', e);
     }
+
+    // Get directive from project level (Unified Brain) or fallback to team level
+    const directive = projectData.teamDirective ||
+        teamData.active_directive?.summary ||
+        teamData.activeDirective ||
+        'System initialized. Awaiting instructions.';
 
     // Create modal
     const modal = document.createElement('div');
@@ -274,7 +368,7 @@ async function openActivationModal(teamId) {
                 
                 <!-- Team Info -->
                 <div class="activation-modal-team-info">
-                    <div class="team-name">${teamData.name}</div>
+                    <div class="team-name">${teamData.name || 'Core Agent Team'}</div>
                     <div class="team-stats">
                         <span class="stat">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -283,7 +377,7 @@ async function openActivationModal(teamId) {
                                 <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
                                 <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                             </svg>
-                            ${teamData.subAgentCount || 0} Sub-Agents
+                            ${teamData.subAgentCount || 12} Sub-Agents
                         </span>
                     </div>
                 </div>
@@ -291,7 +385,54 @@ async function openActivationModal(teamId) {
                 <!-- Active Directive -->
                 <div class="activation-modal-directive">
                     <label>Active Directive:</label>
-                    <p>${teamData.active_directive?.summary || teamData.activeDirective || 'System initialized. Awaiting instructions.'}</p>
+                    <p>${directive}</p>
+                </div>
+                
+                <!-- Target Channels Selection -->
+                <div class="activation-modal-field">
+                    <label>Target Channels</label>
+                    <div id="channel-toggle-container" class="channel-toggle-container">
+                        <button type="button" class="channel-toggle active" data-channel="x">
+                            <span class="channel-icon">𝕏</span> X
+                        </button>
+                        <button type="button" class="channel-toggle" data-channel="instagram">
+                            <span class="channel-icon">📸</span> Instagram
+                        </button>
+                        <button type="button" class="channel-toggle" data-channel="linkedin">
+                            <span class="channel-icon">💼</span> LinkedIn
+                        </button>
+                        <button type="button" class="channel-toggle" data-channel="youtube">
+                            <span class="channel-icon">▶️</span> YouTube
+                        </button>
+                        <button type="button" class="channel-toggle" data-channel="facebook">
+                            <span class="channel-icon">📘</span> Facebook
+                        </button>
+                        <button type="button" class="channel-toggle" data-channel="tiktok">
+                            <span class="channel-icon">🎵</span> TikTok
+                        </button>
+                        <button type="button" class="channel-toggle" data-channel="threads">
+                            <span class="channel-icon">🧵</span> Threads
+                        </button>
+                        <button type="button" class="channel-toggle" data-channel="medium">
+                            <span class="channel-icon">📝</span> Medium
+                        </button>
+                        <button type="button" class="channel-toggle" data-channel="pinterest">
+                            <span class="channel-icon">📌</span> Pinterest
+                        </button>
+                        <button type="button" class="channel-toggle" data-channel="reddit">
+                            <span class="channel-icon">🔴</span> Reddit
+                        </button>
+                        <button type="button" class="channel-toggle" data-channel="snapchat">
+                            <span class="channel-icon">👻</span> Snapchat
+                        </button>
+                        <button type="button" class="channel-toggle" data-channel="discord">
+                            <span class="channel-icon">💬</span> Discord
+                        </button>
+                        <button type="button" class="channel-toggle" data-channel="telegram">
+                            <span class="channel-icon">✈️</span> Telegram
+                        </button>
+                    </div>
+                    <small style="color: rgba(255,255,255,0.5); font-size: 11px;">Select channels to generate content for. Each channel will be optimized for its platform.</small>
                 </div>
                 
                 <!-- Custom Instructions -->
@@ -303,7 +444,7 @@ async function openActivationModal(teamId) {
                 <!-- Actions -->
                 <div class="activation-modal-actions">
                     <button class="btn-cancel" onclick="closeActivationModal()">Cancel</button>
-                    <button class="btn-start" onclick="startAgentRun('${teamId}', '${projectId}')">
+                    <button class="btn-start" onclick="startAgentRunWithChannels('${coreTeamId}', '${projectId}')">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polygon points="5 3 19 12 5 21 5 3"></polygon>
                         </svg>
@@ -422,6 +563,39 @@ async function openActivationModal(teamId) {
             }
             .btn-start:hover { transform: translateY(-1px); box-shadow: 0 6px 25px rgba(16, 185, 129, 0.4); }
             
+            /* Channel Toggle Buttons */
+            .channel-toggle-container {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                margin-bottom: 8px;
+            }
+            .channel-toggle {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                padding: 8px 14px;
+                background: rgba(255,255,255,0.05);
+                border: 1px solid rgba(255,255,255,0.15);
+                border-radius: 8px;
+                color: rgba(255,255,255,0.7);
+                font-size: 13px;
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }
+            .channel-toggle:hover {
+                background: rgba(255,255,255,0.1);
+                border-color: rgba(139, 92, 246, 0.5);
+            }
+            .channel-toggle.active {
+                background: rgba(139, 92, 246, 0.2);
+                border-color: #8b5cf6;
+                color: #fff;
+            }
+            .channel-toggle .channel-icon {
+                font-size: 14px;
+            }
+            
             /* Toast Notification */
             .toast-container {
                 position: fixed;
@@ -464,11 +638,100 @@ async function openActivationModal(teamId) {
     }
 
     document.body.appendChild(modal);
+
+    // Add click handlers for channel toggles
+    const toggleButtons = modal.querySelectorAll('.channel-toggle');
+    toggleButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            btn.classList.toggle('active');
+        });
+    });
 }
 
 window.closeActivationModal = function () {
     const modal = document.getElementById('activation-modal');
     if (modal) modal.remove();
+};
+
+/**
+ * Start Agent Run with Selected Channels
+ * Reads the selected target channels and passes them to the execution service
+ */
+window.startAgentRunWithChannels = async function (teamId, projectId) {
+    const customInstructions = document.getElementById('custom-instructions')?.value || '';
+
+    // Get selected channels from toggles
+    const selectedChannels = [];
+    const toggleButtons = document.querySelectorAll('.channel-toggle.active');
+    toggleButtons.forEach(btn => {
+        const channel = btn.dataset.channel;
+        if (channel) selectedChannels.push(channel);
+    });
+
+    // Default to 'x' if no channels selected
+    const targetChannels = selectedChannels.length > 0 ? selectedChannels : ['x'];
+
+    console.log('[startAgentRunWithChannels] Target channels:', targetChannels);
+
+    // Close modal
+    closeActivationModal();
+
+    // Show running toast
+    const toastId = showToast('running', 'Agent Team Running', `Generating for ${targetChannels.length} channel(s)...`);
+
+    try {
+        // Fetch team data
+        const teamDoc = await firebase.firestore()
+            .collection('projectAgentTeamInstances')
+            .doc(teamId)
+            .get();
+
+        const teamData = teamDoc.exists ? teamDoc.data() : { name: 'Agent Team' };
+
+        // Create run record with target channels
+        const runRef = await firebase.firestore()
+            .collection('projects')
+            .doc(projectId)
+            .collection('agentRuns')
+            .add({
+                team_instance_id: teamId,
+                team_name: teamData.name || 'Agent Team',
+                status: 'running',
+                started_at: firebase.firestore.FieldValue.serverTimestamp(),
+                triggered_by: 'manual',
+                custom_instructions: customInstructions,
+                targetChannels: targetChannels, // 🎯 Multi-channel support
+                steps_completed: []
+            });
+
+        console.log('[startAgentRunWithChannels] Created run:', runRef.id);
+
+        // Execute using AgentExecutionService
+        if (window.AgentExecutionService) {
+            const result = await window.AgentExecutionService.executeRun(
+                runRef.id,
+                projectId
+            );
+
+            // Update toast based on result
+            if (result.success) {
+                updateToast(toastId, 'success', 'Run Completed', `Generated for ${targetChannels.join(', ').toUpperCase()}!`);
+            } else {
+                updateToast(toastId, 'error', 'Run Failed', result.error || 'Unknown error');
+            }
+        } else {
+            throw new Error('AgentExecutionService not loaded');
+        }
+
+        // Reload agent swarm
+        if (typeof loadAgentSwarm === 'function') {
+            loadAgentSwarm(projectId);
+        }
+
+    } catch (error) {
+        console.error('[startAgentRunWithChannels] Error:', error);
+        updateToast(toastId, 'error', 'Run Failed', error.message);
+    }
 };
 
 /**
@@ -772,9 +1035,11 @@ function updateScheduleSummary(teamId, settings) {
  */
 // Global state for settings
 let currentSettingsTeamId = null;
+let currentSettingsProjectId = null;
 
 /**
  * Open Settings Modal for Agent Team
+ * Now loads directive from project-level (Unified Brain architecture)
  * @param {Event} event 
  * @param {string} teamId 
  */
@@ -782,11 +1047,13 @@ window.handleOpenSettings = async function (event, teamId) {
     if (event) event.stopPropagation();
 
     currentSettingsTeamId = teamId;
+    currentSettingsProjectId = new URLSearchParams(window.location.search).get('id');
+
     const modal = document.getElementById('agent-settings-modal');
     const directiveInput = document.getElementById('setting-directive');
     const subAgentsList = document.getElementById('setting-subagents-list');
 
-    if (!modal) return;
+    if (!modal || !currentSettingsProjectId) return;
 
     // Show modal with loading state
     modal.style.display = 'flex';
@@ -801,16 +1068,29 @@ window.handleOpenSettings = async function (event, teamId) {
     try {
         const db = firebase.firestore();
 
-        // 1. Load Team Data (Directive)
-        const teamDoc = await db.collection('projectAgentTeamInstances').doc(teamId).get();
-        if (!teamDoc.exists) throw new Error('Team not found');
+        // 1. Load Directive from PROJECT (Unified Brain - project-level)
+        const projectDoc = await db.collection('projects').doc(currentSettingsProjectId).get();
+        if (!projectDoc.exists) throw new Error('Project not found');
 
-        const teamData = teamDoc.data();
-        directiveInput.value = teamData.active_directive?.summary || teamData.activeDirective || '';
+        const projectData = projectDoc.data();
+        // Try project-level teamDirective first, then fallback to team-level for migration
+        let directive = projectData.teamDirective || '';
 
-        // 2. Load Sub-Agents
+        // Fallback: Load from team instance if project-level not set
+        if (!directive && teamId) {
+            const teamDoc = await db.collection('projectAgentTeamInstances').doc(teamId).get();
+            if (teamDoc.exists) {
+                const teamData = teamDoc.data();
+                directive = teamData.active_directive?.summary || teamData.activeDirective || '';
+            }
+        }
+
+        directiveInput.value = directive;
+
+        // 2. Load Sub-Agents from Core Team
+        const coreTeamId = projectData.coreAgentTeamInstanceId || teamId;
         const subAgentsSnap = await db.collection('projectAgentTeamInstances')
-            .doc(teamId)
+            .doc(coreTeamId)
             .collection('subAgents')
             .orderBy('display_order', 'asc')
             .get();
@@ -904,7 +1184,7 @@ function renderSettingsSubAgents(subAgents) {
 }
 
 window.saveAgentSettings = async function () {
-    if (!currentSettingsTeamId) return;
+    if (!currentSettingsProjectId) return;
 
     const btn = document.querySelector('#agent-settings-modal .btn-primary');
     const originalText = btn.textContent;
@@ -915,17 +1195,20 @@ window.saveAgentSettings = async function () {
         const db = firebase.firestore();
         const batch = db.batch();
 
-        // 1. Update Directive
+        // 1. Update Directive at PROJECT level (Unified Brain architecture)
         const directive = document.getElementById('setting-directive').value;
-        const teamRef = db.collection('projectAgentTeamInstances').doc(currentSettingsTeamId);
+        const projectRef = db.collection('projects').doc(currentSettingsProjectId);
 
-        batch.update(teamRef, {
-            'active_directive.summary': directive,
-            'activeDirective': directive, // Legacy support
-            'updatedAt': firebase.firestore.FieldValue.serverTimestamp()
+        batch.update(projectRef, {
+            teamDirective: directive,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        // 2. Update Sub-Agents
+        // 2. Update Sub-Agents (still in Core Team instance)
+        const projectDoc = await db.collection('projects').doc(currentSettingsProjectId).get();
+        const coreTeamId = projectDoc.data()?.coreAgentTeamInstanceId || currentSettingsTeamId;
+        const teamRef = db.collection('projectAgentTeamInstances').doc(coreTeamId);
+
         const promptInputs = document.querySelectorAll('.sub-agent-prompt');
         promptInputs.forEach(input => {
             const agentId = input.dataset.id;
@@ -943,8 +1226,7 @@ window.saveAgentSettings = async function () {
         alert('✅ Settings saved successfully!');
         window.closeAgentSettingsModal();
 
-        // Refresh page to show changes (or reload specific parts if possible)
-        // For now, simple reload is safest to update all UI components
+        // Refresh page to show changes
         window.location.reload();
 
     } catch (error) {

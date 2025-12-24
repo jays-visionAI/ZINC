@@ -131,68 +131,125 @@
         const previewContainer = document.getElementById('icon-preview-container');
         const hiddenInput = document.getElementById('channel-icon-svg');
 
-        // Show loading state
         previewContainer.innerHTML = '<span style="font-size: 12px; color: #aaa;">Processing...</span>';
 
         if (file.type === 'image/svg+xml') {
-            // Handle SVG
             const text = await file.text();
-            // Basic sanitization/validation could go here
             hiddenInput.value = text;
             previewContainer.innerHTML = text;
-            // Force size in preview
             const svg = previewContainer.querySelector('svg');
             if (svg) {
                 svg.setAttribute('width', '100%');
                 svg.setAttribute('height', '100%');
             }
         } else if (file.type.startsWith('image/')) {
-            // Handle PNG/JPG -> Convert to base64 wrapped in SVG
             const reader = new FileReader();
             reader.onload = function (e) {
                 const img = new Image();
                 img.onload = function () {
-                    let finalBase64 = e.target.result;
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+
+                    // 1. Initial draw to analyze
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+
+                    let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                     const removeBg = document.getElementById('remove-bg-checkbox')?.checked;
+                    const trimSquare = document.getElementById('trim-square-checkbox')?.checked;
+                    const roundCorners = document.getElementById('round-corners-checkbox')?.checked;
 
+                    // 2. Background Removal
                     if (removeBg) {
-                        // Background Removal Logic
-                        const canvas = document.createElement('canvas');
-                        canvas.width = img.width;
-                        canvas.height = img.height;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0);
-
-                        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                         const data = imageData.data;
+                        // Sample corners
+                        const corners = [
+                            { r: data[0], g: data[1], b: data[2] }, // top-left
+                            { r: data[(canvas.width - 1) * 4], g: data[(canvas.width - 1) * 4 + 1], b: data[(canvas.width - 1) * 4 + 2] }, // top-right
+                        ];
 
-                        // Sample top-left pixel for background color
-                        const rBg = data[0], gBg = data[1], bBg = data[2];
-                        const isWhite = (rBg > 240 && gBg > 240 && bBg > 240);
-                        const isBlack = (rBg < 15 && gBg < 15 && bBg < 15);
+                        corners.forEach(bg => {
+                            const isWhite = (bg.r > 240 && bg.g > 240 && bg.b > 240);
+                            const isBlack = (bg.r < 20 && bg.g < 20 && bg.b < 20);
 
-                        // Only proceed if it looks like a solid background
-                        if (isWhite || isBlack) {
-                            const tolerance = 20;
-                            for (let i = 0; i < data.length; i += 4) {
-                                const r = data[i], g = data[i + 1], b = data[i + 2];
-                                if (Math.abs(r - rBg) < tolerance &&
-                                    Math.abs(g - gBg) < tolerance &&
-                                    Math.abs(b - bBg) < tolerance) {
-                                    data[i + 3] = 0; // Make transparent
+                            if (isWhite || isBlack) {
+                                const tolerance = 30;
+                                for (let i = 0; i < data.length; i += 4) {
+                                    const r = data[i], g = data[i + 1], b = data[i + 2];
+                                    if (Math.abs(r - bg.r) < tolerance && Math.abs(g - bg.g) < tolerance && Math.abs(b - bg.b) < tolerance) {
+                                        data[i + 3] = 0;
+                                    }
                                 }
                             }
-                            ctx.putImageData(imageData, 0, 0);
-                            finalBase64 = canvas.toDataURL('image/png');
+                        });
+                        ctx.putImageData(imageData, 0, 0);
+                    }
+
+                    // 3. Trimming
+                    let targetX = 0, targetY = 0, targetWidth = img.width, targetHeight = img.height;
+                    if (trimSquare) {
+                        const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+                        let minX = canvas.width, minY = canvas.height, maxX = 0, maxY = 0;
+                        let found = false;
+
+                        for (let y = 0; y < canvas.height; y++) {
+                            for (let x = 0; x < canvas.width; x++) {
+                                const alpha = data[(y * canvas.width + x) * 4 + 3];
+                                if (alpha > 10) {
+                                    minX = Math.min(minX, x);
+                                    minY = Math.min(minY, y);
+                                    maxX = Math.max(maxX, x);
+                                    maxY = Math.max(maxY, y);
+                                    found = true;
+                                }
+                            }
+                        }
+
+                        if (found) {
+                            const padding = 2;
+                            targetX = Math.max(0, minX - padding);
+                            targetY = Math.max(0, minY - padding);
+                            targetWidth = Math.min(canvas.width - targetX, (maxX - minX) + (padding * 2));
+                            targetHeight = Math.min(canvas.height - targetY, (maxY - minY) + (padding * 2));
                         }
                     }
 
-                    // Create SVG wrapper
-                    const svgString = `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><image href="${finalBase64}" width="100" height="100" /></svg>`;
+                    // 4. Create Normalized SVG (Centered 100x100)
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = targetWidth;
+                    tempCanvas.height = targetHeight;
+                    tempCanvas.getContext('2d').drawImage(canvas, targetX, targetY, targetWidth, targetHeight, 0, 0, targetWidth, targetHeight);
+
+                    const finalBase64 = tempCanvas.toDataURL('image/png');
+
+                    // Calculate scaling to fit in 100x100 keeping aspect ratio
+                    const scale = Math.min(90 / targetWidth, 90 / targetHeight);
+                    const drawWidth = targetWidth * scale;
+                    const drawHeight = targetHeight * scale;
+                    const xOffset = (100 - drawWidth) / 2;
+                    const yOffset = (100 - drawHeight) / 2;
+
+                    let svgString = '';
+                    if (roundCorners) {
+                        const radius = Math.min(drawWidth, drawHeight) * 0.15; // 15% radius
+                        const clipId = `round-clip-${Date.now()}`;
+                        svgString = `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <clipPath id="${clipId}">
+      <rect x="${xOffset}" y="${yOffset}" width="${drawWidth}" height="${drawHeight}" rx="${radius}" ry="${radius}" />
+    </clipPath>
+  </defs>
+  <image href="${finalBase64}" x="${xOffset}" y="${yOffset}" width="${drawWidth}" height="${drawHeight}" clip-path="url(#${clipId})" />
+</svg>`;
+                    } else {
+                        svgString = `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <image href="${finalBase64}" x="${xOffset}" y="${yOffset}" width="${drawWidth}" height="${drawHeight}" />
+</svg>`;
+                    }
 
                     hiddenInput.value = svgString;
                     previewContainer.innerHTML = svgString;
-                    // Force size in preview
                     const svg = previewContainer.querySelector('svg');
                     if (svg) {
                         svg.setAttribute('width', '100%');

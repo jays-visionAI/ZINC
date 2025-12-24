@@ -86,6 +86,13 @@ let state = {
     timerSeconds: 0,
     timerInterval: null,
     planContext: null, // Context from Knowledge Hub
+    // 🎯 UNIFIED BRAIN: Multi-channel targeting
+    targetChannels: ['x'], // Default to X/Twitter
+    availableChannels: [
+        'x', 'instagram', 'linkedin', 'facebook', 'youtube', 'tiktok',
+        'naver_blog', 'naver_smart_store', 'naver_map', 'coupang', 'tmap', 'kakao_navi', 'kakao_map',
+        'pinterest', 'reddit', 'threads', 'snapchat', 'discord', 'telegram', 'medium'
+    ],
 };
 
 // ============================================
@@ -144,10 +151,9 @@ window.renderDAGPlaceholder = function () {
 
 async function initProjectSelector() {
     const projectSelect = document.getElementById('project-select');
-    const agentTeamSelect = document.getElementById('agentteam-select');
 
     // Add highlight initially to guide user
-    projectSelect.classList.add('selection-highlight');
+    if (projectSelect) projectSelect.classList.add('selection-highlight');
 
     // Wait for Firebase auth
     firebase.auth().onAuthStateChanged(async (user) => {
@@ -279,224 +285,92 @@ async function initProjectSelector() {
                         agentTeamSelect.value = teamId;
                         // Trigger change event manually or call handler
                         agentTeamSelect.classList.remove('selection-highlight');
-                        state.selectedAgentTeam = teamId;
-
-                        const selectedTeamOption = agentTeamSelect.options[agentTeamSelect.selectedIndex];
-
-                        // Verify if the team was actually selected (exists in the list)
-                        if (!selectedTeamOption || agentTeamSelect.value !== teamId) {
-                            console.warn('[Studio] Target team ID not found in list:', teamId);
-                            addLogEntry('⚠️ Selected team not found in project', 'warning');
-                            state.selectedAgentTeam = null; // Reset if invalid
-                        } else {
-                            const teamName = selectedTeamOption.textContent || teamId;
-                            addLogEntry(`🤖 Selected team: ${teamName}`, 'info');
-                        }
-
-                        await loadSubAgents(teamId);
-                        enableStartButton();
-
-                        // If we have a context, we might want to auto-open the DAG or highlight start
-                        if (state.planContext) {
-                            const startBtn = document.getElementById('start-execution-btn');
-                            startBtn.classList.add('animate-pulse'); // Visual cue
-                        }
-
-                        if (typeof renderDAGPlaceholder === 'function') {
-                            renderDAGPlaceholder();
-                        }
                     }
-                } else {
-                    // Project auto-selected but no agent team - show prominent warning
-                    showAgentTeamRequiredWarning();
-                }
-            }
+                    state.selectedAgentTeam = teamId;
 
+                    addLogEntry(`🤖 Auto-loading team: ${teamId}`, 'info');
+
+                    await loadSubAgents(teamId);
+                    enableStartButton();
+
+                    // If we have a context, we might want to auto-open the DAG or highlight start
+                    if (state.planContext) {
+                        const startBtn = document.getElementById('start-execution-btn');
+                        if (startBtn) startBtn.classList.add('animate-pulse'); // Visual cue
+                    }
+
+                    if (typeof renderDAGPlaceholder === 'function') {
+                        renderDAGPlaceholder();
+                    }
+                }
+            } else {
+                // No project auto-selected
+            }
         } catch (error) {
             console.error('[Studio] Error loading projects:', error);
-            projectSelect.innerHTML = '<option value="">Error loading projects</option>';
+            if (projectSelect) projectSelect.innerHTML = '<option value="">Error loading projects</option>';
             addLogEntry('❌ Failed to load projects', 'error');
         }
     });
-
-
     // Event: Project change
-    projectSelect.addEventListener('change', async (e) => {
-        projectSelect.classList.remove('selection-highlight'); // Stop glowing
-        const projectId = e.target.value;
-        const selectedOption = projectSelect.options[projectSelect.selectedIndex];
-        const projectName = selectedOption?.textContent || projectId;
-        state.selectedProject = projectId;
+    if (projectSelect) {
+        projectSelect.addEventListener('change', async (e) => {
+            projectSelect.classList.remove('selection-highlight'); // Stop glowing
+            const projectId = e.target.value;
+            const selectedOption = projectSelect.options[projectSelect.selectedIndex];
+            const projectName = selectedOption?.textContent || projectId;
+            state.selectedProject = projectId;
 
-        if (projectId) {
-            // Sync to global state
-            localStorage.setItem('currentProjectId', projectId);
+            if (projectId) {
+                // Sync to global state
+                localStorage.setItem('currentProjectId', projectId);
 
-            // Clear any lingering plan context from previous loads/redirects
-            state.planContext = null;
+                // Clear any lingering plan context from previous loads/redirects
+                state.planContext = null;
 
-            addLogEntry(`📁 Selected project: ${projectName}`, 'info');
+                addLogEntry(`📁 Selected project: ${projectName}`, 'info');
 
-            // Update Preview Profile
-            updatePreviewProfile(projectName);
+                // Update Preview Profile
+                updatePreviewProfile(projectName);
 
-            // Fetch full project details for context
-            try {
-                const projectDoc = await db.collection('projects').doc(projectId).get();
-                if (projectDoc.exists) {
-                    const pData = projectDoc.data();
-                    const description = pData.description || pData.businessDescription || `Content creation for ${projectName}`;
+                // Fetch full project details for context
+                try {
+                    const projectDoc = await db.collection('projects').doc(projectId).get();
+                    if (projectDoc.exists) {
+                        const pData = projectDoc.data();
+                        const description = pData.description || pData.businessDescription || `Content creation for ${projectName}`;
 
+                        state.planContext = {
+                            planName: `Content Plan for ${projectName}`,
+                            content: description,
+                            projectId: projectId
+                        };
+                        addLogEntry('📄 Loaded project context', 'success');
+                    }
+                } catch (err) {
+                    console.warn('[Studio] Error fetching project details:', err);
+                    // Fallback context
                     state.planContext = {
-                        planName: `Content Plan for ${projectName}`,
-                        content: description,
+                        planName: `Project: ${projectName}`,
+                        content: `Create content for ${projectName}`,
                         projectId: projectId
                     };
-                    addLogEntry('📄 Loaded project context', 'success');
                 }
-            } catch (err) {
-                console.warn('[Studio] Error fetching project details:', err);
-                // Fallback context
-                state.planContext = {
-                    planName: `Project: ${projectName}`,
-                    content: `Create content for ${projectName}`,
-                    projectId: projectId
-                };
+
+                await loadAgentTeams(projectId);
+            } else {
+                const agentTeamSelect = document.getElementById('agentteam-select');
+                if (agentTeamSelect) {
+                    agentTeamSelect.innerHTML = '<option value="">Select Agent Team...</option>';
+                    agentTeamSelect.disabled = true;
+                }
+                addLogEntry('📁 Project deselected', 'info');
             }
 
-            await loadAgentTeams(projectId);
-        } else {
-            agentTeamSelect.innerHTML = '<option value="">Select Agent Team...</option>';
-            agentTeamSelect.disabled = true;
-            addLogEntry('📁 Project deselected', 'info');
-        }
-
-        disableStartButton();
-    });
-
-    // Event: Agent Team change
-    agentTeamSelect.addEventListener('change', async (e) => {
-        // Stop all glowing effects
-        agentTeamSelect.classList.remove('selection-highlight', 'urgent-highlight');
-
-        // Dismiss warning toast if present
-        const toast = document.getElementById('agent-team-warning-toast');
-        if (toast) toast.remove();
-
-        state.selectedAgentTeam = e.target.value;
-        const selectedOption = agentTeamSelect.options[agentTeamSelect.selectedIndex];
-        const teamName = selectedOption?.textContent || e.target.value;
-
-        if (state.selectedProject && state.selectedAgentTeam) {
-            addLogEntry(`🤖 Selected team: ${teamName}`, 'info');
-            // Load sub-agents for the selected team
-            await loadSubAgents(state.selectedAgentTeam);
-            enableStartButton();
-            renderDAGPlaceholder();
-        } else {
-            // Reset to default template when no team selected
-            resetAgentRoster();
             disableStartButton();
-        }
-    });
-}
+        });
 
-/**
- * Show prominent warning when agent team is not selected after project auto-load
- */
-function showAgentTeamRequiredWarning() {
-    const agentTeamSelect = document.getElementById('agentteam-select');
-
-    // Enhanced glow effect on the agent team selector
-    if (agentTeamSelect) {
-        agentTeamSelect.classList.add('selection-highlight', 'urgent-highlight');
     }
-
-    // Create toast notification
-    const existingToast = document.getElementById('agent-team-warning-toast');
-    if (existingToast) existingToast.remove();
-
-    const toast = document.createElement('div');
-    toast.id = 'agent-team-warning-toast';
-    toast.className = 'agent-team-warning-toast';
-    toast.innerHTML = `
-        <div class="toast-icon">⚠️</div>
-        <div class="toast-content">
-            <div class="toast-title">Agent Team Required</div>
-            <div class="toast-message">Please select an Agent Team to start content generation</div>
-        </div>
-        <button class="toast-close" onclick="this.parentElement.remove()">×</button>
-    `;
-
-    // Add styles if not already present
-    if (!document.getElementById('agent-team-toast-styles')) {
-        const style = document.createElement('style');
-        style.id = 'agent-team-toast-styles';
-        style.textContent = `
-            .agent-team-warning-toast {
-                position: fixed;
-                top: 80px;
-                left: 50%;
-                transform: translateX(-50%);
-                display: flex;
-                align-items: center;
-                gap: 12px;
-                background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
-                color: white;
-                padding: 16px 20px;
-                border-radius: 12px;
-                box-shadow: 0 8px 32px rgba(255, 107, 53, 0.4);
-                z-index: 10000;
-                animation: toastSlideIn 0.4s ease-out, toastPulse 2s ease-in-out infinite;
-            }
-            @keyframes toastSlideIn {
-                from { transform: translateX(-50%) translateY(-20px); opacity: 0; }
-                to { transform: translateX(-50%) translateY(0); opacity: 1; }
-            }
-            @keyframes toastPulse {
-                0%, 100% { box-shadow: 0 0 8px #ff6b35, 0 0 16px #ff6b35; }
-                50% { box-shadow: 0 0 16px #ff6b35, 0 0 32px #f7931e, 0 0 48px #ff6b35; }
-            }
-            .toast-icon { font-size: 24px; }
-            .toast-title { font-weight: bold; font-size: 14px; }
-            .toast-message { font-size: 12px; opacity: 0.9; margin-top: 2px; }
-            .toast-close {
-                background: rgba(255,255,255,0.2);
-                border: none;
-                color: white;
-                width: 24px;
-                height: 24px;
-                border-radius: 50%;
-                cursor: pointer;
-                font-size: 16px;
-                line-height: 1;
-            }
-            .toast-close:hover { background: rgba(255,255,255,0.3); }
-            
-            /* Enhanced urgent glow for agent team selector */
-            .urgent-highlight {
-                animation: urgentGlow 1.5s ease-in-out infinite !important;
-                border-color: #ff6b35 !important;
-            }
-            @keyframes urgentGlow {
-                0%, 100% { box-shadow: 0 0 8px #ff6b35, 0 0 16px #ff6b35; }
-                50% { box-shadow: 0 0 16px #ff6b35, 0 0 32px #f7931e, 0 0 48px #ff6b35; }
-            }
-        `;
-        document.head.appendChild(style);
-    }
-
-    document.body.appendChild(toast);
-
-    // Auto-remove after 8 seconds
-    setTimeout(() => {
-        if (toast.parentElement) {
-            toast.style.animation = 'toastSlideIn 0.3s ease-in reverse forwards';
-            setTimeout(() => toast.remove(), 300);
-        }
-    }, 8000);
-
-    addLogEntry('⚠️ Please select an Agent Team', 'warning');
 }
 
 async function loadAgentTeams(projectId) {
@@ -505,7 +379,56 @@ async function loadAgentTeams(projectId) {
     console.log('[Studio] Loading agent teams for project:', projectId);
 
     try {
-        // Try projectAgentTeamInstances first (new structure)
+        // 🧠 UNIFIED BRAIN: First check for coreAgentTeamInstanceId on the project
+        const projectDoc = await db.collection('projects').doc(projectId).get();
+        if (projectDoc.exists) {
+            const projectData = projectDoc.data();
+            const coreTeamId = projectData.coreAgentTeamInstanceId;
+
+            if (coreTeamId) {
+                console.log('[Studio] 🧠 Unified Brain: Auto-loading Core Team:', coreTeamId);
+
+                // Set target channels from project
+                state.targetChannels = projectData.targetChannels || ['x'];
+                console.log('[Studio] Project Target Channels:', state.targetChannels);
+
+                // Initialize Multi-channel Previews
+                renderMultiChannelPreviews();
+
+                // Verify team exists
+                const teamDoc = await db.collection('projectAgentTeamInstances').doc(coreTeamId).get();
+                if (teamDoc.exists) {
+                    const teamData = teamDoc.data();
+
+                    // Update UI (Team selector is removed from HTML, but we still update state)
+                    if (agentTeamSelect) {
+                        agentTeamSelect.innerHTML = `<option value="${coreTeamId}" selected>${teamData.name || 'Core Team'}</option>`;
+                        agentTeamSelect.value = coreTeamId;
+                        agentTeamSelect.disabled = true;
+                    }
+
+                    state.selectedAgentTeam = coreTeamId;
+
+                    addLogEntry(`🧠 Core Team auto-loaded: ${teamData.name || 'Core Team'}`, 'success');
+
+                    // Auto-load sub-agents
+                    await loadSubAgents(coreTeamId);
+                    enableStartButton();
+                    renderDAGPlaceholder();
+
+                    // Show multi-channel toggle instead of team selector (if needed in sidebar/elsewhere)
+                    showMultiChannelToggle();
+
+                    return; // Skip legacy team loading
+                }
+            } else {
+                // Fallback for projects without core team - reset previews to default or empty
+                state.targetChannels = projectData.targetChannels || ['x'];
+                renderMultiChannelPreviews();
+            }
+        }
+
+        // Legacy fallback: Try projectAgentTeamInstances first (old structure)
         let teamsSnapshot = await db.collection('projectAgentTeamInstances')
             .where('projectId', '==', projectId)
             .get();
@@ -556,6 +479,541 @@ async function loadAgentTeams(projectId) {
         agentTeamSelect.disabled = true;
     }
 }
+
+// =====================================================
+// 🎯 MULTI-CHANNEL TOGGLE UI (Unified Brain)
+// =====================================================
+function showMultiChannelToggle() {
+    // Hide the agent team selector row
+    const teamSelectorRow = document.querySelector('.agentteam-select-container, #agentteam-select')?.closest('.selector-row');
+    if (teamSelectorRow) {
+        teamSelectorRow.style.display = 'none';
+    }
+
+    // Check if toggle already exists
+    if (document.getElementById('channel-toggle-container')) return;
+
+    // Create multi-channel toggle UI
+    const toggleContainer = document.createElement('div');
+    toggleContainer.id = 'channel-toggle-container';
+    toggleContainer.className = 'channel-toggle-container';
+    toggleContainer.innerHTML = `
+        <div class="channel-toggle-header">
+            <span class="toggle-icon">🎯</span>
+            <span class="toggle-label">Target Channels</span>
+        </div>
+        <div class="channel-toggle-grid">
+            ${state.availableChannels.map(channel => `
+                <label class="channel-toggle-item ${state.targetChannels.includes(channel) ? 'active' : ''}" data-channel="${channel}">
+                    <input type="checkbox" 
+                           value="${channel}" 
+                           ${state.targetChannels.includes(channel) ? 'checked' : ''}>
+                    <span class="channel-icon">${getChannelIcon(channel)}</span>
+                    <span class="channel-name">${getChannelDisplayName(channel)}</span>
+                </label>
+            `).join('')}
+        </div>
+    `;
+
+    // Insert after project selector
+    const projectSelectorRow = document.querySelector('#project-select')?.closest('.selector-row');
+    if (projectSelectorRow) {
+        projectSelectorRow.insertAdjacentElement('afterend', toggleContainer);
+    } else {
+        // Fallback: append to sidebar
+        const sidebar = document.querySelector('.studio-sidebar, .sidebar');
+        if (sidebar) sidebar.appendChild(toggleContainer);
+    }
+
+    // Add event listeners
+    toggleContainer.querySelectorAll('.channel-toggle-item input').forEach(checkbox => {
+        checkbox.addEventListener('change', (e) => {
+            const channel = e.target.value;
+            const label = e.target.closest('.channel-toggle-item');
+
+            if (e.target.checked) {
+                if (!state.targetChannels.includes(channel)) {
+                    state.targetChannels.push(channel);
+                }
+                label.classList.add('active');
+            } else {
+                // Prevent unchecking if it's the last one
+                if (state.targetChannels.length <= 1) {
+                    e.target.checked = true;
+                    addLogEntry('⚠️ At least one channel must be selected', 'warning');
+                    return;
+                }
+                state.targetChannels = state.targetChannels.filter(c => c !== channel);
+                label.classList.remove('active');
+            }
+
+            addLogEntry(`🎯 Target channels: ${state.targetChannels.join(', ')}`, 'info');
+            updateChannelStats();
+        });
+    });
+}
+
+function getChannelIcon(channel) {
+    // Try to get icon from cached Firestore data first
+    if (window.ChannelProfilesUtils && window.ChannelProfilesUtils._cache) {
+        const profile = window.ChannelProfilesUtils._cache.find(c => c.key === channel);
+        if (profile && profile.icon) {
+            return profile.icon;
+        }
+    }
+
+    // Fallback to inline SVG icons (no emojis!)
+    const svgIcons = {
+        'x': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>',
+        'instagram': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>',
+        'linkedin': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>',
+        'facebook': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>',
+        'youtube': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>',
+        'tiktok': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>',
+        'naver_blog': '<svg width="20" height="20" viewBox="0 0 24 24" fill="#03C75A"><path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z"/></svg>',
+        'naver_smart_store': '<svg width="20" height="20" viewBox="0 0 24 24" fill="#03C75A"><path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z"/></svg>',
+        'naver_map': '<svg width="20" height="20" viewBox="0 0 24 24" fill="#03C75A"><path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z"/></svg>',
+        'pinterest': '<svg width="20" height="20" viewBox="0 0 24 24" fill="#E60023"><path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 11.162-.105-.949-.199-2.403.041-3.439.219-.937 1.406-5.957 1.406-5.957s-.359-.72-.359-1.781c0-1.663.967-2.911 2.168-2.911 1.024 0 1.518.769 1.518 1.688 0 1.029-.653 2.567-.992 3.992-.285 1.193.6 2.165 1.775 2.165 2.128 0 3.768-2.245 3.768-5.487 0-2.861-2.063-4.869-5.008-4.869-3.41 0-5.409 2.562-5.409 5.199 0 1.033.394 2.143.889 2.741.099.12.112.225.085.345-.09.375-.293 1.199-.334 1.363-.053.225-.172.271-.401.165-1.495-.69-2.433-2.878-2.433-4.646 0-3.776 2.748-7.252 7.92-7.252 4.158 0 7.392 2.967 7.392 6.923 0 4.135-2.607 7.462-6.233 7.462-1.214 0-2.354-.629-2.758-1.379l-.749 2.848c-.269 1.045-1.004 2.352-1.498 3.146 1.123.345 2.306.535 3.55.535 6.607 0 11.985-5.365 11.985-11.987C23.97 5.39 18.592.026 11.985.026L12.017 0z"/></svg>',
+        'reddit': '<svg width="20" height="20" viewBox="0 0 24 24" fill="#FF4500"><path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.111 3.111 0 0 1 .042.52c0 2.694-3.13 4.87-7.004 4.87-3.874 0-7.004-2.176-7.004-4.87 0-.183.015-.366.043-.534A1.748 1.748 0 0 1 4.028 12c0-.968.786-1.754 1.754-1.754.463 0 .898.196 1.207.49 1.207-.883 2.878-1.43 4.744-1.487l.885-4.182a.342.342 0 0 1 .14-.197.35.35 0 0 1 .238-.042l2.906.617a1.214 1.214 0 0 1 1.108-.701zM9.25 12C8.561 12 8 12.562 8 13.25c0 .687.561 1.248 1.25 1.248.687 0 1.248-.561 1.248-1.249 0-.688-.561-1.249-1.249-1.249zm5.5 0c-.687 0-1.248.561-1.248 1.25 0 .687.561 1.248 1.249 1.248.688 0 1.249-.561 1.249-1.249 0-.687-.562-1.249-1.25-1.249zm-5.466 3.99a.327.327 0 0 0-.231.094.33.33 0 0 0 0 .463c.842.842 2.484.913 2.961.913.477 0 2.105-.056 2.961-.913a.361.361 0 0 0 .029-.463.33.33 0 0 0-.464 0c-.547.533-1.684.73-2.512.73-.828 0-1.979-.196-2.512-.73a.326.326 0 0 0-.232-.095z"/></svg>',
+        'threads': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-1.104-3.96-3.898-5.984-8.304-6.015-2.91.022-5.11.936-6.54 2.717C4.307 6.504 3.616 8.914 3.589 12c.027 3.086.718 5.496 2.057 7.164 1.43 1.783 3.631 2.698 6.54 2.717 2.623-.02 4.358-.631 5.8-2.045 1.647-1.613 1.618-3.593 1.09-4.798-.31-.71-.873-1.3-1.634-1.75-.192 1.352-.622 2.446-1.284 3.272-.886 1.102-2.14 1.704-3.73 1.79-1.202.065-2.361-.218-3.259-.801-1.063-.689-1.685-1.74-1.752-2.96-.065-1.182.408-2.256 1.33-3.022.88-.73 2.108-1.152 3.457-1.191 1.122-.032 2.181.15 3.152.544-.01-.663-.141-1.2-.392-1.599-.336-.532-.924-.836-1.745-.909-1.598-.14-2.632.456-3.07.886l-1.326-1.54c.787-.677 2.256-1.471 4.503-1.278 1.379.119 2.478.619 3.266 1.485.774.85 1.166 1.968 1.166 3.322v.238c1.108.672 1.953 1.56 2.474 2.6.745 1.485.818 3.584-.69 6.027-1.907 3.09-5.293 3.824-8.227 3.843z"/><path d="M12.297 13.564c-.906.026-1.644.242-2.133.625-.47.369-.68.833-.658 1.42.019.485.242.932.628 1.257.424.357.984.55 1.578.55.05 0 .1-.001.15-.004.921-.05 1.65-.379 2.168-1.022.431-.537.703-1.228.806-2.05-.81-.282-1.684-.436-2.539-.436z"/></svg>',
+        'snapchat': '<svg width="20" height="20" viewBox="0 0 24 24" fill="#FFFC00"><path d="M12.206.793c.99 0 4.347.276 5.93 3.821.529 1.193.403 3.219.299 4.847l-.003.06c-.012.18-.022.345-.03.501.054.027.118.05.198.07.472.117.757.29.99.618.348.49.357 1.133.027 1.697-.17.29-.412.51-.698.69-.138.087-.287.157-.435.218-.127.053-.263.1-.404.14-.02.158-.03.323-.03.49 0 .189.013.382.04.578.096.688.456 1.364.918 2.194.17.307.343.615.523.94.18.322.391.707.566 1.117.283.661.343 1.22.178 1.684-.205.578-.74.95-1.39 1.1-.358.083-.763.128-1.166.128-.227 0-.453-.016-.674-.053-.38-.062-.739-.185-1.094-.381a6.21 6.21 0 0 1-.405-.249 4.96 4.96 0 0 0-.694-.408 4.056 4.056 0 0 0-1.09-.342c-.22-.036-.445-.067-.67-.105-.145.252-.282.51-.402.778-.24.532-.4 1.084-.478 1.643-.08.576-.027 1.054.153 1.381.127.229.304.389.54.49.42.178.862.262 1.447.262.247 0 .506-.017.766-.04l.14-.012c.207-.018.428-.038.64-.038.213 0 .428.02.64.07.21.05.408.127.592.232.185.105.357.236.51.39.152.153.287.323.402.508.115.185.21.386.285.6.075.214.131.442.165.68.034.24.047.49.04.75-.007.26-.04.53-.102.81a5.8 5.8 0 0 1-.234.76 6.93 6.93 0 0 1-.327.68 7.13 7.13 0 0 1-.42.61H3.07a7.13 7.13 0 0 1-.42-.61c-.111-.21-.22-.44-.326-.69a5.8 5.8 0 0 1-.235-.76 3.93 3.93 0 0 1-.102-.81 3.45 3.45 0 0 1 .04-.75c.034-.238.09-.466.165-.68.075-.214.17-.415.285-.6.115-.185.25-.355.402-.508.153-.154.325-.285.51-.39.185-.105.383-.182.593-.232.212-.05.427-.07.64-.07.212 0 .433.02.64.038l.14.012c.26.023.519.04.766.04.585 0 1.027-.084 1.447-.262.236-.101.413-.261.54-.49.18-.327.233-.805.153-1.381a5.893 5.893 0 0 0-.478-1.643 9.76 9.76 0 0 0-.402-.778c-.225.038-.45.069-.67.105a4.056 4.056 0 0 0-1.09.342 4.96 4.96 0 0 0-.694.408c-.13.083-.267.166-.405.249-.355.196-.713.319-1.094.381a4.24 4.24 0 0 1-.674.053c-.403 0-.808-.045-1.166-.128-.65-.15-1.185-.522-1.39-1.1-.165-.464-.105-1.023.178-1.684.175-.41.386-.795.566-1.117.18-.325.354-.633.523-.94.462-.83.822-1.506.918-2.194.027-.196.04-.389.04-.578 0-.167-.01-.332-.03-.49a4.178 4.178 0 0 1-.404-.14 2.64 2.64 0 0 1-.435-.218 1.553 1.553 0 0 1-.698-.69c-.33-.564-.32-1.207.027-1.697.233-.328.518-.501.99-.618.08-.02.144-.043.198-.07a19.12 19.12 0 0 1-.03-.501l-.003-.06c-.104-1.628-.23-3.654.299-4.847C7.859 1.069 11.216.793 12.206.793z"/></svg>',
+        'discord': '<svg width="20" height="20" viewBox="0 0 24 24" fill="#5865F2"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>',
+        'telegram': '<svg width="20" height="20" viewBox="0 0 24 24" fill="#26A5E4"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>',
+        'medium': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M13.54 12a6.8 6.8 0 01-6.77 6.82A6.8 6.8 0 010 12a6.8 6.8 0 016.77-6.82A6.8 6.8 0 0113.54 12zM20.96 12c0 3.54-1.51 6.42-3.38 6.42-1.87 0-3.39-2.88-3.39-6.42s1.52-6.42 3.39-6.42 3.38 2.88 3.38 6.42M24 12c0 3.17-.53 5.75-1.19 5.75-.66 0-1.19-2.58-1.19-5.75s.53-5.75 1.19-5.75C23.47 6.25 24 8.83 24 12z"/></svg>',
+        'coupang': '<svg width="20" height="20" viewBox="0 0 24 24" fill="#E31837"><rect x="2" y="2" width="20" height="20" rx="4"/><text x="12" y="16" text-anchor="middle" fill="white" font-size="10" font-weight="bold">C</text></svg>',
+        'tmap': '<svg width="20" height="20" viewBox="0 0 24 24" fill="#1B64DA"><rect x="2" y="2" width="20" height="20" rx="4"/><text x="12" y="16" text-anchor="middle" fill="white" font-size="8" font-weight="bold">T</text></svg>',
+        'kakao_navi': '<svg width="20" height="20" viewBox="0 0 24 24" fill="#FEE500"><rect x="2" y="2" width="20" height="20" rx="4"/><path fill="#3C1E1E" d="M12 6c-3.314 0-6 2.239-6 5 0 1.762 1.156 3.308 2.906 4.195l-.74 2.735c-.045.166.146.302.288.205l3.1-2.16c.148.011.296.025.446.025 3.314 0 6-2.239 6-5s-2.686-5-6-5z"/></svg>',
+        'kakao_map': '<svg width="20" height="20" viewBox="0 0 24 24" fill="#FEE500"><rect x="2" y="2" width="20" height="20" rx="4"/><path fill="#3C1E1E" d="M12 6c-3.314 0-6 2.239-6 5 0 1.762 1.156 3.308 2.906 4.195l-.74 2.735c-.045.166.146.302.288.205l3.1-2.16c.148.011.296.025.446.025 3.314 0 6-2.239 6-5s-2.686-5-6-5z"/></svg>'
+    };
+
+    // Default SVG icon for unknown channels
+    const defaultIcon = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';
+
+    return svgIcons[channel] || defaultIcon;
+}
+
+function getChannelDisplayName(channel) {
+    const names = {
+        'x': 'X',
+        'instagram': 'Instagram',
+        'linkedin': 'LinkedIn',
+        'facebook': 'Facebook',
+        'youtube': 'YouTube',
+        'tiktok': 'TikTok',
+        'naver_blog': 'Naver Blog',
+        'naver_smart_store': 'N smartstore',
+        'naver_map': 'Naver Map',
+        'coupang': 'Coupang',
+        'tmap': 'T-Map',
+        'kakao_navi': 'Kakao Navi',
+        'kakao_map': 'Kakao Map',
+        'pinterest': 'Pinterest',
+        'reddit': 'Reddit',
+        'threads': 'Threads',
+        'snapchat': 'Snapchat',
+        'discord': 'Discord',
+        'telegram': 'Telegram',
+        'medium': 'Medium'
+    };
+    return names[channel] || channel;
+}
+
+function updateChannelStats() {
+    const channelCount = state.targetChannels.length;
+    const statsEl = document.querySelector('.channel-stats');
+    if (statsEl) {
+        statsEl.textContent = `${channelCount} channel(s) selected`;
+    }
+}
+
+// =====================================================
+// 🎛️ TABBED CHANNEL PREVIEW (Studio v2.1)
+// =====================================================
+
+// Current active channel for preview
+let activePreviewChannel = null;
+
+// Channel content storage
+window.channelContents = {};
+
+// Render channel tabs
+window.renderChannelTabs = function () {
+    const tabsContainer = document.getElementById('channel-preview-tabs');
+    const viewAllBtn = document.getElementById('view-all-channels-btn');
+    if (!tabsContainer) return;
+
+    console.log('[Studio] Rendering Channel Tabs for:', state.targetChannels);
+
+    // Clear and render tabs
+    tabsContainer.innerHTML = '';
+
+    if (state.targetChannels.length === 0) {
+        tabsContainer.innerHTML = '<div class="tab-placeholder">Select channels to preview</div>';
+        if (viewAllBtn) viewAllBtn.style.display = 'none';
+        return;
+    }
+
+    // Show view all button if more than 1 channel
+    if (viewAllBtn) {
+        viewAllBtn.style.display = state.targetChannels.length > 1 ? 'flex' : 'none';
+    }
+
+    state.targetChannels.forEach((channel, index) => {
+        const tab = document.createElement('div');
+        tab.className = `channel-tab ${index === 0 ? 'active' : ''}`;
+        tab.dataset.channel = channel;
+
+        const displayName = getChannelDisplayName(channel);
+        const icon = getChannelIcon(channel);
+        const status = window.channelContents[channel]?.status || 'waiting';
+
+        tab.innerHTML = `
+            <span class="tab-icon">${icon}</span>
+            <span class="tab-name">${displayName}</span>
+            <span class="tab-status ${status}"></span>
+        `;
+
+        tab.addEventListener('click', () => switchPreviewTab(channel));
+        tabsContainer.appendChild(tab);
+    });
+
+    // Set first channel as active
+    if (!activePreviewChannel && state.targetChannels.length > 0) {
+        activePreviewChannel = state.targetChannels[0];
+    }
+
+    renderSingleChannelPreview(activePreviewChannel);
+};
+
+// Switch between tabs
+window.switchPreviewTab = function (channel) {
+    activePreviewChannel = channel;
+
+    // Update tab states
+    document.querySelectorAll('.channel-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.channel === channel);
+    });
+
+    renderSingleChannelPreview(channel);
+};
+
+// Render single channel preview
+window.renderSingleChannelPreview = function (channel) {
+    const previewArea = document.getElementById('single-channel-preview');
+    if (!previewArea || !channel) return;
+
+    const content = window.channelContents[channel];
+    const displayName = getChannelDisplayName(channel);
+    const icon = getChannelIcon(channel);
+
+    if (!content || !content.text) {
+        previewArea.innerHTML = `
+            <div class="preview-placeholder">
+                <span style="font-size: 32px;">${icon}</span>
+                <p>Waiting for ${displayName} content...</p>
+            </div>
+        `;
+        return;
+    }
+
+    // Render platform-specific preview
+    previewArea.innerHTML = getFormattedPreview(channel, content);
+};
+
+// Get formatted preview based on platform
+function getFormattedPreview(channel, content) {
+    const displayName = getChannelDisplayName(channel);
+    const icon = getChannelIcon(channel);
+
+    switch (channel) {
+        case 'x':
+            return `
+                <div class="preview-x-post">
+                    <div class="x-header">
+                        <div class="x-avatar">${icon}</div>
+                        <div class="x-user-info">
+                            <span class="x-name">${state.projectName || 'Brand'}</span>
+                            <span class="x-handle">@brand</span>
+                        </div>
+                    </div>
+                    <div class="x-content">${content.text}</div>
+                    ${content.imageUrl ? `<img class="x-image" src="${content.imageUrl}" alt="Post image">` : ''}
+                    <div class="x-actions">
+                        <span>💬 0</span>
+                        <span>🔄 0</span>
+                        <span>❤️ 0</span>
+                    </div>
+                </div>
+            `;
+        case 'instagram':
+            return `
+                <div class="preview-instagram-post">
+                    <div class="insta-header">
+                        <div class="insta-avatar">${icon}</div>
+                        <span class="insta-username">${state.projectName || 'brand'}</span>
+                    </div>
+                    ${content.imageUrl ? `<img class="insta-image" src="${content.imageUrl}" alt="Post image">` : '<div class="insta-image-placeholder">📷</div>'}
+                    <div class="insta-actions">
+                        <span>❤️</span>
+                        <span>💬</span>
+                        <span>📤</span>
+                        <span style="margin-left:auto;">🔖</span>
+                    </div>
+                    <div class="insta-caption"><strong>${state.projectName || 'brand'}</strong> ${content.text}</div>
+                </div>
+            `;
+        case 'linkedin':
+            return `
+                <div class="preview-linkedin-post">
+                    <div class="linkedin-header">
+                        <div class="linkedin-avatar">${icon}</div>
+                        <div class="linkedin-user-info">
+                            <span class="linkedin-name">${state.projectName || 'Brand'}</span>
+                            <span class="linkedin-title">Company Page</span>
+                        </div>
+                    </div>
+                    <div class="linkedin-content">${content.text}</div>
+                    ${content.imageUrl ? `<img class="linkedin-image" src="${content.imageUrl}" alt="Post image">` : ''}
+                    <div class="linkedin-actions">
+                        <span>👍 Like</span>
+                        <span>💬 Comment</span>
+                        <span>🔄 Repost</span>
+                        <span>📤 Send</span>
+                    </div>
+                </div>
+            `;
+        case 'youtube':
+            return `
+                <div class="preview-youtube-post">
+                    <div class="youtube-thumbnail">
+                        ${content.imageUrl ? `<img src="${content.imageUrl}" style="width:100%; height:100%; object-fit:cover;">` : '<div class="play-btn">▶</div>'}
+                    </div>
+                    <div class="youtube-info">
+                        <div class="youtube-title">${content.text?.substring(0, 100) || 'Video Title'}</div>
+                        <div class="youtube-meta">${state.projectName || 'Channel'} • 0 views</div>
+                    </div>
+                </div>
+            `;
+        case 'naver_blog':
+            return `
+                <div class="preview-naver-post">
+                    <div class="naver-header">
+                        <span>N</span>
+                        <span>네이버 블로그</span>
+                    </div>
+                    <div class="naver-content">
+                        <div class="naver-title">${content.title || 'Blog Post Title'}</div>
+                        <div class="naver-text">${content.text}</div>
+                    </div>
+                </div>
+            `;
+        default:
+            return `
+                <div class="preview-generic">
+                    <div class="generic-header">
+                        <span class="generic-icon">${icon}</span>
+                        <span class="generic-name">${displayName}</span>
+                    </div>
+                    <div class="generic-content">${content.text}</div>
+                </div>
+            `;
+    }
+}
+
+// Update channel tab status
+window.updateChannelTabStatus = function (channel, status) {
+    const tab = document.querySelector(`.channel-tab[data-channel="${channel}"]`);
+    if (tab) {
+        const statusEl = tab.querySelector('.tab-status');
+        if (statusEl) {
+            statusEl.className = `tab-status ${status}`;
+        }
+    }
+};
+
+// Open Multi-Channel Overview Modal
+window.openMultiChannelOverview = function () {
+    // Remove existing modal if any
+    const existing = document.getElementById('multi-channel-overview-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'multi-channel-overview-modal';
+    modal.className = 'multi-channel-modal';
+
+    let cardsHtml = '';
+    state.targetChannels.forEach(channel => {
+        const displayName = getChannelDisplayName(channel);
+        const icon = getChannelIcon(channel);
+        const content = window.channelContents[channel];
+
+        cardsHtml += `
+            <div class="multi-channel-card">
+                <div class="multi-channel-card-header">
+                    <span style="font-size: 20px;">${icon}</span>
+                    <span style="font-weight: 600;">${displayName}</span>
+                </div>
+                <div class="multi-channel-card-body">
+                    ${content?.text ? `<p>${content.text}</p>` : '<p style="color: var(--color-text-tertiary);">Content not generated yet...</p>'}
+                </div>
+            </div>
+        `;
+    });
+
+    modal.innerHTML = `
+        <div class="multi-channel-modal-header">
+            <h2>📺 All Channel Previews</h2>
+            <button class="multi-channel-modal-close" onclick="closeMultiChannelOverview()">×</button>
+        </div>
+        <div class="multi-channel-modal-body">
+            ${cardsHtml}
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+};
+
+// Close Multi-Channel Overview Modal
+window.closeMultiChannelOverview = function () {
+    const modal = document.getElementById('multi-channel-overview-modal');
+    if (modal) modal.remove();
+};
+
+// Legacy compatibility: redirect old function to new one
+window.renderMultiChannelPreviews = function () {
+    window.renderChannelTabs();
+};
+
+function getChannelPreviewTemplate(channel) {
+    // Shared structure for most channels
+    return `
+            <div class="preview-inner">
+                <div class="preview-header">
+                    <div class="preview-user-info">
+                        <img src="../assets/default-avatar.png" class="preview-avatar" alt="Avatar">
+                        <div class="preview-user-meta">
+                            <div class="preview-user-name">Your Brand</div>
+                            <div class="preview-user-handle">@yourbrand</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="preview-text-content" id="${channel}-text" contenteditable="true">
+                    Generated content for ${channel} will appear here...
+                </div>
+                <div class="preview-media-container" id="${channel}-media">
+                    <div class="media-placeholder">
+                        <span class="placeholder-icon">🖼️</span>
+                        <span>Multi-channel visual context pending</span>
+                    </div>
+                </div>
+            </div>
+        `;
+}
+
+window.toggleCardSize = function (channel) {
+    const card = document.getElementById(`preview-card-${channel}`);
+    if (card) {
+        card.classList.toggle('expanded');
+    }
+};
+
+// =====================================================
+// 🔍 PROMPT INSIGHT MODAL (Unified Brain - Transparency)
+// =====================================================
+function showPromptInsight(promptData) {
+    // promptData: { agentRole, systemPrompt, userMessage, aiResponse, targetChannel }
+
+    // Create modal if doesn't exist
+    let modal = document.getElementById('prompt-insight-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'prompt-insight-modal';
+        modal.className = 'prompt-insight-modal';
+        modal.innerHTML = `
+            <div class="prompt-insight-content">
+                <div class="prompt-insight-header">
+                    <h3><span class="insight-icon">🔍</span> Prompt Insight</h3>
+                    <button class="prompt-insight-close">&times;</button>
+                </div>
+                <div class="prompt-insight-body">
+                    <div class="prompt-section" id="insight-agent-info"></div>
+                    <div class="prompt-section" id="insight-system-prompt">
+                        <div class="prompt-section-label">
+                            <span class="section-icon">⚙️</span> System Prompt
+                        </div>
+                        <div class="prompt-section-content system-prompt" id="insight-system-content"></div>
+                    </div>
+                    <div class="prompt-section" id="insight-user-message">
+                        <div class="prompt-section-label">
+                            <span class="section-icon">💬</span> User Message
+                        </div>
+                        <div class="prompt-section-content user-message" id="insight-user-content"></div>
+                    </div>
+                    <div class="prompt-section" id="insight-ai-response">
+                        <div class="prompt-section-label">
+                            <span class="section-icon">🤖</span> AI Response
+                        </div>
+                        <div class="prompt-section-content ai-response" id="insight-response-content"></div>
+                    </div>
+                </div>
+                <div class="prompt-insight-footer">
+                    <button class="prompt-copy-btn" id="copy-all-prompts">
+                        📋 Copy All
+                    </button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        // Close button handler
+        modal.querySelector('.prompt-insight-close').addEventListener('click', () => {
+            modal.classList.remove('open');
+        });
+
+        // Click outside to close
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.remove('open');
+            }
+        });
+
+        // Copy all button
+        modal.querySelector('#copy-all-prompts').addEventListener('click', () => {
+            const fullText = `=== AGENT: ${promptData.agentRole || 'Unknown'} ===\n\n` +
+                `=== SYSTEM PROMPT ===\n${promptData.systemPrompt || 'N/A'}\n\n` +
+                `=== USER MESSAGE ===\n${promptData.userMessage || 'N/A'}\n\n` +
+                `=== AI RESPONSE ===\n${promptData.aiResponse || 'N/A'}`;
+
+            navigator.clipboard.writeText(fullText).then(() => {
+                addLogEntry('📋 Prompts copied to clipboard', 'success');
+            });
+        });
+    }
+
+    // Populate content
+    const channelBadge = promptData.targetChannel
+        ? `<span class="channel-badge">${getChannelIcon(promptData.targetChannel)} ${getChannelDisplayName(promptData.targetChannel)}</span>`
+        : '';
+
+    modal.querySelector('#insight-agent-info').innerHTML = `
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+            <span style="font-size: 24px;">🤖</span>
+            <div>
+                <div style="font-weight: 600; font-size: 16px; color: #fff;">${promptData.agentRole || 'Unknown Agent'}</div>
+                ${channelBadge}
+            </div>
+        </div>
+    `;
+    modal.querySelector('#insight-system-content').textContent = promptData.systemPrompt || 'No system prompt available';
+    modal.querySelector('#insight-user-content').textContent = promptData.userMessage || 'No user message available';
+    modal.querySelector('#insight-response-content').textContent = promptData.aiResponse || 'No response yet';
+
+    // Show modal
+    modal.classList.add('open');
+}
+
+// Expose for external use
+window.showPromptInsight = showPromptInsight;
 
 /**
  * Load sub-agents for the selected Agent Team
@@ -1137,19 +1595,22 @@ function startExecution() {
             console.log('[Studio] Content Generated:', agentId, content);
 
             if (agentId === 'creator_text') {
-                streamTextContent(content.content);
+                try {
+                    // Attempt to parse JSON for multi-channel content
+                    const parsed = typeof content.content === 'string' ? JSON.parse(content.content) : content.content;
+                    displayMultiChannelContent(parsed);
+                } catch (e) {
+                    console.warn('[Studio] Failed to parse multi-channel JSON, falling back to simple stream', e);
+                    displayMultiChannelContent(content.content || content);
+                }
             } else if (agentId === 'creator_image') {
                 console.log('[Studio] Image URL:', content?.imageUrl);
-                const imageContainer = document.getElementById('twitter-image');
+                updateMultiChannelImages(content?.imageUrl);
 
-                if (imageContainer && content?.imageUrl) {
-                    imageContainer.style.display = 'block';
-                    imageContainer.innerHTML = `<img src="${content.imageUrl}" alt="Generated Content" style="width:100%; height:100%; object-fit:cover; border-radius: 12px; border: 1px solid var(--color-border);" onerror="console.error('Image load failed:', this.src)">`;
-
+                if (content?.imageUrl) {
                     const shortUrl = content.imageUrl.length > 50 ? 'View Generated Image' : content.imageUrl;
                     addLogEntry(`🖼️ Image generated: <a href="${content.imageUrl}" target="_blank" style="color:#3b82f6;text-decoration:underline;">${shortUrl}</a>`, 'success');
                 } else {
-                    console.error('[Studio] Image container not found or imageUrl missing', { imageContainer: !!imageContainer, imageUrl: content?.imageUrl });
                     addLogEntry('⚠️ Image generation returned no URL', 'warning');
                 }
             }
@@ -1171,18 +1632,19 @@ function startExecution() {
             document.getElementById('stop-btn').disabled = true;
         });
 
-    // Start Executor
+    // Start Executor with targetChannels for multi-channel content generation
     const selectedAgents = getSelectedAgents();
-    executor.start(selectedAgents, state.selectedProject, state.selectedAgentTeam, state.planContext, state.isBoostMode ? 'BOOST' : null);
+    executor.start(selectedAgents, state.selectedProject, state.selectedAgentTeam, state.planContext, state.isBoostMode ? 'BOOST' : null, state.targetChannels);
 
     // Switch to DAG View (Center Panel)
     updateFooterProgress();
 
-    console.log('Starting execution with DAGExecutor:', {
+    console.log('🚀 Starting execution with DAGExecutor:', {
         project: state.selectedProject,
         team: state.selectedAgentTeam,
         template: state.selectedTemplate,
         agents: selectedAgents,
+        targetChannels: state.targetChannels, // 🎯 Multi-channel targeting
         context: state.planContext
     });
 }
@@ -1533,74 +1995,83 @@ What's your take on the future of AI in content creation?
 
 // Typing animation for text streaming
 // Typing animation for text streaming
-async function streamTextContent(contentText) {
-    const twitterContent = document.getElementById('twitter-content');
-    // Use provided content or fallback to sample
-    const content = contentText || SAMPLE_CONTENT.twitter;
+/**
+ * Streams text content into a specific channel's preview card.
+ */
+async function streamChannelContent(channel, text) {
+    const textEl = document.getElementById(`${channel}-text`);
+    if (!textEl) {
+        console.warn(`[Studio] Channel container for ${channel} not found.`);
+        return;
+    }
 
-    if (!twitterContent) return;
-
-    // Clear placeholder
-    twitterContent.innerHTML = '<p class="streaming-text" style="white-space: pre-wrap; margin: 0;"></p>';
-    const textEl = twitterContent.querySelector('.streaming-text');
-
-    // Add cursor
+    // Clear existing content and prepare for streaming
+    textEl.innerHTML = '';
     textEl.classList.add('typing-cursor');
+    textEl.style.whiteSpace = 'pre-wrap';
+
+    // Update status UI
+    const statusEl = document.getElementById(`status-${channel}`);
+    if (statusEl) {
+        statusEl.classList.remove('waiting');
+        statusEl.classList.add('completed');
+        statusEl.querySelector('.status-text').textContent = 'Draft Ready';
+    }
 
     // Stream characters
-    for (let i = 0; i < content.length; i++) {
-        textEl.textContent += content[i];
+    for (let i = 0; i < text.length; i++) {
+        textEl.textContent += text[i];
 
-        // Scroll to keep cursor visible
-        twitterContent.scrollTop = twitterContent.scrollHeight;
+        // Scroll container if needed
+        const cardBody = textEl.closest('.bento-card-body');
+        if (cardBody) cardBody.scrollTop = cardBody.scrollHeight;
 
-        // Variable speed for natural feel
-        const delay = content[i] === '\n' ? 50 : (Math.random() * 15 + 5);
+        // Natural typing delay
+        const delay = text[i] === '\n' ? 50 : (Math.random() * 10 + 2);
         await sleep(delay);
     }
 
-    // Remove cursor after completion
     textEl.classList.remove('typing-cursor');
     textEl.classList.add('stream-complete');
 
-    // Update stats
-    updateCharacterCount(content.length);
-
-    // Also update other platforms (simplified - just show content)
-    updateOtherPlatforms(content);
+    // Show approval controls for this channel
+    const approvalEl = document.getElementById(`approval-${channel}`);
+    if (approvalEl) approvalEl.style.display = 'block';
 }
 
-// Update character count in stats
-function updateCharacterCount(count) {
-    const charCountEl = document.getElementById('stat-char-count');
-    if (charCountEl) {
-        charCountEl.textContent = `${count}/280`;
+/**
+ * Handles displaying content across multiple channels simultaneously.
+ */
+function displayMultiChannelContent(content) {
+    if (!content) return;
+
+    // If content is a simple string, treat it as primarily for X (legacy support)
+    if (typeof content === 'string') {
+        streamChannelContent('x', content);
+        return;
     }
+
+    // Iterate through all target channels and stream content if available
+    state.targetChannels.forEach(channel => {
+        const channelContent = content[channel] || content.content; // Fallback to generic content
+        if (channelContent) {
+            streamChannelContent(channel, channelContent);
+        }
+    });
 }
 
-// Update other platform previews
-function updateOtherPlatforms(contentText) {
-    const text = contentText || SAMPLE_CONTENT.twitter;
+/**
+ * Update images across channels if relevant.
+ */
+function updateMultiChannelImages(imageUrl) {
+    if (!imageUrl) return;
 
-    // Instagram caption
-    const instagramCaption = document.querySelector('.instagram-caption');
-    if (instagramCaption) {
-        // Find the username element to preserve it
-        const username = instagramCaption.querySelector('strong')?.textContent || 'yourbrand';
-        instagramCaption.innerHTML = `<strong>${username}</strong> ${text.substring(0, 100)}... <span style="color:#8e8e8e">more</span>`;
-    }
-
-    // Facebook
-    const facebookContent = document.querySelector('#preview-facebook .social-content');
-    if (facebookContent) {
-        facebookContent.innerHTML = `<p>${text.substring(0, 150)}... <a href="#" style="color:#1877f2">See more</a></p>`;
-    }
-
-    // LinkedIn
-    const linkedinContent = document.querySelector('#preview-linkedin .social-content');
-    if (linkedinContent) {
-        linkedinContent.innerHTML = `<p>${text.substring(0, 150)}... <a href="#" style="color:#0a66c2">see more</a></p>`;
-    }
+    state.targetChannels.forEach(channel => {
+        const mediaContainer = document.getElementById(`${channel}-media`);
+        if (mediaContainer) {
+            mediaContainer.innerHTML = `<img src="${imageUrl}" alt="${channel} vision" class="preview-img">`;
+        }
+    });
 }
 
 // Update Agent Insights circular progress
@@ -1670,59 +2141,34 @@ function toggleEditMode() {
 
     const editBtn = document.getElementById('btn-edit');
     const editBtnText = document.getElementById('btn-edit-text');
-    const twitterContent = document.getElementById('twitter-content');
-    const instagramContent = document.getElementById('instagram-content');
-    const facebookContent = document.getElementById('facebook-content');
-    const linkedinContent = document.getElementById('linkedin-content');
 
-    const editableElements = [twitterContent, instagramContent, facebookContent, linkedinContent];
+    // Find all dynamic channel text elements
+    const editableElements = state.targetChannels.map(ch => document.getElementById(`${ch}-text`)).filter(el => el !== null);
 
     if (isEditMode) {
         // Enable edit mode
         editableElements.forEach(el => {
-            if (el) {
-                el.contentEditable = 'true';
-                el.classList.add('editable-active');
-                el.style.outline = '2px solid #6366f1';
-                el.style.outlineOffset = '2px';
-                el.style.borderRadius = '4px';
-                el.style.padding = '8px';
-                el.style.backgroundColor = 'rgba(99, 102, 241, 0.1)';
-                el.style.cursor = 'text';
-            }
+            el.contentEditable = 'true';
+            el.classList.add('editable-active');
+            el.style.backgroundColor = 'rgba(99, 102, 241, 0.1)';
+            el.style.cursor = 'text';
         });
 
-        if (editBtn) {
-            editBtn.classList.add('active');
-            editBtn.style.backgroundColor = '#6366f1';
-            editBtn.style.color = '#fff';
-        }
+        if (editBtn) editBtn.classList.add('active');
         if (editBtnText) editBtnText.textContent = 'Done';
-
-        addLogEntry('✏️ Edit mode enabled - Click on content to edit', 'info');
+        addLogEntry('✏️ Edit mode enabled', 'info');
     } else {
         // Disable edit mode
         editableElements.forEach(el => {
-            if (el) {
-                el.contentEditable = 'false';
-                el.classList.remove('editable-active');
-                el.style.outline = '';
-                el.style.outlineOffset = '';
-                el.style.borderRadius = '';
-                el.style.padding = '';
-                el.style.backgroundColor = '';
-                el.style.cursor = '';
-            }
+            el.contentEditable = 'false';
+            el.classList.remove('editable-active');
+            el.style.backgroundColor = '';
+            el.style.cursor = '';
         });
 
-        if (editBtn) {
-            editBtn.classList.remove('active');
-            editBtn.style.backgroundColor = '';
-            editBtn.style.color = '';
-        }
+        if (editBtn) editBtn.classList.remove('active');
         if (editBtnText) editBtnText.textContent = 'Edit';
-
-        addLogEntry('✅ Edit mode disabled - Changes saved', 'success');
+        addLogEntry('✅ Edit mode disabled', 'success');
     }
 }
 
@@ -2378,3 +2824,20 @@ function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
+
+/**
+ * Mark a specific channel's content as approved.
+ */
+window.approveChannel = function (channel) {
+    const statusEl = document.getElementById(`status-${channel}`);
+    if (statusEl) {
+        statusEl.querySelector('.status-text').textContent = '✅ Approved';
+        statusEl.classList.add('approved');
+        statusEl.classList.remove('completed');
+    }
+
+    const approvalEl = document.getElementById(`approval-${channel}`);
+    if (approvalEl) approvalEl.style.display = 'none';
+
+    addLogEntry(`✨ Content for ${getChannelDisplayName(channel)} approved!`, 'success');
+};

@@ -41,9 +41,6 @@ async function loadCredentials() {
     try {
         credentials = await window.ChannelCredentialService.getCredentials(currentUser.uid);
 
-        // Load connected agent teams for each credential
-        await loadConnectedTeamsForCredentials();
-
         renderCredentialsTable();
 
         // ⚡️ Real-time Verification on Load
@@ -54,43 +51,7 @@ async function loadCredentials() {
     }
 }
 
-// Helper: Load connected agent teams for all credentials
-async function loadConnectedTeamsForCredentials() {
-    const db = firebase.firestore();
-
-    for (const cred of credentials) {
-        try {
-            if (!cred.projectId || !cred.provider) {
-                cred.connectedTeams = [];
-                continue;
-            }
-
-            const teamsSnapshot = await db.collection('projectAgentTeamInstances')
-                .where('projectId', '==', cred.projectId)
-                .get();
-
-            const connectedTeams = [];
-
-            teamsSnapshot.forEach(doc => {
-                const teamData = doc.data();
-                const channelBindings = teamData.channelBindings || {};
-
-                if (channelBindings[cred.provider] === cred.id) {
-                    connectedTeams.push({
-                        id: doc.id,
-                        name: teamData.name
-                    });
-                }
-            });
-
-            cred.connectedTeams = connectedTeams;
-
-        } catch (error) {
-            console.error(`Error loading teams for credential ${cred.id}:`, error);
-            cred.connectedTeams = [];
-        }
-    }
-}
+// Helper: Load connected agent teams for all credentials (REMOVED)
 
 function renderCredentialsTable() {
     const tbody = document.getElementById('credentials-table-body');
@@ -150,7 +111,6 @@ function renderCredentialsTable() {
                     <div>${cred.detailedName || cred.accountName || 'Unnamed'}</div>
                     <div style="font-size: 12px; color: rgba(255,255,255,0.5);">${cred.accountHandle || ''}</div>
                 </td>
-                <td>${agentTeamDisplay}</td>
                 <td>${getStatusBadge(cred.status)}</td>
                 <td style="font-size: 12px; color: rgba(255,255,255,0.5);">
                     ${cred.lastTested ? formatDate(cred.lastTested) : 'Never'}
@@ -176,7 +136,24 @@ function getProviderIcon(provider) {
         instagram: '📷',
         youtube: '▶️',
         linkedin: '💼',
-        tiktok: '🎵'
+        tiktok: '🎵',
+        naverBlog: 'N',
+        naver_blog: 'N',
+        naverSmartStore: 'N',
+        naver_smart_store: 'N',
+        naver_smartstore: 'N',
+        naverMap: 'N',
+        naver_map: 'N',
+        coupang: '📦',
+        tmap: '🚗',
+        kakaoNavi: '🧭',
+        kakao_navi: '🧭',
+        kakaoMap: '🗺️',
+        kakao_map: '🗺️',
+        kakaotalk: '💬',
+        line: '🟢',
+        telegram: '✈️',
+        discord: '🤖'
     };
     return icons[provider] || '🔗';
 }
@@ -187,7 +164,24 @@ function getProviderName(provider) {
         instagram: 'Instagram',
         youtube: 'YouTube',
         linkedin: 'LinkedIn',
-        tiktok: 'TikTok'
+        tiktok: 'TikTok',
+        naverBlog: 'Naver Blog',
+        naver_blog: 'Naver Blog',
+        naverSmartStore: 'N smartstore',
+        naver_smart_store: 'N smartstore',
+        naver_smartstore: 'N smartstore',
+        naverMap: 'N Map',
+        naver_map: 'N Map',
+        coupang: 'Coupang',
+        tmap: 'T-Map',
+        kakaoNavi: 'Kakao Navi',
+        kakao_navi: 'Kakao Navi',
+        kakaoMap: 'Kakao Map',
+        kakao_map: 'Kakao Map',
+        kakaotalk: 'KakaoTalk',
+        line: 'LINE',
+        telegram: 'Telegram',
+        discord: 'Discord'
     };
     return names[provider] || provider;
 }
@@ -355,6 +349,27 @@ const PROVIDER_CONFIG = {
             { key: 'appSecret', label: 'App Secret', type: 'password', required: true, placeholder: 'Pinterest App Secret' },
             { key: 'accessToken', label: 'Access Token', type: 'password', required: true, placeholder: 'OAuth Access Token' }
         ]
+    },
+    naverMap: {
+        fields: [
+            { key: 'clientId', label: 'Client ID', type: 'text', placeholder: 'Naver Cloud Client ID', required: true },
+            { key: 'clientSecret', label: 'Client Secret', type: 'password', placeholder: 'Naver Cloud Client Secret', required: true }
+        ]
+    },
+    tmap: {
+        fields: [
+            { key: 'appKey', label: 'App Key', type: 'text', placeholder: 'T-Map API App Key', required: true }
+        ]
+    },
+    kakaoNavi: {
+        fields: [
+            { key: 'restApiKey', label: 'REST API Key', type: 'text', placeholder: 'Kakao REST API Key', required: true }
+        ]
+    },
+    kakaoMap: {
+        fields: [
+            { key: 'restApiKey', label: 'REST API Key', type: 'text', placeholder: 'Kakao REST API Key', required: true }
+        ]
     }
 };
 
@@ -373,60 +388,21 @@ window.openCredentialModal = async function (credentialId = null) {
     // Reset provider select
     providerSelect.innerHTML = '<option value="">Loading channels...</option>';
 
-    // Fallback channel list (used if Firestore fails)
-    const FALLBACK_CHANNELS = [
-        { key: 'instagram', displayName: 'Instagram', order: 1 },
-        { key: 'x', displayName: 'X (Twitter)', order: 2 },
-        { key: 'facebook', displayName: 'Facebook', order: 3 },
-        { key: 'linkedin', displayName: 'LinkedIn', order: 4 },
-        { key: 'youtube', displayName: 'YouTube', order: 5 },
-        { key: 'tiktok', displayName: 'TikTok', order: 6 },
-        { key: 'discord', displayName: 'Discord', order: 7 },
-        { key: 'naverBlog', displayName: 'Naver Blog', order: 8 },
-        { key: 'kakaotalk', displayName: 'KakaoTalk', order: 9 },
-        { key: 'line', displayName: 'LINE', order: 10 },
-        { key: 'reddit', displayName: 'Reddit', order: 11 },
-        { key: 'telegram', displayName: 'Telegram', order: 12 },
-        { key: 'whatsapp', displayName: 'WhatsApp', order: 13 },
-        { key: 'pinterest', displayName: 'Pinterest', order: 14 },
-        { key: 'naverSmartStore', displayName: 'Naver Smart Store', order: 15 },
-        { key: 'coupang', displayName: 'Coupang', order: 16 }
-    ];
-
+    // Load channels from Firestore using standardized utility
     let channels = [];
+    if (window.ChannelProfilesUtils) {
+        channels = await window.ChannelProfilesUtils.loadAvailableChannels();
 
-    try {
-        // Try to fetch from Firestore first
-        const snapshot = await db.collection('channelProfiles').get();
-
-        snapshot.forEach(doc => {
-            const data = { id: doc.id, ...doc.data() };
-            // Cache in channelProfileMap (PRD 12.x)
-            channelProfileMap[data.key] = data;
-
-            if (data.supportsApiConnection !== false && data.status !== 'inactive') {
-                channels.push(data);
-            }
+        // Update global channelProfileMap
+        channels.forEach(ch => {
+            channelProfileMap[ch.key] = ch;
         });
+    }
 
-        if (channels.length > 0) {
-            channels.sort((a, b) => (a.order || 0) - (b.order || 0));
-            console.log(`Loaded ${channels.length} channels from Firestore`);
-        } else {
-            console.log('Firestore returned empty, using fallback channels');
-            channels = FALLBACK_CHANNELS;
-            // Cache fallback channels too
-            FALLBACK_CHANNELS.forEach(ch => {
-                channelProfileMap[ch.key] = { ...ch, apiCredentialConfig: null };
-            });
-        }
-    } catch (error) {
-        console.warn("Firestore error, using fallback channels:", error.message);
-        channels = FALLBACK_CHANNELS;
-        // Cache fallback channels
-        FALLBACK_CHANNELS.forEach(ch => {
-            channelProfileMap[ch.key] = { ...ch, apiCredentialConfig: null };
-        });
+    if (channels.length === 0) {
+        console.warn('No channels found via ChannelProfilesUtils');
+        providerSelect.innerHTML = '<option value="">Error loading channels</option>';
+        return;
     }
 
     // Populate dropdown
@@ -434,7 +410,8 @@ window.openCredentialModal = async function (credentialId = null) {
     channels.forEach(data => {
         const option = document.createElement('option');
         option.value = data.key;
-        option.textContent = data.displayName || data.name || data.key; // Fallback chain
+        // Prefer getProviderName for consistent UI labels
+        option.textContent = getProviderName(data.key);
         providerSelect.appendChild(option);
         console.log(`Added channel: ${data.key} - ${option.textContent}`);
     });
@@ -455,7 +432,6 @@ window.openCredentialModal = async function (credentialId = null) {
             // Set project if available
             if (cred.projectId) {
                 document.getElementById('credential-project').value = cred.projectId;
-                await loadAgentTeamsForBinding();
             }
 
             updateCredentialFields();
@@ -710,9 +686,8 @@ async function saveCredential(e) {
         // Dynamic fields + validation
         const credentials = getCredentialFieldValues(provider, { validate: true });
 
-        // Get project and agent team
+        // Get project
         const projectId = document.getElementById('credential-project')?.value;
-        const selectedTeamId = document.getElementById('credential-agent-team')?.value;
 
         if (!projectId) {
             alert('Please select a project');
@@ -747,20 +722,7 @@ async function saveCredential(e) {
             data
         );
 
-        // Bind to agent team if selected
-        if (selectedTeamId && selectedTeamId !== '') {
-            try {
-                await bindCredentialToTeam(selectedTeamId, provider, savedCredId);
-
-                const teamName = document.querySelector(`#credential-agent-team option[value="${selectedTeamId}"]`)?.textContent || 'agent team';
-                alert(`✅ Connection saved and linked to ${teamName}!`);
-            } catch (bindError) {
-                console.error('Error binding to agent team:', bindError);
-                alert(`✅ Connection saved, but failed to link to agent team: ${bindError.message}`);
-            }
-        } else {
-            alert('✅ Connection saved successfully');
-        }
+        alert('✅ Connection saved successfully');
 
         // Reset state
         lastTestResult = null;
@@ -933,114 +895,4 @@ window.loadUserProjects = async function () {
     }
 };
 
-// Load agent teams for binding when project and channel are selected
-window.loadAgentTeamsForBinding = async function () {
-    const projectId = document.getElementById('credential-project')?.value;
-    const provider = document.getElementById('credential-provider')?.value;
-    const teamSelect = document.getElementById('credential-agent-team');
-
-    if (!teamSelect) return;
-
-    if (!projectId || !provider) {
-        teamSelect.innerHTML = '<option value="">-- Select project and channel first --</option>';
-        teamSelect.disabled = true;
-        return;
-    }
-
-    try {
-        const db = firebase.firestore();
-        const teamsSnapshot = await db.collection('projectAgentTeamInstances')
-            .where('projectId', '==', projectId)
-            .get();
-
-        const matchingTeams = [];
-
-        teamsSnapshot.forEach(doc => {
-            const teamData = doc.data();
-            const channels = teamData.channels || [];
-
-            // Check if this team uses the selected provider
-            const hasChannel = channels.some(ch => ch.provider === provider);
-
-            if (hasChannel) {
-                const channelBindings = teamData.channelBindings || {};
-                const hasCredential = channelBindings[provider];
-
-                matchingTeams.push({
-                    id: doc.id,
-                    name: teamData.name,
-                    hasCredential: !!hasCredential
-                });
-            }
-        });
-
-        teamSelect.innerHTML = '<option value="">-- None (add later) --</option>';
-        teamSelect.disabled = false;
-
-        matchingTeams.forEach(team => {
-            const option = document.createElement('option');
-            option.value = team.id;
-
-            if (team.hasCredential) {
-                option.textContent = `${team.name} (⚠️ Already has credential)`;
-                option.style.color = '#eab308';
-            } else {
-                option.textContent = team.name;
-            }
-
-            teamSelect.appendChild(option);
-        });
-
-        if (matchingTeams.length === 0) {
-            teamSelect.innerHTML = '<option value="">-- No agent teams found --</option>';
-        }
-
-    } catch (error) {
-        console.error('Error loading agent teams:', error);
-        teamSelect.innerHTML = '<option value="">-- Error loading teams --</option>';
-    }
-};
-
-// Bind credential to agent team
-async function bindCredentialToTeam(teamId, provider, credentialId) {
-    const db = firebase.firestore();
-    const teamRef = db.collection('projectAgentTeamInstances').doc(teamId);
-
-    try {
-        const teamDoc = await teamRef.get();
-
-        if (!teamDoc.exists) {
-            throw new Error('Agent team not found');
-        }
-
-        const teamData = teamDoc.data();
-        const channelBindings = teamData.channelBindings || {};
-        const channels = teamData.channels || [];
-
-        // Update channelBindings
-        channelBindings[provider] = credentialId;
-
-        // Update channels array
-        const channelIndex = channels.findIndex(ch => ch.provider === provider);
-        if (channelIndex !== -1) {
-            channels[channelIndex].credentialId = credentialId;
-            channels[channelIndex].status = 'ready';
-            channels[channelIndex].lastErrorMessage = null;
-            channels[channelIndex].updatedAt = firebase.firestore.Timestamp.now();
-        }
-
-        // Save and update team status to active
-        await teamRef.update({
-            channelBindings,
-            channels,
-            status: 'active', // ✨ Auto-activate team when credential is bound
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-
-        console.log(`Credential ${credentialId} bound to team ${teamId}`);
-
-    } catch (error) {
-        console.error('Error binding credential to team:', error);
-        throw error;
-    }
-}
+// End of user-settings.js
