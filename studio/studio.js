@@ -2242,34 +2242,66 @@ function toggleEditMode() {
 
     const editBtn = document.getElementById('btn-edit');
     const editBtnText = document.getElementById('btn-edit-text');
+    const previewArea = document.getElementById('single-channel-preview');
 
-    // Find all dynamic channel text elements
-    const editableElements = state.targetChannels.map(ch => document.getElementById(`${ch}-text`)).filter(el => el !== null);
+    // Find editable content elements in the new tabbed preview system
+    const editableSelectors = [
+        '.x-content',
+        '.linkedin-content',
+        '.facebook-content',
+        '.insta-caption',
+        '.blog-content',
+        '.youtube-description'
+    ];
+
+    const editableElements = previewArea ?
+        editableSelectors.map(sel => previewArea.querySelector(sel)).filter(el => el !== null) : [];
 
     if (isEditMode) {
         // Enable edit mode
+        if (editableElements.length === 0) {
+            addLogEntry('⚠️ No content to edit yet. Wait for content generation.', 'warning');
+            isEditMode = false;
+            return;
+        }
+
         editableElements.forEach(el => {
             el.contentEditable = 'true';
             el.classList.add('editable-active');
-            el.style.backgroundColor = 'rgba(99, 102, 241, 0.1)';
+            el.style.backgroundColor = 'rgba(99, 102, 241, 0.15)';
             el.style.cursor = 'text';
+            el.style.outline = '2px dashed rgba(99, 102, 241, 0.5)';
+            el.style.borderRadius = '8px';
+            el.style.padding = '8px';
+
+            // Save original content for potential revert
+            el.dataset.originalContent = el.textContent;
         });
 
         if (editBtn) editBtn.classList.add('active');
         if (editBtnText) editBtnText.textContent = 'Done';
-        addLogEntry('✏️ Edit mode enabled', 'info');
+        addLogEntry('✏️ Edit mode enabled - Click on content to edit', 'info');
     } else {
-        // Disable edit mode
+        // Disable edit mode and save changes
         editableElements.forEach(el => {
             el.contentEditable = 'false';
             el.classList.remove('editable-active');
             el.style.backgroundColor = '';
             el.style.cursor = '';
+            el.style.outline = '';
+            el.style.borderRadius = '';
+            el.style.padding = '';
+
+            // Update channelContents with edited text
+            const newText = el.textContent;
+            if (activePreviewChannel && window.channelContents[activePreviewChannel]) {
+                window.channelContents[activePreviewChannel].text = newText;
+            }
         });
 
         if (editBtn) editBtn.classList.remove('active');
         if (editBtnText) editBtnText.textContent = 'Edit';
-        addLogEntry('✅ Edit mode disabled', 'success');
+        addLogEntry('✅ Changes saved', 'success');
     }
 }
 
