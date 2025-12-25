@@ -161,13 +161,22 @@ async function loadUserProjects() {
     }
 }
 
+let marketPulseUnsubscribe = null;
+
 async function onProjectChange() {
     if (!currentProjectId) return;
 
     console.log('Project changed to:', currentProjectId);
     document.getElementById('last-updated').textContent = 'Syncing...';
 
+    // Unsubscribe previous listener if exists
+    if (marketPulseUnsubscribe) {
+        marketPulseUnsubscribe();
+        marketPulseUnsubscribe = null;
+    }
+
     try {
+        // 1. Fetch Basic Project Data (One-time)
         const doc = await firebase.firestore().collection('projects').doc(currentProjectId).get();
         if (doc.exists) {
             currentProjectData = doc.data();
@@ -180,13 +189,87 @@ async function onProjectChange() {
                 console.log('[MarketPulse] ⚠️ No Core Agent Team - using simulation mode');
             }
 
+            // Generate initial mock state (fallback)
             updateDashboardWithProjectData(currentProjectData);
+
             // Load research history for the project
             loadResearchHistory();
         }
-        document.getElementById('last-updated').textContent = 'Just now';
+
+        // 2. ⚡ Subscribe to Real-Time Market Pulse Data (from Scheduler)
+        marketPulseUnsubscribe = firebase.firestore()
+            .collection('projects')
+            .doc(currentProjectId)
+            .collection('marketPulse')
+            .doc('latest')
+            .onSnapshot((snapshot) => {
+                if (snapshot.exists) {
+                    console.log('[MarketPulse] ⚡ Real-time update received from Scheduler');
+                    updateDashboardWithRealTimeData(snapshot.data());
+
+                    const updatedTime = snapshot.data().updatedAt ? snapshot.data().updatedAt.toDate() : new Date();
+                    document.getElementById('last-updated').textContent = updatedTime.toLocaleTimeString();
+                } else {
+                    console.log('[MarketPulse] No scheduler data yet. Waiting for next run...');
+                    document.getElementById('last-updated').textContent = 'Waiting for Scheduler...';
+                }
+            }, (error) => {
+                console.error('[MarketPulse] Error listening to updates:', error);
+            });
+
     } catch (error) {
         console.error('Error fetching project data:', error);
+    }
+}
+
+/**
+ * Update Dashboard with Data from Firestore (Scheduler Output)
+ */
+function updateDashboardWithRealTimeData(data) {
+    if (!data) return;
+
+    // 1. Trends
+    if (data.keywords) {
+        TRENDING_KEYWORDS.length = 0;
+        TRENDING_KEYWORDS.push(...data.keywords);
+        renderTrendingKeywords();
+    }
+
+    // 2. Heatmap
+    if (data.heatmap) {
+        HEATMAP_DATA.length = 0;
+        HEATMAP_DATA.push(...data.heatmap);
+        renderHeatmap();
+    }
+
+    // 3. Competitors
+    if (data.competitors) {
+        COMPETITORS.length = 0;
+        COMPETITORS.push(...data.competitors);
+        renderCompetitors();
+    }
+
+    // 4. Metrics (Sentiment / Mentions)
+    if (data.mentions && dom.mentionCount) {
+        dom.mentionCount.textContent = (data.mentions.total || 0).toLocaleString();
+    }
+
+    if (data.sentiment) {
+        const { positive, neutral, negative } = data.sentiment;
+        if (dom.sentimentPosVal) dom.sentimentPosVal.textContent = `${positive}%`;
+        if (dom.sentimentNeuVal) dom.sentimentNeuVal.textContent = `${neutral}%`;
+        if (dom.sentimentNegVal) dom.sentimentNegVal.textContent = `${negative}%`;
+
+        if (dom.sentimentPosBar) dom.sentimentPosBar.style.width = `${positive}%`;
+        if (dom.sentimentNeuBar) dom.sentimentNeuBar.style.width = `${neutral}%`;
+        if (dom.sentimentNegBar) dom.sentimentNegBar.style.width = `${negative}%`;
+    }
+
+    // 5. Update Status
+    const statusBadge = document.getElementById('lab-status-badge');
+    if (statusBadge) {
+        statusBadge.className = "px-3 py-1 bg-blue-500/10 text-blue-400 text-[10px] font-bold rounded-full border border-blue-500/20";
+        statusBadge.textContent = "LIVE DATA ACTIVE";
     }
 }
 
@@ -295,6 +378,23 @@ function updateDashboardWithProjectData(data) {
         dom.mentionCount.textContent = baseMentions.toLocaleString();
     }
 
+    // 3. Update Brand Stats (Dynamic based on project)
+    const brandName = data.projectName || data.name || "Your Brand";
+
+    // Update Heatmap Label
+    const heatmapLabels = document.querySelectorAll('#heatmap-container .text-right');
+    if (heatmapLabels.length > 0) {
+        heatmapLabels.forEach(el => el.textContent = brandName.substring(0, 8));
+    }
+
+    // Update Mention Count (Mocked stable value for UI)
+    let baseMentions = 1200; // Default fallback
+    if (dom.mentionCount) {
+        // Generate a pseudo-random stable number based on brand name length
+        baseMentions = 500 + (brandName.length * 75);
+        dom.mentionCount.textContent = baseMentions.toLocaleString();
+    }
+
     // Update Sentiment Breakdown (Context-aware pseudo-random)
     const pos = 60 + Math.floor(Math.random() * 20); // 60-80%
     const neu = 15 + Math.floor(Math.random() * 10); // 15-25%
@@ -320,7 +420,7 @@ function updateDashboardWithProjectData(data) {
     // PHASE 3: Save Snapshot for Brand Brain
     saveMarketPulseSnapshot(data, {
         sentiment: { positive: pos, neutral: neu, negative: neg },
-        mentions: { total: baseMentions || 1200, growth: 12 },
+        mentions: { total: baseMentions, growth: 12 },
         engagement: { score: 78, trend: 'up' }, // Mocked for now (consistent with render)
         competitors: { rank: 2, gap: 5 },       // Mocked for now
         keywords: TRENDING_KEYWORDS
