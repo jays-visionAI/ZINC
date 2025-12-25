@@ -848,7 +848,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // 1. Render Project Cards
         projects.forEach(p => {
             const card = document.createElement("div");
-            card.className = `client-card status-${p.status ? p.status.toLowerCase() : 'nominal'}`;
+            card.className = `client-card status-${p.status ? p.status.toLowerCase() : 'nominal'}${p.agentStatus === 'running' ? ' agent-running' : ''}`;
 
             // Status Color Map
             let statusColor = "var(--color-success)";
@@ -925,9 +925,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 <div class="card-actions">
                     <!-- [NEW] Run/Pause Button handled by toggleProjectAgent -->
-                    <button id="btn-run-${p.id}" class="btn-mission" onclick="toggleProjectAgent('${p.id}', this)" style="flex:1; display:flex; align-items:center; justify-content:center; gap:8px;">
-                        <svg class="run-icon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                        <span class="run-text">RUN</span>
+                    <button id="btn-run-${p.id}" 
+                            class="btn-mission ${p.agentStatus === 'running' ? 'active' : ''}" 
+                            onclick="toggleProjectAgent('${p.id}', this)" 
+                            style="flex:1; display:flex; align-items:center; justify-content:center; gap:8px; ${p.agentStatus === 'running' ? 'background: rgba(239, 68, 68, 0.2); color: #fca5a5; border-color: rgba(239, 68, 68, 0.4);' : ''}">
+                        ${p.agentStatus === 'running'
+                    ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg> <span class="run-text">PAUSE</span>`
+                    : `<svg class="run-icon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> <span class="run-text">RUN</span>`
+                }
                     </button>
                     <!-- [Changed] Gear to Trash Icon for Delete -->
                     <button class="btn-settings btn-delete" onclick="deleteProject('${p.id}')" title="Delete Project">
@@ -1693,55 +1698,57 @@ window.saveChannelManager = async function () {
 // =====================================================
 // ▶️ Run/Pause Project Agents (Toggle Logic)
 // =====================================================
-window.toggleProjectAgent = function (projectId, btn) {
+window.toggleProjectAgent = async function (projectId, btn) {
     // Find the card element to apply the glow effect
     const card = btn.closest('.client-card');
     const isRunning = btn.classList.contains('active');
 
-    if (!isRunning) {
-        // STATE: START RUNNING
-        if (!confirm("🚀 Ready to run agents on selected channels?\n\nThis will trigger the content generation workflow.")) {
-            return;
+    // Disable button during transition to prevent double-clicks
+    btn.disabled = true;
+    const originalContent = btn.innerHTML;
+    btn.innerHTML = '<span class="loading-spinner">...</span>'; // Simple loading indicator
+
+    try {
+        if (!isRunning) {
+            // STATE: START RUNNING
+            if (!confirm("🚀 Ready to run agents on selected channels?\n\nThis will trigger the content generation workflow.")) {
+                btn.disabled = false;
+                btn.innerHTML = originalContent;
+                return;
+            }
+
+            // 1. Update Firestore
+            await firebase.firestore().collection('projects').doc(projectId).update({
+                agentStatus: 'running',
+                lastRunStarted: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            // 2. UI Updates (Optimistic update, though snapshot listener handles it too)
+            // btn.classList.add('active'); ... (handled by render/snapshot)
+
+            console.log(`[Run] Agent started for project ${projectId}...`);
+
+        } else {
+            // STATE: PAUSE (STOP)
+
+            // 1. Update Firestore
+            await firebase.firestore().collection('projects').doc(projectId).update({
+                agentStatus: 'paused',
+                lastRunStopped: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            // 2. UI Updates
+            // btn.classList.remove('active'); ... (handled by render/snapshot)
+
+            console.log(`[Pause] Agent stopped for project ${projectId}.`);
         }
-
-        // 1. Update UI to "PAUSE"
-        btn.classList.add('active');
-        btn.style.background = 'rgba(239, 68, 68, 0.2)'; // Red-ish tint for pause
-        btn.style.color = '#fca5a5';
-        btn.style.borderColor = 'rgba(239, 68, 68, 0.4)';
-
-        // Update Icon to Pause
-        const iconInfo = '<rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>';
-        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">${iconInfo}</svg> <span class="run-text">PAUSE</span>`;
-
-        // 2. Add Blue Glowing Effect to Card
-        if (card) {
-            card.classList.add('agent-running');
-        }
-
-        // 3. Log / Toast
-        console.log(`[Run] Agent started for project ${projectId}...`);
-        // Optional: Show a toast? 
-        // alert(`✅ Research Agent Started!\n\nReal-time monitoring is active.`); // User asked for Opinion, not alert every time.
-
-    } else {
-        // STATE: PAUSE (STOP)
-        // 1. Revert UI to "RUN"
-        btn.classList.remove('active');
-        btn.style.background = ''; // Reset to CSS default
-        btn.style.color = '';
-        btn.style.borderColor = '';
-
-        // Update Icon to Play
-        const iconInfo = '<polygon points="5 3 19 12 5 21 5 3"></polygon>';
-        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">${iconInfo}</svg> <span class="run-text">RUN</span>`;
-
-        // 2. Remove Blue Glow
-        if (card) {
-            card.classList.remove('agent-running');
-        }
-
-        console.log(`[Pause] Agent stopped for project ${projectId}.`);
+    } catch (error) {
+        console.error("Error toggling agent status:", error);
+        alert("Failed to update status: " + error.message);
+        btn.innerHTML = originalContent; // Revert on error
+    } finally {
+        btn.disabled = false;
+        // The actual UI update will happen via the onSnapshot listener calling renderProjectCards
     }
 };
 
