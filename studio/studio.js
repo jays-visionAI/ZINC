@@ -2035,11 +2035,32 @@ What's your take on the future of AI in content creation?
 // Typing animation for text streaming
 /**
  * Streams text content into a specific channel's preview card.
+ * Updated to use new channelContents system.
  */
 async function streamChannelContent(channel, text) {
+    // Store content in the new system
+    if (!window.channelContents[channel]) {
+        window.channelContents[channel] = { status: 'completed' };
+    }
+    window.channelContents[channel].text = text;
+    window.channelContents[channel].status = 'completed';
+
+    // Update tab status
+    const tab = document.querySelector(`.channel-tab[data-channel="${channel}"] .tab-status`);
+    if (tab) {
+        tab.classList.remove('waiting');
+        tab.classList.add('completed');
+    }
+
+    // Re-render if this is the active channel
+    if (activePreviewChannel === channel) {
+        renderSingleChannelPreview(channel);
+    }
+
+    // Legacy support: try old DOM element if exists
     const textEl = document.getElementById(`${channel}-text`);
     if (!textEl) {
-        console.warn(`[Studio] Channel container for ${channel} not found.`);
+        // Not a warning - this is expected in the new tabbed preview system
         return;
     }
 
