@@ -369,17 +369,7 @@ function getUpgradeCTA() {
 // AUTO-INITIALIZATION
 // ============================================================
 
-// Initialize when Firebase is ready
-document.addEventListener('DOMContentLoaded', () => {
-    // Wait for Firebase auth
-    if (typeof firebase !== 'undefined' && firebase.auth) {
-        firebase.auth().onAuthStateChanged((user) => {
-            if (user) {
-                initCreditsSystem();
-            }
-        });
-    }
-});
+// Auto-initialization removed - now handled explicitly by page controllers (e.g., user-settings.js)
 
 // Export for module systems
 if (typeof module !== 'undefined' && module.exports) {

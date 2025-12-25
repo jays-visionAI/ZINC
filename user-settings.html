@@ -15,8 +15,8 @@
         rel="stylesheet">
 
     <!-- Styles -->
-    <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="admin.css"> <!-- Reusing admin styles for consistency -->
+    <link rel="stylesheet" href="/styles.css?v=20241225.2">
+    <link rel="stylesheet" href="/admin-detail.css?v=20241225.2"> <!-- Reusing admin styles for consistency -->
 
     <style>
         /* Local overrides for settings page */
@@ -683,13 +683,13 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-functions-compat.js"></script>
 
     <!-- App Scripts -->
-    <script src="firebase-config.js"></script>
-    <script src="env-config.js"></script>
-    <script src="credits.js"></script>
-    <script src="utils-modal.js"></script>
-    <script src="services/channel-credential-service.js?v=20241207"></script>
-    <!-- script src="scripts/sidebar-loader.js?v=20241204"></script -->
-    <script src="user-settings.js?v=20241207"></script>
+    <script src="/firebase-config.js?v=20241225.2"></script>
+    <script src="/env-config.js?v=20241225.2"></script>
+    <script src="/credits.js?v=20241225.2"></script>
+    <script src="/utils-modal.js?v=20241225.2"></script>
+    <script src="/utils-channel-profiles.js?v=20241225.2"></script>
+    <script src="/services/channel-credential-service.js?v=20241225.2"></script>
+    <script src="/user-settings.js?v=20241225.2"></script>
 
     <script>
         // Update billing tab when loaded
@@ -722,9 +722,7 @@
             }
         };
 
-        // Initial load
-        setTimeout(updateBillingTab, 1000);
-        setTimeout(loadSubscriptionStatus, 1500);
+        // Initial load removed - now handled in user-settings.js initSettings() after auth
 
         // ============================================================
         // STRIPE INTEGRATION

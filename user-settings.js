@@ -14,15 +14,37 @@ document.addEventListener("DOMContentLoaded", () => {
 let currentUser = null;
 let credentials = [];
 
-function initSettings(user) {
+async function initSettings(user) {
     currentUser = user;
     console.log("Settings initialized for user:", user.email);
+
+    // 🪙 Initialize Credits System first (important for usage display)
+    if (typeof initCreditsSystem === 'function') {
+        try {
+            await initCreditsSystem();
+        } catch (err) {
+            console.error("Failed to init credits system:", err);
+        }
+    }
 
     // Load credentials
     loadCredentials();
 
     // Setup event listeners
     setupEventListeners();
+
+    // 💳 Load billing & subscription status - wait for token to be fully ready
+    if (user && user.getIdToken) {
+        try {
+            await user.getIdToken(true); // Force refresh token
+            console.log("Auth token refreshed for billing calls");
+        } catch (err) {
+            console.error("Token refresh failed:", err);
+        }
+    }
+
+    if (typeof updateBillingTab === 'function') setTimeout(updateBillingTab, 1000);
+    if (typeof loadSubscriptionStatus === 'function') setTimeout(loadSubscriptionStatus, 1500);
 }
 
 function setupEventListeners() {
@@ -424,9 +446,13 @@ window.openCredentialModal = async function (credentialId = null) {
     }
 
     if (channels.length === 0) {
-        console.warn('No channels found via ChannelProfilesUtils');
-        providerSelect.innerHTML = '<option value="">Error loading channels</option>';
-        return;
+        console.warn('No channels found via ChannelProfilesUtils - using fallback from PROVIDER_CONFIG');
+        // Fallback: Use PROVIDER_CONFIG keys if profiles not found in Firestore
+        channels = Object.keys(PROVIDER_CONFIG).map(key => ({
+            key: key,
+            id: key,
+            displayName: getProviderName(key)
+        }));
     }
 
     // Populate dropdown
