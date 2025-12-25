@@ -1121,45 +1121,56 @@ window.savePricingData = async function () {
     }
 };
 
-// ===================================================
 // PRD 11.6 - LLM Models & Feature Policies Management
-// ===================================================
-
-var llmModels = [];
-var featurePolicies = [];
+window.llmModels = window.llmModels || [];
+window.featurePolicies = window.featurePolicies || [];
 
 /**
  * Filter and standardize models for Text-only UI
  */
 window.getFilteredTextModels = function (provider) {
-    if (!llmModels || llmModels.length === 0) return [];
+    const models = window.llmModels || [];
+    if (models.length === 0) {
+        console.warn('[LLM] getFilteredTextModels: window.llmModels is empty');
+        return [];
+    }
 
-    const targetProvider = (provider || '').toLowerCase();
+    const targetProvider = (provider || '').trim().toLowerCase();
     const getStd = (p) => (p === 'google' || p === 'gemini') ? 'gemini' : p;
     const p2 = getStd(targetProvider);
 
-    return llmModels.filter(m => {
-        const mProvider = (m.provider || m.providerId || '').toLowerCase();
-        const p1 = getStd(mProvider);
+    return models.filter(m => {
+        const mProviderStr = (m.provider || m.providerId || '').trim().toLowerCase();
+        const p1 = getStd(mProviderStr);
 
-        // Strict provider match
         if (!p1 || !p2 || p1 !== p2) return false;
 
-        // Text-only capability check
-        const cap = m.capabilities || [];
-        const isText = cap.includes('chat') || cap.includes('reasoning') || cap.includes('text') || cap.includes('coding');
-
-        // Negative filter for visual models
         const lowerName = (m.displayName || '').toLowerCase();
         const lowerId = (m.modelId || '').toLowerCase();
+
+        // Negative filter: exclude known image/video model keywords
         const isVisual = lowerName.includes('(image)') ||
             lowerName.includes('(video)') ||
             lowerId.includes('veo') ||
             lowerId.includes('imagen') ||
             lowerId.includes('sora') ||
-            lowerId.includes('dalle');
+            lowerId.includes('dalle') ||
+            lowerId.includes('flux') ||
+            lowerId.includes('stable-diffusion') ||
+            lowerId.includes('midjourney');
 
-        return isText && !isVisual;
+        if (isVisual) return false;
+
+        // Positive filter: check for text-related capabilities OR fallback to true if no visual labels
+        const cap = (m.capabilities || []).map(c => c.toLowerCase());
+        const hasTextCap = cap.length === 0 ||
+            cap.includes('chat') ||
+            cap.includes('reasoning') ||
+            cap.includes('text') ||
+            cap.includes('coding') ||
+            cap.includes('math');
+
+        return hasTextCap;
     });
 };
 
@@ -1176,14 +1187,14 @@ window.refreshLLMModels = async function () {
         const db = firebase.firestore();
         const snapshot = await db.collection('systemLLMModels').orderBy('tier').get();
 
-        llmModels = [];
+        window.llmModels = [];
         if (snapshot.empty) {
             tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 20px; color: rgba(255,255,255,0.5);">No models found. Click "Seed Models" to initialize.</td></tr>';
             return;
         }
 
         snapshot.forEach(doc => {
-            llmModels.push({ id: doc.id, ...doc.data() });
+            window.llmModels.push({ id: doc.id, ...doc.data() });
         });
 
         renderLLMModelsTable();
@@ -1813,7 +1824,7 @@ function renderGlobalDefaultsUI(config) {
                 <select id="tier-${tier.id}-model" class="admin-input" style="font-size: 12px; padding: 6px 8px;">
                     ${filteredModels.length > 0
                 ? filteredModels.map(m => `<option value="${m.modelId}" ${m.modelId === selectedModel ? 'selected' : ''}>${m.displayName}</option>`).join('')
-                : `<option value="">(No ${selectedProvider} models found)</option>`
+                : `<option value="">(No ${selectedProvider} models found. Please click 'Seed'.)</option>`
             }
                 </select>
             </div>
