@@ -1213,8 +1213,11 @@ function switchKBTab(tabName) {
 }
 
 /**
- * Calculate health score
+ * Calculate health score - Wrapper for Phase 3 real health calculation
  */
+window.calculateHealthScore = function () {
+    calculateRealBrandHealth();
+};
 
 /**
  * Sync with Hive Mind - Push Brand Brain data to all Agent Teams

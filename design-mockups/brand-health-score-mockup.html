@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brand Health Score - Design Mockup</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #020617;
+            color: #f8fafc;
+            min-height: 100vh;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+        }
+
+        .mockup-label {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        /* ===== MAIN CARD ===== */
+        .health-card {
+            width: 100%;
+            max-width: 800px;
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.6));
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 32px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .health-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, rgba(251, 191, 36, 0.1) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        /* Header */
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 24px;
+        }
+
+        .card-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 8px;
+        }
+
+        .score-display {
+            display: flex;
+            align-items: baseline;
+            gap: 4px;
+        }
+
+        .score-value {
+            font-size: 64px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1;
+        }
+
+        .score-value.green {
+            background: linear-gradient(135deg, #22c55e, #10b981);
+            -webkit-background-clip: text;
+            background-clip: text;
+        }
+
+        .score-max {
+            font-size: 20px;
+            color: #475569;
+            font-weight: 500;
+        }
+
+        .optimize-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(251, 191, 36, 0.15);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            color: #fbbf24;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .optimize-btn:hover {
+            background: rgba(251, 191, 36, 0.25);
+            transform: translateY(-1px);
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            margin-bottom: 24px;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #fbbf24, #f59e0b);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+            box-shadow: 0 0 10px rgba(251, 191, 36, 0.5);
+        }
+
+        /* Milestone Tracker */
+        .milestone-tracker {
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+        }
+
+        .milestone-tracker::before {
+            content: '';
+            position: absolute;
+            top: 12px;
+            left: 20px;
+            right: 20px;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .milestone {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            z-index: 1;
+        }
+
+        .milestone-dot {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #1e293b;
+            border: 2px solid #334155;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .milestone-dot.active {
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            border-color: #fbbf24;
+            color: #000;
+            box-shadow: 0 0 15px rgba(251, 191, 36, 0.5);
+        }
+
+        .milestone-dot.completed {
+            background: #22c55e;
+            border-color: #22c55e;
+            color: #000;
+        }
+
+        .milestone-label {
+            font-size: 11px;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .milestone-label.active {
+            color: #fbbf24;
+            font-weight: 600;
+        }
+
+        .milestone-score {
+            font-size: 10px;
+            color: #475569;
+        }
+
+        /* Message */
+        .status-message {
+            background: rgba(251, 191, 36, 0.08);
+            border: 1px solid rgba(251, 191, 36, 0.2);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .status-message.green {
+            background: rgba(34, 197, 94, 0.08);
+            border-color: rgba(34, 197, 94, 0.2);
+        }
+
+        .status-icon {
+            font-size: 24px;
+        }
+
+        .status-text {
+            font-size: 14px;
+            color: #e2e8f0;
+        }
+
+        .status-text strong {
+            color: #fbbf24;
+        }
+
+        .status-text.green strong {
+            color: #22c55e;
+        }
+
+        /* Category Cards */
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .category-card {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .category-card:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .category-card.warning {
+            border-color: rgba(251, 191, 36, 0.3);
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.08), transparent);
+        }
+
+        .category-card.critical {
+            border-color: rgba(239, 68, 68, 0.4);
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), transparent);
+            animation: pulse-critical 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-critical {
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.3);
+            }
+
+            50% {
+                box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+            }
+        }
+
+        .category-card.complete {
+            border-color: rgba(34, 197, 94, 0.3);
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.08), transparent);
+        }
+
+        .category-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .category-label {
+            font-size: 10px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .category-icon {
+            font-size: 12px;
+        }
+
+        .category-score {
+            font-size: 18px;
+            font-weight: 700;
+            color: #e2e8f0;
+        }
+
+        .category-score.complete {
+            color: #22c55e;
+        }
+
+        .category-score.critical {
+            color: #ef4444;
+        }
+
+        .category-score.warning {
+            color: #fbbf24;
+        }
+
+        .category-bar {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+
+        .category-bar-fill {
+            height: 100%;
+            border-radius: 2px;
+            background: #64748b;
+        }
+
+        .category-bar-fill.complete {
+            background: #22c55e;
+        }
+
+        .category-bar-fill.critical {
+            background: #ef4444;
+        }
+
+        .category-bar-fill.warning {
+            background: #fbbf24;
+        }
+
+        .category-action {
+            margin-top: 10px;
+            font-size: 11px;
+            color: #6366f1;
+            font-weight: 600;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .category-card:hover .category-action {
+            opacity: 1;
+        }
+
+        /* Action Card */
+        .action-card {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.1));
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .action-content {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .action-icon {
+            width: 48px;
+            height: 48px;
+            background: rgba(99, 102, 241, 0.2);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .action-text h4 {
+            font-size: 15px;
+            font-weight: 600;
+            color: #e2e8f0;
+            margin-bottom: 4px;
+        }
+
+        .action-text p {
+            font-size: 13px;
+            color: #94a3b8;
+        }
+
+        .action-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .points-badge {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            margin-left: 8px;
+        }
+
+        /* Scenario Labels */
+        .scenario-label {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        .scenario-badge {
+            display: inline-block;
+            background: rgba(99, 102, 241, 0.2);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            color: #a5b4fc;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        /* Second Mockup - After Progress */
+        .health-card.after {
+            border-color: rgba(34, 197, 94, 0.2);
+        }
+
+        .health-card.after .progress-fill {
+            background: linear-gradient(90deg, #22c55e, #10b981);
+            box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+        }
+
+        /* Missing Items Modal */
+        .modal-preview {
+            max-width: 500px;
+            background: rgba(19, 19, 26, 0.98);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .current-score-badge {
+            font-size: 12px;
+            font-weight: 600;
+            color: #fbbf24;
+            background: rgba(251, 191, 36, 0.15);
+            padding: 4px 12px;
+            border-radius: 20px;
+        }
+
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #64748b;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .missing-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            background: rgba(239, 68, 68, 0.05);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 12px;
+            margin-bottom: 12px;
+        }
+
+        .missing-item.warning {
+            background: rgba(251, 191, 36, 0.05);
+            border-color: rgba(251, 191, 36, 0.2);
+        }
+
+        .missing-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .missing-icon {
+            font-size: 18px;
+        }
+
+        .missing-text {
+            font-size: 14px;
+            color: #e2e8f0;
+        }
+
+        .missing-points {
+            font-size: 12px;
+            color: #22c55e;
+            font-weight: 600;
+            margin-top: 4px;
+        }
+
+        .missing-action {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .modal-footer {
+            padding: 16px 24px;
+            background: rgba(0, 0, 0, 0.2);
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .potential-score {
+            font-size: 14px;
+            color: #94a3b8;
+            text-align: center;
+        }
+
+        .potential-score strong {
+            color: #22c55e;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Mockup Label -->
+    <div class="mockup-label">🎨 Brand Health Score - Design Mockup v1.0</div>
+
+    <!-- ===== SCENARIO 1: 첫 방문 (30점) ===== -->
+    <div class="scenario-label">
+        <div class="scenario-badge">📍 시나리오 1: 첫 방문 사용자 (프로젝트 생성 직후)</div>
+    </div>
+
+    <div class="health-card">
+        <div class="card-header">
+            <div>
+                <div class="card-title">Brand Health Score</div>
+                <div class="score-display">
+                    <span class="score-value">30</span>
+                    <span class="score-max">/ 100</span>
+                </div>
+            </div>
+            <button class="optimize-btn">
+                ⚠️ Optimize
+            </button>
+        </div>
+
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: 30%"></div>
+            </div>
+
+            <div class="milestone-tracker">
+                <div class="milestone">
+                    <div class="milestone-dot active">✓</div>
+                    <div class="milestone-label active">시작</div>
+                    <div class="milestone-score">30점</div>
+                </div>
+                <div class="milestone">
+                    <div class="milestone-dot">50</div>
+                    <div class="milestone-label">준비완료</div>
+                    <div class="milestone-score">50점</div>
+                </div>
+                <div class="milestone">
+                    <div class="milestone-dot">80</div>
+                    <div class="milestone-label">프로</div>
+                    <div class="milestone-score">80점</div>
+                </div>
+                <div class="milestone">
+                    <div class="milestone-dot">🏆</div>
+                    <div class="milestone-label">마스터</div>
+                    <div class="milestone-score">100점</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="status-message">
+            <span class="status-icon">🌱</span>
+            <span class="status-text"><strong>시작이 좋아요!</strong> Knowledge Hub에 자료를 추가하면 더 좋은 콘텐츠를 만들 수 있어요.</span>
+        </div>
+
+        <div class="category-grid">
+            <div class="category-card complete">
+                <div class="category-header">
+                    <span class="category-label">Identity</span>
+                    <span class="category-icon">✅</span>
+                </div>
+                <div class="category-score complete">30/30</div>
+                <div class="category-bar">
+                    <div class="category-bar-fill complete" style="width: 100%"></div>
+                </div>
+            </div>
+            <div class="category-card critical">
+                <div class="category-header">
+                    <span class="category-label">Know.</span>
+                    <span class="category-icon">🔴</span>
+                </div>
+                <div class="category-score critical">0/25</div>
+                <div class="category-bar">
+                    <div class="category-bar-fill critical" style="width: 0%"></div>
+                </div>
+                <div class="category-action">개선하기 →</div>
+            </div>
+            <div class="category-card warning">
+                <div class="category-header">
+                    <span class="category-label">Strat.</span>
+                    <span class="category-icon">⚠️</span>
+                </div>
+                <div class="category-score warning">0/25</div>
+                <div class="category-bar">
+                    <div class="category-bar-fill warning" style="width: 0%"></div>
+                </div>
+                <div class="category-action">개선하기 →</div>
+            </div>
+            <div class="category-card">
+                <div class="category-header">
+                    <span class="category-label">Update</span>
+                    <span class="category-icon">—</span>
+                </div>
+                <div class="category-score">0/10</div>
+                <div class="category-bar">
+                    <div class="category-bar-fill" style="width: 0%"></div>
+                </div>
+            </div>
+            <div class="category-card">
+                <div class="category-header">
+                    <span class="category-label">Qual.</span>
+                    <span class="category-icon">—</span>
+                </div>
+                <div class="category-score">0/10</div>
+                <div class="category-bar">
+                    <div class="category-bar-fill" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="action-card">
+            <div class="action-content">
+                <div class="action-icon">📚</div>
+                <div class="action-text">
+                    <h4>Knowledge Hub에 자료 추가하기</h4>
+                    <p>브랜드 자료를 추가하면 더 정확한 콘텐츠가 생성됩니다</p>
+                </div>
+            </div>
+            <button class="action-btn">
+                지금 추가하기
+                <span class="points-badge">+20점</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- ===== SCENARIO 2: 50점 달성 ===== -->
+    <div class="scenario-label" style="margin-top: 60px;">
+        <div class="scenario-badge">📍 시나리오 2: Knowledge Hub 활용 후 (50점 달성)</div>
+    </div>
+
+    <div class="health-card after">
+        <div class="card-header">
+            <div>
+                <div class="card-title">Brand Health Score</div>
+                <div class="score-display">
+                    <span class="score-value green">50</span>
+                    <span class="score-max">/ 100</span>
+                </div>
+            </div>
+            <button class="optimize-btn"
+                style="background: rgba(34, 197, 94, 0.15); border-color: rgba(34, 197, 94, 0.3); color: #22c55e;">
+                💡 더 높이기
+            </button>
+        </div>
+
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div class="progress-fill"
+                    style="width: 50%; background: linear-gradient(90deg, #22c55e, #10b981); box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);">
+                </div>
+            </div>
+
+            <div class="milestone-tracker">
+                <div class="milestone">
+                    <div class="milestone-dot completed">✓</div>
+                    <div class="milestone-label">시작</div>
+                    <div class="milestone-score">30점</div>
+                </div>
+                <div class="milestone">
+                    <div class="milestone-dot active"
+                        style="background: linear-gradient(135deg, #22c55e, #10b981); border-color: #22c55e; box-shadow: 0 0 15px rgba(34, 197, 94, 0.5);">
+                        ✓</div>
+                    <div class="milestone-label active" style="color: #22c55e;">준비완료</div>
+                    <div class="milestone-score">50점</div>
+                </div>
+                <div class="milestone">
+                    <div class="milestone-dot">80</div>
+                    <div class="milestone-label">프로</div>
+                    <div class="milestone-score">80점</div>
+                </div>
+                <div class="milestone">
+                    <div class="milestone-dot">🏆</div>
+                    <div class="milestone-label">마스터</div>
+                    <div class="milestone-score">100점</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="status-message green">
+            <span class="status-icon">✅</span>
+            <span class="status-text green"><strong>콘텐츠 생성 준비 완료!</strong> 이제 Studio에서 콘텐츠를 생성해보세요.</span>
+        </div>
+
+        <div class="category-grid">
+            <div class="category-card complete">
+                <div class="category-header">
+                    <span class="category-label">Identity</span>
+                    <span class="category-icon">✅</span>
+                </div>
+                <div class="category-score complete">30/30</div>
+                <div class="category-bar">
+                    <div class="category-bar-fill complete" style="width: 100%"></div>
+                </div>
+            </div>
+            <div class="category-card complete">
+                <div class="category-header">
+                    <span class="category-label">Know.</span>
+                    <span class="category-icon">✅</span>
+                </div>
+                <div class="category-score complete">20/25</div>
+                <div class="category-bar">
+                    <div class="category-bar-fill complete" style="width: 80%"></div>
+                </div>
+            </div>
+            <div class="category-card warning">
+                <div class="category-header">
+                    <span class="category-label">Strat.</span>
+                    <span class="category-icon">⚠️</span>
+                </div>
+                <div class="category-score warning">0/25</div>
+                <div class="category-bar">
+                    <div class="category-bar-fill warning" style="width: 0%"></div>
+                </div>
+                <div class="category-action">개선하기 →</div>
+            </div>
+            <div class="category-card">
+                <div class="category-header">
+                    <span class="category-label">Update</span>
+                    <span class="category-icon">—</span>
+                </div>
+                <div class="category-score">0/10</div>
+                <div class="category-bar">
+                    <div class="category-bar-fill" style="width: 0%"></div>
+                </div>
+            </div>
+            <div class="category-card">
+                <div class="category-header">
+                    <span class="category-label">Qual.</span>
+                    <span class="category-icon">—</span>
+                </div>
+                <div class="category-score">0/10</div>
+                <div class="category-bar">
+                    <div class="category-bar-fill" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== SCENARIO 3: Missing Items Modal ===== -->
+    <div class="scenario-label" style="margin-top: 60px;">
+        <div class="scenario-badge">📍 시나리오 3: "개선하기" 클릭 시 - Missing Items 모달</div>
+    </div>
+
+    <div class="modal-preview">
+        <div class="modal-header">
+            <div class="modal-title">
+                🔴 Knowledge 점수 개선하기
+                <span class="current-score-badge">현재: 0/25점</span>
+            </div>
+            <button class="modal-close">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="missing-item">
+                <div class="missing-info">
+                    <span class="missing-icon">❌</span>
+                    <div>
+                        <div class="missing-text">Knowledge Hub에 자료가 없습니다</div>
+                        <div class="missing-points">+10점 획득 가능</div>
+                    </div>
+                </div>
+                <button class="missing-action">📚 자료 추가</button>
+            </div>
+            <div class="missing-item warning">
+                <div class="missing-info">
+                    <span class="missing-icon">⚠️</span>
+                    <div>
+                        <div class="missing-text">Google Drive를 연결해보세요</div>
+                        <div class="missing-points">+5점 획득 가능</div>
+                    </div>
+                </div>
+                <button class="missing-action">📁 연결하기</button>
+            </div>
+            <div class="missing-item warning">
+                <div class="missing-info">
+                    <span class="missing-icon">⚠️</span>
+                    <div>
+                        <div class="missing-text">웹사이트 분석을 완료해보세요</div>
+                        <div class="missing-points">+5점 획득 가능</div>
+                    </div>
+                </div>
+                <button class="missing-action">🔍 분석하기</button>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <div class="potential-score">💡 모두 완료 시: <strong>+20점 → 50/100점 달성!</strong></div>
+        </div>
+    </div>
+</body>
+
+</html>
