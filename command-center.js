@@ -880,7 +880,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             </div>
                         </div>
                     </div>
-                    <button class="btn-brain" onclick="openProjectAgentSettingsById('${p.id}')" title="Agent Brain" style="width:32px; height:32px; border-radius:8px; background:rgba(139,92,246,0.15); border:1px solid rgba(139,92,246,0.3); display:flex; align-items:center; justify-content:center; cursor:pointer;">
+                    <button class="btn-brain" onclick="openProjectAgentSettingsById('${p.id}')" title="Agent Setting Prompt" style="width:32px; height:32px; border-radius:8px; background:rgba(139,92,246,0.15); border:1px solid rgba(139,92,246,0.3); display:flex; align-items:center; justify-content:center; cursor:pointer;">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A78BFA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-2.54Z"/>
                             <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-2.54Z"/>
@@ -1051,7 +1051,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // =====================================================
-// 🧠 Agent Brain Settings Modal (Global Functions)
+// 🧠 Agent Setting Prompt Modal (Global Functions)
 // =====================================================
 
 /**
@@ -1089,7 +1089,7 @@ window.openProjectAgentSettingsById = async function (projectId) {
         const projectData = projectDoc.data();
 
         // Update modal title with project name
-        document.getElementById('brain-modal-title').textContent = `Agent Brain - ${projectData.projectName || 'Project'}`;
+        document.getElementById('brain-modal-title').textContent = `Agent Setting Prompt - ${projectData.projectName || 'Project'}`;
 
         // 2. Load Directive
         directiveInput.value = projectData.teamDirective || '';
@@ -1259,7 +1259,7 @@ function createAgentBrainModal() {
         <div class="modal-container" style="max-width: 900px; width: 90%; background: #13131a; border: 1px solid rgba(255,255,255,0.1); max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0,0,0,0.5); border-radius: 16px;">
             <div class="modal-header" style="flex-shrink: 0; border-bottom: 1px solid rgba(255,255,255,0.05); padding: 20px 24px; display: flex; justify-content: space-between; align-items: center;">
                 <h3 id="brain-modal-title" style="margin: 0; font-size: 20px; font-weight: 600; display: flex; align-items: center; gap: 10px;">
-                    🧠 Agent Brain
+                    🧠 Agent Setting Prompt
                     <span style="background: linear-gradient(135deg, #16e0bd, #8b5cf6); padding: 3px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; color: #000;">v5.0</span>
                 </h3>
                 <button onclick="closeAgentBrainModal()" style="background: none; border: none; color: rgba(255,255,255,0.6); font-size: 28px; cursor: pointer; line-height: 1;">×</button>

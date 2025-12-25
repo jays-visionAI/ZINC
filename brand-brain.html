@@ -278,72 +278,158 @@
         <!-- BENTO GRID -->
         <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 auto-rows-min">
 
-            <!-- CARD: Brand Health -->
-            <div class="md:col-span-2 lg:col-span-2 min-h-[280px]">
+            <!-- CARD: Real Brand Health -->
+            <div class="md:col-span-2 lg:col-span-2 min-h-[320px]">
                 <div
-                    class="relative overflow-hidden rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-xl h-full flex flex-col justify-between group hover:border-slate-700 transition-all duration-300">
+                    class="relative overflow-hidden rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-xl h-full flex flex-col group hover:border-slate-700 transition-all duration-300">
+                    <!-- Background Decoration -->
                     <div
-                        class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-slate-100">
-                        <!-- Icon: Activity -->
-                        <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none"
+                        class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity text-slate-100">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
                         </svg>
                     </div>
 
-                    <div class="flex justify-between items-start z-10">
+                    <!-- Header -->
+                    <div class="flex justify-between items-start z-10 mb-6">
                         <div>
-                            <h2 class="text-sm font-semibold text-slate-400 tracking-wider uppercase mb-1">Brand Health
-                                Score</h2>
-                            <div class="flex items-baseline gap-2">
-                                <span id="health-score" class="text-5xl font-bold text-amber-400">0</span>
-                                <span class="text-sm text-slate-500">/ 100</span>
-                            </div>
+                            <h2
+                                class="text-sm font-semibold text-slate-400 tracking-wider uppercase mb-1 flex items-center gap-2">
+                                <span class="bg-indigo-500/20 text-indigo-400 p-1 rounded">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round">
+                                        <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                                    </svg>
+                                </span>
+                                Real Brand Health
+                            </h2>
+                            <p class="text-xs text-slate-500">Market Performance Metrics</p>
                         </div>
-                        <button id="health-optimize-btn"
-                            class="flex items-center gap-1 text-xs bg-amber-500/10 text-amber-400 px-3 py-1 rounded-full border border-amber-500/20 hover:bg-amber-500/20 transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
-                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round">
-                                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
-                                <path d="M12 9v4" />
-                                <path d="M12 17h.01" />
-                            </svg>
-                            <span>Optimize</span>
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <span id="health-last-updated" class="text-[10px] text-slate-600">Updated: Just now</span>
+                            <button onclick="calculateRealBrandHealth()"
+                                class="p-1.5 text-slate-400 hover:text-white bg-slate-800 rounded-lg transition-colors"
+                                title="Refresh Data">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                                    <path d="M3 3v5h5" />
+                                    <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+                                    <path d="M16 16h5v5" />
+                                </svg>
+                            </button>
+                        </div>
                     </div>
 
-                    <div class="mt-6 z-10">
-                        <div class="flex justify-between text-xs text-slate-400 mb-2">
-                            <span>Overall Completeness</span>
-                            <span id="health-status-text">Calculating...</span>
+                    <!-- Content Grid -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 z-10 flex-1">
+
+                        <!-- Left: Main Gauge -->
+                        <div
+                            class="md:col-span-1 flex flex-col items-center justify-center border-r border-slate-800/50 pr-4">
+                            <div class="relative w-40 h-40 flex items-center justify-center mb-3">
+                                <!-- SVG Gauge -->
+                                <svg class="transform -rotate-90 w-40 h-40">
+                                    <circle cx="80" cy="80" r="70" stroke="#1e293b" stroke-width="8"
+                                        fill="transparent" />
+                                    <circle id="brand-health-circle" cx="80" cy="80" r="70" stroke="currentColor"
+                                        stroke-width="8" fill="transparent" stroke-dasharray="439.8"
+                                        stroke-dashoffset="439.8" stroke-linecap="round"
+                                        class="text-emerald-500 transition-all duration-1000" />
+                                </svg>
+                                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                    <span id="brand-health-total"
+                                        class="text-5xl font-bold text-white tracking-tight">--</span>
+                                    <span class="text-xs text-slate-500 font-medium">/ 100</span>
+                                </div>
+                            </div>
+                            <div id="brand-health-grade"
+                                class="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full text-xs font-bold">
+                                Initializing...
+                            </div>
                         </div>
-                        <div class="w-full bg-slate-800 rounded-full h-3 overflow-hidden">
-                            <div id="health-bar"
-                                class="h-full rounded-full bg-amber-500 shadow-[0_0_10px_rgba(251,191,36,0.5)] transition-all duration-1000 ease-out"
-                                style="width: 0%"></div>
-                        </div>
-                        <div class="mt-4 flex gap-2 overflow-x-auto pb-2" style="scrollbar-width: none;">
-                            <div class="flex flex-col items-center bg-slate-800/50 p-2 rounded-lg min-w-[70px]">
-                                <span class="text-[10px] text-slate-400 uppercase">Identity</span>
-                                <span id="score-identity" class="text-sm font-bold text-slate-200">0/25</span>
+
+                        <!-- Right: 5 Pillars Breakdown -->
+                        <div class="md:col-span-2 flex flex-col justify-center space-y-4 pl-2">
+
+                            <!-- P1: Sentiment -->
+                            <div>
+                                <div class="flex justify-between text-xs mb-1.5">
+                                    <span class="text-slate-400 flex items-center gap-1.5">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Sentiment
+                                    </span>
+                                    <span id="score-text-sentiment" class="text-slate-200 font-bold">0/30</span>
+                                </div>
+                                <div class="w-full bg-slate-800/50 rounded-full h-2 overflow-hidden">
+                                    <div id="bar-sentiment"
+                                        class="h-full bg-emerald-500 rounded-full w-0 transition-all duration-1000">
+                                    </div>
+                                </div>
                             </div>
-                            <div class="flex flex-col items-center bg-slate-800/50 p-2 rounded-lg min-w-[70px]">
-                                <span class="text-[10px] text-slate-400 uppercase">Know.</span>
-                                <span id="score-knowledge" class="text-sm font-bold text-slate-200">0/25</span>
+
+                            <!-- P2: Awareness -->
+                            <div>
+                                <div class="flex justify-between text-xs mb-1.5">
+                                    <span class="text-slate-400 flex items-center gap-1.5">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span> Awareness
+                                    </span>
+                                    <span id="score-text-awareness" class="text-slate-200 font-bold">0/25</span>
+                                </div>
+                                <div class="w-full bg-slate-800/50 rounded-full h-2 overflow-hidden">
+                                    <div id="bar-awareness"
+                                        class="h-full bg-blue-500 rounded-full w-0 transition-all duration-1000"></div>
+                                </div>
                             </div>
-                            <div class="flex flex-col items-center bg-slate-800/50 p-2 rounded-lg min-w-[70px]">
-                                <span class="text-[10px] text-slate-400 uppercase">Strat.</span>
-                                <span id="score-strategy" class="text-sm font-bold text-slate-200">0/25</span>
+
+                            <!-- P3: Engagement -->
+                            <div>
+                                <div class="flex justify-between text-xs mb-1.5">
+                                    <span class="text-slate-400 flex items-center gap-1.5">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Engagement
+                                    </span>
+                                    <span id="score-text-engagement" class="text-slate-200 font-bold">0/20</span>
+                                </div>
+                                <div class="w-full bg-slate-800/50 rounded-full h-2 overflow-hidden">
+                                    <div id="bar-engagement"
+                                        class="h-full bg-amber-500 rounded-full w-0 transition-all duration-1000"></div>
+                                </div>
                             </div>
-                            <div class="flex flex-col items-center bg-slate-800/50 p-2 rounded-lg min-w-[70px]">
-                                <span class="text-[10px] text-slate-400 uppercase">Update</span>
-                                <span id="score-update" class="text-sm font-bold text-slate-200">0/15</span>
+
+                            <div class="grid grid-cols-2 gap-4">
+                                <!-- P4: Competitive -->
+                                <div>
+                                    <div class="flex justify-between text-xs mb-1.5">
+                                        <span class="text-slate-400 flex items-center gap-1.5">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span> Competitive
+                                        </span>
+                                        <span id="score-text-competitive" class="text-slate-200 font-bold">0/15</span>
+                                    </div>
+                                    <div class="w-full bg-slate-800/50 rounded-full h-2 overflow-hidden">
+                                        <div id="bar-competitive"
+                                            class="h-full bg-purple-500 rounded-full w-0 transition-all duration-1000">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- P5: Consistency -->
+                                <div>
+                                    <div class="flex justify-between text-xs mb-1.5">
+                                        <span class="text-slate-400 flex items-center gap-1.5">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span> Consistency
+                                        </span>
+                                        <span id="score-text-consistency" class="text-slate-200 font-bold">0/10</span>
+                                    </div>
+                                    <div class="w-full bg-slate-800/50 rounded-full h-2 overflow-hidden">
+                                        <div id="bar-consistency"
+                                            class="h-full bg-indigo-500 rounded-full w-0 transition-all duration-1000">
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="flex flex-col items-center bg-slate-800/50 p-2 rounded-lg min-w-[70px]">
-                                <span class="text-[10px] text-slate-400 uppercase">Qual.</span>
-                                <span id="score-feedback" class="text-sm font-bold text-slate-200">0/10</span>
-                            </div>
+
                         </div>
                     </div>
                 </div>

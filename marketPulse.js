@@ -316,6 +316,42 @@ function updateDashboardWithProjectData(data) {
         dom.alertTitle.textContent = `⚠️ CRITICAL: New '${keyword}' movement detected`;
         dom.alertDesc.textContent = `Strategic shift in '${keyword}' context • Source: Global Intelligence • Engagement: Trending`;
     }
+
+    // PHASE 3: Save Snapshot for Brand Brain
+    saveMarketPulseSnapshot(data, {
+        sentiment: { positive: pos, neutral: neu, negative: neg },
+        mentions: { total: baseMentions || 1200, growth: 12 },
+        engagement: { score: 78, trend: 'up' }, // Mocked for now (consistent with render)
+        competitors: { rank: 2, gap: 5 },       // Mocked for now
+        keywords: TRENDING_KEYWORDS
+    });
+}
+
+/**
+ * Save Market Pulse Snapshot to Firestore
+ * Allows Brand Brain to read this data for the Health Score
+ */
+async function saveMarketPulseSnapshot(projectData, pulseMetrics) {
+    if (!currentProjectId) return;
+
+    try {
+        const snapshot = {
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            metrics: pulseMetrics,
+            // Add other derived data as needed
+        };
+
+        await firebase.firestore()
+            .collection('projects')
+            .doc(currentProjectId)
+            .collection('marketPulse')
+            .doc('latest')
+            .set(snapshot, { merge: true });
+
+        console.log('[MarketPulse] Snapshot saved for Brand Brain');
+    } catch (error) {
+        console.error('[MarketPulse] Error saving snapshot:', error);
+    }
 }
 
 // ========== RENDER FUNCTIONS ==========

@@ -502,6 +502,8 @@ async function loadSources() {
 
                 renderSources();
                 updateSummarySection();
+                // Phase 1: Knowledge Score
+                calculateKnowledgeScore(sources);
             }, (error) => {
                 console.error('Error loading sources:', error);
                 showNotification('Failed to load sources', 'error');
@@ -6004,4 +6006,204 @@ window.deletePlan = async function (event, planId) {
 function saveMindMapChanges() {
     // TODO: Implement save logic back to currentPlan Version
     showNotification('Mind Map layout saved (simulation)', 'success');
+}
+// ============================================================
+// KNOWLEDGE SOURCE SCORE (Phase 1)
+// ============================================================
+
+/**
+ * Calculate Knowledge Source Score
+ * Rules:
+ * - Quantity (40pts): 5pts per source (max 8 sources = 40pts)
+ * - Diversity (30pts): Drive(+10), Link(+10), Note(+10)
+ * - Recency (20pts): < 7 days (+20), < 14 days (+10), else (+5)
+ * - Integration (10pts): Has any Drive source (+10)
+ */
+function calculateKnowledgeScore(sourceList) {
+    if (!sourceList) sourceList = [];
+
+    // 1. Quantity Score (Max 40)
+    // Adjusted: 5 points per source to make it easier to reach initially
+    const count = sourceList.length;
+    const quantityScore = Math.min(40, count * 5);
+
+    // 2. Diversity Score (Max 30)
+    let hasDrive = false;
+    let hasLink = false;
+    let hasNote = false;
+
+    sourceList.forEach(s => {
+        if (s.type === 'drive') hasDrive = true;
+        if (s.type === 'link') hasLink = true;
+        if (s.type === 'note') hasNote = true;
+    });
+
+    let diversityScore = 0;
+    if (hasDrive) diversityScore += 10;
+    if (hasLink) diversityScore += 10;
+    if (hasNote) diversityScore += 10;
+
+    // 3. Recency Score (Max 20)
+    let recencyScore = 0;
+    if (sourceList.length > 0) {
+        // Assume first item is latest due to 'orderBy desc' in loadSources
+        const latest = sourceList[0];
+        const now = new Date();
+        const created = latest.createdAt ? new Date(latest.createdAt.seconds * 1000) : new Date();
+        const diffDays = (now - created) / (1000 * 60 * 60 * 24);
+
+        if (diffDays < 7) recencyScore = 20;
+        else if (diffDays < 14) recencyScore = 10;
+        else recencyScore = 5;
+    }
+
+    // 4. Integration Score (Max 10)
+    // Simplified: If Google Drive is used, +10 (already checked in diversity, but explicit category)
+    const integrationScore = hasDrive ? 10 : 0;
+
+    // Total
+    const totalScore = quantityScore + diversityScore + recencyScore + integrationScore;
+
+    // Determine Status
+    let statusMsg = "Needs Improvement";
+    let statusColor = "text-red-400";
+    if (totalScore >= 80) {
+        statusMsg = "Excellent";
+        statusColor = "text-emerald-400";
+    } else if (totalScore >= 50) {
+        statusMsg = "Good Start";
+        statusColor = "text-amber-400";
+    }
+
+    // Update UI
+    updateKnowledgeScoreUI({
+        totalScore,
+        quantityScore,
+        diversityScore,
+        recencyScore,
+        integrationScore,
+        statusMsg,
+        statusColor,
+        counts: { count, hasDrive, hasLink, hasNote }
+    });
+}
+
+function updateKnowledgeScoreUI(data) {
+    // 1. Update Widget
+    const widgetValue = document.getElementById('widget-score-value');
+    const widgetBar = document.getElementById('widget-score-bar');
+    const widgetMsg = document.getElementById('widget-score-msg');
+
+    if (widgetValue) {
+        widgetValue.innerText = `${data.totalScore}/100`;
+        widgetBar.style.width = `${data.totalScore}%`;
+
+        // Color based on score
+        if (data.totalScore >= 80) widgetBar.classList.replace('bg-amber-500', 'bg-emerald-500');
+        else if (data.totalScore < 50) widgetBar.classList.replace('bg-amber-500', 'bg-red-500'); // Optional: Add red class if defined
+
+        widgetMsg.innerText = data.statusMsg;
+        widgetMsg.className = `text-[10px] ${data.statusColor}`;
+    }
+
+    // 2. Update Modal
+    const modalValue = document.getElementById('modal-score-value');
+    const modalCircle = document.getElementById('modal-score-circle');
+    const modalGrade = document.getElementById('modal-score-grade');
+
+    if (modalValue) {
+        modalValue.innerText = data.totalScore;
+
+        // Circle Chart (DashArray ~351)
+        const circumference = 351.86;
+        const offset = circumference - (data.totalScore / 100) * circumference;
+        modalCircle.style.strokeDashoffset = offset;
+
+        if (data.totalScore >= 80) {
+            modalCircle.classList.add('text-emerald-500');
+            modalCircle.classList.remove('text-amber-500', 'text-red-500');
+            modalGrade.innerText = "Ready for AI";
+            modalGrade.className = "px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full text-xs font-bold mb-2";
+        } else if (data.totalScore >= 50) {
+            modalCircle.classList.add('text-amber-500');
+            modalCircle.classList.remove('text-emerald-500', 'text-red-500');
+            modalGrade.innerText = "Good Start";
+            modalGrade.className = "px-3 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-full text-xs font-bold mb-2";
+        } else {
+            // Default/Low
+            modalGrade.innerText = "Need More Content";
+        }
+    }
+
+    // Update Bars
+    const barQty = document.getElementById('bar-quantity');
+    const scoreQty = document.getElementById('score-quantity');
+    if (barQty) {
+        const qtyPct = (data.quantityScore / 40) * 100;
+        barQty.style.width = `${qtyPct}%`;
+        scoreQty.innerText = `${data.quantityScore}/40`;
+    }
+
+    const barDiv = document.getElementById('bar-diversity');
+    const scoreDiv = document.getElementById('score-diversity');
+    if (barDiv) {
+        const divPct = (data.diversityScore / 30) * 100;
+        barDiv.style.width = `${divPct}%`;
+        scoreDiv.innerText = `${data.diversityScore}/30`;
+    }
+
+    // Update Missing Items List
+    const list = document.getElementById('missing-items-list');
+    if (list) {
+        list.innerHTML = ''; // Clear
+
+        const items = [];
+
+        // Logic for suggestions
+        if (data.quantityScore < 40) {
+            const missingCount = Math.ceil((40 - data.quantityScore) / 5);
+            items.push({
+                text: `Add ${missingCount} more sources`,
+                points: `+${missingCount * 5} points`,
+                action: "document.getElementById('btn-add-source').click();"
+            });
+        }
+
+        if (!data.counts.hasDrive) items.push({ text: "Connect Google Drive", points: "+10 points", action: "document.getElementById('btn-add-source').click(); setTimeout(() => document.querySelector('[data-type=drive]').click(), 300);" });
+        if (!data.counts.hasLink) items.push({ text: "Add a Web Link", points: "+10 points", action: "document.getElementById('btn-add-source').click(); setTimeout(() => document.querySelector('[data-type=link]').click(), 300);" });
+        if (!data.counts.hasNote) items.push({ text: "Create a Note", points: "+10 points", action: "document.getElementById('btn-add-source').click(); setTimeout(() => document.querySelector('[data-type=note]').click(), 300);" });
+
+        if (items.length === 0) {
+            list.innerHTML = `<div class="p-3 text-center text-xs text-slate-500">🎉 All clear! You are ready.</div>`;
+        } else {
+            items.forEach(item => {
+                const el = document.createElement('div');
+                el.className = "p-3 bg-slate-800/50 border border-slate-700/50 rounded-lg flex items-center justify-between group hover:border-indigo-500/50 transition-colors";
+                el.innerHTML = `
+                     <div class="flex items-center gap-3">
+                         <div class="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400">
+                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                         </div>
+                         <div>
+                             <p class="text-sm font-medium text-slate-200">${item.text}</p>
+                             <p class="text-[10px] text-slate-500">${item.points} available</p>
+                         </div>
+                     </div>
+                     <button onclick="${item.action} document.getElementById('knowledge-score-modal').classList.add('hidden');" 
+                         class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium rounded-lg transition-colors">
+                         Go
+                     </button>
+                 `;
+                list.appendChild(el);
+            });
+        }
+    }
+}
+
+function openKnowledgeScoreModal() {
+    const modal = document.getElementById('knowledge-score-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
 }

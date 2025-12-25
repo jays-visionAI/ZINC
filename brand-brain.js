@@ -1488,60 +1488,236 @@ function formatRelativeTime(date) {
 /**
  * Calculate Brand Health Score (Real-time)
  */
-function calculateHealthScore() {
+/**
+ * Calculate Real Brand Health Score (Phase 3)
+ * Fetches real market data from Firestore (saved by Market Pulse)
+ */
+async function calculateRealBrandHealth(simulationType = null) {
+    console.log('Calculating Real Brand Health...');
+
+    // Default Fallback Data (Phase 2 Simulation)
+    let pulseData = {
+        sentiment: { positive: 65, neutral: 25, negative: 10 },
+        mentions: { total: 1240, growth: 12 },
+        engagement: { score: 78, trend: 'up' },
+        competitors: { rank: 2, gap: 5 }
+    };
+
+    // DEBUG SIMULATION OVERRIDE
+    if (simulationType) {
+        console.log('[BrandBrain] 🛠️ Debug Simulation:', simulationType);
+        if (simulationType === 'excellent') {
+            pulseData = {
+                sentiment: { positive: 90, neutral: 10, negative: 0 },
+                mentions: { total: 5000, growth: 45 },
+                engagement: { score: 95, trend: 'up' },
+                competitors: { rank: 1, gap: 20 }
+            };
+        } else if (simulationType === 'critical') {
+            pulseData = {
+                sentiment: { positive: 20, neutral: 30, negative: 50 },
+                mentions: { total: 500, growth: -15 },
+                engagement: { score: 30, trend: 'down' },
+                competitors: { rank: 5, gap: -10 }
+            };
+        } else if (simulationType === 'average') {
+            pulseData = {
+                sentiment: { positive: 50, neutral: 40, negative: 10 },
+                mentions: { total: 1500, growth: 5 },
+                engagement: { score: 60, trend: 'stable' },
+                competitors: { rank: 3, gap: 0 }
+            };
+        }
+        updateDebugViewer(pulseData, 'Simulation: ' + simulationType);
+    }
+    // REAL DATA FETCH (if not simulating)
+    else if (currentProjectId) {
+        try {
+            const doc = await firebase.firestore()
+                .collection('projects')
+                .doc(currentProjectId)
+                .collection('marketPulse')
+                .doc('latest')
+                .get();
+
+            if (doc.exists) {
+                const realData = doc.data().metrics;
+                if (realData) {
+                    console.log('[BrandBrain] Loaded real Market Pulse data:', realData);
+                    pulseData = realData;
+
+                    // Update timestamp to match data source
+                    const updatedTime = doc.data().updatedAt ? new Date(doc.data().updatedAt.seconds * 1000) : new Date();
+                    const timeEl = document.getElementById('health-last-updated');
+                    if (timeEl) {
+                        timeEl.innerText = `Source: Market Pulse • ${updatedTime.getHours()}:${String(updatedTime.getMinutes()).padStart(2, '0')}`;
+                    }
+
+                    updateDebugViewer(realData, 'Firestore (Realtime)');
+                }
+            } else {
+                console.log('[BrandBrain] No Market Pulse data found, using simulation.');
+                const timeEl = document.getElementById('health-last-updated');
+                if (timeEl) timeEl.innerText = 'Simulation Mode (No Pulse Data)';
+                updateDebugViewer(pulseData, 'Fallback Default');
+            }
+        } catch (error) {
+            console.error('[BrandBrain] Error loading Market Pulse data:', error);
+            updateDebugViewer({ error: error.message }, 'Error');
+        }
+    }
+
+    let scores = {
+        sentiment: 0,   // Max 30
+        awareness: 0,   // Max 25
+        engagement: 0,  // Max 20
+        competitive: 0, // Max 15
+        consistency: 0  // Max 10
+    };
+
+    // --- Metric 1: Sentiment (30 pts) ---
+    const pos = pulseData.sentiment.positive;
+    scores.sentiment = Math.min(30, Math.floor((pos / 100) * 30) + 5);
+
+    // --- Metric 2: Awareness (25 pts) ---
+    const growth = pulseData.mentions.growth;
+    scores.awareness = Math.min(25, 15 + (growth > 0 ? growth : 0));
+
+    // --- Metric 3: Engagement (20 pts) ---
+    scores.engagement = Math.floor((pulseData.engagement.score / 100) * 20);
+
+    // --- Metric 4: Competitive (15 pts) ---
+    const rank = pulseData.competitors.rank;
+    if (rank === 1) scores.competitive = 15;
+    else if (rank <= 3) scores.competitive = 10;
+    else scores.competitive = 5;
+
+    // --- Metric 5: Consistency (10 pts) ---
+    // In Phase 3, we could calculate this from history, but keeping as placeholder constant for now
+    scores.consistency = 8;
+
+    // Total
+    const totalScore = scores.sentiment + scores.awareness + scores.engagement + scores.competitive + scores.consistency;
+
+    // Update UI
+    updateBrandHealthUI(totalScore, scores);
+
+    // Save calculated score to History (Only if REAL data)
+    if (!simulationType) {
+        saveBrandHealthHistory(totalScore, scores);
+    }
+}
+
+// Helper to save history
+async function saveBrandHealthHistory(total, breakdown) {
+    if (!currentProjectId) return;
     try {
-        if (!brandBrainData) return;
+        await firebase.firestore()
+            .collection('projects')
+            .doc(currentProjectId)
+            .collection('brandHealthHistory')
+            .add({
+                score: total,
+                breakdown: breakdown,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+    } catch (e) { console.error('Error saving health history', e); }
+}
 
-        let score = 0;
-        let checks = {
-            identity: 0,
-            strategy: 0,
-            knowledge: 0, // Will be updated by knowledge sources check
-            consistency: 0
-        };
+function updateBrandHealthUI(total, breakdown) {
+    // 1. Main Gauge
+    const totalEl = document.getElementById('brand-health-total');
+    const gradeEl = document.getElementById('brand-health-grade');
+    const circleEl = document.getElementById('brand-health-circle');
 
-        // 1. Core Identity (30%)
-        if (brandBrainData.coreIdentity) {
-            if (brandBrainData.coreIdentity.projectName) checks.identity += 10;
-            if (brandBrainData.coreIdentity.description) checks.identity += 10;
-            if (brandBrainData.coreIdentity.targetAudience) checks.identity += 10;
+    if (totalEl) totalEl.innerText = total;
+
+    if (circleEl) {
+        // Circumference ~ 439.8
+        const maxDash = 439.8;
+        const offset = maxDash - (total / 100) * maxDash;
+        circleEl.style.strokeDashoffset = offset;
+
+        // Color & Grade
+        let colorClass = 'text-emerald-500';
+        let bgClass = 'bg-emerald-500/10';
+        let textClass = 'text-emerald-400';
+        let gradeText = "Excellent Health";
+
+        if (total < 50) {
+            colorClass = 'text-red-500';
+            bgClass = 'bg-red-500/10';
+            textClass = 'text-red-400';
+            gradeText = "Critical Attention";
+        } else if (total < 75) {
+            colorClass = 'text-amber-500';
+            bgClass = 'bg-amber-500/10';
+            textClass = 'text-amber-400';
+            gradeText = "Average Health";
         }
 
-        // 2. Strategy (30%)
-        if (brandBrainData.strategy) {
-            if (brandBrainData.strategy.brandVoice?.writingStyle) checks.strategy += 10;
-            if (brandBrainData.strategy.currentFocus?.topic) checks.strategy += 10;
-            if (brandBrainData.strategy.brandVoice?.dos?.length > 0) checks.strategy += 10;
+        // Update classes securely (remove old colors first)
+        circleEl.setAttribute('class', `transition-all duration-1000 ${colorClass}`);
+        if (gradeEl) {
+            gradeEl.innerText = gradeText;
+            gradeEl.className = `px-3 py-1 border rounded-full text-xs font-bold ${bgClass} ${textClass} border-${textClass.split('-')[1]}-500/20`;
         }
+    }
 
-        // 3. Knowledge Source (20%) - Placeholder
-        // 4. Consistency (20%) - Placeholder
-        if (brandBrainData.healthScore?.score > 80) checks.consistency = 20;
-        else checks.consistency = 10;
+    // 2. Bars
+    updateHealthBar('sentiment', breakdown.sentiment, 30);
+    updateHealthBar('awareness', breakdown.awareness, 25);
+    updateHealthBar('engagement', breakdown.engagement, 20);
+    updateHealthBar('competitive', breakdown.competitive, 15);
+    updateHealthBar('consistency', breakdown.consistency, 10);
 
-        // Calculate Total
-        score = checks.identity + checks.strategy + checks.consistency; // + checks.knowledge
+    // Update timestamp
+    const timeEl = document.getElementById('health-last-updated');
+    if (timeEl) {
+        const now = new Date();
+        timeEl.innerText = `Updated: ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+    }
+}
 
-        // Update UI directly
-        const healthScoreEl = document.querySelector('.health-score-value, #health-score-value');
-        const completenessEl = document.querySelector('.health-completeness, #health-completeness');
+function updateHealthBar(id, value, max) {
+    const bar = document.getElementById(`bar-${id}`);
+    const text = document.getElementById(`score-text-${id}`);
 
-        if (healthScoreEl) {
-            healthScoreEl.textContent = score;
-        }
-        if (completenessEl) {
-            completenessEl.textContent = `${score}%`;
-        }
+    if (bar && text) {
+        const pct = (value / max) * 100;
+        bar.style.width = `${pct}%`;
+        text.innerText = `${value}/${max}`;
+    }
+}
 
-        // Update individual score elements if they exist
-        const identityScoreEl = document.getElementById('identity-score');
-        const strategyScoreEl = document.getElementById('strategy-score');
+// --- DEBUG MODE UTILS ---
+let debugClicks = 0;
+document.getElementById('health-last-updated')?.addEventListener('click', () => {
+    debugClicks++;
+    if (debugClicks >= 5) {
+        document.getElementById('btn-health-debug').classList.remove('hidden');
+        showNotification('🛠️ Debug Mode Enabled!');
+        debugClicks = 0;
+    }
+});
 
-        if (identityScoreEl) identityScoreEl.textContent = `${checks.identity}/25`;
-        if (strategyScoreEl) strategyScoreEl.textContent = `${checks.strategy}/25`;
+document.getElementById('btn-health-debug')?.addEventListener('click', () => {
+    document.getElementById('health-debug-panel').classList.remove('hidden');
+});
 
-    } catch (error) {
-        console.error('Error calculating health score:', error);
+document.getElementById('btn-close-debug')?.addEventListener('click', () => {
+    document.getElementById('health-debug-panel').classList.add('hidden');
+});
+
+// Exposed for onclick in HTML
+window.simulateHealthScore = (type) => {
+    calculateRealBrandHealth(type);
+};
+
+function updateDebugViewer(data, source) {
+    const pre = document.getElementById('debug-json-viewer');
+    if (pre) {
+        pre.textContent = `Source: ${source}\n` + JSON.stringify(data, null, 2);
     }
 }
 
