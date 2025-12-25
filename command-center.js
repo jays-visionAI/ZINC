@@ -28,8 +28,11 @@ document.addEventListener("DOMContentLoaded", () => {
             currentUser = user;
             loadProjects(); // Load non-draft projects
             loadIndustries(); // Load industry options
-            // Note: We don't auto-check drafts here anymore, 
-            // we check when user clicks "Add New Project"
+
+            // 🪙 Initialize Credits System
+            if (typeof initCreditsSystem === 'function') {
+                initCreditsSystem();
+            }
         } else {
             // Redirect handled in HTML script
         }
@@ -1838,7 +1841,7 @@ window.runProjectAgents = window.toggleProjectAgent;
 // ⚙️ Project Settings Modal
 // =====================================================
 
-window.openProjectSettingsModal = async function(projectId, projectName) {
+window.openProjectSettingsModal = async function (projectId, projectName) {
     let modal = document.getElementById('project-settings-modal');
     if (!modal) {
         createProjectSettingsModal();
@@ -1847,11 +1850,11 @@ window.openProjectSettingsModal = async function(projectId, projectName) {
 
     modal.dataset.projectId = projectId;
     document.getElementById('project-settings-title').textContent = `Settings: ${projectName}`;
-    
+
     // Load current interval
     const select = document.getElementById('scheduler-interval-select');
     select.disabled = true;
-    
+
     try {
         const doc = await firebase.firestore().collection('projects').doc(projectId).get();
         if (doc.exists) {
@@ -1923,7 +1926,7 @@ function createProjectSettingsModal() {
     document.body.appendChild(modal);
 }
 
-window.closeProjectSettingsModal = function() {
+window.closeProjectSettingsModal = function () {
     const modal = document.getElementById('project-settings-modal');
     if (modal) {
         modal.classList.remove('open');
@@ -1931,11 +1934,11 @@ window.closeProjectSettingsModal = function() {
     }
 };
 
-window.saveProjectSettings = async function() {
+window.saveProjectSettings = async function () {
     const modal = document.getElementById('project-settings-modal');
     const projectId = modal.dataset.projectId;
     const interval = document.getElementById('scheduler-interval-select').value;
-    
+
     const btn = modal.querySelector('.modal-footer button:last-child');
     const originalText = btn.textContent;
     btn.textContent = "Saving...";
@@ -1946,7 +1949,7 @@ window.saveProjectSettings = async function() {
             schedulerInterval: parseInt(interval),
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-        
+
         closeProjectSettingsModal();
         // UI auto-updates via listener
     } catch (e) {
@@ -1958,10 +1961,10 @@ window.saveProjectSettings = async function() {
     }
 };
 
-window.deleteProjectFromModal = async function() {
+window.deleteProjectFromModal = async function () {
     const modal = document.getElementById('project-settings-modal');
     const projectId = modal.dataset.projectId;
-    
+
     // Call the existing global delete function
     await window.deleteProject(projectId);
     closeProjectSettingsModal();

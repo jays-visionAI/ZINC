@@ -194,12 +194,12 @@ function checkFeatureAccess(feature) {
  * Update credits display in the UI
  */
 function updateCreditsDisplay() {
-    const creditCountEl = document.getElementById('credit-count');
+    const creditCountEls = document.querySelectorAll('#credit-count, #user-credits');
     const creditDisplayEl = document.getElementById('credit-display');
 
-    if (creditCountEl) {
-        creditCountEl.textContent = ZYNKCredits.credits;
-    }
+    creditCountEls.forEach(el => {
+        el.textContent = ZYNKCredits.credits;
+    });
 
     if (creditDisplayEl) {
         // Update styling based on remaining credits

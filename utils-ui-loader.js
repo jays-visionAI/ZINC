@@ -110,6 +110,16 @@
                 return;
             }
 
+            // Safety check: Initialize config if missing (Race condition fix)
+            if (!this.config) {
+                if (window.DEFAULT_UI_CONFIG) {
+                    this.config = JSON.parse(JSON.stringify(window.DEFAULT_UI_CONFIG));
+                } else {
+                    console.warn('[UI Loader] Config not ready for renderSidebar');
+                    return;
+                }
+            }
+
             if (!this.config || !this.config.sidebar) {
                 console.warn('[UI Loader] Config not loaded or sidebar config missing.');
                 return;
@@ -345,9 +355,9 @@
 
             try {
                 const balance = await CreditService.getBalance(userId);
-                const elements = document.querySelectorAll('[id="user-credits"]');
+                // Support both legacy and new IDs
+                const elements = document.querySelectorAll('#user-credits, #credit-count');
                 elements.forEach(el => {
-                    // Animate if balance changed? For now just update.
                     el.textContent = balance.toLocaleString() || '0';
                 });
                 console.log(`[UI Loader] Credit balance updated: ${balance}`);

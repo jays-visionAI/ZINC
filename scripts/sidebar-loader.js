@@ -40,7 +40,29 @@ document.addEventListener("DOMContentLoaded", async () => {
             .where('status', '==', 'active')
             .get();
 
-        const container = document.getElementById('sidebar-platforms-list');
+        let container = document.getElementById('sidebar-platforms-list');
+
+        // If container is missing, it might have been overwritten by UI Loader
+        if (!container) {
+            console.log('Sidebar platforms container missing, re-creating...');
+            const newSidebarMenu = document.querySelector('.sidebar-menu');
+            if (newSidebarMenu) {
+                const newPlatformSection = document.createElement('div');
+                newPlatformSection.className = 'sidebar-section';
+                newPlatformSection.innerHTML = `
+                    <div class="menu-label" style="margin-top: 24px;">PLATFORMS</div>
+                    <div id="sidebar-platforms-list"></div>
+                `;
+                newSidebarMenu.appendChild(newPlatformSection);
+                container = document.getElementById('sidebar-platforms-list');
+            }
+        }
+
+        if (!container) {
+            console.warn('Could not find or create sidebar platforms list');
+            return;
+        }
+
         container.innerHTML = '';
 
         if (snapshot.empty) {
