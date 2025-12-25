@@ -2058,12 +2058,28 @@ What's your take on the future of AI in content creation?
 };
 
 // Typing animation for text streaming
-// Typing animation for text streaming
 /**
  * Streams text content into a specific channel's preview card.
  * Updated to use new channelContents system.
  */
-async function streamChannelContent(channel, text) {
+async function streamChannelContent(channel, content) {
+    // Extract text from various content formats
+    let text = content;
+    if (typeof content === 'object' && content !== null) {
+        // If it's an object like {text: "..."} or just the content directly
+        text = content.text || content.content || JSON.stringify(content);
+    }
+
+    // Clean up any remaining JSON format if text starts with {
+    if (typeof text === 'string' && text.trim().startsWith('{')) {
+        try {
+            const parsed = JSON.parse(text);
+            text = parsed[channel] || parsed.text || parsed.content || text;
+        } catch (e) {
+            // Keep original text if parsing fails
+        }
+    }
+
     // Store content in the new system
     if (!window.channelContents[channel]) {
         window.channelContents[channel] = { status: 'completed' };
