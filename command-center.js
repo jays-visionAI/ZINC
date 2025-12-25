@@ -924,12 +924,18 @@ document.addEventListener("DOMContentLoaded", () => {
                 </div>
 
                 <div class="card-actions">
-                    <!-- [NEW] Run Button Replaces Jump to Mission Control -->
-                    <button class="btn-mission" onclick="runProjectAgents('${p.id}')" style="flex:1; display:flex; align-items:center; justify-content:center; gap:8px;">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                        Run
+                    <!-- [NEW] Run/Pause Button handled by toggleProjectAgent -->
+                    <button id="btn-run-${p.id}" class="btn-mission" onclick="toggleProjectAgent('${p.id}', this)" style="flex:1; display:flex; align-items:center; justify-content:center; gap:8px;">
+                        <svg class="run-icon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                        <span class="run-text">RUN</span>
                     </button>
-                    <button class="btn-settings" onclick="openProjectSettings('${p.id}')" title="Project Settings">⚙️</button>
+                    <!-- [Changed] Gear to Trash Icon for Delete -->
+                    <button class="btn-settings btn-delete" onclick="deleteProject('${p.id}')" title="Delete Project">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                    </button>
                 </div>
             `;
             hiveGrid.appendChild(card);
@@ -1684,17 +1690,77 @@ window.saveChannelManager = async function () {
 // =====================================================
 // ▶️ Run Project Agents
 // =====================================================
-window.runProjectAgents = async function (projectId) {
-    if (!confirm("🚀 Ready to run agents on selected channels?\n\nThis will trigger the content generation workflow for all active channels.")) {
+// =====================================================
+// ▶️ Run/Pause Project Agents (Toggle Logic)
+// =====================================================
+window.toggleProjectAgent = function (projectId, btn) {
+    // Find the card element to apply the glow effect
+    const card = btn.closest('.client-card');
+    const isRunning = btn.classList.contains('active');
+
+    if (!isRunning) {
+        // STATE: START RUNNING
+        if (!confirm("🚀 Ready to run agents on selected channels?\n\nThis will trigger the content generation workflow.")) {
+            return;
+        }
+
+        // 1. Update UI to "PAUSE"
+        btn.classList.add('active');
+        btn.style.background = 'rgba(239, 68, 68, 0.2)'; // Red-ish tint for pause
+        btn.style.color = '#fca5a5';
+        btn.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+
+        // Update Icon to Pause
+        const iconInfo = '<rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>';
+        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">${iconInfo}</svg> <span class="run-text">PAUSE</span>`;
+
+        // 2. Add Blue Glowing Effect to Card
+        if (card) {
+            card.classList.add('agent-running');
+        }
+
+        // 3. Log / Toast
+        console.log(`[Run] Agent started for project ${projectId}...`);
+        // Optional: Show a toast? 
+        // alert(`✅ Research Agent Started!\n\nReal-time monitoring is active.`); // User asked for Opinion, not alert every time.
+
+    } else {
+        // STATE: PAUSE (STOP)
+        // 1. Revert UI to "RUN"
+        btn.classList.remove('active');
+        btn.style.background = ''; // Reset to CSS default
+        btn.style.color = '';
+        btn.style.borderColor = '';
+
+        // Update Icon to Play
+        const iconInfo = '<polygon points="5 3 19 12 5 21 5 3"></polygon>';
+        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">${iconInfo}</svg> <span class="run-text">RUN</span>`;
+
+        // 2. Remove Blue Glow
+        if (card) {
+            card.classList.remove('agent-running');
+        }
+
+        console.log(`[Pause] Agent stopped for project ${projectId}.`);
+    }
+};
+
+window.deleteProject = async function (projectId) {
+    if (!confirm("⚠️ Are you sure you want to delete this project?\n\nThis action cannot be undone.")) {
         return;
     }
 
-    // In a real implementation, this would call a Cloud Function or API
-    // For now, we simulate the trigger
-    console.log(`[Run] Triggering agents for project ${projectId}...`);
-
-    alert(`✅ Agents Activated!\n\nExecution started for project: ${projectId}\nCheck the dashboard for updates.`);
+    try {
+        await firebase.firestore().collection('projects').doc(projectId).delete();
+        // UI will update automatically via onSnapshot
+    } catch (error) {
+        console.error("Error deleting project:", error);
+        alert("Failed to delete project: " + error.message);
+    }
 };
+
+// Deprecated old function kept just in case
+window.runProjectAgents = window.toggleProjectAgent;
 
 // Inject Global Styles for Project Card Channels
 (function injectCardStyles() {
@@ -1735,6 +1801,26 @@ window.runProjectAgents = async function (projectId) {
             border-color: var(--color-cyan);
             color: var(--color-cyan);
             background: rgba(6, 182, 212, 0.1);
+        }
+        
+        /* Agent Running Glow Effect */
+        .client-card.agent-running {
+            border-color: #3b82f6 !important; /* Blue-500 */
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.6), inset 0 0 10px rgba(59, 130, 246, 0.2);
+            animation: pulse-border 2s infinite;
+        }
+
+        @keyframes pulse-border {
+            0% { box-shadow: 0 0 15px rgba(59, 130, 246, 0.5); }
+            50% { box-shadow: 0 0 25px rgba(59, 130, 246, 0.8); }
+            100% { box-shadow: 0 0 15px rgba(59, 130, 246, 0.5); }
+        }
+
+        /* Delete Button Hover */
+        .btn-delete:hover {
+            border-color: #ef4444 !important;
+            color: #ef4444 !important;
+            background: rgba(239, 68, 68, 0.1) !important;
         }
     `;
     document.head.appendChild(style);
