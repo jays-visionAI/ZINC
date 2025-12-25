@@ -1542,12 +1542,18 @@ async function startExecution() {
     state.currentPhase = 1;
     state.currentAgent = 1;
 
-    // Update UI
-    document.getElementById('start-execution-btn').disabled = true;
-    document.getElementById('pause-btn').disabled = false;
-    document.getElementById('stop-btn').disabled = false;
-    document.getElementById('project-select').disabled = true;
-    document.getElementById('agentteam-select').disabled = true;
+    // Update UI (with null checks)
+    const startBtn = document.getElementById('start-execution-btn');
+    const pauseBtn = document.getElementById('pause-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    const projectSelect = document.getElementById('project-select');
+    const agentTeamSelect = document.getElementById('agentteam-select');
+
+    if (startBtn) startBtn.disabled = true;
+    if (pauseBtn) pauseBtn.disabled = false;
+    if (stopBtn) stopBtn.disabled = false;
+    if (projectSelect) projectSelect.disabled = true;
+    if (agentTeamSelect) agentTeamSelect.disabled = true;
 
     // Start timer
     startTimer();
@@ -1639,8 +1645,10 @@ async function startExecution() {
                 startBtn.classList.remove('running');
                 startBtn.innerHTML = '<span>🚀</span> Start Content Team';
             }
-            document.getElementById('pause-btn').disabled = true;
-            document.getElementById('stop-btn').disabled = true;
+            const pauseBtnEl = document.getElementById('pause-btn');
+            const stopBtnEl = document.getElementById('stop-btn');
+            if (pauseBtnEl) pauseBtnEl.disabled = true;
+            if (stopBtnEl) stopBtnEl.disabled = true;
         });
 
     // Standardize context field: ensure brandContext is set for Layer 3
@@ -1706,12 +1714,18 @@ function stopExecution() {
     state.isPaused = false;
     stopTimer();
 
-    // Reset UI
-    document.getElementById('start-execution-btn').disabled = false;
-    document.getElementById('pause-btn').disabled = true;
-    document.getElementById('stop-btn').disabled = true;
-    document.getElementById('project-select').disabled = false;
-    document.getElementById('agentteam-select').disabled = false;
+    // Reset UI (with null checks)
+    const startBtn = document.getElementById('start-execution-btn');
+    const pauseBtn = document.getElementById('pause-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    const projectSelect = document.getElementById('project-select');
+    const agentTeamSelect = document.getElementById('agentteam-select');
+
+    if (startBtn) startBtn.disabled = false;
+    if (pauseBtn) pauseBtn.disabled = true;
+    if (stopBtn) stopBtn.disabled = true;
+    if (projectSelect) projectSelect.disabled = false;
+    if (agentTeamSelect) agentTeamSelect.disabled = false;
 }
 
 function retryExecution() {
@@ -1723,8 +1737,10 @@ function completeExecution() {
     state.isExecuting = false;
     stopTimer();
 
-    document.getElementById('pause-btn').disabled = true;
-    document.getElementById('stop-btn').disabled = true;
+    const pauseBtn = document.getElementById('pause-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    if (pauseBtn) pauseBtn.disabled = true;
+    if (stopBtn) stopBtn.disabled = true;
     document.getElementById('retry-btn').disabled = true;
     document.getElementById('complete-btn').disabled = true;
 
