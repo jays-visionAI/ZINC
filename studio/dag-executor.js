@@ -983,11 +983,11 @@ class DAGExecutor {
     }
 
     /**
-     * Invoke Image Generator using DALL-E via Cloud Function
+     * Invoke Image Generator using configured provider via Cloud Function
      */
     async invokeImageGenerator(context) {
         try {
-            this.emit('onLog', { message: '   🎨 Generating image with DALL-E...', type: 'info' });
+            this.emit('onLog', { message: '   🎨 Generating image with configured provider...', type: 'info' });
 
             const generateFn = firebase.functions().httpsCallable('generateCreativeContent');
             const result = await generateFn({
@@ -1008,11 +1008,13 @@ class DAGExecutor {
             });
 
             if (result.data.success && result.data.data && result.data.data.length > 0) {
+                // Use metadata from response (dynamic based on Global Routing)
+                const responseMetadata = result.data.metadata || {};
                 return {
                     imageUrl: result.data.data[0],
                     metadata: {
-                        model: 'DALL-E 3',
-                        provider: 'openai',
+                        model: responseMetadata.model || 'Unknown',
+                        provider: responseMetadata.provider || 'unknown',
                         resources: { project: true }
                     }
                 };

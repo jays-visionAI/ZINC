@@ -4536,35 +4536,31 @@ ${planType === 'brand_mind_map'
                 ? 'ENSURE OUTPUT IS VALID JSON ONLY. No markdown conversational text.'
                 : 'Create a comprehensive, well-structured output. Use markdown formatting with headers, bullet points, and clear sections.'}`;
 
-        // Get OpenAI API key from Firestore
-        const apiKey = await getSystemApiKey('openai');
-        if (!apiKey) {
-            throw new Error('OpenAI API key not configured. Please set it in Admin Settings > LLM Providers.');
-        }
-
-        // Call OpenAI
-        const { OpenAI } = require('openai');
-        const openai = new OpenAI({
-            apiKey: apiKey
-        });
-
-        const completion = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
+        // Use LLM Router for dynamic model selection based on Global Routing Defaults
+        const llmRouter = new LLMRouter(db, callLLM);
+        const routeResult = await llmRouter.route({
+            feature: 'knowledge.content_plan',
+            qualityTier: 'DEFAULT',
             messages: [
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userPrompt }
             ],
             temperature: 0.7,
-            max_tokens: 2000
+            userId: request.auth?.uid,
+            projectId: projectId,
+            callLLM: callLLM
         });
 
-        const content = completion.choices[0]?.message?.content || '';
+        const content = routeResult.content || '';
+
+        console.log(`[generateContentPlan] Used model: ${routeResult.routing?.model || 'unknown'}`);
 
         return {
             success: true,
             content: content,
             planType: planType,
-            language: targetLanguage
+            language: targetLanguage,
+            model: routeResult.routing?.model
         };
 
     } catch (error) {
@@ -4603,31 +4599,43 @@ exports.generateCreativeContent = onCall({ cors: true }, async (request) => {
             return completion.choices[0].message.content;
         };
 
-        // 3. Handle Image Generation (Bypass Arena for now, logic kept simple)
-        // 3. Handle Image Generation (Smart Route for Text)
+        // 3. Handle Image Generation - Route based on Global Routing Defaults
         if (type === 'promo_images') {
             console.log('[generateCreativeContent] Image gen requested. Routing...');
 
             // Check for text requirements to prioritize Ideogram
             const hasTextRequirement = /logo|text|banner|title|headline|caption|font|typography/i.test(topic + ' ' + style);
 
+            // Get Global Routing Defaults for Image
+            const llmConfigDoc = await db.collection('systemSettings').doc('llmConfig').get();
+            const llmConfig = llmConfigDoc.exists ? llmConfigDoc.data() : {};
+            const imageConfig = llmConfig.defaultModels?.image || {};
+            const defaultImageModel = mode === 'boost' ? imageConfig.boost?.model : imageConfig.default?.model;
+            const defaultImageProvider = mode === 'boost' ? imageConfig.boost?.provider : imageConfig.default?.provider;
+
+            console.log(`[generateCreativeContent] Global Image Defaults: provider=${defaultImageProvider}, model=${defaultImageModel}`);
+
             // Get available providers
             const providersDoc = await db.collection('systemSettings').doc('imageProviders').get();
             const providers = providersDoc.exists ? providersDoc.data() : {};
 
-            // Priority: Ideogram (if text) > Flux (Performance) > DALL-E (Fallback)
-            let selectedProvider = 'dalle';
+            // Priority: Global Config > Ideogram (if text) > Flux (Performance) > DALL-E (Fallback)
+            let selectedProvider = defaultImageProvider || 'dalle';
+            let selectedModel = defaultImageModel || 'dall-e-3';
 
-            if (hasTextRequirement && providers.ideogram?.apiKey && providers.ideogram?.enabled !== false) {
-                selectedProvider = 'ideogram';
-            } else if (providers.flux?.apiKey && providers.flux?.enabled !== false) {
-                selectedProvider = 'flux';
-            } else if (providers.ideogram?.apiKey && providers.ideogram?.enabled !== false) {
-                // Even if no text, Ideogram is often better for "Promo" than DALL-E
-                selectedProvider = 'ideogram';
+            // Only apply smart routing fallbacks if Global Routing Defaults are not configured
+            if (!defaultImageProvider) {
+                if (hasTextRequirement && providers.ideogram?.apiKey && providers.ideogram?.enabled !== false) {
+                    selectedProvider = 'ideogram';
+                } else if (providers.flux?.apiKey && providers.flux?.enabled !== false) {
+                    selectedProvider = 'flux';
+                } else if (providers.ideogram?.apiKey && providers.ideogram?.enabled !== false) {
+                    // Even if no text, Ideogram is often better for "Promo" than DALL-E
+                    selectedProvider = 'ideogram';
+                }
             }
 
-            console.log(`[generateCreativeContent] Selected Provider: ${selectedProvider} (Text Req: ${hasTextRequirement})`);
+            console.log(`[generateCreativeContent] Final Selected Provider: ${selectedProvider}, Model: ${selectedModel} (Text Req: ${hasTextRequirement})`);
 
             // Use Smart Image Logic
             // Note: We duplicate logic slightly to avoid cloud function self-invocation latency/complexity
