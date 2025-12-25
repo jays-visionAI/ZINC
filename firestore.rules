@@ -222,6 +222,13 @@ service cloud.firestore {
         allow create: if isAuthenticated() && isProjectOwner(projectId);
         allow write: if isAdmin();
       }
+
+      // Brand Health History (Brand Brain health score tracking)
+      match /brandHealthHistory/{historyId} {
+        allow read: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
+        allow create: if isAuthenticated() && isProjectOwner(projectId);
+        allow write: if isAdmin();
+      }
     }
 
     // System Settings (Admin only)
