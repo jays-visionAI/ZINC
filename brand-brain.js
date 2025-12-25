@@ -1605,9 +1605,63 @@ async function calculateRealBrandHealth(simulationType = null) {
     // Update UI
     updateBrandHealthUI(totalScore, scores);
 
+    // Update Market Pulse Card UI
+    updateMarketPulseUI(pulseData);
+
     // Save calculated score to History (Only if REAL data)
     if (!simulationType) {
         saveBrandHealthHistory(totalScore, scores);
+    }
+}
+
+/**
+ * Update Market Pulse Card UI with data
+ */
+function updateMarketPulseUI(pulseData) {
+    // Mentions
+    const mentionsEl = document.getElementById('pulse-mentions');
+    if (mentionsEl && pulseData.mentions) {
+        mentionsEl.innerText = pulseData.mentions.total?.toLocaleString() || '--';
+    }
+
+    // Sentiment (Positive %)
+    const sentimentEl = document.getElementById('pulse-sentiment');
+    if (sentimentEl && pulseData.sentiment) {
+        sentimentEl.innerText = `${pulseData.sentiment.positive || 0}%`;
+    }
+
+    // Alerts
+    const alertsEl = document.getElementById('pulse-alerts');
+    if (alertsEl) {
+        alertsEl.innerText = pulseData.alerts?.count || 0;
+    }
+
+    // Top Trend
+    const topTrendEl = document.getElementById('pulse-top-trend');
+    if (topTrendEl) {
+        topTrendEl.innerText = pulseData.topTrend?.keyword || '#AI';
+    }
+
+    // Trend Change
+    const trendChangeEl = document.getElementById('pulse-trend-change');
+    if (trendChangeEl && pulseData.mentions) {
+        const growth = pulseData.mentions.growth || 0;
+        trendChangeEl.innerText = growth >= 0 ? `+${growth}%` : `${growth}%`;
+        trendChangeEl.className = growth >= 0
+            ? 'bg-emerald-500/10 text-emerald-400 text-xs px-2 py-1 rounded font-medium'
+            : 'bg-red-500/10 text-red-400 text-xs px-2 py-1 rounded font-medium';
+    }
+
+    // Suggestion
+    const suggestionEl = document.getElementById('pulse-suggestion');
+    if (suggestionEl) {
+        if (pulseData.sentiment?.positive >= 70) {
+            suggestionEl.innerText = '✨ Great sentiment! Leverage this momentum for campaigns.';
+        } else if (pulseData.sentiment?.positive >= 50) {
+            suggestionEl.innerText = '📊 Stable performance. Consider A/B testing new content.';
+        } else {
+            suggestionEl.innerText = '⚠️ Sentiment needs attention. Review recent feedback.';
+        }
     }
 }
 
