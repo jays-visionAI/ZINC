@@ -4569,7 +4569,7 @@ ${planType === 'brand_mind_map'
     }
 });
 
-exports.generateCreativeContent = onCall({ cors: true }, async (request) => {
+exports.generateCreativeContent = onCall({ cors: true, timeoutSeconds: 300, memory: '1GiB' }, async (request) => {
     // 1. Auth Check - moved inside try to ensure valid logging if needed, but keeping simple return for now
     if (!request.auth) {
         return { success: false, error: 'Unauthenticated' };
