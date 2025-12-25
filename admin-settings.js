@@ -2363,3 +2363,113 @@ window.resetStandardProfiles = async function () {
     renderAgentProfiles();
     showCustomModal('Reset Complete', '기본값으로 초기화되었습니다. Save All을 눌러 저장하세요.', 'info');
 };
+
+// ============================================
+// SCHEDULER DASHBOARD LOGIC (New Tab)
+// ============================================
+
+window.refreshSchedulerStatus = async function () {
+    const statusBadge = document.getElementById('scheduler-status-badge');
+    const lastRunEl = document.getElementById('scheduler-last-run');
+    const lastDurationEl = document.getElementById('scheduler-last-duration');
+    const nextRunEl = document.getElementById('scheduler-next-run');
+    const activeCountEl = document.getElementById('scheduler-active-count');
+    const logDisplay = document.getElementById('scheduler-log-display');
+
+    if (!statusBadge) return; // Tab might not be loaded
+
+    statusBadge.innerHTML = '<span style="color:#f59e0b">⏳ Loading...</span>';
+
+    try {
+        const db = firebase.firestore();
+        
+        // 1. Fetch Scheduler Heartbeat (System Settings)
+        const doc = await db.collection('systemSettings').doc('scheduler').get();
+        const data = doc.exists ? doc.data() : null;
+
+        if (!data || !data.lastRun) {
+            statusBadge.innerHTML = '<span style="color:#6b7280; border: 1px solid #6b7280; padding: 2px 8px; border-radius: 12px;">Unknown</span>';
+            lastRunEl.textContent = 'Never';
+            return;
+        }
+
+        // 2. Update UI
+        const lastRunDate = data.lastRun.toDate();
+        const now = new Date();
+        const diffMinutes = Math.floor((now - lastRunDate) / 60000);
+
+        // Status Logic: If last run was < 70 mins ago, it's Healthy (assuming 60 min schedule)
+        let isHealthy = diffMinutes < 75; 
+        
+        if (data.lastRunStatus === 'error') isHealthy = false;
+
+        statusBadge.innerHTML = isHealthy 
+            ? '<span style="color:#22c55e; border: 1px solid #22c55e; padding: 2px 10px; border-radius: 12px;">✅ Healthy</span>' 
+            : '<span style="color:#ef4444; border: 1px solid #ef4444; padding: 2px 10px; border-radius: 12px;">⚠️ Attention</span>';
+
+        lastRunEl.textContent = lastRunDate.toLocaleString();
+        lastDurationEl.textContent = `Duration: ${data.lastRunDurationMs || 0}ms (${data.lastRunType || 'scheduled'})`;
+        
+        // Calculate Next Run (Approx)
+        const nextRun = new Date(lastRunDate.getTime() + 60 * 60 * 1000);
+        const timeUntil = Math.ceil((nextRun - now) / 60000);
+        
+        if (timeUntil > 0) {
+            nextRunEl.textContent = `In ${timeUntil} mins (${nextRun.toLocaleTimeString()})`;
+        } else {
+            nextRunEl.textContent = 'Due Now / Overdue';
+            nextRunEl.style.color = '#f59e0b';
+        }
+
+        activeCountEl.textContent = data.activeProjectCount || 0;
+
+        // Log Display
+        logDisplay.innerHTML = `
+<div><strong>[${lastRunDate.toLocaleTimeString()}]</strong> ${data.lastRunStatus === 'success' ? '✅ Cycle Completed' : '❌ Cycle Failed'}</div>
+<div>Type: ${data.lastRunType || 'Scheduled'} | Triggered By: ${data.triggeredBy || 'System'}</div>
+${data.lastRunError ? `<div style="color:#ef4444">Error: ${data.lastRunError}</div>` : ''}
+`;
+
+    } catch (error) {
+        console.error("Error refreshing scheduler status:", error);
+        statusBadge.innerHTML = '<span style="color:#ef4444">❌ Error</span>';
+        logDisplay.textContent = error.message;
+    }
+};
+
+window.forceRunScheduler = async function () {
+    const btn = document.getElementById('btn-force-run-scheduler');
+    if (!confirm("⚠️ Force Run Scheduler?\n\nThis will immediately trigger agent execution for ALL running projects. Are you sure?")) return;
+
+    btn.disabled = true;
+    btn.innerHTML = '🚀 Running...';
+
+    try {
+        const forceRun = firebase.functions().httpsCallable('forceRunScheduler');
+        const result = await forceRun({});
+        
+        console.log("Force Run Result:", result.data);
+        alert(`✅ Scheduler cycle triggered successfully!\nProcessed ${result.data.activeCount} projects.`);
+        
+        // Refresh UI
+        await refreshSchedulerStatus();
+
+    } catch (error) {
+        console.error("Force run failed:", error);
+        alert("Failed to force run scheduler: " + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '⚡ Force Run Now';
+    }
+};
+
+// Initial Load if Scheduler Tab is somehow active (unlikely on fresh load, but good practice)
+// Also hook into tab switch
+const originalSwitchSettingsTab = window.switchSettingsTab;
+window.switchSettingsTab = function(tabId) {
+    originalSwitchSettingsTab(tabId);
+    if (tabId === 'scheduler') {
+        refreshSchedulerStatus();
+    }
+}
+

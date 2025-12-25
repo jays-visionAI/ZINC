@@ -5012,66 +5012,110 @@ Return a JSON object with these fields:
  * Ensures continuous operation even when the user is offline.
  */
 exports.scheduledAgentExecutor = onSchedule("every 60 minutes", async (event) => {
-    console.log("⏰ [Scheduler] Starting Agent Execution Cycle...");
+    await runAgentSchedulerLogic('scheduled');
+});
+
+/**
+ * 🚨 Force Run Scheduler (Admin Only)
+ * Allows manual triggering of the agent execution cycle from the UI.
+ */
+exports.forceRunScheduler = functions.https.onCall(async (data, context) => {
+    // Basic Auth Check
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Must be logged in');
+    }
+
+    // Optional: Check for Admin role if roles exist
+
+    console.log(`[forceRunScheduler] Triggered by user ${context.auth.uid}`);
+    const result = await runAgentSchedulerLogic('manual', context.auth.uid);
+    return result;
+});
+
+/**
+ * 🛠️ Common Scheduler Logic
+ */
+async function runAgentSchedulerLogic(triggerType, triggeredBy = 'system') {
+    console.log(`⏰ [Scheduler] Starting Cycle (Type: ${triggerType})...`);
+    const db = admin.firestore();
+    const startTime = Date.now();
+    let status = 'success';
+    let errorMsg = null;
+    let activeCount = 0;
 
     try {
-        const db = admin.firestore();
         // 1. Find all running projects
         const snapshot = await db.collection("projects")
             .where("agentStatus", "==", "running")
             .get();
 
+        activeCount = snapshot.size;
+
         if (snapshot.empty) {
             console.log("⏰ [Scheduler] No active agents found.");
-            return;
+        } else {
+            console.log(`⏰ [Scheduler] Found ${activeCount} active projects.`);
+
+            // 2. Execute Logic for each project
+            const promises = snapshot.docs.map(async (doc) => {
+                const projectId = doc.id;
+                const data = doc.data();
+                console.log(`⏰ [Scheduler] Processing Project: ${data.projectName || projectId}`);
+
+                try {
+                    const runId = db.collection('projects').doc(projectId).collection('agentRuns').doc().id;
+
+                    // Trigger the 'manager' sub-agent simulation/check
+                    await db.collection("projects").doc(projectId).collection('agentRuns').doc(runId).set({
+                        type: 'scheduled',
+                        trigger: triggerType,
+                        status: 'completed',
+                        subAgentId: 'manager',
+                        output: 'Routine market pulse check completed. No anomalies detected.',
+                        executedAt: admin.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    // Update Project Last Run
+                    return db.collection("projects").doc(projectId).update({
+                        lastScheduledRun: admin.firestore.FieldValue.serverTimestamp(),
+                        lastRunStatus: 'success'
+                    });
+                } catch (err) {
+                    console.error(`Failed to execute for ${projectId}:`, err);
+                    return db.collection("projects").doc(projectId).update({
+                        lastRunStatus: 'failed',
+                        lastRunError: err.message
+                    });
+                }
+            });
+
+            await Promise.all(promises);
         }
 
-        console.log(`⏰ [Scheduler] Found ${snapshot.size} active projects.`);
-
-        // 2. Execute Logic for each project
-        const promises = snapshot.docs.map(async (doc) => {
-            const projectId = doc.id;
-            const data = doc.data();
-            console.log(`⏰ [Scheduler] Processing Project: ${data.projectName || projectId}`);
-
-            try {
-                // Create a run ID
-                const runId = db.collection('projects').doc(projectId).collection('agentRuns').doc().id;
-
-                // Trigger the 'manager' sub-agent to perform a routine check
-                // We reuse the logic from executeSubAgent but call it internally or simulate it.
-                // Since executeSubAgent is an https callable, we can't call it directly easily without a loopback.
-                // Instead, we'll write a run record that triggers a separate background function OR just log it for now.
-
-                // For MVP: Log the activity and upgrade the timestamp.
-                // Future: This should call internal function `runAgentWorkflow(projectId, 'scheduled')`
-
-                await db.collection("projects").doc(projectId).collection('agentRuns').doc(runId).set({
-                    type: 'scheduled',
-                    status: 'completed', // Simulated success
-                    subAgentId: 'manager',
-                    output: 'Routine market pulse check completed. No anomalies detected.',
-                    executedAt: admin.firestore.FieldValue.serverTimestamp()
-                });
-
-                // Update Project Last Run
-                return db.collection("projects").doc(projectId).update({
-                    lastScheduledRun: admin.firestore.FieldValue.serverTimestamp(),
-                    lastRunStatus: 'success'
-                });
-            } catch (err) {
-                console.error(`Failed to execute for ${projectId}:`, err);
-                return db.collection("projects").doc(projectId).update({
-                    lastRunStatus: 'failed',
-                    lastRunError: err.message
-                });
-            }
-        });
-
-        await Promise.all(promises);
         console.log("⏰ [Scheduler] Cycle Complete.");
 
     } catch (error) {
         console.error("⏰ [Scheduler] Error:", error);
+        status = 'error';
+        errorMsg = error.message;
+    } finally {
+        // 3. Update System Heartbeat for UI
+        const duration = Date.now() - startTime;
+        await db.collection('systemSettings').doc('scheduler').set({
+            lastRun: admin.firestore.FieldValue.serverTimestamp(),
+            lastRunStatus: status,
+            lastRunType: triggerType,
+            lastRunDurationMs: duration,
+            lastRunError: errorMsg,
+            activeProjectCount: activeCount,
+            triggeredBy: triggeredBy
+        }, { merge: true });
+
+        return {
+            success: status === 'success',
+            activeCount,
+            duration,
+            type: triggerType
+        };
     }
-});
+}

@@ -20,6 +20,10 @@
             style="padding-bottom: 12px; cursor: pointer; border-bottom: 2px solid transparent; color: rgba(255,255,255,0.5);">
             🧠 Agent Config
         </div>
+        <div class="settings-tab" onclick="switchSettingsTab('scheduler')" id="tab-btn-scheduler"
+            style="padding-bottom: 12px; cursor: pointer; border-bottom: 2px solid transparent; color: rgba(255,255,255,0.5);">
+            ⏰ Scheduler
+        </div>
         <div class="settings-tab" onclick="switchSettingsTab('pricing')" id="tab-btn-pricing"
             style="padding-bottom: 12px; cursor: pointer; border-bottom: 2px solid transparent; color: rgba(255,255,255,0.5);">
             💰 Pricing & Credits
@@ -423,6 +427,70 @@
                     higher credit cost (2.5x).
                     Force Mode overrides all user choices.
                 </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB: SCHEDULER & JOBS                      -->
+    <!-- ========================================== -->
+    <div id="tab-scheduler" class="settings-tab-content" style="display: none;">
+        <div
+            style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                <div>
+                    <h4 style="margin: 0; color: #fff;">⏰ Agent Scheduler Dashboard</h4>
+                    <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin: 4px 0 0 0;">
+                        Control the background task runner that keeps agents alive.
+                    </p>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button onclick="refreshSchedulerStatus()" class="admin-btn-secondary">🔄 Refresh Status</button>
+                    <button id="btn-force-run-scheduler" onclick="forceRunScheduler()" class="admin-btn-primary"
+                        style="background: linear-gradient(135deg, #f59e0b, #d97706); border: none;">
+                        ⚡ Force Run Now
+                    </button>
+                </div>
+            </div>
+
+            <!-- Metrics Grid -->
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px;">
+                <!-- Status -->
+                <div style="background: rgba(0,0,0,0.2); padding: 16px; border-radius: 8px;">
+                    <div style="font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 8px;">SYSTEM STATUS</div>
+                    <div id="scheduler-status-badge"
+                        style="display: inline-block; font-size: 13px; font-weight: 600; padding: 4px 10px; border-radius: 20px; background: rgba(255,255,255,0.1); color: #fff;">
+                        Checking...
+                    </div>
+                </div>
+                <!-- Last Run -->
+                <div style="background: rgba(0,0,0,0.2); padding: 16px; border-radius: 8px;">
+                    <div style="font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 8px;">LAST RUN</div>
+                    <div id="scheduler-last-run" style="font-size: 14px; font-weight: 500; color: #fff;">--</div>
+                    <div id="scheduler-last-duration"
+                        style="font-size: 11px; color: rgba(255,255,255,0.3); margin-top: 4px;">-- ms</div>
+                </div>
+                <!-- Next Run (Est) -->
+                <div style="background: rgba(0,0,0,0.2); padding: 16px; border-radius: 8px;">
+                    <div style="font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 8px;">NEXT RUN (EST)</div>
+                    <div id="scheduler-next-run" style="font-size: 14px; font-weight: 500; color: #16e0bd;">--</div>
+                </div>
+                <!-- Active Agents -->
+                <div style="background: rgba(0,0,0,0.2); padding: 16px; border-radius: 8px;">
+                    <div style="font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 8px;">ACTIVE PROJECTS
+                    </div>
+                    <div id="scheduler-active-count" style="font-size: 24px; font-weight: 700; color: #fff;">0</div>
+                </div>
+            </div>
+
+            <!-- Log Area -->
+            <div style="background: rgba(0,0,0,0.2); padding: 16px; border-radius: 8px;">
+                <div style="font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 12px;">LAST EXECUTION LOG
+                </div>
+                <div id="scheduler-log-display"
+                    style="font-family: monospace; font-size: 12px; color: rgba(255,255,255,0.7); max-height: 100px; overflow-y: auto;">
+                    (No recent logs)
+                </div>
             </div>
         </div>
     </div>
