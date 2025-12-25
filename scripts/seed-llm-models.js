@@ -17,17 +17,47 @@ window.seedLLMRouterData = async function () {
     const models = [
         // OpenAI Models
         {
+            id: 'gpt-4o',
+            provider: 'openai',
+            modelId: 'gpt-4o',
+            displayName: 'GPT-4o (Omni)',
+            description: 'Most powerful OpenAI model',
+            tier: 'standard',
+            costPer1kInputTokens: 0.005,
+            costPer1kOutputTokens: 0.015,
+            creditPer1kTokens: 1.0,
+            maxContextTokens: 128000,
+            capabilities: ['chat', 'vision', 'function_calling'],
+            isActive: true,
+            isDefault: false
+        },
+        {
+            id: 'gpt-4o-mini',
+            provider: 'openai',
+            modelId: 'gpt-4o-mini',
+            displayName: 'GPT-4o Mini',
+            description: 'Fast, cost-effective model',
+            tier: 'economy',
+            costPer1kInputTokens: 0.00015,
+            costPer1kOutputTokens: 0.0006,
+            creditPer1kTokens: 0.2,
+            maxContextTokens: 128000,
+            capabilities: ['chat', 'vision'],
+            isActive: true,
+            isDefault: false
+        },
+        {
             id: 'gpt-5',
             provider: 'openai',
             modelId: 'gpt-5',
             displayName: 'GPT-5',
-            description: 'OpenAI GPT-5 - Default standard model',
-            tier: 'standard',
-            costPer1kInputTokens: 0.005,   // $5 per 1M input tokens
-            costPer1kOutputTokens: 0.015,  // $15 per 1M output tokens
-            creditPer1kTokens: 1.0,        // ZYNK credit cost (원가 기준)
-            maxContextTokens: 128000,
-            capabilities: ['chat', 'function_calling', 'json_mode'],
+            description: 'Next-gen GPT model',
+            tier: 'premium',
+            costPer1kInputTokens: 0.01,
+            costPer1kOutputTokens: 0.03,
+            creditPer1kTokens: 5.0,
+            maxContextTokens: 200000,
+            capabilities: ['chat', 'vision', 'reasoning'],
             isActive: true,
             isDefault: true
         },
@@ -36,44 +66,29 @@ window.seedLLMRouterData = async function () {
             provider: 'openai',
             modelId: 'gpt-5.2',
             displayName: 'GPT-5.2 (Boost)',
-            description: 'OpenAI GPT-5.2 - Premium boost model',
+            description: 'Booster mode premium model',
             tier: 'premium',
-            costPer1kInputTokens: 0.01,    // $10 per 1M input tokens
-            costPer1kOutputTokens: 0.03,   // $30 per 1M output tokens
-            creditPer1kTokens: 2.5,        // 2.5x credit cost
-            maxContextTokens: 200000,
-            capabilities: ['chat', 'function_calling', 'json_mode', 'vision'],
-            isActive: true,
-            isDefault: false
-        },
-        {
-            id: 'gpt-4o-mini',
-            provider: 'openai',
-            modelId: 'gpt-4o-mini',
-            displayName: 'GPT-4o Mini (Economy)',
-            description: 'Cost-effective model for simple tasks',
-            tier: 'economy',
-            costPer1kInputTokens: 0.00015, // $0.15 per 1M input tokens
-            costPer1kOutputTokens: 0.0006, // $0.60 per 1M output tokens
-            creditPer1kTokens: 0.2,
-            maxContextTokens: 128000,
-            capabilities: ['chat', 'function_calling', 'json_mode'],
+            costPer1kInputTokens: 0.012,
+            costPer1kOutputTokens: 0.035,
+            creditPer1kTokens: 7.0,
+            maxContextTokens: 250000,
+            capabilities: ['chat', 'vision', 'reasoning'],
             isActive: true,
             isDefault: false
         },
         // Anthropic Models
         {
-            id: 'claude-3.5-sonnet',
+            id: 'claude-3-5-sonnet',
             provider: 'anthropic',
             modelId: 'claude-3-5-sonnet-20241022',
             displayName: 'Claude 3.5 Sonnet',
-            description: 'Anthropic Claude 3.5 Sonnet',
+            description: 'Fastest reasoning model',
             tier: 'standard',
             costPer1kInputTokens: 0.003,
             costPer1kOutputTokens: 0.015,
             creditPer1kTokens: 1.2,
             maxContextTokens: 200000,
-            capabilities: ['chat', 'vision'],
+            capabilities: ['chat', 'vision', 'coding'],
             isActive: true,
             isDefault: false
         },
@@ -81,12 +96,12 @@ window.seedLLMRouterData = async function () {
             id: 'claude-3-opus',
             provider: 'anthropic',
             modelId: 'claude-3-opus-20240229',
-            displayName: 'Claude 3 Opus (Premium)',
-            description: 'Most capable Claude model',
+            displayName: 'Claude 3 Opus',
+            description: 'Most powerful Claude model',
             tier: 'premium',
             costPer1kInputTokens: 0.015,
             costPer1kOutputTokens: 0.075,
-            creditPer1kTokens: 3.0,
+            creditPer1kTokens: 3.5,
             maxContextTokens: 200000,
             capabilities: ['chat', 'vision'],
             isActive: true,
@@ -94,44 +109,29 @@ window.seedLLMRouterData = async function () {
         },
         // Google Gemini Models
         {
-            id: 'gemini-3-pro-preview',
+            id: 'gemini-1.5-pro',
             provider: 'gemini',
-            modelId: 'gemini-3-pro-preview',
-            displayName: 'Gemini 3.0 Pro (Preview)',
-            description: 'Next-gen reasoning model',
-            tier: 'premium',
-            costPer1kInputTokens: 0.0025,
-            costPer1kOutputTokens: 0.0100,
-            creditPer1kTokens: 3.0,
+            modelId: 'gemini-1.5-pro',
+            displayName: 'Gemini 1.5 Pro',
+            description: 'Advanced reasoning and long context',
+            tier: 'standard',
+            costPer1kInputTokens: 0.00125,
+            costPer1kOutputTokens: 0.005,
+            creditPer1kTokens: 0.8,
             maxContextTokens: 2000000,
-            capabilities: ['chat', 'vision', 'video', 'pdf'],
+            capabilities: ['chat', 'vision', 'pdf'],
             isActive: true,
             isDefault: false
-        },
-        {
-            id: 'gemini-1.5-flash',
-            provider: 'gemini',
-            modelId: 'gemini-1.5-flash',
-            displayName: 'Gemini 1.5 Flash',
-            description: 'Fast and cost-effective Gemini model',
-            tier: 'economy',
-            costPer1kInputTokens: 0.000075,
-            costPer1kOutputTokens: 0.0003,
-            creditPer1kTokens: 0.15,
-            maxContextTokens: 1000000,
-            capabilities: ['chat', 'vision'],
-            isActive: true,
-            isDefault: true
         },
         {
             id: 'gemini-2.0-flash',
             provider: 'gemini',
             modelId: 'gemini-2.0-flash-exp',
             displayName: 'Gemini 2.0 Flash',
-            description: 'Fast and efficient Gemini model',
+            description: 'Real-time efficiency',
             tier: 'economy',
-            costPer1kInputTokens: 0.000075,
-            costPer1kOutputTokens: 0.0003,
+            costPer1kInputTokens: 0.0001,
+            costPer1kOutputTokens: 0.0004,
             creditPer1kTokens: 0.15,
             maxContextTokens: 1000000,
             capabilities: ['chat', 'vision'],
@@ -139,17 +139,47 @@ window.seedLLMRouterData = async function () {
             isDefault: false
         },
         {
-            id: 'gemini-1.5-pro',
+            id: 'gemini-2.5-flash',
             provider: 'gemini',
-            modelId: 'gemini-1.5-pro',
-            displayName: 'Gemini 1.5 Pro',
-            description: 'Advanced Gemini model',
+            modelId: 'gemini-2.5-flash',
+            displayName: 'Gemini 2.5 Flash',
+            description: 'Optimized speed and quality',
             tier: 'standard',
-            costPer1kInputTokens: 0.00125,
-            costPer1kOutputTokens: 0.005,
-            creditPer1kTokens: 0.8,
-            maxContextTokens: 2000000,
+            costPer1kInputTokens: 0.00015,
+            costPer1kOutputTokens: 0.0006,
+            creditPer1kTokens: 0.5,
+            maxContextTokens: 1000000,
             capabilities: ['chat', 'vision'],
+            isActive: true,
+            isDefault: false
+        },
+        {
+            id: 'gemini-2.5-pro-boost',
+            provider: 'gemini',
+            modelId: 'gemini-2.5-pro',
+            displayName: 'Gemini 2.5 Pro (Boost)',
+            description: 'Enhanced intelligence for complex tasks',
+            tier: 'premium',
+            costPer1kInputTokens: 0.002,
+            costPer1kOutputTokens: 0.008,
+            creditPer1kTokens: 2.0,
+            maxContextTokens: 2000000,
+            capabilities: ['chat', 'vision', 'reasoning'],
+            isActive: true,
+            isDefault: false
+        },
+        {
+            id: 'gemini-3-pro-preview',
+            provider: 'gemini',
+            modelId: 'gemini-3-pro-preview',
+            displayName: 'Gemini 3.0 Pro (Preview)',
+            description: 'The future of large-scale reasoning',
+            tier: 'premium',
+            costPer1kInputTokens: 0.005,
+            costPer1kOutputTokens: 0.02,
+            creditPer1kTokens: 5.0,
+            maxContextTokens: 2000000,
+            capabilities: ['chat', 'vision', 'reasoning'],
             isActive: true,
             isDefault: false
         },
@@ -159,13 +189,13 @@ window.seedLLMRouterData = async function () {
             provider: 'deepseek',
             modelId: 'deepseek-chat',
             displayName: 'DeepSeek-V3',
-            description: 'General purpose LLM by DeepSeek',
+            description: 'Extreme efficiency and quality',
             tier: 'standard',
             costPer1kInputTokens: 0.0001,
             costPer1kOutputTokens: 0.0002,
             creditPer1kTokens: 0.5,
             maxContextTokens: 64000,
-            capabilities: ['chat', 'coding'],
+            capabilities: ['chat', 'coding', 'text'],
             isActive: true,
             isDefault: false
         },
@@ -174,7 +204,7 @@ window.seedLLMRouterData = async function () {
             provider: 'deepseek',
             modelId: 'deepseek-reasoner',
             displayName: 'DeepSeek-R1 (Reasoning)',
-            description: 'Chain-of-thought reasoning model',
+            description: 'Advanced Chain-of-Thought reasoning',
             tier: 'ultra',
             costPer1kInputTokens: 0.0005,
             costPer1kOutputTokens: 0.002,
@@ -189,7 +219,7 @@ window.seedLLMRouterData = async function () {
             provider: 'deepseek',
             modelId: 'deepseek-r1-zero',
             displayName: 'DeepSeek-R1-Zero',
-            description: 'Pure RL reasoning model without SFT',
+            description: 'Initial search reasoning model',
             tier: 'premium',
             costPer1kInputTokens: 0.0004,
             costPer1kOutputTokens: 0.0015,
@@ -412,8 +442,12 @@ window.seedLLMRouterData = async function () {
     await batch.commit();
 
     console.log('✅ PRD 11.6 Data Seeding Complete!');
-    console.log(`   - ${models.length} LLM Models`);
-    console.log(`   - ${policies.length} Feature Policies`);
+
+    // Auto-refresh UI if functions are available
+    if (typeof window.refreshLLMModels === 'function') await window.refreshLLMModels();
+    if (typeof window.refreshFeaturePolicies === 'function') await window.refreshFeaturePolicies();
+
+    alert(`Success! Successfully seeded ${models.length} Models and ${policies.length} Policies.\nThe Global Routing dropdowns should now be updated.`);
 
     return {
         success: true,
