@@ -5060,6 +5060,21 @@ async function runAgentSchedulerLogic(triggerType, triggeredBy = 'system') {
             const promises = snapshot.docs.map(async (doc) => {
                 const projectId = doc.id;
                 const data = doc.data();
+
+                // [Smart Dispatcher] Check validity based on Schedule
+                if (triggerType === 'scheduled') {
+                    const lastRun = data.lastScheduledRun ? data.lastScheduledRun.toDate() : new Date(0);
+                    const intervalMinutes = data.schedulerInterval || 60; // Default 60 mins
+                    const nextRunTime = new Date(lastRun.getTime() + (intervalMinutes * 60 * 1000));
+                    const now = new Date();
+
+                    if (now < nextRunTime) {
+                        // Not due yet
+                        // Optional: console.log(`Skipping ${projectId}, next run at ${nextRunTime}`);
+                        return;
+                    }
+                }
+
                 console.log(`⏰ [Scheduler] Processing Project: ${data.projectName || projectId}`);
 
                 try {

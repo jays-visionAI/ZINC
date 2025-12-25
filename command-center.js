@@ -934,17 +934,18 @@ document.addEventListener("DOMContentLoaded", () => {
                     : `<svg class="run-icon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> <span class="run-text">RUN</span>`
                 }
                     </button>
-                    <!-- [Changed] Gear to Trash Icon for Delete -->
-                    <button class="btn-settings btn-delete" onclick="deleteProject('${p.id}')" title="Delete Project">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    <!-- [Changed] Settings Gear Icon -->
+                    <button class="btn-settings" onclick="event.stopPropagation(); window.openProjectSettingsModal('${p.id}', '${p.projectName}')" title="Project Settings">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
                         </svg>
                     </button>
                 </div>
             `;
             hiveGrid.appendChild(card);
         });
+
 
         // 2. Add New Project Card (Last)
         renderAddProjectCard();
@@ -1832,3 +1833,137 @@ window.runProjectAgents = window.toggleProjectAgent;
     `;
     document.head.appendChild(style);
 })();
+
+// =====================================================
+// ⚙️ Project Settings Modal
+// =====================================================
+
+window.openProjectSettingsModal = async function(projectId, projectName) {
+    let modal = document.getElementById('project-settings-modal');
+    if (!modal) {
+        createProjectSettingsModal();
+        modal = document.getElementById('project-settings-modal');
+    }
+
+    modal.dataset.projectId = projectId;
+    document.getElementById('project-settings-title').textContent = `Settings: ${projectName}`;
+    
+    // Load current interval
+    const select = document.getElementById('scheduler-interval-select');
+    select.disabled = true;
+    
+    try {
+        const doc = await firebase.firestore().collection('projects').doc(projectId).get();
+        if (doc.exists) {
+            const data = doc.data();
+            select.value = data.schedulerInterval || '60'; // Default 60 mins
+        }
+    } catch (e) {
+        console.error("Error loading project settings:", e);
+    } finally {
+        select.disabled = false;
+    }
+
+    modal.style.display = 'flex';
+    requestAnimationFrame(() => modal.classList.add('open'));
+};
+
+function createProjectSettingsModal() {
+    const modal = document.createElement('div');
+    modal.id = 'project-settings-modal';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+        <div class="modal-container" style="max-width: 500px; width: 90%; background: #13131a; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
+            <div class="modal-header" style="padding: 20px 24px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
+                <h3 id="project-settings-title" style="margin: 0; font-size: 18px; color: #fff;">Project Settings</h3>
+                <button onclick="closeProjectSettingsModal()" style="background: none; border: none; color: gray; font-size: 24px; cursor: pointer;">×</button>
+            </div>
+            <div class="modal-body" style="padding: 24px;">
+                
+                <!-- Scheduler Settings -->
+                <div style="margin-bottom: 32px;">
+                    <label style="display: block; color: rgba(255,255,255,0.9); font-size: 14px; font-weight: 600; margin-bottom: 12px;">
+                        ⏱️ Agent Execution Frequency
+                    </label>
+                    <div style="background: rgba(255,255,255,0.03); padding: 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08);">
+                        <select id="scheduler-interval-select" style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 10px; border-radius: 8px; margin-bottom: 8px;">
+                            <option value="60">Every 1 Hour (Fastest)</option>
+                            <option value="360">Every 6 Hours</option>
+                            <option value="720">Every 12 Hours</option>
+                            <option value="1440">Every 24 Hours</option>
+                        </select>
+                        <div style="font-size: 12px; color: rgba(255,255,255,0.5);">
+                            💡 Higher frequency consumes more credits.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Danger Zone -->
+                <div>
+                    <label style="display: block; color: #ef4444; font-size: 14px; font-weight: 600; margin-bottom: 12px;">
+                        ⚠️ Danger Zone
+                    </label>
+                    <div style="background: rgba(239, 68, 68, 0.05); padding: 16px; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.2);">
+                        <div style="font-size: 13px; color: rgba(255,255,255,0.7); margin-bottom: 12px;">
+                            Deleting a project is irreversible. All data and agents will be removed.
+                        </div>
+                        <button onclick="deleteProjectFromModal()" style="width: 100%; padding: 10px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                            Delete Project
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-footer" style="padding: 20px 24px; border-top: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: flex-end; gap: 12px;">
+                <button onclick="closeProjectSettingsModal()" style="padding: 10px 20px; border-radius: 8px; background: transparent; border: 1px solid rgba(255,255,255,0.2); color: #fff; cursor: pointer;">Cancel</button>
+                <button onclick="saveProjectSettings()" style="padding: 10px 20px; border-radius: 8px; background: var(--color-cyan); border: none; color: #000; font-weight: bold; cursor: pointer;">Save Changes</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+window.closeProjectSettingsModal = function() {
+    const modal = document.getElementById('project-settings-modal');
+    if (modal) {
+        modal.classList.remove('open');
+        setTimeout(() => modal.style.display = 'none', 200);
+    }
+};
+
+window.saveProjectSettings = async function() {
+    const modal = document.getElementById('project-settings-modal');
+    const projectId = modal.dataset.projectId;
+    const interval = document.getElementById('scheduler-interval-select').value;
+    
+    const btn = modal.querySelector('.modal-footer button:last-child');
+    const originalText = btn.textContent;
+    btn.textContent = "Saving...";
+    btn.disabled = true;
+
+    try {
+        await firebase.firestore().collection('projects').doc(projectId).update({
+            schedulerInterval: parseInt(interval),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        closeProjectSettingsModal();
+        // UI auto-updates via listener
+    } catch (e) {
+        console.error("Failed to save settings:", e);
+        alert("Error: " + e.message);
+    } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }
+};
+
+window.deleteProjectFromModal = async function() {
+    const modal = document.getElementById('project-settings-modal');
+    const projectId = modal.dataset.projectId;
+    
+    // Call the existing global delete function
+    await window.deleteProject(projectId);
+    closeProjectSettingsModal();
+};
+
