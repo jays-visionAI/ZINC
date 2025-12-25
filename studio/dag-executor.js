@@ -335,8 +335,18 @@ class DAGExecutor {
             return;
         }
 
-        // Preserve teamContext if already set
+        // Preserve v5.0 state that was loaded in constructor
         const existingTeamContext = this.state.teamContext || null;
+        const existingRoutingDefaults = this.state.routingDefaults;
+        const existingTierConfig = this.state.tierConfig;
+        const existingStandardAgentProfiles = this.state.standardAgentProfiles;
+        const useTierRouting = this.state.useTierRouting;
+
+        // If tier config not loaded yet, wait for it
+        if (!existingTierConfig && useTierRouting) {
+            console.log('[DAGExecutor] Waiting for tier config to load...');
+            await this.loadGlobalDefaults();
+        }
 
         this.state = {
             isRunning: true,
@@ -354,7 +364,11 @@ class DAGExecutor {
             qualityTier,
             targetChannels: targetChannels || ['x'],
             executionResults: {},
-            routingDefaults: this.state.routingDefaults,
+            // v5.0: Preserve loaded configs
+            routingDefaults: existingRoutingDefaults || this.state.routingDefaults,
+            tierConfig: existingTierConfig || this.state.tierConfig,
+            standardAgentProfiles: existingStandardAgentProfiles || this.state.standardAgentProfiles,
+            useTierRouting: useTierRouting,
             teamContext: existingTeamContext,
             // ✨ Phase 2: Logic for "Context-Driven Skip"
             skipPhases: {

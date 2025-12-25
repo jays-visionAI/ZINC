@@ -680,11 +680,16 @@ window.switchPreviewTab = function (channel) {
 // Render single channel preview
 window.renderSingleChannelPreview = function (channel) {
     const previewArea = document.getElementById('single-channel-preview');
-    if (!previewArea || !channel) return;
+    if (!previewArea || !channel) {
+        console.warn('[Studio] renderSingleChannelPreview: previewArea or channel missing', { previewArea, channel });
+        return;
+    }
 
     const content = window.channelContents[channel];
     const displayName = getChannelDisplayName(channel);
     const icon = getChannelIcon(channel);
+
+    console.log('[Studio] renderSingleChannelPreview:', { channel, hasContent: !!content, text: content?.text?.substring(0, 50) });
 
     if (!content || !content.text) {
         previewArea.innerHTML = `
@@ -697,7 +702,9 @@ window.renderSingleChannelPreview = function (channel) {
     }
 
     // Render platform-specific preview
-    previewArea.innerHTML = getFormattedPreview(channel, content);
+    const formattedHTML = getFormattedPreview(channel, content);
+    console.log('[Studio] Generated HTML length:', formattedHTML.length, 'First 200 chars:', formattedHTML.substring(0, 200));
+    previewArea.innerHTML = formattedHTML;
 };
 
 // Get formatted preview based on platform
