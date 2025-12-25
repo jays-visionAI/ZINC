@@ -372,22 +372,6 @@ function updateDashboardWithProjectData(data) {
     }
 
     // Update Mention Count (Mocked stable value for UI)
-    if (dom.mentionCount) {
-        // Generate a pseudo-random stable number based on brand name length
-        const baseMentions = 500 + (brandName.length * 75);
-        dom.mentionCount.textContent = baseMentions.toLocaleString();
-    }
-
-    // 3. Update Brand Stats (Dynamic based on project)
-    const brandName = data.projectName || data.name || "Your Brand";
-
-    // Update Heatmap Label
-    const heatmapLabels = document.querySelectorAll('#heatmap-container .text-right');
-    if (heatmapLabels.length > 0) {
-        heatmapLabels.forEach(el => el.textContent = brandName.substring(0, 8));
-    }
-
-    // Update Mention Count (Mocked stable value for UI)
     let baseMentions = 1200; // Default fallback
     if (dom.mentionCount) {
         // Generate a pseudo-random stable number based on brand name length
@@ -756,10 +740,10 @@ function renderAIActions() {
                 </div>
                 
                 <div class="flex gap-2">
-                    <button class="action-btn px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-black rounded-lg shadow-lg shadow-indigo-500/10 transition-all active:scale-95" data-action="meme" data-cost="20">
+                    <button type="button" class="action-btn px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-black rounded-lg shadow-lg shadow-indigo-500/10 transition-all active:scale-95" data-action="meme" data-cost="20">
                         GENERATE
                     </button>
-                    <button class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white text-[11px] font-bold rounded-lg transition-all" onclick="showNotification('Transferred to Studio Queue')">
+                    <button type="button" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white text-[11px] font-bold rounded-lg transition-all" onclick="showNotification('Transferred to Studio Queue')">
                         STUDIO
                     </button>
                 </div>
@@ -781,7 +765,7 @@ function setupEventListeners() {
     // Deploy Web Agent Button
     const btnDeploy = document.getElementById('btn-deploy-agent');
     if (btnDeploy) {
-        btnDeploy.addEventListener('click', handleDeployAgent);
+        btnDeploy.addEventListener('click', (e) => handleDeployAgent(e));
     }
 
     // Setup Keywords Button
@@ -827,6 +811,7 @@ function setupEventListeners() {
         dom.aiActions.addEventListener('click', (e) => {
             const btn = e.target.closest('.action-btn');
             if (btn) {
+                e.preventDefault();
                 const actionType = btn.dataset.action;
                 const actionId = actionType === 'meme' ? 'market_meme_generation' :
                     actionType === 'blog' ? 'market_blog_post' : 'market_campaign';
@@ -881,7 +866,8 @@ function setupEventListeners() {
  * Handle Deploy Web Agent - Enhanced with Simulation & Map
  * 🧠 UNIFIED BRAIN: Now references project's Core Agent Team for real execution
  */
-async function handleDeployAgent() {
+async function handleDeployAgent(e) {
+    if (e) e.preventDefault();
     const userId = firebase.auth().currentUser?.uid;
     if (!userId) return;
 
@@ -904,6 +890,8 @@ async function handleDeployAgent() {
     // Check credits
     const ACTION_ID = 'market_investigation';
     const btn = document.getElementById('btn-deploy-agent');
+    if (!btn || btn.disabled) return; // Prevent double click
+
     const originalContent = btn.innerHTML;
 
     try {

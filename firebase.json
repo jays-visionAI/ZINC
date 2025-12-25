@@ -11,8 +11,17 @@
         "public": ".",
         "ignore": [
             "firebase.json",
+            "database-rules.json",
+            "firestore.rules",
+            "firestore.indexes.json",
             "**/.*",
-            "**/node_modules/**"
+            "**/node_modules/**",
+            "functions/**",
+            ".agent/**",
+            "design-mockups/**",
+            "package.json",
+            "package-lock.json",
+            "README.md"
         ],
         "rewrites": [
             {

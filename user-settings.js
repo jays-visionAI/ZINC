@@ -259,116 +259,140 @@ let channelProfileMap = {};
 // Provider Configuration (Field Specs only)
 const PROVIDER_CONFIG = {
     x: {
-        fields: [
-            { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Enter API Key', required: true },
-            { key: 'apiSecret', label: 'API Secret', type: 'password', placeholder: 'Enter API Secret', required: false },
-            { key: 'accessToken', label: 'Access Token', type: 'password', placeholder: 'Enter Access Token', required: true },
-            { key: 'accessTokenSecret', label: 'Access Token Secret', type: 'password', placeholder: 'Enter Token Secret', required: false }
+        services: [
+            {
+                id: 'v2',
+                name: 'X API v2 (Posting/Auth)',
+                fields: [
+                    { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Enter API Key', required: true },
+                    { key: 'apiSecret', label: 'API Secret', type: 'password', placeholder: 'Enter API Secret', required: false },
+                    { key: 'accessToken', label: 'Access Token', type: 'password', placeholder: 'Enter Access Token', required: true },
+                    { key: 'accessTokenSecret', label: 'Access Token Secret', type: 'password', placeholder: 'Enter Token Secret', required: false }
+                ]
+            }
         ]
     },
     instagram: {
-        fields: [
-            { key: 'appId', label: 'App ID', type: 'text', placeholder: 'Facebook App ID', required: true },
-            { key: 'appSecret', label: 'App Secret', type: 'password', placeholder: 'Facebook App Secret', required: false },
-            { key: 'accessToken', label: 'Access Token (Optional if using App Secret)', type: 'password', placeholder: 'Long-lived Access Token', required: false },
-            { key: 'pageId', label: 'Instagram Business Account ID', type: 'text', placeholder: 'Instagram Account ID (not username)', required: true },
-            { key: 'fbPageId', label: 'Connected Facebook Page ID', type: 'text', placeholder: 'Facebook Page ID', required: false }
+        services: [
+            {
+                id: 'publishing',
+                name: 'Content Publishing API',
+                description: 'Directly post content to Instagram Feed',
+                fields: [
+                    { key: 'accessToken', label: 'Long-lived Access Token', type: 'password', placeholder: 'Enter Access Token', required: true },
+                    { key: 'pageId', label: 'Instagram Business ID', type: 'text', placeholder: 'Instagram Account ID (Numeric)', required: true },
+                    { key: 'appId', label: 'Facebook App ID', type: 'text', placeholder: 'App ID', required: true },
+                    { key: 'appSecret', label: 'Facebook App Secret', type: 'password', placeholder: 'App Secret', required: true }
+                ]
+            },
+            {
+                id: 'monitoring',
+                name: 'Monitoring & Insights',
+                description: 'Analyze account performance and metrics',
+                fields: [
+                    { key: 'accessToken', label: 'Access Token', type: 'password', placeholder: 'Enter Access Token', required: true },
+                    { key: 'pageId', label: 'Facebook Page ID', type: 'text', placeholder: 'Connected Page ID', required: true }
+                ]
+            },
+            {
+                id: 'messaging',
+                name: 'Messaging & DM',
+                description: 'Manage and respond to Instagram Direct Messages',
+                fields: [
+                    { key: 'accessToken', label: 'Page Access Token', type: 'password', placeholder: 'Access Token (Messages permission)', required: true },
+                    { key: 'pageId', label: 'Instagram Business ID', type: 'text', placeholder: 'Business ID', required: true }
+                ]
+            }
         ]
     },
     youtube: {
-        fields: [
-            { key: 'clientId', label: 'Client ID (OAuth 2.0)', type: 'text', placeholder: 'Google Cloud Client ID', required: true },
-            { key: 'clientSecret', label: 'Client Secret', type: 'password', placeholder: 'Google Cloud Client Secret', required: true },
-            { key: 'refreshToken', label: 'Refresh Token', type: 'password', placeholder: 'OAuth Refresh Token', required: false, help: 'Required for offline access' },
-            { key: 'apiKey', label: 'API Key (Public Data)', type: 'text', placeholder: 'Google Cloud API Key', required: false }
+        services: [
+            {
+                id: 'data_api',
+                name: 'YouTube Data API v3',
+                fields: [
+                    { key: 'clientId', label: 'Client ID (OAuth 2.0)', type: 'text', placeholder: 'Google Cloud Client ID', required: true },
+                    { key: 'clientSecret', label: 'Client Secret', type: 'password', placeholder: 'Google Cloud Client Secret', required: true },
+                    { key: 'refreshToken', label: 'Refresh Token', type: 'password', placeholder: 'OAuth Refresh Token', required: false },
+                    { key: 'apiKey', label: 'API Key (Public Data)', type: 'text', placeholder: 'Google Cloud API Key', required: false }
+                ]
+            }
         ]
     },
     linkedin: {
-        fields: [
-            { key: 'clientId', label: 'Client ID', type: 'text', placeholder: 'LinkedIn App Client ID', required: true },
-            { key: 'clientSecret', label: 'Client Secret', type: 'password', placeholder: 'LinkedIn App Client Secret', required: true },
-            { key: 'urn', label: 'Organization URN', type: 'text', placeholder: 'urn:li:organization:12345678', required: true, help: 'Found in LinkedIn Page URL' },
-            { key: 'accessToken', label: 'Access Token (Optional)', type: 'password', placeholder: 'Pre-generated Access Token', required: false }
+        services: [
+            {
+                id: 'org_api',
+                name: 'LinkedIn Organization API',
+                fields: [
+                    { key: 'clientId', label: 'Client ID', type: 'text', placeholder: 'App Client ID', required: true },
+                    { key: 'clientSecret', label: 'Client Secret', type: 'password', placeholder: 'App Client Secret', required: true },
+                    { key: 'urn', label: 'Organization URN', type: 'text', placeholder: 'urn:li:organization:12345678', required: true },
+                    { key: 'accessToken', label: 'Access Token (Optional)', type: 'password', placeholder: 'Pre-generated Token', required: false }
+                ]
+            }
         ]
     },
     tiktok: {
-        fields: [
-            { key: 'accessToken', label: 'Access Token', type: 'password', placeholder: 'Enter Access Token', required: true },
-            { key: 'clientKey', label: 'Client Key', type: 'text', placeholder: 'Enter Client Key', required: true }
+        services: [
+            {
+                id: 'video_kit',
+                name: 'TikTok Video Kit (Post)',
+                fields: [
+                    { key: 'accessToken', label: 'Access Token', type: 'password', placeholder: 'Enter Access Token', required: true },
+                    { key: 'clientKey', label: 'Client Key', type: 'text', placeholder: 'Enter Client Key', required: true }
+                ]
+            }
         ]
     },
     facebook: {
-        fields: [
-            { key: 'appId', label: 'App ID', type: 'text', required: true },
-            { key: 'appSecret', label: 'App Secret', type: 'password', required: true },
-            { key: 'pageId', label: 'Page ID', type: 'text', required: true },
-            { key: 'accessToken', label: 'Access Token (Optional)', type: 'password', required: false }
+        services: [
+            {
+                id: 'page_post',
+                name: 'Facebook Page Posting',
+                fields: [
+                    { key: 'appId', label: 'App ID', type: 'text', required: true },
+                    { key: 'appSecret', label: 'App Secret', type: 'password', required: true },
+                    { key: 'pageId', label: 'Page ID', type: 'text', required: true },
+                    { key: 'accessToken', label: 'Access Token (Optional)', type: 'password', required: false }
+                ]
+            }
         ]
     },
     naverBlog: {
-        fields: [
-            { key: 'clientId', label: 'Client ID', type: 'text', placeholder: 'Naver Client ID', required: true },
-            { key: 'clientSecret', label: 'Client Secret', type: 'password', placeholder: 'Naver Client Secret', required: true }
+        services: [
+            {
+                id: 'v1',
+                name: 'Naver Blog Writing API',
+                fields: [
+                    { key: 'clientId', label: 'Client ID', type: 'text', placeholder: 'Naver Client ID', required: true },
+                    { key: 'clientSecret', label: 'Client Secret', type: 'password', placeholder: 'Naver Client Secret', required: true }
+                ]
+            }
         ]
     },
     naverSmartStore: {
-        fields: [
-            { key: 'applicationId', label: 'Application ID', type: 'text', placeholder: 'Commerce API Application ID', required: true },
-            { key: 'applicationSecret', label: 'Application Secret', type: 'password', placeholder: 'Commerce API Secret', required: true }
+        services: [
+            {
+                id: 'commerce_api',
+                name: 'Commerce API (Products)',
+                fields: [
+                    { key: 'applicationId', label: 'Application ID', type: 'text', placeholder: 'Commerce API App ID', required: true },
+                    { key: 'applicationSecret', label: 'Application Secret', type: 'password', placeholder: 'Commerce API Secret', required: true }
+                ]
+            }
         ]
     },
     kakaotalk: {
-        fields: [
-            { key: 'adminKey', label: 'Admin Key', type: 'password', required: true, help: 'For sending messages' },
-            { key: 'restApiKey', label: 'REST API Key', type: 'text', required: true }
-        ]
-    },
-    line: {
-        fields: [
-            { key: 'channelAccessToken', label: 'Channel Access Token', type: 'password', required: true, help: 'Long-lived access token' },
-            { key: 'channelSecret', label: 'Channel Secret', type: 'password', required: true }
-        ]
-    },
-    discord: { fields: [{ key: 'botToken', label: 'Bot Token', type: 'password', required: true }] },
-    coupang: { fields: [{ key: 'accessKey', label: 'Access Key', type: 'text', required: true }, { key: 'secretKey', label: 'Secret Key', type: 'password', required: true }] },
-    reddit: { fields: [{ key: 'clientId', label: 'Client ID', type: 'text', required: true }, { key: 'clientSecret', label: 'Client Secret', type: 'password', required: true }] },
-    telegram: {
-        fields: [
-            { key: 'botToken', label: 'Bot Token', type: 'password', required: true, help: 'From @BotFather' }
-        ]
-    },
-    whatsapp: {
-        fields: [
-            { key: 'accessToken', label: 'System User Access Token', type: 'password', required: true, help: 'Permanent token recommended' },
-            { key: 'phoneNumberId', label: 'Phone Number ID', type: 'text', required: true, help: 'From WhatsApp Business API Setup' }
-        ]
-    },
-    pinterest: {
-        fields: [
-            { key: 'appId', label: 'App ID', type: 'text', required: true, placeholder: 'Pinterest App ID' },
-            { key: 'appSecret', label: 'App Secret', type: 'password', required: true, placeholder: 'Pinterest App Secret' },
-            { key: 'accessToken', label: 'Access Token', type: 'password', required: true, placeholder: 'OAuth Access Token' }
-        ]
-    },
-    naverMap: {
-        fields: [
-            { key: 'clientId', label: 'Client ID', type: 'text', placeholder: 'Naver Cloud Client ID', required: true },
-            { key: 'clientSecret', label: 'Client Secret', type: 'password', placeholder: 'Naver Cloud Client Secret', required: true }
-        ]
-    },
-    tmap: {
-        fields: [
-            { key: 'appKey', label: 'App Key', type: 'text', placeholder: 'T-Map API App Key', required: true }
-        ]
-    },
-    kakaoNavi: {
-        fields: [
-            { key: 'restApiKey', label: 'REST API Key', type: 'text', placeholder: 'Kakao REST API Key', required: true }
-        ]
-    },
-    kakaoMap: {
-        fields: [
-            { key: 'restApiKey', label: 'REST API Key', type: 'text', placeholder: 'Kakao REST API Key', required: true }
+        services: [
+            {
+                id: 'message',
+                name: 'Kakao Biz Message',
+                fields: [
+                    { key: 'adminKey', label: 'Admin Key', type: 'password', required: true },
+                    { key: 'restApiKey', label: 'REST API Key', type: 'text', required: true }
+                ]
+            }
         ]
     }
 };
@@ -419,7 +443,8 @@ window.openCredentialModal = async function (credentialId = null) {
     // Load user's projects
     await loadUserProjects();
 
-    updateCredentialFields();
+    const serviceGroup = document.getElementById('credential-service-group');
+    if (serviceGroup) serviceGroup.style.display = 'none';
 
     if (credentialId) {
         const cred = credentials.find(c => c.id === credentialId);
@@ -432,6 +457,16 @@ window.openCredentialModal = async function (credentialId = null) {
             // Set project if available
             if (cred.projectId) {
                 document.getElementById('credential-project').value = cred.projectId;
+            }
+
+            // Handle multi-service initialization
+            const config = PROVIDER_CONFIG[cred.provider];
+            if (config && config.services && config.services.length > 0) {
+                handleProviderChange(); // Populate services
+                const serviceSelect = document.getElementById('credential-service');
+                if (serviceSelect) {
+                    serviceSelect.value = cred.serviceId || config.services[0].id;
+                }
             }
 
             updateCredentialFields();
@@ -474,21 +509,52 @@ window.deleteCredential = async function (id) {
     );
 };
 
+// Provider Change Handler
+window.handleProviderChange = function () {
+    const provider = document.getElementById('credential-provider').value;
+    const serviceGroup = document.getElementById('credential-service-group');
+    const serviceSelect = document.getElementById('credential-service');
+
+    if (!provider) {
+        if (serviceGroup) serviceGroup.style.display = 'none';
+        return;
+    }
+
+    const config = PROVIDER_CONFIG[provider];
+    if (config && config.services && config.services.length > 0) {
+        if (serviceGroup) serviceGroup.style.display = 'block';
+        if (serviceSelect) {
+            serviceSelect.innerHTML = config.services.map(s =>
+                `<option value="${s.id}">${s.name}</option>`
+            ).join('');
+        }
+    } else {
+        if (serviceGroup) serviceGroup.style.display = 'none';
+    }
+
+    updateCredentialFields();
+};
+
 // Dynamic Fields
 window.updateCredentialFields = function () {
     const provider = document.getElementById('credential-provider').value;
+    const serviceId = document.getElementById('credential-service').value;
     const container = document.getElementById('credential-fields-container');
-
-    console.log('updateCredentialFields called, provider:', provider);
-    console.log('Container element:', container);
+    const descEl = document.getElementById('service-description');
 
     if (!provider) {
         container.innerHTML = '';
         return;
     }
 
-    const fields = getProviderFields(provider);
-    console.log('Fields for provider:', fields);
+    const config = PROVIDER_CONFIG[provider];
+    const fields = getProviderFields(provider, serviceId);
+
+    // Update description if service is selected
+    if (config && config.services && descEl) {
+        const service = config.services.find(s => s.id === serviceId);
+        descEl.textContent = service ? service.description || '' : '';
+    }
 
     container.innerHTML = fields.map(field => `
         <div class="form-group" style="margin-bottom: 20px;">
@@ -505,28 +571,30 @@ window.updateCredentialFields = function () {
             ${field.help ? `<small style="color: rgba(255,255,255,0.5); font-size: 12px;">${field.help}</small>` : ''}
         </div>
     `).join('');
-
-    console.log('Fields rendered:', fields.length);
 };
 
-function getProviderFields(provider) {
+function getProviderFields(provider, serviceId) {
     // PRD 12.x: Check Channel Profile first
     const profile = channelProfileMap[provider];
     if (profile && profile.apiCredentialConfig && Array.isArray(profile.apiCredentialConfig.fields)) {
-        console.log(`Using apiCredentialConfig from Channel Profile for: ${provider}`);
         return profile.apiCredentialConfig.fields;
     }
 
-    // Fallback: Use PROVIDER_CONFIG
-    console.log(`Using PROVIDER_CONFIG fallback for: ${provider}`);
-    return PROVIDER_CONFIG[provider]?.fields || [];
+    // New multi-service structure
+    const config = PROVIDER_CONFIG[provider];
+    if (config && config.services) {
+        const service = config.services.find(s => s.id === (serviceId || config.services[0].id));
+        return service ? service.fields : [];
+    }
+
+    return [];
 }
 
 let lastTestResult = null; // Store last test result
 
 // Helper: Get values from dynamic fields with validation
-function getCredentialFieldValues(provider, options = { validate: false }) {
-    const fields = getProviderFields(provider);
+function getCredentialFieldValues(provider, serviceId, options = { validate: false }) {
+    const fields = getProviderFields(provider, serviceId);
     const values = {};
     let hasError = false;
 
@@ -592,8 +660,9 @@ async function testCredential() {
 
     let credentialValues;
     try {
+        const serviceId = document.getElementById('credential-service').value;
         // Validate fields
-        credentialValues = getCredentialFieldValues(provider, { validate: true });
+        credentialValues = getCredentialFieldValues(provider, serviceId, { validate: true });
     } catch (validationError) {
         resultDiv.innerHTML = `<span style="color: #fbbf24;">⚠️ ${validationError.message}</span>`;
         return;
@@ -684,7 +753,8 @@ async function saveCredential(e) {
         }
 
         // Dynamic fields + validation
-        const credentials = getCredentialFieldValues(provider, { validate: true });
+        const serviceId = document.getElementById('credential-service')?.value;
+        const credentials = getCredentialFieldValues(provider, serviceId, { validate: true });
 
         // Get project
         const projectId = document.getElementById('credential-project')?.value;
@@ -708,6 +778,7 @@ async function saveCredential(e) {
             detailedName: accountName,  // ✨ Use detailedName instead of accountName
             accountName,  // Keep for backward compatibility
             credentials,
+            serviceId,  // ✨ Add serviceId
             status,
             lastTestedAt: lastTestResult ? new Date() : null,
             // ✨ Add account info from X API test

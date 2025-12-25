@@ -2,32 +2,80 @@
 
 // PRD 11.2 - Channel API Field Definitions (Static Schema)
 const CHANNEL_API_FIELD_DEFS = {
-    instagram: [
-        { key: "access_token", label: "Access Token", type: "password", required: true, helperText: "Meta Developer 대시보드에서 발급받은 Long-Lived Access Token" },
-        { key: "page_id", label: "Page ID", type: "text", required: true, helperText: "Facebook Page ID connected to Instagram" }
-    ],
-    youtube: [
-        { key: "api_key", label: "API Key", type: "password", required: true, helperText: "Google Cloud Console에서 발급받은 API Key" },
-        { key: "channel_id", label: "Channel ID", type: "text", required: true, helperText: "YouTube Channel ID" }
-    ],
-    tiktok: [
-        { key: "access_token", label: "Access Token", type: "password", required: true, helperText: "TikTok Developer Access Token" },
-        { key: "client_key", label: "Client Key", type: "text", required: true, helperText: "TikTok App Client Key" }
-    ],
-    linkedin: [
-        { key: "access_token", label: "Access Token", type: "password", required: true, helperText: "LinkedIn OAuth2 Access Token" },
-        { key: "urn", label: "Organization URN", type: "text", required: true, helperText: "LinkedIn Organization URN (e.g., urn:li:organization:12345)" }
-    ],
-    x: [
-        { key: "api_key", label: "API Key", type: "password", required: true, helperText: "X (Twitter) API Key" },
-        { key: "api_secret", label: "API Secret", type: "password", required: true, helperText: "X (Twitter) API Secret" },
-        { key: "access_token", label: "Access Token", type: "password", required: true, helperText: "X (Twitter) Access Token" },
-        { key: "access_token_secret", label: "Access Token Secret", type: "password", required: true, helperText: "X (Twitter) Access Token Secret" }
-    ],
-    // Default fallback for others
-    default: [
-        { key: "api_key", label: "API Key", type: "password", required: true, helperText: "API Key for this channel" }
-    ]
+    instagram: {
+        name: "Instagram",
+        services: [
+            {
+                id: "publishing",
+                name: "Content Publishing API",
+                description: "이미지 및 동영상을 피드에 직접 게시하는 기능",
+                fields: [
+                    { key: "access_token", label: "Access Token", type: "password", required: true, helperText: "Meta Developer 대시보드에서 발급받은 Long-Lived Access Token" },
+                    { key: "page_id", label: "Instagram Business ID", type: "text", required: true, helperText: "Instagram Business ID (not Page ID)" },
+                    { key: "app_id", label: "App ID", type: "text", required: true, helperText: "Facebook App ID" },
+                    { key: "app_secret", label: "App Secret", type: "password", required: true, helperText: "Facebook App Secret" }
+                ]
+            },
+            {
+                id: "insights",
+                name: "Insights (Graph API)",
+                description: "계정 통계 및 인사이트 데이터를 조회하는 기능",
+                fields: [
+                    { key: "access_token", label: "Access Token", type: "password", required: true, helperText: "Graph API Access Token" },
+                    { key: "page_id", label: "Facebook Page ID", type: "text", required: true, helperText: "Facebook Page ID connected to Instagram" }
+                ]
+            },
+            {
+                id: "messaging",
+                name: "Messaging API",
+                description: "인스타그램 DM을 송수신하고 관리하는 기능",
+                fields: [
+                    { key: "access_token", label: "Access Token", type: "password", required: true, helperText: "Page Access Token with instagram_manage_messages permission" },
+                    { key: "page_id", label: "Instagram Business ID", type: "text", required: true, helperText: "Instagram Business ID for messaging" }
+                ]
+            }
+        ]
+    },
+    x: {
+        name: "X (Twitter)",
+        services: [
+            {
+                id: "v2",
+                name: "X API v2 (Post/Read)",
+                fields: [
+                    { key: "api_key", label: "API Key", type: "password", required: true, helperText: "X (Twitter) API Key" },
+                    { key: "api_secret", label: "API Secret", type: "password", required: true, helperText: "X (Twitter) API Secret" },
+                    { key: "access_token", label: "Access Token", type: "password", required: true, helperText: "X (Twitter) Access Token" },
+                    { key: "access_token_secret", label: "Access Token Secret", type: "password", required: true, helperText: "X (Twitter) Access Token Secret" }
+                ]
+            }
+        ]
+    },
+    youtube: {
+        name: "YouTube",
+        services: [
+            {
+                id: "data_api",
+                name: "YouTube Data API v3",
+                fields: [
+                    { key: "api_key", label: "API Key", type: "password", required: true, helperText: "Google Cloud Console에서 발급받은 API Key" },
+                    { key: "channel_id", label: "Channel ID", type: "text", required: true, helperText: "YouTube Channel ID" }
+                ]
+            }
+        ]
+    },
+    default: {
+        name: "Default",
+        services: [
+            {
+                id: "default",
+                name: "Standard API",
+                fields: [
+                    { key: "api_key", label: "API Key", type: "password", required: true, helperText: "API Key for this channel" }
+                ]
+            }
+        ]
+    }
 };
 
 // ==========================================
@@ -693,7 +741,8 @@ function renderChannelDetail(slug, name, icon) {
     const detailContainer = document.getElementById('settings-channel-detail');
     if (!detailContainer) return;
 
-    const fieldDefs = CHANNEL_API_FIELD_DEFS[slug] || CHANNEL_API_FIELD_DEFS['default'];
+    const channelDef = CHANNEL_API_FIELD_DEFS[slug] || CHANNEL_API_FIELD_DEFS['default'];
+    const services = channelDef.services || [];
 
     detailContainer.innerHTML = `
         <!-- Header -->
@@ -705,53 +754,54 @@ function renderChannelDetail(slug, name, icon) {
             </div>
         </div>
 
-        <!-- Info Banner (Korean + English) -->
+        <!-- Info Banner -->
         <div style="background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 8px; padding: 16px; margin-bottom: 24px;">
             <div style="display: flex; gap: 12px; align-items: start;">
                 <div style="font-size: 20px;">ℹ️</div>
                 <div style="flex: 1;">
-                    <div style="font-weight: 600; color: #fbbf24; margin-bottom: 8px; font-size: 13px;">현재 상태 (Read-only)</div>
-                    <div style="font-size: 12px; color: rgba(255,255,255,0.7); line-height: 1.6; margin-bottom: 12px;">
-                        현재 채널별 API 필드 정의는 프론트엔드에 하드코딩된 상수를 사용하고 있습니다.<br>
-                        추후 업데이트에서 이 설정은 Firestore 기반의 <code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-family: monospace;">channelApiSchemas</code> 컬렉션으로 이전되고,<br>
-                        이 화면에서 직접 편집할 수 있도록 확장될 예정입니다.
-                    </div>
-                    <div style="font-size: 11px; color: rgba(255,255,255,0.5); font-style: italic;">
-                        For now, these API field definitions are static constants in the frontend. In a future release, they will be loaded from a Firestore collection (e.g. <code style="font-family: monospace;">channelApiSchemas</code>) and become fully editable here.
+                    <div style="font-weight: 600; color: #fbbf24; margin-bottom: 8px; font-size: 13px;">다중 API 지원 (Multi-API Support)</div>
+                    <div style="font-size: 12px; color: rgba(255,255,255,0.7); line-height: 1.6;">
+                        이 채널은 용도에 따라 여러 개의 API 채널을 가질 수 있습니다. 각 서비스에 필요한 필드가 다를 수 있으니 주의해 주세요.
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- API Fields -->
+        <!-- Services -->
         <div style="margin-bottom: 24px;">
-            <h4 style="margin: 0 0 16px 0; color: #fff;">API Field Schema (${fieldDefs.length} fields)</h4>
-            <div style="display: grid; gap: 16px;">
-                ${fieldDefs.map(field => `
-                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 16px;">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px;">
-                        <div>
-                            <label style="display: block; font-size: 11px; color: rgba(255,255,255,0.5); margin-bottom: 4px;">Field Key</label>
-                            <div style="font-family: monospace; color: #16e0bd; font-size: 13px; font-weight: 600;">${field.key}</div>
-                        </div>
-                        <div>
-                            <label style="display: block; font-size: 11px; color: rgba(255,255,255,0.5); margin-bottom: 4px;">Label</label>
-                            <div style="color: rgba(255,255,255,0.8); font-size: 13px;">${field.label}</div>
-                        </div>
+            <h4 style="margin: 0 0 16px 0; color: #fff; display: flex; align-items: center; gap: 8px;">
+                <span>Available API Services</span>
+                <span style="background: rgba(22, 224, 189, 0.2); color: #16e0bd; font-size: 10px; padding: 2px 6px; border-radius: 10px;">${services.length}</span>
+            </h4>
+            
+            <div style="display: flex; flex-direction: column; gap: 32px;">
+                ${services.map(service => `
+                <div style="border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; overflow: hidden; background: rgba(255,255,255,0.02);">
+                    <div style="background: rgba(255,255,255,0.03); padding: 16px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                        <div style="font-weight: 700; color: #16e0bd; font-size: 15px; margin-bottom: 4px;">${service.name}</div>
+                        <div style="font-size: 12px; color: rgba(255,255,255,0.5);">${service.description || ''}</div>
                     </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px;">
-                        <div>
-                            <label style="display: block; font-size: 11px; color: rgba(255,255,255,0.5); margin-bottom: 4px;">Type</label>
-                            <span style="background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; font-size: 11px; color: rgba(255,255,255,0.7);">${field.type}</span>
+                    
+                    <div style="padding: 16px; display: grid; gap: 12px;">
+                        ${service.fields.map(field => `
+                        <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 12px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <div>
+                                    <label style="display: block; font-size: 10px; color: rgba(255,255,255,0.4); text-transform: uppercase;">Field Key</label>
+                                    <div style="font-family: monospace; color: #fff; font-size: 12px;">${field.key}</div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <label style="display: block; font-size: 10px; color: rgba(255,255,255,0.4); text-transform: uppercase;">Type</label>
+                                    <span style="font-size: 11px; color: rgba(255,255,255,0.6);">${field.type}${field.required ? ' <span style="color:#f87171">*</span>' : ''}</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label style="display: block; font-size: 10px; color: rgba(255,255,255,0.4); text-transform: uppercase;">Label & Helper</label>
+                                <div style="color: rgba(255,255,255,0.8); font-size: 13px; font-weight: 600;">${field.label}</div>
+                                <div style="color: rgba(255,255,255,0.5); font-size: 11px; margin-top: 2px;">${field.helperText}</div>
+                            </div>
                         </div>
-                        <div>
-                            <label style="display: block; font-size: 11px; color: rgba(255,255,255,0.5); margin-bottom: 4px;">Required</label>
-                            <span style="color: ${field.required ? '#f87171' : 'rgba(255,255,255,0.5)'}; font-size: 12px; font-weight: 600;">${field.required ? '✓ Required' : 'Optional'}</span>
-                        </div>
-                    </div>
-                    <div>
-                        <label style="display: block; font-size: 11px; color: rgba(255,255,255,0.5); margin-bottom: 4px;">Helper Text</label>
-                        <div style="color: rgba(255,255,255,0.6); font-size: 12px; line-height: 1.5;">${field.helperText}</div>
+                        `).join('')}
                     </div>
                 </div>
                 `).join('')}
@@ -759,11 +809,11 @@ function renderChannelDetail(slug, name, icon) {
         </div>
 
         <!-- Disabled Save Button -->
-        <div style="display: flex; justify-content: flex-end; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1);">
+        <div style="display: flex; justify-content: flex-end; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.1);">
             <button onclick="alert('현재 버전에서는 설정 편집이 비활성화되어 있습니다. (Read-only)')" 
                     class="admin-btn-secondary" 
                     style="opacity: 0.5; cursor: not-allowed;">
-                💾 Save (Coming soon)
+                💾 Save Schema (Coming soon)
             </button>
         </div>
     `;
@@ -2382,7 +2432,7 @@ window.refreshSchedulerStatus = async function () {
 
     try {
         const db = firebase.firestore();
-        
+
         // 1. Fetch Scheduler Heartbeat (System Settings)
         const doc = await db.collection('systemSettings').doc('scheduler').get();
         const data = doc.exists ? doc.data() : null;
@@ -2399,21 +2449,21 @@ window.refreshSchedulerStatus = async function () {
         const diffMinutes = Math.floor((now - lastRunDate) / 60000);
 
         // Status Logic: If last run was < 70 mins ago, it's Healthy (assuming 60 min schedule)
-        let isHealthy = diffMinutes < 75; 
-        
+        let isHealthy = diffMinutes < 75;
+
         if (data.lastRunStatus === 'error') isHealthy = false;
 
-        statusBadge.innerHTML = isHealthy 
-            ? '<span style="color:#22c55e; border: 1px solid #22c55e; padding: 2px 10px; border-radius: 12px;">✅ Healthy</span>' 
+        statusBadge.innerHTML = isHealthy
+            ? '<span style="color:#22c55e; border: 1px solid #22c55e; padding: 2px 10px; border-radius: 12px;">✅ Healthy</span>'
             : '<span style="color:#ef4444; border: 1px solid #ef4444; padding: 2px 10px; border-radius: 12px;">⚠️ Attention</span>';
 
         lastRunEl.textContent = lastRunDate.toLocaleString();
         lastDurationEl.textContent = `Duration: ${data.lastRunDurationMs || 0}ms (${data.lastRunType || 'scheduled'})`;
-        
+
         // Calculate Next Run (Approx)
         const nextRun = new Date(lastRunDate.getTime() + 60 * 60 * 1000);
         const timeUntil = Math.ceil((nextRun - now) / 60000);
-        
+
         if (timeUntil > 0) {
             nextRunEl.textContent = `In ${timeUntil} mins (${nextRun.toLocaleTimeString()})`;
         } else {
@@ -2447,10 +2497,10 @@ window.forceRunScheduler = async function () {
     try {
         const forceRun = firebase.functions().httpsCallable('forceRunScheduler');
         const result = await forceRun({});
-        
+
         console.log("Force Run Result:", result.data);
         alert(`✅ Scheduler cycle triggered successfully!\nProcessed ${result.data.activeCount} projects.`);
-        
+
         // Refresh UI
         await refreshSchedulerStatus();
 
@@ -2466,7 +2516,7 @@ window.forceRunScheduler = async function () {
 // Initial Load if Scheduler Tab is somehow active (unlikely on fresh load, but good practice)
 // Also hook into tab switch
 const originalSwitchSettingsTab = window.switchSettingsTab;
-window.switchSettingsTab = function(tabId) {
+window.switchSettingsTab = function (tabId) {
     originalSwitchSettingsTab(tabId);
     if (tabId === 'scheduler') {
         refreshSchedulerStatus();

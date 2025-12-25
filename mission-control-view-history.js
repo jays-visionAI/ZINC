@@ -1740,99 +1740,133 @@
     };
 
     window.approveContent = function (contentId) {
-        // Show custom confirmation modal instead of browser confirm
-        showConfirmModal(
-            'Approve Content',
-            'Are you sure you want to approve and post this content to X (Twitter)?',
-            async () => {
-                try {
-                    const contentDoc = await firebase.firestore()
-                        .collection('projects')
-                        .doc(currentProjectId)
-                        .collection('generatedContents')
-                        .doc(contentId)
-                        .get();
-
-                    if (!contentDoc.exists) {
-                        alert('Content not found.');
-                        return;
-                    }
-
-                    const contentData = contentDoc.data();
-                    const tweetText = contentData.content_text || contentData.content || contentData.text;
-
-                    if (!tweetText) {
-                        alert('No text content to post.');
-                        return;
-                    }
-
-                    // Update status to posting
-                    await firebase.firestore()
-                        .collection('projects')
-                        .doc(currentProjectId)
-                        .collection('generatedContents')
-                        .doc(contentId)
-                        .update({
-                            status: 'posting',
-                            approved_at: firebase.firestore.FieldValue.serverTimestamp()
-                        });
-
-                    try {
-                        const postToTwitter = firebase.functions().httpsCallable('postToTwitter');
-                        const result = await postToTwitter({
-                            projectId: currentProjectId,
-                            contentId: contentId,
-                            tweetText: tweetText
-                        });
-
-                        if (result.data.success) {
-                            alert(`✅ Posted to X successfully!\n\nTweet URL: ${result.data.tweetUrl}`);
-                        } else {
-                            alert('❌ Failed to post to X.');
-                        }
-                    } catch (postError) {
-                        console.error('[approveContent] Post error:', postError);
-
-                        // Check for specific error types
-                        const errorMessage = postError.message || '';
-
-                        if (errorMessage.includes('credentials not configured') ||
-                            errorMessage.includes('failed-precondition')) {
-                            alert('❌ X (Twitter) API 자격 증명이 설정되지 않았습니다.\n\n' +
-                                '설정 방법:\n' +
-                                '1. Settings > Connections 메뉴로 이동\n' +
-                                '2. X (Twitter) 채널 연결을 추가하세요');
-                        } else if (errorMessage.includes('403') || errorMessage.includes('Forbidden')) {
-                            alert('❌ X API 권한이 부족합니다.\n\n' +
-                                'Twitter Developer Portal에서 앱 권한을 확인하세요:\n' +
-                                '- Read and Write 권한이 필요합니다');
-                        } else if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
-                            alert('❌ X API 자격 증명이 유효하지 않습니다.\n\n' +
-                                'API 키를 다시 확인해주세요.');
-                        } else {
-                            alert('❌ Error posting to X: ' + errorMessage);
-                        }
-
-                        // Revert status to pending
-                        await firebase.firestore()
-                            .collection('projects')
-                            .doc(currentProjectId)
-                            .collection('generatedContents')
-                            .doc(contentId)
-                            .update({
-                                status: 'pending',
-                                publish_error: errorMessage
-                            });
-                    }
-
-                    if (selectedRunId) loadRunContentWithActions(selectedRunId);
-                } catch (error) {
-                    console.error('[approveContent] Error:', error);
-                    alert('Error: ' + (error.message || 'Unknown error'));
+        // Fetch content data first to determine platform
+        firebase.firestore()
+            .collection('projects')
+            .doc(currentProjectId)
+            .collection('generatedContents')
+            .doc(contentId)
+            .get()
+            .then(async (doc) => {
+                if (!doc.exists) {
+                    alert('Content not found.');
+                    return;
                 }
-            }
-        );
+
+                const contentData = doc.data();
+                const platform = contentData.platform || 'X';
+                const platformName = platform === 'X' ? 'X (Twitter)' : platform;
+
+                // Show custom confirmation modal instead of browser confirm
+                showConfirmModal(
+                    'Approve Content',
+                    `Are you sure you want to approve and post this content to ${platformName}?`,
+                    async () => {
+                        try {
+                            const postText = contentData.content_text || contentData.content || contentData.text;
+
+                            if (!postText) {
+                                alert('No text content to post.');
+                                return;
+                            }
+
+                            // Instagram specific check
+                            const imageUrl = contentData.imageUrl || contentData.preview_image_url;
+                            if (platform === 'Instagram' && !imageUrl) {
+                                alert('❌ Instagram posts require an image. Please generate or attach an image first.');
+                                return;
+                            }
+
+                            // Update status to posting
+                            await firebase.firestore()
+                                .collection('projects')
+                                .doc(currentProjectId)
+                                .collection('generatedContents')
+                                .doc(contentId)
+                                .update({
+                                    status: 'posting',
+                                    approved_at: firebase.firestore.FieldValue.serverTimestamp()
+                                });
+
+                            try {
+                                let result;
+                                if (platform === 'Instagram') {
+                                    const postToInstagram = firebase.functions().httpsCallable('postToInstagram');
+                                    result = await postToInstagram({
+                                        projectId: currentProjectId,
+                                        contentId: contentId,
+                                        caption: postText,
+                                        imageUrl: imageUrl
+                                    });
+                                } else {
+                                    // Default to Twitter
+                                    const postToTwitter = firebase.functions().httpsCallable('postToTwitter');
+                                    result = await postToTwitter({
+                                        projectId: currentProjectId,
+                                        contentId: contentId,
+                                        tweetText: postText,
+                                        imageUrl: imageUrl
+                                    });
+                                }
+
+                                if (result.data.success) {
+                                    const successMsg = platform === 'Instagram'
+                                        ? `✅ Posted to Instagram successfully!`
+                                        : `✅ Posted to X successfully!\n\nTweet URL: ${result.data.tweetUrl}`;
+                                    alert(successMsg);
+                                } else {
+                                    alert(`❌ Failed to post to ${platformName}.`);
+                                }
+                            } catch (postError) {
+                                console.error(`[approveContent] ${platformName} Post error:`, postError);
+
+                                // Check for specific error types
+                                const errorMessage = postError.message || '';
+
+                                if (errorMessage.includes('credentials not configured') ||
+                                    errorMessage.includes('failed-precondition')) {
+                                    alert(`❌ ${platformName} API 자격 증명이 설정되지 않았습니다.\n\n` +
+                                        '설정 방법:\n' +
+                                        '1. Settings > Connections 메뉴로 이동\n' +
+                                        `2. ${platformName} 채널 연결을 추가하세요`);
+                                } else if (errorMessage.includes('403') || errorMessage.includes('Forbidden')) {
+                                    alert(`❌ ${platformName} API 권한이 부족하거나 계정이 제한되었습니다.`);
+                                } else if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
+                                    alert(`❌ ${platformName} API 자격 증명이 유효하지 않거나 만료되었습니다.`);
+                                } else {
+                                    alert(`❌ Error posting to ${platformName}: ` + errorMessage);
+                                }
+
+                                // Revert status to pending
+                                await firebase.firestore()
+                                    .collection('projects')
+                                    .doc(currentProjectId)
+                                    .collection('generatedContents')
+                                    .doc(contentId)
+                                    .update({
+                                        status: 'pending',
+                                        publish_error: errorMessage
+                                    });
+                            }
+
+                            if (typeof loadRunContentWithActions === 'function') {
+                                if (selectedRunId) loadRunContentWithActions(selectedRunId);
+                            } else if (typeof loadGeneratedContent === 'function') {
+                                loadGeneratedContent(currentProjectId, selectedTeamId, selectedRunId);
+                            }
+                        } catch (error) {
+                            console.error('[approveContent] Error:', error);
+                            alert('Error: ' + (error.message || 'Unknown error'));
+                        }
+                    }
+                );
+            })
+            .catch(error => {
+                console.error('[approveContent] Firestore Error:', error);
+                alert('Failed to fetch content data.');
+            });
     };
+
 
     /**
      * Custom confirmation modal that doesn't disappear

@@ -209,6 +209,19 @@ service cloud.firestore {
             allow write: if isAdmin();
         }
       }
+      
+      // Market Pulse Data (Scheduler output & Real-time trends)
+      match /marketPulse/{docId} {
+        allow read: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
+        allow write: if isAdmin(); // Cloud Functions & Admin
+      }
+
+      // Research History (Intelligence Lab results)
+      match /researchHistory/{docId} {
+        allow read: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
+        allow create: if isAuthenticated() && isProjectOwner(projectId);
+        allow write: if isAdmin();
+      }
     }
 
     // System Settings (Admin only)

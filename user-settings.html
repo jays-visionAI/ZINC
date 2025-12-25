@@ -595,7 +595,7 @@
                         style="display: block; margin-bottom: 8px; color: rgba(255,255,255,0.8); font-size: 14px;">Channel
                         *</label>
                     <select id="credential-provider" class="admin-form-input" required
-                        onchange="updateCredentialFields()">
+                        onchange="handleProviderChange()">
                         <option value="" disabled selected>Select Platform</option>
                         <option value="linkedin">LinkedIn</option>
                         <option value="youtube">YouTube</option>
@@ -618,6 +618,17 @@
                         <option value="pinterest">Pinterest</option>
                         <option value="discord">Discord</option>
                     </select>
+                </div>
+
+                <div id="credential-service-group" class="form-group" style="margin-bottom: 20px; display: none;">
+                    <label
+                        style="display: block; margin-bottom: 8px; color: rgba(255,255,255,0.8); font-size: 14px;">Service
+                        Type *</label>
+                    <select id="credential-service" class="admin-form-input" onchange="updateCredentialFields()">
+                        <option value="">Select Service...</option>
+                    </select>
+                    <small id="service-description"
+                        style="color: rgba(255,255,255,0.5); font-size: 12px; display: block; margin-top: 4px;"></small>
                 </div>
 
                 <div class="form-group" style="margin-bottom: 20px;">

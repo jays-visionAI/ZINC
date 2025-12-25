@@ -955,6 +955,100 @@ exports.postToTwitter = functions.https.onCall(async (data, context) => {
 /**
  * Helper: Get X (Twitter) credentials for a user/project
  */
+exports.postToInstagram = functions.https.onCall(async (data, context) => {
+    // Normalize data payload
+    const payload = (data && data.data) ? data.data : data;
+    const { projectId, contentId, caption, userId, imageUrl } = payload;
+
+    if (!projectId || !contentId || !caption) {
+        throw new functions.https.HttpsError('invalid-argument', 'Missing required parameters: projectId, contentId, caption');
+    }
+
+    if (!imageUrl) {
+        throw new functions.https.HttpsError('invalid-argument', 'Instagram requires an image URL for posting.');
+    }
+
+    console.log(`[postToInstagram] Posting content ${contentId} for project ${projectId}`);
+
+    try {
+        // 1. Get Instagram API credentials
+        const credentials = await getInstagramCredentials(userId || context.auth?.uid, projectId);
+
+        if (!credentials) {
+            throw new functions.https.HttpsError('failed-precondition', 'Instagram API credentials not configured. Please add Instagram channel in Settings.');
+        }
+
+        const axios = require('axios');
+        const { accessToken, pageId } = credentials;
+
+        // 2. Create Media Container
+        // https://developers.facebook.com/docs/instagram-api/reference/ig-user/media#creating
+        const containerResponse = await axios.post(`https://graph.facebook.com/v19.0/${pageId}/media`, {
+            image_url: imageUrl,
+            caption: caption,
+            access_token: accessToken
+        });
+
+        const creationId = containerResponse.data.id;
+        console.log(`[postToInstagram] Media container created: ${creationId}`);
+
+        // 3. Wait for container to be ready
+        // In a production environment, you should poll the container status.
+        // For simplicity, we add a fixed delay.
+        await new Promise(resolve => setTimeout(resolve, 5000));
+
+        // 4. Publish Media
+        // https://developers.facebook.com/docs/instagram-api/reference/ig-user/media_publish#creating
+        const publishResponse = await axios.post(`https://graph.facebook.com/v19.0/${pageId}/media_publish`, {
+            creation_id: creationId,
+            access_token: accessToken
+        });
+
+        const mediaId = publishResponse.data.id;
+        console.log(`[postToInstagram] Media published successfully: ${mediaId}`);
+
+        // 5. Update content status in Firestore
+        await db.collection('projects').doc(projectId)
+            .collection('generatedContents').doc(contentId)
+            .set({
+                status: 'published',
+                published_at: admin.firestore.FieldValue.serverTimestamp(),
+                instagram_media_id: mediaId,
+                instagram_url: `https://www.instagram.com/reels/${mediaId}/`, // Structure varies, but this is a common placeholder
+                content: caption,
+                imageUrl: imageUrl,
+                projectId: projectId,
+                platform: 'Instagram'
+            }, { merge: true });
+
+        return {
+            success: true,
+            mediaId: mediaId
+        };
+
+    } catch (error) {
+        console.error('[postToInstagram] Error:', error.response?.data || error.message);
+        const errorMessage = error.response?.data?.error?.message || error.message;
+
+        // Update content with error status
+        if (projectId && contentId) {
+            try {
+                await db.collection('projects').doc(projectId)
+                    .collection('generatedContents').doc(contentId)
+                    .update({
+                        status: 'failed',
+                        publish_error: errorMessage,
+                        last_attempt: admin.firestore.FieldValue.serverTimestamp()
+                    });
+            } catch (updateError) {
+                console.error('[postToInstagram] Failed to update error status:', updateError);
+            }
+        }
+
+        throw new functions.https.HttpsError('internal', errorMessage || 'Failed to post to Instagram');
+    }
+});
+
 async function getXCredentials(userId, projectId) {
     try {
         // First, try to get from project's channel connections
@@ -1003,6 +1097,54 @@ async function getXCredentials(userId, projectId) {
     }
 }
 
+async function getInstagramCredentials(userId, projectId) {
+    try {
+        // First, try to get from project's channel connections
+        if (projectId) {
+            const projectDoc = await db.collection('projects').doc(projectId).get();
+            if (projectDoc.exists) {
+                const projectData = projectDoc.data();
+                if (projectData.channelCredentialId) {
+                    const credDoc = await db.collection('userApiCredentials').doc(projectData.channelCredentialId).get();
+                    if (credDoc.exists && credDoc.data().provider === 'instagram') {
+                        return extractInstagramCredentials(credDoc.data());
+                    }
+                }
+            }
+        }
+
+        // Fallback: Get from user's API credentials, prioritizing 'publishing' service
+        if (userId) {
+            const snapshot = await db.collection('userApiCredentials')
+                .where('userId', '==', userId)
+                .where('provider', '==', 'instagram')
+                .where('serviceId', '==', 'publishing')
+                .limit(1)
+                .get();
+
+            if (!snapshot.empty) {
+                return extractInstagramCredentials(snapshot.docs[0].data());
+            }
+
+            // Fallback to any instagram credential
+            const anySnapshot = await db.collection('userApiCredentials')
+                .where('userId', '==', userId)
+                .where('provider', '==', 'instagram')
+                .limit(1)
+                .get();
+
+            if (!anySnapshot.empty) {
+                return extractInstagramCredentials(anySnapshot.docs[0].data());
+            }
+        }
+
+        return null;
+    } catch (error) {
+        console.error('[getInstagramCredentials] Error:', error);
+        return null;
+    }
+}
+
 function extractXCredentials(data) {
     // Handle nested credentials object
     if (data.credentials) {
@@ -1020,6 +1162,26 @@ function extractXCredentials(data) {
         api_secret: data.apiSecret || data.api_secret,
         access_token: data.accessToken || data.access_token,
         access_token_secret: data.accessTokenSecret || data.access_token_secret
+    };
+}
+
+function extractInstagramCredentials(data) {
+    // Handle nested credentials object
+    if (data.credentials) {
+        const creds = data.credentials;
+        return {
+            accessToken: creds.access_token || creds.accessToken,
+            pageId: creds.page_id || creds.pageId,
+            appId: creds.app_id || creds.appId,
+            appSecret: creds.app_secret || creds.appSecret
+        };
+    }
+    // Direct fields
+    return {
+        accessToken: data.access_token || data.accessToken,
+        pageId: data.page_id || data.pageId,
+        appId: data.app_id || data.appId,
+        appSecret: data.app_secret || data.appSecret
     };
 }
 
