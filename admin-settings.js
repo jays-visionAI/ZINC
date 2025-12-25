@@ -1,7 +1,7 @@
 // admin-settings.js
 
 // PRD 11.2 - Channel API Field Definitions (Static Schema)
-const CHANNEL_API_FIELD_DEFS = {
+var CHANNEL_API_FIELD_DEFS = {
     instagram: {
         name: "Instagram",
         services: [
@@ -307,11 +307,11 @@ window.runOpenAIGeneration = async function () {
 console.log("⚙️ Initializing Settings Page...");
 
 // Provider Management State
-let providers = [];
-const tableBody = document.getElementById('providers-table-body-settings');
-const modal = document.getElementById('provider-modal-settings');
-const form = document.getElementById('provider-form-settings');
-const testResultDiv = document.getElementById('connection-test-result-settings');
+var providers = [];
+var tableBody = document.getElementById('providers-table-body-settings');
+var modal = document.getElementById('provider-modal-settings');
+var form = document.getElementById('provider-form-settings');
+var testResultDiv = document.getElementById('connection-test-result-settings');
 
 // Initialize Provider Management
 async function initProviderManagement() {
@@ -618,8 +618,7 @@ async function testConnection() {
         const result = await window.LLMProviderService.testConnection({
             provider,
             apiKey,
-            providerId: providerDocId,
-            model
+            providerId: providerDocId
         });
 
         if (result.success) {
@@ -652,11 +651,14 @@ function getStatusBadge(status) {
     return `<span style="border: 1px solid ${color}; color: ${color}; padding: 2px 8px; border-radius: 12px; font-size: 11px;">${capitalize(status)}</span>`;
 }
 
-// Initialize Provider Management
-initProviderManagement();
+// Initialize Settings Page
+window.initSettings = function (user) {
+    console.log("⚙️ initSettings called for Admin Settings");
+    initProviderManagement();
+};
 
 // Update Prompts Handler
-const updatePromptsBtn = document.getElementById('update-prompts-btn');
+var updatePromptsBtn = document.getElementById('update-prompts-btn');
 if (updatePromptsBtn) {
     updatePromptsBtn.addEventListener('click', () => {
         if (confirm('Are you sure you want to update the system prompts for Planner, Creator, and Manager?')) {
@@ -680,7 +682,7 @@ if (updatePromptsBtn) {
 // load and save definitions from this collection instead of using
 // the static CHANNEL_API_FIELD_DEFS constant.
 
-let selectedChannelSlug = null;
+var selectedChannelSlug = null;
 
 function loadSettingsChannels() {
     const listContainer = document.getElementById('settings-channels-list');
@@ -861,8 +863,8 @@ window.switchSettingsTab = function (tabId) {
 
 // --- Pricing & Credits Interface ---
 
-let pricingPlans = {}; // Store loaded plans
-let topupPacks = [];   // Store loaded packs
+var pricingPlans = {}; // Store loaded plans
+var topupPacks = [];   // Store loaded packs
 
 async function loadPricingData() {
     const plansBody = document.getElementById('pricing-plans-body');
@@ -908,7 +910,7 @@ async function loadPricingData() {
     await loadActionCosts();
 }
 
-let creditCosts = [];
+var creditCosts = [];
 
 async function loadActionCosts() {
     const tbody = document.getElementById('pricing-actions-body');
@@ -1123,8 +1125,43 @@ window.savePricingData = async function () {
 // PRD 11.6 - LLM Models & Feature Policies Management
 // ===================================================
 
-let llmModels = [];
-let featurePolicies = [];
+var llmModels = [];
+var featurePolicies = [];
+
+/**
+ * Filter and standardize models for Text-only UI
+ */
+window.getFilteredTextModels = function (provider) {
+    if (!llmModels || llmModels.length === 0) return [];
+
+    const targetProvider = (provider || '').toLowerCase();
+    const getStd = (p) => (p === 'google' || p === 'gemini') ? 'gemini' : p;
+    const p2 = getStd(targetProvider);
+
+    return llmModels.filter(m => {
+        const mProvider = (m.provider || m.providerId || '').toLowerCase();
+        const p1 = getStd(mProvider);
+
+        // Strict provider match
+        if (!p1 || !p2 || p1 !== p2) return false;
+
+        // Text-only capability check
+        const cap = m.capabilities || [];
+        const isText = cap.includes('chat') || cap.includes('reasoning') || cap.includes('text') || cap.includes('coding');
+
+        // Negative filter for visual models
+        const lowerName = (m.displayName || '').toLowerCase();
+        const lowerId = (m.modelId || '').toLowerCase();
+        const isVisual = lowerName.includes('(image)') ||
+            lowerName.includes('(video)') ||
+            lowerId.includes('veo') ||
+            lowerId.includes('imagen') ||
+            lowerId.includes('sora') ||
+            lowerId.includes('dalle');
+
+        return isText && !isVisual;
+    });
+};
 
 /**
  * Load and render LLM Models table
@@ -1757,6 +1794,8 @@ function renderGlobalDefaultsUI(config) {
         const selectedProvider = tierData?.provider || DEFAULT_TIER_CONFIGS[tier.id].provider;
         const selectedModel = tierData?.model || DEFAULT_TIER_CONFIGS[tier.id].model;
 
+        const filteredModels = window.getFilteredTextModels(selectedProvider);
+
         return `
         <div style="display: grid; grid-template-columns: 140px 1fr 1fr 80px; gap: 12px; align-items: center; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px; border-left: 3px solid ${tier.color};">
             <div>
@@ -1765,14 +1804,17 @@ function renderGlobalDefaultsUI(config) {
             </div>
             <div>
                 <label style="display: block; font-size: 10px; color: rgba(255,255,255,0.4); margin-bottom: 2px;">Provider</label>
-                <select id="tier-${tier.id}-provider" class="admin-input" style="font-size: 12px; padding: 6px 8px;">
+                <select id="tier-${tier.id}-provider" class="admin-input" style="font-size: 12px; padding: 6px 8px;" onchange="updateModelOptions('${tier.id}')">
                     ${providerOptions.replace(`value="${selectedProvider}"`, `value="${selectedProvider}" selected`)}
                 </select>
             </div>
             <div>
                 <label style="display: block; font-size: 10px; color: rgba(255,255,255,0.4); margin-bottom: 2px;">Model</label>
                 <select id="tier-${tier.id}-model" class="admin-input" style="font-size: 12px; padding: 6px 8px;">
-                    ${llmModels.map(m => `<option value="${m.modelId}" ${m.modelId === selectedModel ? 'selected' : ''}>${m.displayName}</option>`).join('')}
+                    ${filteredModels.length > 0
+                ? filteredModels.map(m => `<option value="${m.modelId}" ${m.modelId === selectedModel ? 'selected' : ''}>${m.displayName}</option>`).join('')
+                : `<option value="">(No ${selectedProvider} models found)</option>`
+            }
                 </select>
             </div>
             <div style="text-align: center;">
@@ -1891,6 +1933,19 @@ window.saveGlobalDefaults = async function () {
     // Helper to get values
     const getVal = (id) => document.getElementById(id)?.value;
 
+    // Helper to resolve provider from model ID for Image/Video
+    const resolveImageVideoProvider = (modelId) => {
+        if (!modelId) return 'google';
+        if (modelId.includes('flux')) return 'replicate';
+        if (modelId.includes('imagen')) return 'google';
+        if (modelId.includes('nano-banana')) return 'google';
+        if (modelId.includes('runway')) return 'runway';
+        if (modelId.includes('veo')) return 'google_veo';
+        if (modelId.includes('sora')) return 'openai';
+        if (modelId.includes('dalle')) return 'openai';
+        return 'google';
+    };
+
     // 5-Tier Configuration for Text
     const TIER_IDS = ['1_economy', '2_balanced', '3_standard', '4_premium', '5_ultra'];
     const CREDIT_MULTIPLIERS = { '1_economy': 0.2, '2_balanced': 1.0, '3_standard': 2.0, '4_premium': 3.0, '5_ultra': 5.0 };
@@ -1905,13 +1960,18 @@ window.saveGlobalDefaults = async function () {
     });
 
     // Legacy 2-Tier for Image/Video
+    const imgModel = getVal('image-def-model');
+    const imgBoostModel = getVal('image-boost-model');
+    const vidModel = getVal('video-def-model');
+    const vidBoostModel = getVal('video-boost-model');
+
     const imageConfig = {
-        default: { provider: 'google', model: getVal('image-def-model'), creditMultiplier: 2.0 },
-        boost: { provider: 'google', model: getVal('image-boost-model'), creditMultiplier: 5.0 }
+        default: { provider: resolveImageVideoProvider(imgModel), model: imgModel, creditMultiplier: 2.0 },
+        boost: { provider: resolveImageVideoProvider(imgBoostModel), model: imgBoostModel, creditMultiplier: 5.0 }
     };
     const videoConfig = {
-        default: { provider: 'runway', model: getVal('video-def-model'), creditMultiplier: 5.0 },
-        boost: { provider: 'google_veo', model: getVal('video-boost-model'), creditMultiplier: 10.0 }
+        default: { provider: resolveImageVideoProvider(vidModel), model: vidModel, creditMultiplier: 5.0 },
+        boost: { provider: resolveImageVideoProvider(vidBoostModel), model: vidBoostModel, creditMultiplier: 10.0 }
     };
 
     try {
@@ -1944,8 +2004,21 @@ window.saveGlobalDefaults = async function () {
     }
 };
 
-window.updateModelOptions = function (tier) {
-    // Optional: Could be used to update placeholders based on provider selection
+window.updateModelOptions = function (tierId) {
+    const provider = document.getElementById(`tier-${tierId}-provider`).value;
+    const modelSelect = document.getElementById(`tier-${tierId}-model`);
+    if (!modelSelect) return;
+
+    const filteredModels = window.getFilteredTextModels(provider);
+
+    if (filteredModels.length === 0) {
+        modelSelect.innerHTML = `<option value="">(No ${provider} models found. Seed required.)</option>`;
+        return;
+    }
+
+    modelSelect.innerHTML = filteredModels.map(m =>
+        `<option value="${m.modelId}">${m.displayName}</option>`
+    ).join('');
 };
 
 // ============================================
@@ -2033,7 +2106,7 @@ window.showCustomModal = function (title, message, type = 'info') {
 // ==========================================
 
 // Default 12 Agent Profiles
-const DEFAULT_AGENT_PROFILES = {
+var DEFAULT_AGENT_PROFILES = {
     research: {
         displayName: 'Research Agent',
         phase: 'research',
@@ -2229,7 +2302,7 @@ Make quick, accurate routing decisions.`,
 };
 
 // Phase Grouping
-const AGENT_PHASES = [
+var AGENT_PHASES = [
     { id: 'research', name: 'Research Phase', icon: '🔬', agents: ['research', 'seo_watcher'] },
     { id: 'planning', name: 'Planning Phase', icon: '🎯', agents: ['planner'] },
     { id: 'creation', name: 'Creation Phase', icon: '✏️', agents: ['creator_text', 'creator_image', 'creator_video'] },
@@ -2239,8 +2312,8 @@ const AGENT_PHASES = [
 ];
 
 // Global state for profiles
-let currentAgentProfiles = {};
-let currentAgentConfigMeta = { version: '5.0', updatedAt: null };
+var currentAgentProfiles = {};
+var currentAgentConfigMeta = { version: '5.0', updatedAt: null };
 
 // Load Standard Profiles from Firestore
 window.loadStandardProfiles = async function () {
@@ -2515,11 +2588,14 @@ window.forceRunScheduler = async function () {
 
 // Initial Load if Scheduler Tab is somehow active (unlikely on fresh load, but good practice)
 // Also hook into tab switch
-const originalSwitchSettingsTab = window.switchSettingsTab;
-window.switchSettingsTab = function (tabId) {
-    originalSwitchSettingsTab(tabId);
-    if (tabId === 'scheduler') {
-        refreshSchedulerStatus();
-    }
+if (!window.isSwitchSettingsTabWrapped) {
+    var originalSwitchSettingsTab = window.switchSettingsTab;
+    window.switchSettingsTab = function (tabId) {
+        if (originalSwitchSettingsTab) originalSwitchSettingsTab(tabId);
+        if (tabId === 'scheduler') {
+            refreshSchedulerStatus();
+        }
+    };
+    window.isSwitchSettingsTabWrapped = true;
 }
 

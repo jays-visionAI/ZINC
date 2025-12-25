@@ -10,8 +10,8 @@
 const WORKFLOW_TEMPLATES = {
     quick: {
         id: 'quick',
-        name: '⚡ Quick Post',
-        description: '빠른 단순 포스팅',
+        name: '⚡ Lite Mode (Recommended)',
+        description: '핵심 에이전트만 가동 (Planner → Creator → Manager)',
         agents: ['planner', 'creator_text', 'manager'],
         contentTypes: ['text'],
         estimatedTime: '30s',
@@ -20,42 +20,22 @@ const WORKFLOW_TEMPLATES = {
     standard: {
         id: 'standard',
         name: '📝 Standard',
-        description: '텍스트 + 이미지 기본 조합',
-        agents: ['knowledge_curator', 'planner', 'creator_text', 'creator_image', 'compliance', 'manager'],
-        contentTypes: ['text', 'image'],
-        estimatedTime: '2min',
-        estimatedCost: 0.08,
-    },
-    seo_focused: {
-        id: 'seo_focused',
-        name: '🔎 SEO Focused',
-        description: 'SEO 최적화 중심',
-        agents: ['seo_watcher', 'planner', 'creator_text', 'seo_optimizer', 'manager'],
+        description: '균형 잡힌 구성 (Research + Planner + Creator)',
+        agents: ['strategic_analyst', 'planner', 'creator_text', 'quality_controller', 'manager'],
         contentTypes: ['text'],
         estimatedTime: '1.5min',
         estimatedCost: 0.06,
     },
     premium: {
         id: 'premium',
-        name: '🏆 Premium',
-        description: '전체 에이전트 활용 고품질',
+        name: '🏆 Deep Dive (Full)',
+        description: '12명 전체 에이전트 정밀 가동',
         agents: ['research', 'seo_watcher', 'knowledge_curator', 'kpi', 'planner',
             'creator_text', 'creator_image',
             'compliance', 'seo_optimizer', 'evaluator', 'manager'],
         contentTypes: ['text', 'image'],
         estimatedTime: '5min',
         estimatedCost: 0.25,
-    },
-    full_media: {
-        id: 'full_media',
-        name: '🎬 Full Media',
-        description: '텍스트 + 이미지 + 영상',
-        agents: ['research', 'seo_watcher', 'knowledge_curator', 'kpi', 'planner',
-            'creator_text', 'creator_image', 'creator_video',
-            'compliance', 'seo_optimizer', 'evaluator', 'manager', 'engagement'],
-        contentTypes: ['text', 'image', 'video'],
-        estimatedTime: '8min',
-        estimatedCost: 0.50,
     },
     custom: {
         id: 'custom',
@@ -77,7 +57,7 @@ const REQUIRED_AGENTS = ['planner', 'creator_text', 'manager'];
 let state = {
     selectedProject: null,
     selectedAgentTeam: null,
-    selectedTemplate: 'standard',
+    selectedTemplate: 'quick', // ✨ Phase 4: Default to Lite Mode
     selectedAgents: [],
     isExecuting: false,
     isPaused: false,
@@ -1021,6 +1001,10 @@ window.showPromptInsight = showPromptInsight;
  */
 async function loadSubAgents(teamId) {
     try {
+        // Fetch Team Instance Data for Directive
+        const teamDoc = await db.collection('projectAgentTeamInstances').doc(teamId).get();
+        const teamData = teamDoc.exists ? teamDoc.data() : {};
+
         // 1. Try projectAgentTeamInstances subcollection (Live Instances)
         let subAgentsSnapshot = await db.collection('projectAgentTeamInstances')
             .doc(teamId)
@@ -1028,8 +1012,8 @@ async function loadSubAgents(teamId) {
             .orderBy('display_order', 'asc')
             .get();
 
+        const subAgents = [];
         if (!subAgentsSnapshot.empty) {
-            const subAgents = [];
             subAgentsSnapshot.forEach(doc => {
                 subAgents.push({ id: doc.id, ...doc.data() });
             });
@@ -1037,45 +1021,42 @@ async function loadSubAgents(teamId) {
             console.log('Loaded sub-agents from Instance:', subAgents);
             updateAgentRosterUI(subAgents);
             await updatePreviewChannel(teamId);
-            return;
-        }
-
-        // 2. Fallback: Try agentTeams collection (Structure with 'roles' array)
-        console.log('No sub-agents in Instance, checking agentTeams...');
-        const teamDoc = await db.collection('agentTeams').doc(teamId).get();
-
-        if (teamDoc.exists) {
-            const teamData = teamDoc.data();
+        } else {
+            // 2. Fallback: Try agentTeams collection (Structure with 'roles' array)
+            console.log('No sub-agents in Instance, checking agentTeams...');
             if (teamData.roles && Array.isArray(teamData.roles)) {
-                // Map roles to sub-agent format
-                const subAgents = teamData.roles.map(role => ({
-                    id: role.type,
-                    role_type: role.type,
-                    name: role.name,
-                    // Add other necessary fields if needed
-                }));
+                teamData.roles.forEach(role => {
+                    subAgents.push({
+                        id: role.type,
+                        role_type: role.type,
+                        name: role.name,
+                    });
+                });
 
                 console.log('Loaded sub-agents from Team Template:', subAgents);
                 updateAgentRosterUI(subAgents);
                 await updatePreviewChannel(teamId);
-                return;
             }
         }
 
-        console.log('No sub-agents found for team:', teamId);
-        // Use default template selection
-        const template = WORKFLOW_TEMPLATES[state.selectedTemplate];
-        if (template) {
-            applyTemplate(template);
+        // ✨ Phase 1: Automatically store in state for DAG Executor (No modal required)
+        state.teamSettings = {
+            teamName: teamData.name || teamData.teamName || 'Core Team',
+            directive: teamData.directive || teamData.goal || teamData.teamGoal || '',
+            subAgents: subAgents
+        };
+        console.log('[Studio] Team Settings auto-loaded into state:', state.teamSettings);
+
+        if (subAgents.length === 0) {
+            console.log('No sub-agents found for team:', teamId);
+            const template = WORKFLOW_TEMPLATES[state.selectedTemplate];
+            if (template) applyTemplate(template);
         }
 
     } catch (error) {
         console.error('Error loading sub-agents:', error);
-        // Fallback to default template
         const template = WORKFLOW_TEMPLATES[state.selectedTemplate];
-        if (template) {
-            applyTemplate(template);
-        }
+        if (template) applyTemplate(template);
     }
 }
 
@@ -1534,10 +1515,26 @@ function disableStartButton() {
 // Global executor instance
 let executor = null;
 
-function startExecution() {
+async function startExecution() {
     if (!state.selectedProject || !state.selectedAgentTeam) {
         alert('Please select a Project and Agent Team first.');
         return;
+    }
+
+    // ✨ Phase 2: Market Pulse Check (Pre-execution)
+    let marketPulseData = null;
+    try {
+        const lpDoc = await db.collection('projects')
+            .doc(state.selectedProject)
+            .collection('marketPulse')
+            .doc('latest')
+            .get();
+        if (lpDoc.exists) {
+            marketPulseData = lpDoc.data();
+            console.log('[Studio] Latest Market Pulse data found for context-skipping');
+        }
+    } catch (e) {
+        console.warn('[Studio] Failed to fetch market pulse data for skipping logic:', e);
     }
 
     state.isExecuting = true;
@@ -1589,7 +1586,13 @@ function startExecution() {
             setNodeState(nodeId, 'error');
         })
         .on('onLog', ({ message, type }) => {
-            addLogEntry(message, type);
+            // ✨ Phase 4: Show "Smart Optimization" benefit in logs
+            if (message.includes('Skipping')) {
+                addLogEntry(`💡 ${message}`, 'success');
+                addLogEntry('💰 Smart Optimization: Credits and time saved!', 'info');
+            } else {
+                addLogEntry(message, type);
+            }
         })
         .on('onContentGenerated', ({ agentId, content }) => {
             console.log('[Studio] Content Generated:', agentId, content);
@@ -1625,16 +1628,35 @@ function startExecution() {
             }
 
             // Re-enable UI
-            document.getElementById('project-select').disabled = false;
-            document.getElementById('agentteam-select').disabled = false;
-            document.getElementById('start-execution-btn').disabled = false;
+            const projectSelect = document.getElementById('project-select');
+            const agentTeamSelect = document.getElementById('agentteam-select');
+            const startBtn = document.getElementById('start-execution-btn');
+
+            if (projectSelect) projectSelect.disabled = false;
+            if (agentTeamSelect) agentTeamSelect.disabled = false;
+            if (startBtn) {
+                startBtn.disabled = false;
+                startBtn.classList.remove('running');
+                startBtn.innerHTML = '<span>🚀</span> Start Content Team';
+            }
             document.getElementById('pause-btn').disabled = true;
             document.getElementById('stop-btn').disabled = true;
         });
 
+    // Standardize context field: ensure brandContext is set for Layer 3
+    const executionContext = {
+        ...state.planContext,
+        marketPulseData: marketPulseData, // ✨ For Research Phase Skip
+        source: state.planContext?.source || (state.planContext?.planName ? 'knowledge-hub' : 'direct')
+    };
+
+    if (executionContext.content && !executionContext.brandContext) {
+        executionContext.brandContext = executionContext.content;
+    }
+
     // Start Executor with targetChannels for multi-channel content generation
     const selectedAgents = getSelectedAgents();
-    executor.start(selectedAgents, state.selectedProject, state.selectedAgentTeam, state.planContext, state.isBoostMode ? 'BOOST' : null, state.targetChannels);
+    executor.start(selectedAgents, state.selectedProject, state.selectedAgentTeam, executionContext, state.isBoostMode ? 'BOOST' : null, state.targetChannels);
 
     // Switch to DAG View (Center Panel)
     updateFooterProgress();

@@ -152,6 +152,52 @@ window.seedLLMRouterData = async function () {
             capabilities: ['chat', 'vision'],
             isActive: true,
             isDefault: false
+        },
+        // DeepSeek Models
+        {
+            id: 'deepseek-v3',
+            provider: 'deepseek',
+            modelId: 'deepseek-chat',
+            displayName: 'DeepSeek-V3',
+            description: 'General purpose LLM by DeepSeek',
+            tier: 'standard',
+            costPer1kInputTokens: 0.0001,
+            costPer1kOutputTokens: 0.0002,
+            creditPer1kTokens: 0.5,
+            maxContextTokens: 64000,
+            capabilities: ['chat', 'coding'],
+            isActive: true,
+            isDefault: false
+        },
+        {
+            id: 'deepseek-r1',
+            provider: 'deepseek',
+            modelId: 'deepseek-reasoner',
+            displayName: 'DeepSeek-R1 (Reasoning)',
+            description: 'Chain-of-thought reasoning model',
+            tier: 'ultra',
+            costPer1kInputTokens: 0.0005,
+            costPer1kOutputTokens: 0.002,
+            creditPer1kTokens: 2.0,
+            maxContextTokens: 128000,
+            capabilities: ['chat', 'reasoning', 'math', 'coding'],
+            isActive: true,
+            isDefault: true
+        },
+        {
+            id: 'deepseek-r1-zero',
+            provider: 'deepseek',
+            modelId: 'deepseek-r1-zero',
+            displayName: 'DeepSeek-R1-Zero',
+            description: 'Pure RL reasoning model without SFT',
+            tier: 'premium',
+            costPer1kInputTokens: 0.0004,
+            costPer1kOutputTokens: 0.0015,
+            creditPer1kTokens: 1.5,
+            maxContextTokens: 64000,
+            capabilities: ['chat', 'reasoning'],
+            isActive: true,
+            isDefault: false
         }
     ];
 

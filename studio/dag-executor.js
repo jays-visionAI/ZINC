@@ -52,6 +52,7 @@ class DAGExecutor {
             {
                 name: 'Research',
                 agents: ['research', 'seo_watcher', 'knowledge_curator', 'kpi'],
+                consolidatedAgent: 'strategic_analyst', // ✨ Phase 3: Bundled agent
                 parallel: true
             },
             {
@@ -67,6 +68,7 @@ class DAGExecutor {
             {
                 name: 'Validation',
                 agents: ['compliance', 'seo_optimizer', 'evaluator'],
+                consolidatedAgent: 'quality_controller', // ✨ Phase 3: Bundled agent
                 parallel: true
             },
             {
@@ -82,6 +84,7 @@ class DAGExecutor {
             seo_watcher: { avgTokens: 300, avgCost: 0.008 },
             knowledge_curator: { avgTokens: 400, avgCost: 0.01 },
             kpi: { avgTokens: 200, avgCost: 0.005 },
+            strategic_analyst: { avgTokens: 1000, avgCost: 0.025 }, // ✨ Consolidated
             planner: { avgTokens: 800, avgCost: 0.02 },
             creator_text: { avgTokens: 1500, avgCost: 0.04 },
             creator_image: { avgTokens: 0, avgCost: 0.08 },
@@ -89,6 +92,7 @@ class DAGExecutor {
             compliance: { avgTokens: 400, avgCost: 0.01 },
             seo_optimizer: { avgTokens: 600, avgCost: 0.015 },
             evaluator: { avgTokens: 500, avgCost: 0.012 },
+            quality_controller: { avgTokens: 1200, avgCost: 0.03 }, // ✨ Consolidated
             manager: { avgTokens: 300, avgCost: 0.008 },
             engagement: { avgTokens: 200, avgCost: 0.005 }
         };
@@ -173,6 +177,7 @@ class DAGExecutor {
         }
 
         // Layer 2: User Custom Instructions (from Brain Modal)
+        // Improved: Pass agentId to getSubAgentPrompt which now handles fuzzy matching
         const userCustomPrompt = this.getSubAgentPrompt(agentId);
         if (userCustomPrompt) {
             layers.push(`[USER CUSTOMIZATION]\n${userCustomPrompt}`);
@@ -185,8 +190,10 @@ class DAGExecutor {
         }
 
         // Layer 3: Brand/Project Context (if available)
-        if (context.brandContext) {
-            layers.push(`[BRAND CONTEXT]\n${context.brandContext}`);
+        // Standardized: Check for both brandContext and content
+        const brandContext = context.brandContext || context.content || context.businessDescription;
+        if (brandContext) {
+            layers.push(`[BRAND CONTEXT]\n${brandContext}`);
         }
 
         // Combine all layers
@@ -294,12 +301,22 @@ class DAGExecutor {
     /**
      * Get sub-agent specific system prompt if available
      */
-    getSubAgentPrompt(agentType) {
+    getSubAgentPrompt(agentId) {
         if (!this.state.teamContext?.subAgents) return null;
 
-        const agent = this.state.teamContext.subAgents.find(
-            a => a.id?.includes(agentType) || a.name?.toLowerCase().includes(agentType)
-        );
+        // Normalize ID for comparison: remove underscores/dashes and creator prefix
+        const normalize = (id) => id.toString().toLowerCase()
+            .replace(/[_-]/g, '')
+            .replace(/^creator/, '');
+
+        const target = normalize(agentId);
+
+        const agent = this.state.teamContext.subAgents.find(a => {
+            const aId = normalize(a.id || a.role_type || a.type || '');
+            const aName = normalize(a.name || '');
+            return aId === target || aName === target || aId.includes(target) || target.includes(aId);
+        });
+
         return agent?.systemPrompt || agent?.system_prompt || null;
     }
 
@@ -333,12 +350,17 @@ class DAGExecutor {
             projectId,
             teamId,
             selectedAgents,
-            context: context || {}, // Ensure context is never null
-            qualityTier, // Store Tier (e.g. 'BOOST')
-            targetChannels: targetChannels || ['x'], // 🎯 Multi-channel targeting
+            context: context || {},
+            qualityTier,
+            targetChannels: targetChannels || ['x'],
             executionResults: {},
-            routingDefaults: this.state.routingDefaults, // Preserve loaded defaults
-            teamContext: existingTeamContext // Preserve Team Brain settings
+            routingDefaults: this.state.routingDefaults,
+            teamContext: existingTeamContext,
+            // ✨ Phase 2: Logic for "Context-Driven Skip"
+            skipPhases: {
+                Research: !!(context.marketPulseData && (Date.now() - new Date(context.marketPulseData.updatedAt).getTime() < 86400000)),
+                Planning: !!(context.source === 'knowledge-hub' || context.planContent)
+            }
         };
 
         // 🎯 Log multi-channel targeting
@@ -414,13 +436,39 @@ class DAGExecutor {
      * Execute a single phase
      */
     async executePhase(phase, selectedAgents) {
+        // ✨ Phase 2: Check for Context-Driven Skip
+        if (this.state.skipPhases?.[phase.name]) {
+            this.emit('onLog', { message: `✨ Skipping ${phase.name} phase - Fresh context found`, type: 'success' });
+            this.emit('onPhaseStart', { phase: phase.name, index: this.state.currentPhase, skipped: true });
+
+            // Mark agents as completed (simulated) for UI consistency
+            phase.agents.forEach(agentId => {
+                const nodeId = this.getNodeId(agentId);
+                this.state.completedNodes.push(agentId);
+                this.emit('onNodeComplete', { nodeId, agentId, result: { content: 'Context loaded from source', skipped: true } });
+            });
+
+            this.emit('onPhaseComplete', { phase: phase.name, index: this.state.currentPhase, skipped: true });
+            return;
+        }
+
         this.emit('onPhaseStart', { phase: phase.name, index: this.state.currentPhase });
         this.emit('onLog', { message: `📍 Phase ${this.state.currentPhase + 1}: ${phase.name}`, type: 'info' });
 
-        // Filter agents that are both in this phase and selected
-        const activeAgents = phase.agents.filter(agent =>
-            selectedAgents.includes(agent) || selectedAgents.includes(agent.replace('-', '_'))
-        );
+        // ✨ Phase 3: Consolidation Logic
+        // If bundling is active (Lite Mode) or explicitly selected
+        let activeAgents = [];
+        const isLiteMode = this.state.qualityTier === 'LITE' || !this.state.qualityTier;
+
+        if (phase.consolidatedAgent && (isLiteMode || selectedAgents.includes(phase.consolidatedAgent))) {
+            this.emit('onLog', { message: `   ⚡ Using Consolidated Agent: ${phase.consolidatedAgent}`, type: 'info' });
+            activeAgents = [phase.consolidatedAgent];
+        } else {
+            // Filter agents that are both in this phase and selected
+            activeAgents = phase.agents.filter(agent =>
+                selectedAgents.includes(agent) || selectedAgents.includes(agent.replace('-', '_'))
+            );
+        }
 
         if (activeAgents.length === 0) {
             this.emit('onLog', { message: `   Skipping ${phase.name} - no selected agents`, type: 'warning' });
@@ -429,7 +477,6 @@ class DAGExecutor {
 
         if (phase.parallel) {
             // Execute all agents in parallel with stagger
-            // await Promise.all(activeAgents.map(agent => this.executeAgent(agent)));
             const promises = activeAgents.map((agent, index) => {
                 return this.sleep(index * 2000).then(() => this.executeAgent(agent));
             });
@@ -674,6 +721,32 @@ class DAGExecutor {
         };
 
         const configs = {
+            strategic_analyst: configWithProvider({
+                systemPrompt: `You are a Strategic Research Analyst. Your job is to synthesize market data, SEO trends, and knowledge curator insights into a single strategic summary.`,
+                taskPrompt: `Analyze the provided context and market data:
+                    ${planContent}
+                    
+                    Provide a consolidated strategic report including:
+                    1. Market Trend Analysis
+                    2. SEO & Keyword Strategy
+                    3. Key Knowledge Points
+                    4. KPI Recommendations`,
+                model: globalModel,
+                temperature: 0.4
+            }),
+            quality_controller: configWithProvider({
+                systemPrompt: `You are a Senior Quality Controller. Review the generated content for brand safety, SEO excellence, and overall quality.`,
+                taskPrompt: `Perform an all-in-one review for the following content based on the original plan:
+                    Plan: ${planContent}
+                    
+                    Review criteria:
+                    1. Brand & Legal Compliance
+                    2. SEO Score & Optimization
+                    3. Final Quality Rating (0-100)
+                    4. Necessary edits or improvements`,
+                model: globalModel,
+                temperature: 0.2
+            }),
             research: configWithProvider({
                 systemPrompt: `You are a research specialist. Analyze the given content plan and identify key themes, trends, and relevant information. Provide insights that will help create compelling content.`,
                 taskPrompt: `Analyze this content plan and extract key insights:\n\n${planContent}\n\nProvide:\n1. Main themes\n2. Target audience insights\n3. Key messages to emphasize\n4. Recommended angles`,
@@ -790,6 +863,22 @@ class DAGExecutor {
      */
     getPreviousOutputs() {
         const outputs = [];
+
+        // ✨ Phase 2: Inject pseudo-outputs for skipped phases to provide context to downstream agents
+        if (this.state.skipPhases?.Research && this.state.context.marketPulseData) {
+            outputs.push({
+                role: 'Research (Preserved Context)',
+                content: `Historical Market Data: ${JSON.stringify(this.state.context.marketPulseData)}`
+            });
+        }
+
+        if (this.state.skipPhases?.Planning && this.state.context.planContent) {
+            outputs.push({
+                role: 'Planner (Preserved Context)',
+                content: `Pre-defined Plan: ${this.state.context.planContent}`
+            });
+        }
+
         for (const [agentId, result] of Object.entries(this.state.executionResults || {})) {
             if (result && result.content) {
                 outputs.push({
