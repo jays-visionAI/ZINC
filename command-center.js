@@ -1095,10 +1095,21 @@ window.openProjectAgentSettingsById = async function (projectId) {
         directiveInput.value = projectData.teamDirective || '';
 
         // 3. Load Sub-Agents from Core Team
-        const coreTeamId = projectData.coreAgentTeamInstanceId;
+        let coreTeamId = projectData.coreAgentTeamInstanceId;
+
+        // v5.0: Auto-create Core Team for legacy projects
         if (!coreTeamId) {
-            subAgentsList.innerHTML = '<div style="text-align:center; padding: 20px; color: rgba(255,255,255,0.5);">No Core Team found. Create the project first.</div>';
-            return;
+            console.log('[AgentBrain] No Core Team found for legacy project, creating one...');
+            subAgentsList.innerHTML = '<div style="text-align:center; padding: 20px; color: rgba(255,255,255,0.5);">Setting up agent team for this project...</div>';
+
+            coreTeamId = await initializeCoreAgentTeamForLegacyProject(projectId, projectData);
+
+            if (!coreTeamId) {
+                // Fallback: Load from Standard Agent Profiles directly
+                console.log('[AgentBrain] Using Standard Agent Profiles as fallback');
+                await loadStandardAgentProfilesAsFallback(subAgentsList);
+                return;
+            }
         }
 
         modal.dataset.coreTeamId = coreTeamId;
@@ -1113,7 +1124,13 @@ window.openProjectAgentSettingsById = async function (projectId) {
         subAgentsSnap.forEach(doc => subAgents.push({ id: doc.id, ...doc.data() }));
 
         // 4. Render Sub-Agents
-        renderBrainSubAgents(subAgents);
+        if (subAgents.length === 0) {
+            // Empty team - load from Standard Profiles
+            console.log('[AgentBrain] Empty team, loading from Standard Profiles');
+            await loadStandardAgentProfilesAsFallback(subAgentsList);
+        } else {
+            renderBrainSubAgents(subAgents);
+        }
 
     } catch (error) {
         console.error('Error loading agent settings:', error);
@@ -1121,6 +1138,117 @@ window.openProjectAgentSettingsById = async function (projectId) {
         closeAgentBrainModal();
     }
 };
+
+/**
+ * v5.0: Initialize Core Agent Team for legacy projects
+ */
+async function initializeCoreAgentTeamForLegacyProject(projectId, projectData) {
+    try {
+        const db = firebase.firestore();
+
+        // Create a new Core Agent Team Instance
+        const teamRef = db.collection('projectAgentTeamInstances').doc();
+        const teamId = teamRef.id;
+
+        await teamRef.set({
+            projectId: projectId,
+            teamName: `${projectData.projectName || 'Project'} Core Team`,
+            teamType: 'core',
+            directive: projectData.teamDirective || '',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        // Load Standard Agent Profiles and create sub-agents
+        const standardProfilesDoc = await db.collection('systemSettings').doc('standardAgentProfiles').get();
+        const standardProfiles = standardProfilesDoc.exists && standardProfilesDoc.data().agents
+            ? standardProfilesDoc.data().agents
+            : getDefaultAgentProfiles();
+
+        const batch = db.batch();
+        let order = 0;
+
+        for (const [agentId, profile] of Object.entries(standardProfiles)) {
+            if (profile.isEnabled !== false) {
+                const subAgentRef = teamRef.collection('subAgents').doc(agentId);
+                batch.set(subAgentRef, {
+                    name: profile.displayName || agentId,
+                    agentType: agentId,
+                    system_prompt: profile.systemPrompt || '',
+                    temperature: profile.temperature || 0.7,
+                    display_order: order++,
+                    isActive: true,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            }
+        }
+
+        await batch.commit();
+
+        // Update project with Core Team ID
+        await db.collection('projects').doc(projectId).update({
+            coreAgentTeamInstanceId: teamId,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        console.log('[AgentBrain] Core Team created for legacy project:', teamId);
+        return teamId;
+
+    } catch (error) {
+        console.error('[AgentBrain] Failed to create Core Team for legacy project:', error);
+        return null;
+    }
+}
+
+/**
+ * v5.0: Load Standard Agent Profiles as fallback
+ */
+async function loadStandardAgentProfilesAsFallback(container) {
+    try {
+        const db = firebase.firestore();
+        const doc = await db.collection('systemSettings').doc('standardAgentProfiles').get();
+
+        const profiles = doc.exists && doc.data().agents
+            ? doc.data().agents
+            : getDefaultAgentProfiles();
+
+        const subAgents = Object.entries(profiles).map(([id, profile], index) => ({
+            id,
+            name: profile.displayName || id,
+            agentType: id,
+            system_prompt: profile.systemPrompt || '',
+            temperature: profile.temperature || 0.7,
+            display_order: index,
+            isActive: profile.isEnabled !== false
+        }));
+
+        renderBrainSubAgents(subAgents);
+
+    } catch (error) {
+        console.error('[AgentBrain] Failed to load Standard Profiles:', error);
+        container.innerHTML = '<div style="text-align:center; padding: 20px; color: #ef4444;">Error loading agent profiles</div>';
+    }
+}
+
+/**
+ * v5.0: Default Agent Profiles (fallback)
+ */
+function getDefaultAgentProfiles() {
+    return {
+        research: { displayName: 'Research Agent', systemPrompt: 'You are a research specialist.', temperature: 0.5, isEnabled: true },
+        seo_watcher: { displayName: 'SEO Watcher', systemPrompt: 'You are an SEO analyst.', temperature: 0.4, isEnabled: true },
+        planner: { displayName: 'Planner', systemPrompt: 'You are a content strategist.', temperature: 0.6, isEnabled: true },
+        creator_text: { displayName: 'Text Creator', systemPrompt: 'You are a content writer.', temperature: 0.7, isEnabled: true },
+        creator_image: { displayName: 'Image Creator', systemPrompt: 'You generate image prompts.', temperature: 0.7, isEnabled: true },
+        creator_video: { displayName: 'Video Creator', systemPrompt: 'You create video scripts.', temperature: 0.7, isEnabled: true },
+        compliance: { displayName: 'Compliance', systemPrompt: 'You verify content compliance.', temperature: 0.3, isEnabled: true },
+        evaluator: { displayName: 'Evaluator', systemPrompt: 'You evaluate content quality.', temperature: 0.5, isEnabled: true },
+        publisher: { displayName: 'Publisher', systemPrompt: 'You format content for publishing.', temperature: 0.5, isEnabled: true },
+        knowledge_curator: { displayName: 'Knowledge Curator', systemPrompt: 'You manage brand knowledge.', temperature: 0.4, isEnabled: true },
+        manager: { displayName: 'Manager', systemPrompt: 'You coordinate agent workflows.', temperature: 0.5, isEnabled: true },
+        router: { displayName: 'Router', systemPrompt: 'You route tasks to agents.', temperature: 0.3, isEnabled: true }
+    };
+}
 
 function createAgentBrainModal() {
     const modal = document.createElement('div');
