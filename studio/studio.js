@@ -1606,10 +1606,36 @@ async function startExecution() {
             if (agentId === 'creator_text') {
                 try {
                     // Attempt to parse JSON for multi-channel content
-                    const parsed = typeof content.content === 'string' ? JSON.parse(content.content) : content.content;
+                    let contentStr = content.content || content;
+
+                    // If already an object, use directly
+                    if (typeof contentStr === 'object') {
+                        displayMultiChannelContent(contentStr);
+                        return;
+                    }
+
+                    // Clean up common LLM JSON issues
+                    contentStr = contentStr
+                        .replace(/```json\s*/gi, '')  // Remove markdown code blocks
+                        .replace(/```\s*/gi, '')
+                        .replace(/^\s*\n+/, '')       // Remove leading newlines
+                        .replace(/\n+\s*$/, '')       // Remove trailing newlines
+                        .trim();
+
+                    // Try to extract JSON if wrapped in other text
+                    const jsonMatch = contentStr.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        contentStr = jsonMatch[0];
+                    }
+
+                    // Fix trailing commas before closing braces
+                    contentStr = contentStr.replace(/,(\s*[}\]])/g, '$1');
+
+                    const parsed = JSON.parse(contentStr);
                     displayMultiChannelContent(parsed);
                 } catch (e) {
-                    console.warn('[Studio] Failed to parse multi-channel JSON, falling back to simple stream', e);
+                    // Fallback to simple text content - this is normal for non-JSON responses
+                    console.log('[Studio] Content is plain text, using as-is');
                     displayMultiChannelContent(content.content || content);
                 }
             } else if (agentId === 'creator_image') {
