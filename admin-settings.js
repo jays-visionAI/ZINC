@@ -803,6 +803,10 @@ window.switchSettingsTab = function (tabId) {
     if (tabId === 'pricing') {
         loadPricingData();
     }
+    // Load Standard Agent Profiles when switching to Agent Config tab (v5.0)
+    if (tabId === 'agentconfig') {
+        loadStandardProfiles();
+    }
 };
 
 // --- Pricing & Credits Interface ---
@@ -2186,6 +2190,7 @@ const AGENT_PHASES = [
 
 // Global state for profiles
 let currentAgentProfiles = {};
+let currentAgentConfigMeta = { version: '5.0', updatedAt: null };
 
 // Load Standard Profiles from Firestore
 window.loadStandardProfiles = async function () {
@@ -2204,17 +2209,20 @@ window.loadStandardProfiles = async function () {
         console.log('[AgentConfig] Firestore doc exists:', doc.exists);
 
         if (doc.exists && doc.data().agents) {
-            currentAgentProfiles = { ...DEFAULT_AGENT_PROFILES, ...doc.data().agents };
-            console.log('[AgentConfig] Loaded from Firestore');
+            const data = doc.data();
+            currentAgentProfiles = { ...DEFAULT_AGENT_PROFILES, ...data.agents };
+            currentAgentConfigMeta = {
+                version: data.version || '5.0',
+                updatedAt: data.updatedAt ? data.updatedAt.toDate() : null
+            };
+            console.log('[AgentConfig] Loaded from Firestore, Version:', currentAgentConfigMeta.version);
         } else {
             currentAgentProfiles = { ...DEFAULT_AGENT_PROFILES };
+            currentAgentConfigMeta = { version: '5.0 (Default)', updatedAt: null };
             console.log('[AgentConfig] Using DEFAULT_AGENT_PROFILES');
         }
 
-        console.log('[AgentConfig] currentAgentProfiles keys:', Object.keys(currentAgentProfiles));
-        console.log('[AgentConfig] Calling renderAgentProfiles...');
         renderAgentProfiles();
-        console.log('[AgentConfig] renderAgentProfiles completed');
     } catch (error) {
         console.error('[AgentConfig] Error loading standard profiles:', error);
         container.innerHTML = `<div style="text-align: center; padding: 40px; color: #ef4444;">Error loading profiles: ${error.message}</div>`;
@@ -2226,7 +2234,23 @@ function renderAgentProfiles() {
     const container = document.getElementById('standard-profiles-container');
     if (!container) return;
 
-    let html = '';
+    // Build Version / Meta Header
+    const timeStr = currentAgentConfigMeta.updatedAt ? currentAgentConfigMeta.updatedAt.toLocaleString() : 'Never';
+    const isDefault = currentAgentConfigMeta.version.toString().includes('Default');
+
+    let html = `
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding: 12px; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="background: ${isDefault ? 'rgba(255,255,255,0.1)' : 'rgba(22, 224, 189, 0.1)'}; padding: 4px 10px; border-radius: 6px; font-size: 11px; color: ${isDefault ? '#aaa' : '#16e0bd'}; font-weight: 600;">
+                    LIVE VERSION: v${currentAgentConfigMeta.version}
+                </div>
+                <div style="font-size: 11px; color: rgba(255,255,255,0.4);">
+                    Last Sync: ${timeStr}
+                </div>
+            </div>
+            ${!isDefault ? '<div style="font-size: 10px; color: #16e0bd; font-weight: 600;">✅ Firestore Data Active</div>' : '<div style="font-size: 10px; color: #aaa;">⚠️ Using Local Defaults</div>'}
+        </div>
+    `;
 
     AGENT_PHASES.forEach(phase => {
         html += `
@@ -2281,6 +2305,12 @@ function renderAgentProfiles() {
 window.saveStandardProfiles = async function () {
     const db = firebase.firestore();
     const agents = {};
+    const saveBtn = document.querySelector('button[onclick="saveStandardProfiles()"]');
+
+    if (saveBtn) {
+        saveBtn.innerText = 'Saving...';
+        saveBtn.disabled = true;
+    }
 
     // Collect all agent data from UI
     Object.keys(DEFAULT_AGENT_PROFILES).forEach(agentId => {
@@ -2297,17 +2327,31 @@ window.saveStandardProfiles = async function () {
     });
 
     try {
+        // Calculate new version
+        let nextVer = (parseFloat(currentAgentConfigMeta.version) || 5.0) + 0.1;
+        nextVer = nextVer.toFixed(1);
+
         await db.collection('systemSettings').doc('standardAgentProfiles').set({
-            version: '5.0',
+            version: nextVer,
             agents: agents,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
+        // Update local state
         currentAgentProfiles = agents;
-        showCustomModal('Success', 'Standard Agent Profiles가 저장되었습니다!', 'success');
+        currentAgentConfigMeta.version = nextVer;
+        currentAgentConfigMeta.updatedAt = new Date();
+
+        renderAgentProfiles();
+        showCustomModal('Success', `Standard Agent Profiles (v${nextVer})가 저장되었습니다!`, 'success');
     } catch (error) {
         console.error('Error saving standard profiles:', error);
         showCustomModal('Error', '저장 실패: ' + error.message, 'error');
+    } finally {
+        if (saveBtn) {
+            saveBtn.innerText = '💾 Save All';
+            saveBtn.disabled = false;
+        }
     }
 };
 

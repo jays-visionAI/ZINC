@@ -6,5 +6,19 @@
     "functions": {
         "source": "functions",
         "runtime": "nodejs20"
+    },
+    "hosting": {
+        "public": ".",
+        "ignore": [
+            "firebase.json",
+            "**/.*",
+            "**/node_modules/**"
+        ],
+        "rewrites": [
+            {
+                "source": "**",
+                "destination": "/index.html"
+            }
+        ]
     }
 }

@@ -107,12 +107,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         // Handle hash changes
         window.addEventListener("hashchange", () => {
             const hash = window.location.hash.slice(1) || "overview";
-            navigateToPage(hash);
+            const page = hash.split('?')[0]; // Strip query params
+            navigateToPage(page);
         });
 
         // Initial page load
         const initialHash = window.location.hash.slice(1) || "overview";
-        navigateToPage(initialHash);
+        const initialPage = initialHash.split('?')[0]; // Strip query params
+        navigateToPage(initialPage);
     }
 
     async function navigateToPage(page) {
