@@ -4637,12 +4637,34 @@ exports.generateCreativeContent = onCall({ cors: true }, async (request) => {
 
             console.log(`[generateCreativeContent] Final Selected Provider: ${selectedProvider}, Model: ${selectedModel} (Text Req: ${hasTextRequirement})`);
 
-            // Use Smart Image Logic
-            // Note: We duplicate logic slightly to avoid cloud function self-invocation latency/complexity
+            // Route image generation based on Global Routing Defaults
+            const imagePrompt = `${topic}. Style: ${style}. ${projectContext ? `Context: ${projectContext.substring(0, 300)}` : ''}`;
+
+            console.log(`[generateCreativeContent] Routing image to: ${selectedProvider}/${selectedModel}`);
+
+            // Google Imagen (Gemini API)
+            if (selectedProvider === 'google' || selectedModel?.includes('imagen')) {
+                try {
+                    const imagenModel = selectedModel || 'imagen-4.0-fast-generate-001';
+                    console.log(`[generateCreativeContent] Using Google Imagen: ${imagenModel}`);
+                    const imagenResult = await generateWithImagen(imagePrompt, '1024x1024', imagenModel);
+                    return {
+                        success: true,
+                        type: 'image',
+                        data: [imagenResult],
+                        metadata: { model: imagenModel, provider: 'google' }
+                    };
+                } catch (err) {
+                    console.error('Imagen failed:', err.message);
+                    // Continue to fallback
+                }
+            }
+
+            // Ideogram
             if (selectedProvider === 'ideogram') {
                 try {
                     const ideogramResult = await generateWithIdeogram(
-                        topic + ' ' + style + (projectContext ? ` Context: ${projectContext.substring(0, 200)}` : ''),
+                        imagePrompt,
                         await getImageApiKey('ideogram')
                     );
                     return {
@@ -4651,14 +4673,16 @@ exports.generateCreativeContent = onCall({ cors: true }, async (request) => {
                         data: [ideogramResult],
                         metadata: { model: 'v_2', provider: 'ideogram' }
                     };
-                } catch (err) { console.error('Ideogram failed', err); /* Fallback */ }
+                } catch (err) {
+                    console.error('Ideogram failed:', err.message);
+                }
             }
 
-            // Fallback to Nanobananana (Flux)
-            if (selectedProvider === 'flux' || selectedProvider === 'dalle') { // Attempt Flux first if selected or fallback for Ideogram
+            // Replicate/Flux (Nano Banana)
+            if (selectedProvider === 'replicate' || selectedProvider === 'flux' || selectedModel?.includes('flux')) {
                 try {
                     const bananaResult = await callNanobananana({
-                        prompt: topic + ' ' + style,
+                        prompt: imagePrompt,
                         negative_prompt: negativePrompt || 'text, blurry, low quality',
                         width: 1024,
                         height: 1024,
@@ -4669,35 +4693,67 @@ exports.generateCreativeContent = onCall({ cors: true }, async (request) => {
                             success: true,
                             type: 'image',
                             data: bananaResult,
-                            metadata: { model: 'flux-dev', provider: 'banana' }
+                            metadata: { model: selectedModel || 'flux-dev', provider: 'replicate' }
                         };
                     }
-                } catch (bananaError) {
-                    console.warn('Flux failed, falling back to DALL-E');
+                } catch (err) {
+                    console.error('Flux/Replicate failed:', err.message);
                 }
             }
 
-            const imagePrompt = `High quality, professional promotional image. Topic: ${topic}. Style: ${style}. Context: ${projectContext}. Negative prompt: ${negativePrompt || 'text, blurry, low quality'}.`;
+            // OpenAI DALL-E (fallback or if explicitly selected)
+            if (selectedProvider === 'openai' || selectedModel?.includes('dalle')) {
+                try {
+                    const response = await openai.images.generate({
+                        model: "dall-e-3",
+                        prompt: imagePrompt,
+                        n: 1,
+                        size: "1024x1024",
+                        quality: "standard",
+                        response_format: "url"
+                    });
 
+                    return {
+                        success: true,
+                        type: 'image',
+                        data: [response.data[0].url],
+                        metadata: { model: 'dall-e-3', provider: 'openai' }
+                    };
+                } catch (err) {
+                    console.error('DALL-E failed:', err.message);
+                }
+            }
+
+            // Ultimate fallback: Try Imagen then DALL-E
+            console.warn('[generateCreativeContent] No configured provider worked, trying Imagen fallback...');
             try {
-                const response = await openai.images.generate({
-                    model: "dall-e-3",
-                    prompt: imagePrompt,
-                    n: 1, // DALL-E 3 supports 1 per request
-                    size: "1024x1024",
-                    quality: "standard",
-                    response_format: "url"
-                });
-
+                const fallbackResult = await generateWithImagen(imagePrompt, '1024x1024', 'imagen-4.0-fast-generate-001');
                 return {
                     success: true,
                     type: 'image',
-                    data: [response.data[0].url], // Return array for grid
-                    metadata: { model: 'dall-e-3', provider: 'openai' }
+                    data: [fallbackResult],
+                    metadata: { model: 'imagen-4.0-fast-generate-001', provider: 'google' }
                 };
-            } catch (imgError) {
-                console.error('Image Gen Error:', imgError);
-                return { success: false, error: 'Image generation failed: ' + imgError.message };
+            } catch (imagenFallbackErr) {
+                console.error('Imagen fallback failed, trying DALL-E...');
+                try {
+                    const dalleResponse = await openai.images.generate({
+                        model: "dall-e-3",
+                        prompt: imagePrompt,
+                        n: 1,
+                        size: "1024x1024",
+                        quality: "standard",
+                        response_format: "url"
+                    });
+                    return {
+                        success: true,
+                        type: 'image',
+                        data: [dalleResponse.data[0].url],
+                        metadata: { model: 'dall-e-3', provider: 'openai' }
+                    };
+                } catch (dalleFallbackErr) {
+                    return { success: false, error: 'All image generation providers failed' };
+                }
             }
         }
 
