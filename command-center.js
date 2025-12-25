@@ -1128,17 +1128,51 @@ function createAgentBrainModal() {
     modal.className = 'modal-overlay';
     modal.style.display = 'none';
     modal.innerHTML = `
-        <div class="modal-container" style="max-width: 800px; width: 90%; background: #13131a; border: 1px solid rgba(255,255,255,0.1); max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0,0,0,0.5); border-radius: 16px;">
+        <div class="modal-container" style="max-width: 900px; width: 90%; background: #13131a; border: 1px solid rgba(255,255,255,0.1); max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0,0,0,0.5); border-radius: 16px;">
             <div class="modal-header" style="flex-shrink: 0; border-bottom: 1px solid rgba(255,255,255,0.05); padding: 20px 24px; display: flex; justify-content: space-between; align-items: center;">
                 <h3 id="brain-modal-title" style="margin: 0; font-size: 20px; font-weight: 600; display: flex; align-items: center; gap: 10px;">
                     🧠 Agent Brain
+                    <span style="background: linear-gradient(135deg, #16e0bd, #8b5cf6); padding: 3px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; color: #000;">v5.0</span>
                 </h3>
                 <button onclick="closeAgentBrainModal()" style="background: none; border: none; color: rgba(255,255,255,0.6); font-size: 28px; cursor: pointer; line-height: 1;">×</button>
             </div>
             <div class="modal-body" style="overflow-y: auto; flex: 1; padding: 24px;">
+                
+                <!-- Template Selection Section -->
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 12px;">
+                    <label style="display: block; color: rgba(255,255,255,0.9); font-size: 14px; font-weight: 600; margin-bottom: 12px;">
+                        ✨ Quick Start Template
+                    </label>
+                    <div style="color: rgba(255,255,255,0.5); font-size: 12px; margin-bottom: 12px;">
+                        템플릿을 선택하면 Team Goal과 Sub-Agent 지시사항이 자동 입력됩니다. 선택 후 수정 가능합니다.
+                    </div>
+                    <div id="brain-template-buttons" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+                        <button onclick="applyBrainTemplate('b2b_saas')" class="brain-template-btn" data-template="b2b_saas" style="padding: 12px 8px; border-radius: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; cursor: pointer; transition: all 0.2s; text-align: center;">
+                            <div style="font-size: 20px; margin-bottom: 4px;">📊</div>
+                            <div style="font-size: 12px; font-weight: 600;">B2B SaaS</div>
+                            <div style="font-size: 10px; color: rgba(255,255,255,0.5);">기술 전문성</div>
+                        </button>
+                        <button onclick="applyBrainTemplate('ecommerce')" class="brain-template-btn" data-template="ecommerce" style="padding: 12px 8px; border-radius: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; cursor: pointer; transition: all 0.2s; text-align: center;">
+                            <div style="font-size: 20px; margin-bottom: 4px;">🛍️</div>
+                            <div style="font-size: 12px; font-weight: 600;">E-Commerce</div>
+                            <div style="font-size: 10px; color: rgba(255,255,255,0.5);">제품 중심</div>
+                        </button>
+                        <button onclick="applyBrainTemplate('enterprise')" class="brain-template-btn" data-template="enterprise" style="padding: 12px 8px; border-radius: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; cursor: pointer; transition: all 0.2s; text-align: center;">
+                            <div style="font-size: 20px; margin-bottom: 4px;">🏢</div>
+                            <div style="font-size: 12px; font-weight: 600;">Enterprise</div>
+                            <div style="font-size: 10px; color: rgba(255,255,255,0.5);">전문적 신뢰</div>
+                        </button>
+                        <button onclick="applyBrainTemplate('creative')" class="brain-template-btn" data-template="creative" style="padding: 12px 8px; border-radius: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; cursor: pointer; transition: all 0.2s; text-align: center;">
+                            <div style="font-size: 20px; margin-bottom: 4px;">🎨</div>
+                            <div style="font-size: 12px; font-weight: 600;">Creative</div>
+                            <div style="font-size: 10px; color: rgba(255,255,255,0.5);">감성 트렌디</div>
+                        </button>
+                    </div>
+                </div>
+                
                 <div style="margin-bottom: 24px;">
                     <label style="display: block; color: rgba(255,255,255,0.9); font-size: 14px; font-weight: 600; margin-bottom: 8px;">🎯 Active Directive (Team Goal)</label>
-                    <textarea id="brain-directive" rows="3" style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; padding: 12px; color: #fff; font-size: 14px; resize: vertical;" placeholder="e.g., Increase brand awareness by posting daily news about AI trends..."></textarea>
+                    <textarea id="brain-directive" rows="4" style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; padding: 12px; color: #fff; font-size: 14px; resize: vertical;" placeholder="e.g., Increase brand awareness by posting daily news about AI trends..."></textarea>
                     <div style="color: rgba(255,255,255,0.5); font-size: 12px; margin-top: 4px;">Target specific goals for the entire team to focus on.</div>
                 </div>
                 
@@ -1159,6 +1193,21 @@ function createAgentBrainModal() {
         </div>
     `;
     document.body.appendChild(modal);
+
+    // Add hover effect for template buttons
+    const style = document.createElement('style');
+    style.textContent = `
+        .brain-template-btn:hover {
+            background: rgba(139, 92, 246, 0.2) !important;
+            border-color: rgba(139, 92, 246, 0.5) !important;
+            transform: translateY(-2px);
+        }
+        .brain-template-btn.selected {
+            background: rgba(139, 92, 246, 0.3) !important;
+            border-color: #8b5cf6 !important;
+        }
+    `;
+    document.head.appendChild(style);
 }
 
 function renderBrainSubAgents(subAgents) {
@@ -1252,6 +1301,139 @@ window.saveAgentBrainSettings = async function () {
         btn.disabled = false;
         btn.textContent = originalText;
     }
+};
+
+// =====================================================
+// 📋 Brain Modal Templates (v5.0)
+// =====================================================
+
+const BRAIN_TEMPLATES = {
+    b2b_saas: {
+        name: 'B2B SaaS',
+        icon: '📊',
+        teamGoal: `우리는 B2B SaaS 기업입니다. 다음 목표에 집중해주세요:
+
+1. 기술적 전문성을 바탕으로 한 콘텐츠 제작
+2. 잠재 고객의 문제 해결 중심 접근
+3. 업계 트렌드와 인사이트 공유
+4. 고객 사례 및 성공 스토리 강조
+5. 전환율 최적화를 위한 CTA 포함`,
+        subAgents: {
+            research: '경쟁사 SaaS 제품 분석, 업계 트렌드 조사, 기술 동향 파악에 집중하세요.',
+            planner: 'B2B 구매 여정을 고려한 콘텐츠 캘린더를 설계하세요. 인지-고려-결정 단계별 콘텐츠를 계획하세요.',
+            creator_text: '기술적 정확성과 전문성을 유지하면서도 이해하기 쉬운 언어를 사용하세요. 데이터와 수치를 활용해 신뢰성을 높이세요.',
+            creator_image: '깔끔하고 프로페셔널한 비주얼을 만드세요. 다이어그램, 인포그래픽, 제품 스크린샷을 활용하세요.',
+            evaluator: 'B2B 마케팅 KPI (리드 생성, 전환율, 참여도)를 기준으로 평가하세요.'
+        }
+    },
+    ecommerce: {
+        name: 'E-Commerce',
+        icon: '🛍️',
+        teamGoal: `우리는 E-Commerce 비즈니스입니다. 다음 목표에 집중해주세요:
+
+1. 제품의 매력과 가치를 극대화
+2. 구매 욕구를 자극하는 시각적 콘텐츠
+3. 시즌/트렌드에 맞는 시의적절한 콘텐츠
+4. 사용자 생성 콘텐츠(UGC) 활용
+5. 명확하고 매력적인 프로모션 메시지`,
+        subAgents: {
+            research: '제품 카테고리 트렌드, 경쟁사 프로모션, 소비자 리뷰 분석에 집중하세요.',
+            planner: '쇼핑 시즌, 할인 이벤트, 신제품 출시 일정을 고려한 캘린더를 설계하세요.',
+            creator_text: '제품의 장점을 간결하고 매력적으로 표현하세요. 긴급성과 희소성을 활용해 구매를 유도하세요.',
+            creator_image: '제품이 주인공이 되는 고품질 이미지를 만드세요. 라이프스타일 컷과 상품 상세 이미지를 적절히 활용하세요.',
+            evaluator: 'E-Commerce KPI (CTR, 전환율, 장바구니 추가율)를 기준으로 평가하세요.'
+        }
+    },
+    enterprise: {
+        name: 'Enterprise',
+        icon: '🏢',
+        teamGoal: `우리는 대기업/엔터프라이즈입니다. 다음 목표에 집중해주세요:
+
+1. 브랜드 신뢰도와 권위 구축
+2. 전문적이고 일관된 톤앤매너
+3. 업계 리더십과 혁신 강조
+4. CSR 및 기업 가치 커뮤니케이션
+5. 스테이크홀더를 고려한 균형 잡힌 메시지`,
+        subAgents: {
+            research: '산업 동향, 규제 변화, 경쟁사 동향, 주주 관심사에 대한 심층 분석을 수행하세요.',
+            planner: '기업 이벤트, IR 일정, 업계 컨퍼런스를 고려한 전략적 콘텐츠 일정을 수립하세요.',
+            creator_text: '격조 있고 전문적인 언어를 사용하세요. 데이터와 성과를 객관적으로 제시하세요.',
+            creator_image: '기업 브랜드 가이드라인을 철저히 준수하세요. 프로페셔널하고 품격 있는 비주얼을 만드세요.',
+            compliance: '법무팀 검토 기준을 숙지하고, 규제 준수와 브랜드 일관성을 특히 신경 쓰세요.',
+            evaluator: '브랜드 인지도, 미디어 노출, 스테이크홀더 참여도 KPI를 기준으로 평가하세요.'
+        }
+    },
+    creative: {
+        name: 'Creative',
+        icon: '🎨',
+        teamGoal: `우리는 창의적이고 트렌디한 브랜드입니다. 다음 목표에 집중해주세요:
+
+1. 감성적이고 공감가는 스토리텔링
+2. 트렌드를 선도하는 크리에이티브
+3. 바이럴 가능성 높은 콘텐츠
+4. MZ세대와 소통하는 언어와 포맷
+5. 브랜드 개성과 유머 표현`,
+        subAgents: {
+            research: '밈, 트렌드, 바이럴 콘텐츠, 인플루언서 동향을 실시간으로 모니터링하세요.',
+            planner: '트렌드 사이클을 고려한 민첩한 콘텐츠 계획을 수립하세요. 실시간 마케팅 기회를 놓치지 마세요.',
+            creator_text: '젊고 트렌디한 언어를 사용하세요. 유머, 밈, 인터넷 용어를 적절히 활용하세요.',
+            creator_image: '대담하고 시선을 사로잡는 비주얼을 만드세요. 컬러풀하고 다이나믹한 디자인을 지향하세요.',
+            creator_video: '쇼츠/릴스에 최적화된 짧고 임팩트 있는 영상 개념을 설계하세요.',
+            evaluator: '참여율, 공유 수, 댓글 품질, 바이럴 가능성을 기준으로 평가하세요.'
+        }
+    }
+};
+
+window.applyBrainTemplate = function (templateId) {
+    const template = BRAIN_TEMPLATES[templateId];
+    if (!template) {
+        console.error('Template not found:', templateId);
+        return;
+    }
+
+    // Highlight selected button
+    document.querySelectorAll('.brain-template-btn').forEach(btn => {
+        btn.classList.remove('selected');
+    });
+    const selectedBtn = document.querySelector(`.brain-template-btn[data-template="${templateId}"]`);
+    if (selectedBtn) selectedBtn.classList.add('selected');
+
+    // Apply Team Goal
+    const directiveEl = document.getElementById('brain-directive');
+    if (directiveEl) {
+        directiveEl.value = template.teamGoal;
+        // Trigger a visual feedback
+        directiveEl.style.transition = 'background 0.3s';
+        directiveEl.style.background = 'rgba(139, 92, 246, 0.2)';
+        setTimeout(() => {
+            directiveEl.style.background = 'rgba(0,0,0,0.3)';
+        }, 500);
+    }
+
+    // Apply Sub-Agent prompts
+    Object.entries(template.subAgents).forEach(([agentKey, prompt]) => {
+        // Try to find matching textarea by various ID patterns
+        const possibleIds = [
+            `agent-prompt-${agentKey}`,
+            agentKey
+        ];
+
+        for (const id of possibleIds) {
+            const textarea = document.querySelector(`.brain-agent-prompt[data-id*="${agentKey}"]`) ||
+                document.getElementById(id);
+            if (textarea && textarea.tagName === 'TEXTAREA') {
+                textarea.value = prompt;
+                textarea.style.transition = 'background 0.3s';
+                textarea.style.background = 'rgba(139, 92, 246, 0.2)';
+                setTimeout(() => {
+                    textarea.style.background = 'rgba(0,0,0,0.3)';
+                }, 500);
+                break;
+            }
+        }
+    });
+
+    console.log(`✅ Applied template: ${template.name}`);
 };
 
 /**

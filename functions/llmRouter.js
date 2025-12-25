@@ -1,35 +1,47 @@
 /**
- * LLM Router Module - PRD 11.6
+ * LLM Router Module - PRD 11.6 + Agent Architecture v5.0
  * 
  * Unified routing for all LLM calls with:
  * - Feature-based model selection
- * - Booster tier support
+ * - 5-Tier complexity routing (v5.0)
+ * - Runtime Profile Agent integration
  * - Credit calculation and logging
  * - Dynamic Global Defaults (Admin configurable)
  */
 
 const admin = require('firebase-admin');
+const { RuntimeProfileAgent, TIER_DEFINITIONS } = require('./runtimeProfileAgent');
 
-// Hardcoded fallback models (if DB config missing)
 // Hardcoded fallback models (if DB config missing)
 const FALLBACK_DEFAULTS = {
     default: { provider: 'openai', model: 'gpt-4o', creditMultiplier: 1.0 },
-    boost: { provider: 'openai', model: 'gpt-4o', creditMultiplier: 1.5 }
+    boost: { provider: 'openai', model: 'gpt-4o', creditMultiplier: 1.5 },
+    // v5.0 Tier Fallbacks
+    tiers: {
+        '1_economy': { provider: 'deepseek', model: 'deepseek-chat', creditMultiplier: 0.2 },
+        '2_balanced': { provider: 'openai', model: 'gpt-4o-mini', creditMultiplier: 1.0 },
+        '3_standard': { provider: 'openai', model: 'gpt-4o', creditMultiplier: 2.0 },
+        '4_premium': { provider: 'anthropic', model: 'claude-3-5-sonnet-20241022', creditMultiplier: 3.0 },
+        '5_ultra': { provider: 'deepseek', model: 'deepseek-reasoner', creditMultiplier: 5.0 }
+    }
 };
 
 /**
  * LLM Router Class
- * Handles intelligent routing of LLM requests based on feature policies
+ * Handles intelligent routing of LLM requests based on feature policies and 5-Tier system
  */
 class LLMRouter {
-    constructor(db) {
-        // console.log('!!! LLMRouter Initialized with ROUTER ABSTRACTION v3.0 !!!');
+    constructor(db, callLLM = null) {
+        // console.log('!!! LLMRouter Initialized with ROUTER ABSTRACTION v5.0 !!!')
         this.db = db;
         this.policyCache = new Map();
         this.modelCache = new Map();
         this.globalDefaults = null; // Cache for global defaults
         this.cacheTime = 0;
         this.CACHE_DURATION = 1000; // 1 second cache (Hotfix for immediate config updates)
+
+        // v5.0: Initialize Runtime Profile Agent
+        this.runtimeProfileAgent = new RuntimeProfileAgent(db, callLLM);
     }
 
     /**
@@ -485,6 +497,119 @@ class LLMRouter {
         this.cacheTime = 0;
         console.log('[LLMRouter] Cache cleared');
     }
+
+    // =====================================================
+    // v5.0: 5-TIER ROUTING METHODS
+    // =====================================================
+
+    /**
+     * Route with 5-Tier system (v5.0)
+     * Uses Runtime Profile Agent to analyze task and select optimal tier
+     * @param {Object} options - Routing options
+     * @returns {Promise<Object>} - LLM result with tier routing metadata
+     */
+    async routeWithTier(options) {
+        const {
+            taskType,
+            prompt,
+            qualityHint = 'DEFAULT',
+            messages,
+            temperature = 0.7,
+            userId,
+            projectId,
+            callLLM,
+            context = {}
+        } = options;
+
+        console.log(`[LLMRouter v5.0] Tier routing: taskType=${taskType}, qualityHint=${qualityHint}`);
+
+        // Step 1: Analyze with Runtime Profile Agent
+        const tierDecision = await this.runtimeProfileAgent.analyze({
+            taskType,
+            prompt: prompt || (messages?.[messages.length - 1]?.content || ''),
+            qualityHint,
+            context
+        });
+
+        console.log(`[LLMRouter v5.0] Tier selected: ${tierDecision.tier} (${tierDecision.method})`);
+
+        // Step 2: Get tier configuration
+        const tierConfig = await this.getTierConfig(tierDecision.tier);
+
+        // Step 3: Execute LLM call with tier config
+        const startTime = Date.now();
+        const result = await callLLM(
+            tierConfig.provider,
+            tierConfig.model,
+            messages,
+            temperature
+        );
+        const latencyMs = Date.now() - startTime;
+
+        // Step 4: Calculate credit cost
+        const creditCost = await this.calculateCreditCost(
+            tierConfig.model,
+            result.usage,
+            tierConfig.creditMultiplier
+        );
+
+        // Step 5: Log usage with tier info
+        await this.logUsage({
+            userId,
+            projectId,
+            feature: `tier:${tierDecision.tier}`,
+            qualityTier: tierDecision.tier,
+            provider: tierConfig.provider,
+            model: tierConfig.model,
+            usage: result.usage,
+            creditCost,
+            latencyMs,
+            tierMethod: tierDecision.method,
+            tierReasoning: tierDecision.reasoning
+        });
+
+        return {
+            ...result,
+            model: tierConfig.model,
+            routing: {
+                tier: tierDecision.tier,
+                tierName: TIER_DEFINITIONS[tierDecision.tier]?.name || 'UNKNOWN',
+                provider: tierConfig.provider,
+                model: tierConfig.model,
+                creditMultiplier: tierConfig.creditMultiplier,
+                creditCost,
+                method: tierDecision.method,
+                reasoning: tierDecision.reasoning
+            }
+        };
+    }
+
+    /**
+     * Get tier configuration from Firestore or fallbacks
+     */
+    async getTierConfig(tierId) {
+        const globalDefaults = await this.getGlobalDefaults();
+
+        // Try to get from DB config
+        const tiers = globalDefaults?.tiers ||
+            globalDefaults?.defaultModels?.tiers ||
+            globalDefaults?.defaultModels?.text?.tiers ||
+            FALLBACK_DEFAULTS.tiers;
+
+        if (tiers && tiers[tierId]) {
+            return tiers[tierId];
+        }
+
+        // Fallback
+        return FALLBACK_DEFAULTS.tiers[tierId] || FALLBACK_DEFAULTS.tiers['3_standard'];
+    }
+
+    /**
+     * Get Runtime Profile Agent instance
+     */
+    getRuntimeProfileAgent() {
+        return this.runtimeProfileAgent;
+    }
 }
 
-module.exports = { LLMRouter };
+module.exports = { LLMRouter, TIER_DEFINITIONS };

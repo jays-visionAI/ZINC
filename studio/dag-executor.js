@@ -1,8 +1,13 @@
 /**
  * ============================================
- * DAG Executor - Orchestration Engine
+ * DAG Executor - Orchestration Engine v5.0
  * ============================================
  * Manages the execution of agent workflows in phases
+ * 
+ * v5.0 Updates:
+ * - 4-Layer Prompt System (Admin Profile + User Custom + Brand Context + Runtime)
+ * - 5-Tier Complexity Routing via Runtime Profile Agent
+ * - Standard Agent Profiles integration
  */
 
 class DAGExecutor {
@@ -15,13 +20,20 @@ class DAGExecutor {
             failedNodes: [],
             startTime: null,
             totalTokens: 0,
-            totalTokens: 0,
             totalCost: 0,
-            routingDefaults: null // Store loaded defaults here
+            routingDefaults: null, // Store loaded defaults here
+
+            // v5.0: 4-Layer Prompt System
+            standardAgentProfiles: null, // Layer 1: Admin-defined base prompts
+            tierConfig: null,            // v5.0: 5-Tier configuration
+            useTierRouting: true         // v5.0: Enable 5-Tier routing
         };
 
         // Load Global Routing Defaults
         this.loadGlobalDefaults();
+
+        // v5.0: Load Standard Agent Profiles
+        this.loadStandardAgentProfiles();
 
         // SETUP: Connect to Local Emulator if on localhost
         // SETUP: Connect to Local Emulator if on localhost
@@ -113,11 +125,145 @@ class DAGExecutor {
             const doc = await db.collection('systemSettings').doc('llmConfig').get();
             if (doc.exists && doc.data().defaultModels) {
                 this.state.routingDefaults = doc.data().defaultModels;
+
+                // v5.0: Extract tier config
+                if (this.state.routingDefaults.tiers || this.state.routingDefaults.text?.tiers) {
+                    this.state.tierConfig = this.state.routingDefaults.tiers || this.state.routingDefaults.text?.tiers;
+                    console.log('✅ 5-Tier Config Loaded:', Object.keys(this.state.tierConfig));
+                }
+
                 console.log('✅ Global Routing Defaults Loaded:', this.state.routingDefaults);
             }
         } catch (error) {
             console.warn('⚠️ Failed to load global routing defaults:', error);
         }
+    }
+
+    /**
+     * v5.0: Load Standard Agent Profiles from Firestore
+     * Layer 1 of the 4-Layer Prompt System
+     */
+    async loadStandardAgentProfiles() {
+        try {
+            const db = firebase.firestore();
+            const doc = await db.collection('systemSettings').doc('standardAgentProfiles').get();
+            if (doc.exists && doc.data().agents) {
+                this.state.standardAgentProfiles = doc.data().agents;
+                console.log('✅ Standard Agent Profiles Loaded:', Object.keys(this.state.standardAgentProfiles));
+            }
+        } catch (error) {
+            console.warn('⚠️ Failed to load standard agent profiles:', error);
+        }
+    }
+
+    /**
+     * v5.0: Build 4-Layer System Prompt
+     * Merges: Layer 1 (Admin) + Layer 2 (User Custom) + Context
+     * @param {string} agentId - Agent identifier
+     * @param {Object} context - Execution context
+     * @returns {string} - Merged system prompt
+     */
+    build4LayerSystemPrompt(agentId, context = {}) {
+        const layers = [];
+
+        // Layer 1: Standard Agent Profile (Admin-defined base prompt)
+        const standardProfile = this.state.standardAgentProfiles?.[agentId];
+        if (standardProfile?.systemPrompt) {
+            layers.push(`[BASE ROLE]\n${standardProfile.systemPrompt}`);
+        }
+
+        // Layer 2: User Custom Instructions (from Brain Modal)
+        const userCustomPrompt = this.getSubAgentPrompt(agentId);
+        if (userCustomPrompt) {
+            layers.push(`[USER CUSTOMIZATION]\n${userCustomPrompt}`);
+        }
+
+        // Layer 2.5: Team Directive (Team Goal)
+        const teamDirective = this.getTeamDirective();
+        if (teamDirective) {
+            layers.push(`[TEAM GOAL]\n${teamDirective}`);
+        }
+
+        // Layer 3: Brand/Project Context (if available)
+        if (context.brandContext) {
+            layers.push(`[BRAND CONTEXT]\n${context.brandContext}`);
+        }
+
+        // Combine all layers
+        if (layers.length === 0) {
+            return null; // No custom prompt, use agent default
+        }
+
+        return layers.join('\n\n---\n\n');
+    }
+
+    /**
+     * v5.0: Get tier configuration for an agent based on task type
+     * Uses heuristic mapping from agent type to tier
+     */
+    getTierForAgent(agentId) {
+        // Default tier mappings (simulating Runtime Profile Agent heuristics)
+        const tierMappings = {
+            // Research phase - moderate complexity
+            'research': '3_standard',
+            'seo_watcher': '2_balanced',
+            'knowledge_curator': '2_balanced',
+            'kpi': '2_balanced',
+
+            // Planning phase - higher complexity
+            'planner': '3_standard',
+
+            // Creation phase - varies by type
+            'creator_text': '3_standard',
+            'creator_image': '2_balanced',
+            'creator_video': '2_balanced',
+
+            // Validation phase - precision needed
+            'compliance': '4_premium',
+            'seo_optimizer': '2_balanced',
+            'evaluator': '3_standard',
+
+            // Final phase - moderate
+            'manager': '3_standard',
+            'engagement': '2_balanced'
+        };
+
+        const baseTier = tierMappings[agentId] || '3_standard';
+
+        // Apply quality tier override if BOOST is requested
+        if (this.state.qualityTier === 'BOOST') {
+            return '4_premium';
+        } else if (this.state.qualityTier === 'ULTRA') {
+            return '5_ultra';
+        }
+
+        return baseTier;
+    }
+
+    /**
+     * v5.0: Get provider and model from tier configuration
+     */
+    getProviderModelFromTier(tierId) {
+        const tierConfig = this.state.tierConfig?.[tierId];
+
+        if (tierConfig) {
+            return {
+                provider: tierConfig.provider,
+                model: tierConfig.model,
+                creditMultiplier: tierConfig.creditMultiplier || 1.0
+            };
+        }
+
+        // Fallback defaults
+        const fallbacks = {
+            '1_economy': { provider: 'deepseek', model: 'deepseek-chat', creditMultiplier: 0.2 },
+            '2_balanced': { provider: 'openai', model: 'gpt-4o-mini', creditMultiplier: 1.0 },
+            '3_standard': { provider: 'openai', model: 'gpt-4o', creditMultiplier: 2.0 },
+            '4_premium': { provider: 'anthropic', model: 'claude-3-5-sonnet-20241022', creditMultiplier: 3.0 },
+            '5_ultra': { provider: 'deepseek', model: 'deepseek-reasoner', creditMultiplier: 5.0 }
+        };
+
+        return fallbacks[tierId] || fallbacks['3_standard'];
     }
 
     /**
@@ -458,73 +604,74 @@ class DAGExecutor {
 
     /**
      * Get agent-specific configuration (prompts, model, etc.)
+     * v5.0: Now uses 5-Tier routing and 4-Layer prompt system
      */
     getAgentConfig(agentId, context) {
         // Ensure planContent is never empty to prevent LLM hallucinations
         const planContent = context?.content || context?.planName || 'Create engaging content relevant to the project and brand.';
         const userFeedback = context?.userFeedback ? `\n\nIMPORTANT USER FEEDBACK FOR REGENERATION:\n"${context.userFeedback}"\n\nYou MUST incorporate this feedback into your output.` : '';
 
-        console.log(`[DAGExecutor] getAgentConfig for ${agentId}:`, { planContent, context, userFeedback });
+        console.log(`[DAGExecutor v5.0] getAgentConfig for ${agentId}:`, { planContent, context, userFeedback });
 
-        // Determine global model based on selected provider and Global Defaults
-        // 1. Team Preference -> 2. Global Default Preference -> 3. Hardcoded Fallback
-        let providerName = this.state.selectedAgentTeam?.provider;
+        // v5.0: Use 5-Tier routing if enabled
+        let providerName, globalModel;
 
-        // If Team doesn't specify provider, fallback to Global Default Provider
-        if (!providerName && this.state.routingDefaults?.text?.default?.provider) {
-            providerName = this.state.routingDefaults.text.default.provider;
-        }
+        if (this.state.useTierRouting && this.state.tierConfig) {
+            // Get tier for this agent
+            const tierId = this.getTierForAgent(agentId);
+            const tierSettings = this.getProviderModelFromTier(tierId);
 
-        // Final fallback to OpenAI if nothing is configured
-        providerName = (providerName || 'openai').toLowerCase();
+            providerName = tierSettings.provider;
+            globalModel = tierSettings.model;
 
-        let globalModel = 'gpt-4o'; // Absolute fallback
+            console.log(`[DAGExecutor v5.0] 5-Tier Routing: ${agentId} → ${tierId} → ${providerName}/${globalModel}`);
+        } else {
+            // Legacy routing (fallback)
+            providerName = this.state.selectedAgentTeam?.provider;
 
-        // Check loaded defaults to find the exact model for this provider
-        const tierKey = (this.state.qualityTier === 'BOOST') ? 'boost' : 'default';
-        console.log(`[DAGExecutor] Resolving Model for Tier: ${tierKey}`);
+            // If Team doesn't specify provider, fallback to Global Default Provider
+            if (!providerName && this.state.routingDefaults?.text?.default?.provider) {
+                providerName = this.state.routingDefaults.text.default.provider;
+            }
 
-        if (this.state.routingDefaults && this.state.routingDefaults.text) {
-            const defs = this.state.routingDefaults.text[tierKey]; // 'default' or 'boost'
+            // Final fallback to OpenAI if nothing is configured
+            providerName = (providerName || 'openai').toLowerCase();
 
-            // If the selected provider matches the default provider (or we fell back to it), use the configured model
-            // Or if we are in BOOSt mode, just use the boost config regardless of team preference if it exists
-            if (defs && defs.model) {
-                globalModel = defs.model;
-                providerName = defs.provider || providerName; // Also update provider if boost dictates it
+            globalModel = 'gpt-4o'; // Absolute fallback
 
-                // FIX: Map generic/unavailable 3.0 strings to the available 2.0-flash-exp
-                if (globalModel === 'gemini-3.0-pro') globalModel = 'gemini-2.0-flash-exp';
-                if (globalModel === 'gemini-3.0') globalModel = 'gemini-2.0-flash-exp';
-                if (globalModel === 'gemini-3.0-pro-preview') globalModel = 'gemini-2.0-flash-exp';
+            // Check loaded defaults to find the exact model for this provider
+            const tierKey = (this.state.qualityTier === 'BOOST') ? 'boost' : 'default';
+            console.log(`[DAGExecutor] Legacy Resolving Model for Tier: ${tierKey}`);
 
-                // CRITICAL: Map 1.5-pro to 2.0-flash-exp as well (Upgrade 1.5 -> 2.0 Flash)
-                if (globalModel === 'gemini-1.5-pro') globalModel = 'gemini-2.0-flash-exp';
-
-                // Keep 1.5-flash as fallback only for flash Tier if needed
-                if (globalModel === 'gemini-1.5-flash') globalModel = 'gemini-2.0-flash-exp'; // Let's upgrade everything to 2.0 Flash Exp for now as it is the best available.
-
-                console.log(`[DAGExecutor] Overriding with ${tierKey} config: ${providerName}/${globalModel}`);
+            if (this.state.routingDefaults && this.state.routingDefaults.text) {
+                const defs = this.state.routingDefaults.text[tierKey];
+                if (defs && defs.model) {
+                    globalModel = defs.model;
+                    providerName = defs.provider || providerName;
+                }
             }
         }
 
-        // If still on fallback logic (or defaults not matching provider), use hardcoded safe defaults
-        if (globalModel === 'gpt-4o' && tierKey === 'boost') {
-            // Fallback for Boost if config missing
-            globalModel = 'gemini-3.0-pro-preview';
-            providerName = 'google';
-        } else if (globalModel === 'gpt-4o') {
-            if (providerName.includes('google') || providerName.includes('gemini')) {
-                globalModel = 'gemini-3.0-pro-preview';
-            } else if (providerName.includes('anthropic') || providerName.includes('claude')) {
-                globalModel = 'claude-3-opus';
-            } else if (providerName.includes('openai')) {
-                globalModel = 'gpt-4o';
-            }
-        }
+        // Model mapping for unavailable models
+        if (globalModel === 'gemini-3.0-pro') globalModel = 'gemini-2.0-flash-exp';
+        if (globalModel === 'gemini-3.0') globalModel = 'gemini-2.0-flash-exp';
+        if (globalModel === 'gemini-1.5-pro') globalModel = 'gemini-2.0-flash-exp';
+        if (globalModel === 'gemini-1.5-flash') globalModel = 'gemini-2.0-flash-exp';
+
+        // v5.0: Build 4-Layer System Prompt
+        const layeredSystemPrompt = this.build4LayerSystemPrompt(agentId, context);
 
         // Inject provider into all configs to allow explicit passing in invokeAgent
-        const configWithProvider = (cfg) => ({ ...cfg, provider: providerName });
+        const configWithProvider = (cfg) => {
+            const config = { ...cfg, provider: providerName };
+
+            // v5.0: Prepend layered prompt if available
+            if (layeredSystemPrompt && cfg.systemPrompt) {
+                config.systemPrompt = `${layeredSystemPrompt}\n\n---\n\n[TASK INSTRUCTIONS]\n${cfg.systemPrompt}`;
+            }
+
+            return config;
+        };
 
         const configs = {
             research: configWithProvider({

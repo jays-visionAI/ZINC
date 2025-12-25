@@ -1668,121 +1668,161 @@ function renderGlobalDefaultsUI(config) {
     const container = document.getElementById('global-defaults-wrapper');
     if (!container) return;
 
-    // Define Sections with Content Type Specifics
-    const sections = [
-        {
-            id: 'text', icon: '📝', title: 'LLM (Text Generation)',
-            models: llmModels.map(m => ({ id: m.modelId, name: m.displayName })),
-            defaultProvider: 'google', defaultModel: 'gemini-1.5-pro'
-        },
-        {
-            id: 'image', icon: '🎨', title: 'Image Generation',
-            models: [
-                { id: 'nano-banana-pro-preview', name: 'Nano Banana Pro (Default)' },
-                { id: 'imagen-4.0-generate-001', name: 'Google Imagen 4' },
-                { id: 'imagen-4.0-fast-generate-001', name: 'Google Imagen 4 Fast' },
-                { id: 'imagen-4.0-ultra-generate-001', name: 'Google Imagen 4 Ultra' },
-                { id: 'flux-pro', name: 'Flux Pro' },
-                { id: 'stable-diffusion-xl', name: 'Stable Diffusion XL' }
-            ],
-            defaultProvider: 'google', defaultModel: 'nano-banana-pro-preview'
-        },
-        {
-            id: 'video', icon: '🎥', title: 'Video Generation',
-            models: [
-                { id: 'runway-gen-3', name: 'Runway Gen-3' },
-                { id: 'luma-dream-machine', name: 'Luma Dream Machine' },
-                { id: 'sora-preview', name: 'Sora (Preview)' },
-                { id: 'sora-2', name: 'Sora 2.0' },
-                { id: 'sora-2-pro', name: 'Sora 2.0 Pro' },
-                { id: 'veo-3.0-fast-generate-001', name: 'Veo 3.0 Fast' },
-                { id: 'veo-3.1-fast-generate-preview', name: 'Veo 3.1 Fast (Preview)' }
-            ],
-            defaultProvider: 'runway', defaultModel: 'runway-gen-3'
-        }
+    // 5-Tier Definition
+    const FIVE_TIERS = [
+        { id: '1_economy', name: 'ECONOMY', desc: '단순 작업 (번역, 포맷팅)', color: '#10b981', creditMultiplier: 0.2 },
+        { id: '2_balanced', name: 'BALANCED', desc: '일반 콘텐츠 생성', color: '#eab308', creditMultiplier: 1.0 },
+        { id: '3_standard', name: 'STANDARD', desc: '분석, 리서치', color: '#3b82f6', creditMultiplier: 2.0 },
+        { id: '4_premium', name: 'PREMIUM', desc: '고품질 창작', color: '#8b5cf6', creditMultiplier: 3.0 },
+        { id: '5_ultra', name: 'ULTRA', desc: '고난이도 추론', color: '#ef4444', creditMultiplier: 5.0 }
     ];
 
-    let html = '';
+    // Default Tier Configs
+    const DEFAULT_TIER_CONFIGS = {
+        '1_economy': { provider: 'deepseek', model: 'deepseek-chat' },
+        '2_balanced': { provider: 'openai', model: 'gpt-4o-mini' },
+        '3_standard': { provider: 'openai', model: 'gpt-4o' },
+        '4_premium': { provider: 'anthropic', model: 'claude-3-5-sonnet-20241022' },
+        '5_ultra': { provider: 'deepseek', model: 'deepseek-reasoner' }
+    };
 
-    sections.forEach(sec => {
-        // Fallback Logic: Try config[id] -> config (legacy root) -> Defaults
-        const secConfig = config[sec.id] || (sec.id === 'text' ? config : {}) || {};
-        const def = secConfig.default || { provider: sec.defaultProvider, model: sec.defaultModel };
-        const boost = secConfig.boost || { provider: sec.defaultProvider, model: sec.defaultModel };
+    // Provider Options with DeepSeek
+    const providerOptions = `
+        <option value="deepseek">DeepSeek</option>
+        <option value="openai">OpenAI</option>
+        <option value="google">Google Gemini</option>
+        <option value="anthropic">Anthropic</option>
+    `;
 
-        // Provider Options (Dynamic per section)
-        let providerOptions = `
-            <option value="google" ${def.provider === 'google' ? 'selected' : ''}>Google Gemini</option>
-            <option value="openai" ${def.provider === 'openai' ? 'selected' : ''}>OpenAI</option>
-            <option value="anthropic" ${def.provider === 'anthropic' ? 'selected' : ''}>Anthropic</option>
-            <option value="replicate" ${def.provider === 'replicate' ? 'selected' : ''}>Replicate</option>
-            <option value="runway" ${def.provider === 'runway' ? 'selected' : ''}>Runway</option>
-        `;
+    // Get existing tiers config or use defaults
+    const tiersConfig = config?.text?.tiers || config?.tiers || {};
 
-        // Special handling for Video Providers
-        if (sec.id === 'video') {
-            providerOptions += `<option value="google_veo" ${def.provider === 'google_veo' ? 'selected' : ''}>Google Veo</option>`;
-            providerOptions += `<option value="openai_sora" ${def.provider === 'openai_sora' ? 'selected' : ''}>OpenAI SORA</option>`;
-        }
-        // Special handling for Image Providers (Add Nano Banana if distinct from Gemini)
-        if (sec.id === 'image') {
-            providerOptions += `<option value="google_nano" ${def.provider === 'google_nano' ? 'selected' : ''}>Google Nano Banana</option>`;
-        }
+    // Build 5-Tier UI for Text (Main focus)
+    let tiersHtml = FIVE_TIERS.map(tier => {
+        const tierData = tiersConfig[tier.id] || DEFAULT_TIER_CONFIGS[tier.id];
+        const selectedProvider = tierData?.provider || DEFAULT_TIER_CONFIGS[tier.id].provider;
+        const selectedModel = tierData?.model || DEFAULT_TIER_CONFIGS[tier.id].model;
 
-        const boostProviderOptions = providerOptions.replace(`value="${def.provider}" selected`, `value="${def.provider}"`).replace(`value="${boost.provider}"`, `value="${boost.provider}" selected`);
-
-
-        html += `
-        <div style="margin-bottom: 24px; border: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.2); border-radius: 8px; padding: 20px;">
-            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 10px;">
-                <span style="font-size: 20px;">${sec.icon}</span>
-                <h5 style="margin: 0; color: #fff; font-size: 14px;">${sec.title}</h5>
+        return `
+        <div style="display: grid; grid-template-columns: 140px 1fr 1fr 80px; gap: 12px; align-items: center; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px; border-left: 3px solid ${tier.color};">
+            <div>
+                <div style="font-weight: 600; color: ${tier.color}; font-size: 12px;">${tier.name}</div>
+                <div style="font-size: 10px; color: rgba(255,255,255,0.5);">${tier.desc}</div>
             </div>
-            
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
-                <!-- Standard Tier -->
-                <div>
-                     <div style="margin-bottom: 8px; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">Standard Tier (Default)</div>
-                     <div style="display: grid; gap: 10px;">
-                        <div>
-                            <label style="display: block; font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 4px;">Provider</label>
-                            <select id="${sec.id}-def-provider" class="admin-input">
-                                ${providerOptions}
-                            </select>
-                        </div>
-                        <div>
-                            <label style="display: block; font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 4px;">Model</label>
-                            <select id="${sec.id}-def-model" class="admin-input">
-                                ${sec.models.map(m => `<option value="${m.id}" ${m.id === def.model ? 'selected' : ''}>${m.name}</option>`).join('')}
-                            </select>
-                        </div>
-                     </div>
-                </div>
-
-                <!-- Boost Tier -->
-                <div>
-                     <div style="margin-bottom: 8px; font-size: 11px; color: #818cf8; font-weight: 600; text-transform: uppercase;">Premium Tier (Boost) 🚀</div>
-                     <div style="display: grid; gap: 10px;">
-                        <div>
-                            <label style="display: block; font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 4px;">Provider</label>
-                            <select id="${sec.id}-boost-provider" class="admin-input">
-                                ${boostProviderOptions}
-                            </select>
-                        </div>
-                        <div>
-                            <label style="display: block; font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 4px;">Model</label>
-                            <select id="${sec.id}-boost-model" class="admin-input">
-                                ${sec.models.map(m => `<option value="${m.id}" ${m.id === boost.model ? 'selected' : ''}>${m.name}</option>`).join('')}
-                            </select>
-                        </div>
-                     </div>
-                </div>
+            <div>
+                <label style="display: block; font-size: 10px; color: rgba(255,255,255,0.4); margin-bottom: 2px;">Provider</label>
+                <select id="tier-${tier.id}-provider" class="admin-input" style="font-size: 12px; padding: 6px 8px;">
+                    ${providerOptions.replace(`value="${selectedProvider}"`, `value="${selectedProvider}" selected`)}
+                </select>
+            </div>
+            <div>
+                <label style="display: block; font-size: 10px; color: rgba(255,255,255,0.4); margin-bottom: 2px;">Model</label>
+                <select id="tier-${tier.id}-model" class="admin-input" style="font-size: 12px; padding: 6px 8px;">
+                    ${llmModels.map(m => `<option value="${m.modelId}" ${m.modelId === selectedModel ? 'selected' : ''}>${m.displayName}</option>`).join('')}
+                </select>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 10px; color: rgba(255,255,255,0.4);">Credit</div>
+                <div style="font-size: 14px; font-weight: 700; color: ${tier.color};">${tier.creditMultiplier}x</div>
             </div>
         </div>
         `;
-    });
+    }).join('');
 
-    container.innerHTML = html;
+    // Legacy 2-Tier for Image/Video (kept for backward compatibility)
+    const imageConfig = config?.image || {};
+    const videoConfig = config?.video || {};
+    const imageDef = imageConfig.default || { provider: 'google', model: 'nano-banana-pro-preview' };
+    const imageBoost = imageConfig.boost || { provider: 'google', model: 'imagen-4.0-ultra-generate-001' };
+    const videoDef = videoConfig.default || { provider: 'runway', model: 'runway-gen-3' };
+    const videoBoost = videoConfig.boost || { provider: 'google_veo', model: 'veo-3.0-fast-generate-001' };
+
+    const imageModels = [
+        { id: 'nano-banana-pro-preview', name: 'Nano Banana Pro' },
+        { id: 'imagen-4.0-generate-001', name: 'Google Imagen 4' },
+        { id: 'imagen-4.0-fast-generate-001', name: 'Google Imagen 4 Fast' },
+        { id: 'imagen-4.0-ultra-generate-001', name: 'Google Imagen 4 Ultra' },
+        { id: 'flux-pro', name: 'Flux Pro' }
+    ];
+
+    const videoModels = [
+        { id: 'runway-gen-3', name: 'Runway Gen-3' },
+        { id: 'veo-3.0-fast-generate-001', name: 'Veo 3.0 Fast' },
+        { id: 'veo-3.1-fast-generate-preview', name: 'Veo 3.1 Fast' },
+        { id: 'sora-2', name: 'Sora 2.0' },
+        { id: 'sora-2-pro', name: 'Sora 2.0 Pro' }
+    ];
+
+    container.innerHTML = `
+        <!-- 5-Tier Text Generation -->
+        <div style="margin-bottom: 24px; border: 1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.2); border-radius: 12px; padding: 20px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 12px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 24px;">📝</span>
+                    <div>
+                        <h5 style="margin: 0; color: #fff; font-size: 16px; font-weight: 600;">LLM Text Generation</h5>
+                        <span style="font-size: 11px; color: rgba(255,255,255,0.5);">5-Tier Complexity Routing</span>
+                    </div>
+                </div>
+                <span style="background: linear-gradient(135deg, #16e0bd, #8b5cf6); padding: 4px 10px; border-radius: 12px; font-size: 10px; font-weight: 600; color: #000;">NEW v5.0</span>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                ${tiersHtml}
+            </div>
+            
+            <div style="margin-top: 16px; padding: 12px; background: rgba(16, 224, 189, 0.05); border: 1px solid rgba(16, 224, 189, 0.2); border-radius: 8px;">
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: rgba(255,255,255,0.7);">
+                    <span>💡</span>
+                    <span>Runtime Profile Agent가 작업 복잡도를 분석하여 자동으로 적합한 Tier를 선택합니다.</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Image Generation (2-Tier Legacy) -->
+        <div style="margin-bottom: 24px; border: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.2); border-radius: 8px; padding: 20px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 10px;">
+                <span style="font-size: 20px;">🎨</span>
+                <h5 style="margin: 0; color: #fff; font-size: 14px;">Image Generation</h5>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div>
+                    <div style="font-size: 11px; color: #94a3b8; font-weight: 600; margin-bottom: 8px;">STANDARD</div>
+                    <select id="image-def-model" class="admin-input">
+                        ${imageModels.map(m => `<option value="${m.id}" ${m.id === imageDef.model ? 'selected' : ''}>${m.name}</option>`).join('')}
+                    </select>
+                </div>
+                <div>
+                    <div style="font-size: 11px; color: #818cf8; font-weight: 600; margin-bottom: 8px;">PREMIUM 🚀</div>
+                    <select id="image-boost-model" class="admin-input">
+                        ${imageModels.map(m => `<option value="${m.id}" ${m.id === imageBoost.model ? 'selected' : ''}>${m.name}</option>`).join('')}
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Video Generation (2-Tier Legacy) -->
+        <div style="margin-bottom: 24px; border: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.2); border-radius: 8px; padding: 20px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 10px;">
+                <span style="font-size: 20px;">🎥</span>
+                <h5 style="margin: 0; color: #fff; font-size: 14px;">Video Generation</h5>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div>
+                    <div style="font-size: 11px; color: #94a3b8; font-weight: 600; margin-bottom: 8px;">STANDARD</div>
+                    <select id="video-def-model" class="admin-input">
+                        ${videoModels.map(m => `<option value="${m.id}" ${m.id === videoDef.model ? 'selected' : ''}>${m.name}</option>`).join('')}
+                    </select>
+                </div>
+                <div>
+                    <div style="font-size: 11px; color: #818cf8; font-weight: 600; margin-bottom: 8px;">PREMIUM 🚀</div>
+                    <select id="video-boost-model" class="admin-input">
+                        ${videoModels.map(m => `<option value="${m.id}" ${m.id === videoBoost.model ? 'selected' : ''}>${m.name}</option>`).join('')}
+                    </select>
+                </div>
+            </div>
+        </div>
+    `;
 }
 
 window.saveGlobalDefaults = async function () {
@@ -1797,33 +1837,49 @@ window.saveGlobalDefaults = async function () {
     // Helper to get values
     const getVal = (id) => document.getElementById(id)?.value;
 
-    const textConfig = {
-        default: { provider: getVal('text-def-provider'), model: getVal('text-def-model'), creditMultiplier: 1.0 },
-        boost: { provider: getVal('text-boost-provider'), model: getVal('text-boost-model'), creditMultiplier: 3.0 }
-    };
+    // 5-Tier Configuration for Text
+    const TIER_IDS = ['1_economy', '2_balanced', '3_standard', '4_premium', '5_ultra'];
+    const CREDIT_MULTIPLIERS = { '1_economy': 0.2, '2_balanced': 1.0, '3_standard': 2.0, '4_premium': 3.0, '5_ultra': 5.0 };
+
+    const tiers = {};
+    TIER_IDS.forEach(tierId => {
+        tiers[tierId] = {
+            provider: getVal(`tier-${tierId}-provider`),
+            model: getVal(`tier-${tierId}-model`),
+            creditMultiplier: CREDIT_MULTIPLIERS[tierId]
+        };
+    });
+
+    // Legacy 2-Tier for Image/Video
     const imageConfig = {
-        default: { provider: getVal('image-def-provider'), model: getVal('image-def-model'), creditMultiplier: 2.0 },
-        boost: { provider: getVal('image-boost-provider'), model: getVal('image-boost-model'), creditMultiplier: 5.0 }
+        default: { provider: 'google', model: getVal('image-def-model'), creditMultiplier: 2.0 },
+        boost: { provider: 'google', model: getVal('image-boost-model'), creditMultiplier: 5.0 }
     };
     const videoConfig = {
-        default: { provider: getVal('video-def-provider'), model: getVal('video-def-model'), creditMultiplier: 5.0 },
-        boost: { provider: getVal('video-boost-provider'), model: getVal('video-boost-model'), creditMultiplier: 10.0 }
+        default: { provider: 'runway', model: getVal('video-def-model'), creditMultiplier: 5.0 },
+        boost: { provider: 'google_veo', model: getVal('video-boost-model'), creditMultiplier: 10.0 }
     };
 
     try {
         await db.collection('systemSettings').doc('llmConfig').set({
             defaultModels: {
-                text: textConfig,
+                text: {
+                    tiers: tiers,
+                    // Backward Compatibility: Map tier 2 to default, tier 4 to boost
+                    default: tiers['2_balanced'],
+                    boost: tiers['4_premium']
+                },
                 image: imageConfig,
                 video: videoConfig,
-                // Backward Compatibility for existing Router (Text)
-                default: textConfig.default,
-                boost: textConfig.boost
+                // Root-level backward compatibility
+                default: tiers['2_balanced'],
+                boost: tiers['4_premium'],
+                tiers: tiers
             },
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
 
-        showCustomModal('Success', 'Global routing defaults updated successfully!', 'success');
+        showCustomModal('Success', '5-Tier Global Routing 설정이 저장되었습니다!', 'success');
     } catch (error) {
         showCustomModal('Error', 'Error saving defaults: ' + error.message, 'error');
     } finally {
@@ -1916,4 +1972,341 @@ window.showCustomModal = function (title, message, type = 'info') {
 
     // Auto Close Success after 3s (Optional, user said previous one was too fast, keep this one manual or long delay)
     // if (type === 'success') setTimeout(close, 3000);
+};
+
+// ==========================================
+// STANDARD AGENT PROFILES (v5.0)
+// ==========================================
+
+// Default 12 Agent Profiles
+const DEFAULT_AGENT_PROFILES = {
+    research: {
+        displayName: 'Research Agent',
+        phase: 'research',
+        icon: '📊',
+        systemPrompt: `You are a research specialist focused on market analysis and trend identification.
+
+Your responsibilities:
+- Analyze the content plan and identify key themes
+- Research relevant industry trends and data
+- Provide comprehensive background information
+- Identify competitor activities and best practices
+
+Always cite sources when possible and focus on actionable insights.`,
+        temperature: 0.5,
+        isEnabled: true
+    },
+    seo_watcher: {
+        displayName: 'SEO Watcher',
+        phase: 'research',
+        icon: '🔍',
+        systemPrompt: `You are an SEO specialist monitoring and optimizing content performance.
+
+Your responsibilities:
+- Analyze keyword opportunities and trends
+- Monitor search rankings and traffic patterns
+- Recommend SEO improvements for content
+- Track competitor SEO strategies
+
+Focus on data-driven recommendations with specific action items.`,
+        temperature: 0.4,
+        isEnabled: true
+    },
+    planner: {
+        displayName: 'Planner',
+        phase: 'planning',
+        icon: '🎯',
+        systemPrompt: `You are a strategic content planner responsible for campaign design.
+
+Your responsibilities:
+- Design content calendars and publishing schedules
+- Align content with business objectives
+- Define target audiences and messaging
+- Coordinate across channels for maximum impact
+
+Think strategically about timing, sequencing, and audience engagement.`,
+        temperature: 0.6,
+        isEnabled: true
+    },
+    creator_text: {
+        displayName: 'Text Creator',
+        phase: 'creation',
+        icon: '✍️',
+        systemPrompt: `You are an expert content creator specializing in compelling written content.
+
+Your responsibilities:
+- Write engaging captions, posts, and articles
+- Adapt tone and style for different platforms
+- Incorporate brand voice and messaging
+- Optimize content for engagement
+
+Create content that resonates with the target audience and drives action.`,
+        temperature: 0.7,
+        isEnabled: true
+    },
+    creator_image: {
+        displayName: 'Image Creator',
+        phase: 'creation',
+        icon: '🎨',
+        systemPrompt: `You are a visual content specialist creating image prompts and concepts.
+
+Your responsibilities:
+- Generate detailed image generation prompts
+- Design visual concepts aligned with brand
+- Specify composition, style, and mood
+- Ensure visual consistency across content
+
+Think visually and provide clear, detailed specifications.`,
+        temperature: 0.8,
+        isEnabled: true
+    },
+    creator_video: {
+        displayName: 'Video Creator',
+        phase: 'creation',
+        icon: '🎥',
+        systemPrompt: `You are a video content specialist creating scripts and video concepts.
+
+Your responsibilities:
+- Write video scripts and storyboards
+- Design short-form video concepts
+- Specify visual and audio elements
+- Optimize for platform requirements
+
+Create engaging video content that captures attention quickly.`,
+        temperature: 0.7,
+        isEnabled: true
+    },
+    compliance: {
+        displayName: 'Compliance Agent',
+        phase: 'validation',
+        icon: '✅',
+        systemPrompt: `You are a content compliance specialist ensuring brand safety.
+
+Your responsibilities:
+- Review content for brand guideline adherence
+- Check for regulatory compliance
+- Verify facts and claims accuracy
+- Flag potential legal or PR risks
+
+Be thorough and document all concerns clearly.`,
+        temperature: 0.3,
+        isEnabled: true
+    },
+    evaluator: {
+        displayName: 'Evaluator',
+        phase: 'validation',
+        icon: '📊',
+        systemPrompt: `You are a quality evaluator scoring content effectiveness.
+
+Your responsibilities:
+- Assess content quality and engagement potential
+- Score against defined KPIs and criteria
+- Provide improvement recommendations
+- Benchmark against best practices
+
+Use objective criteria and provide specific feedback.`,
+        temperature: 0.4,
+        isEnabled: true
+    },
+    publisher: {
+        displayName: 'Publisher',
+        phase: 'publishing',
+        icon: '📤',
+        systemPrompt: `You are a publishing specialist managing content distribution.
+
+Your responsibilities:
+- Format content for each platform
+- Optimize posting times and schedules
+- Manage hashtags and metadata
+- Ensure proper asset formatting
+
+Focus on maximizing reach and engagement through proper publishing.`,
+        temperature: 0.5,
+        isEnabled: true
+    },
+    knowledge_curator: {
+        displayName: 'Knowledge Curator',
+        phase: 'intelligence',
+        icon: '📚',
+        systemPrompt: `You are a knowledge management specialist maintaining brand memory.
+
+Your responsibilities:
+- Curate and organize brand knowledge
+- Update content performance insights
+- Maintain consistent brand guidelines
+- Archive and retrieve relevant content
+
+Keep information organized, accurate, and accessible.`,
+        temperature: 0.4,
+        isEnabled: true
+    },
+    manager: {
+        displayName: 'Manager',
+        phase: 'management',
+        icon: '👔',
+        systemPrompt: `You are a team manager coordinating agent activities.
+
+Your responsibilities:
+- Orchestrate agent workflows
+- Final approval on content decisions
+- Resolve conflicts and prioritize tasks
+- Ensure quality and timeline adherence
+
+Make decisive judgments and maintain workflow efficiency.`,
+        temperature: 0.5,
+        isEnabled: true
+    },
+    router: {
+        displayName: 'Router Agent',
+        phase: 'routing',
+        icon: '🔀',
+        systemPrompt: `You are a routing specialist directing tasks to appropriate agents.
+
+Your responsibilities:
+- Analyze incoming requests and content
+- Route tasks to most suitable agents
+- Balance workload across the team
+- Optimize processing efficiency
+
+Make quick, accurate routing decisions.`,
+        temperature: 0.3,
+        isEnabled: true
+    }
+};
+
+// Phase Grouping
+const AGENT_PHASES = [
+    { id: 'research', name: 'Research Phase', icon: '🔬', agents: ['research', 'seo_watcher'] },
+    { id: 'planning', name: 'Planning Phase', icon: '🎯', agents: ['planner'] },
+    { id: 'creation', name: 'Creation Phase', icon: '✏️', agents: ['creator_text', 'creator_image', 'creator_video'] },
+    { id: 'validation', name: 'Validation Phase', icon: '✅', agents: ['compliance', 'evaluator'] },
+    { id: 'publishing', name: 'Publishing Phase', icon: '📤', agents: ['publisher', 'knowledge_curator'] },
+    { id: 'management', name: 'Management', icon: '👔', agents: ['manager', 'router'] }
+];
+
+// Global state for profiles
+let currentAgentProfiles = {};
+
+// Load Standard Profiles from Firestore
+window.loadStandardProfiles = async function () {
+    const db = firebase.firestore();
+    const container = document.getElementById('standard-profiles-container');
+
+    if (!container) return;
+
+    container.innerHTML = `<div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">Loading agent profiles...</div>`;
+
+    try {
+        const doc = await db.collection('systemSettings').doc('standardAgentProfiles').get();
+
+        if (doc.exists && doc.data().agents) {
+            currentAgentProfiles = { ...DEFAULT_AGENT_PROFILES, ...doc.data().agents };
+        } else {
+            currentAgentProfiles = { ...DEFAULT_AGENT_PROFILES };
+        }
+
+        renderAgentProfiles();
+    } catch (error) {
+        console.error('Error loading standard profiles:', error);
+        container.innerHTML = `<div style="text-align: center; padding: 40px; color: #ef4444;">Error loading profiles: ${error.message}</div>`;
+    }
+};
+
+// Render Agent Profiles UI
+function renderAgentProfiles() {
+    const container = document.getElementById('standard-profiles-container');
+    if (!container) return;
+
+    let html = '';
+
+    AGENT_PHASES.forEach(phase => {
+        html += `
+            <div style="margin-bottom: 24px;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                    <span style="font-size: 18px;">${phase.icon}</span>
+                    <h5 style="margin: 0; color: rgba(255,255,255,0.9); font-size: 14px; font-weight: 600;">${phase.name}</h5>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+        `;
+
+        phase.agents.forEach(agentId => {
+            const agent = currentAgentProfiles[agentId] || DEFAULT_AGENT_PROFILES[agentId];
+            if (!agent) return;
+
+            html += `
+                <div class="agent-profile-card" data-agent-id="${agentId}" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 20px;">${agent.icon}</span>
+                            <div>
+                                <div style="font-weight: 600; color: #fff; font-size: 14px;">${agent.displayName}</div>
+                                <div style="font-size: 11px; color: rgba(255,255,255,0.4);">Temp: ${agent.temperature}</div>
+                            </div>
+                        </div>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                            <input type="checkbox" id="agent-enabled-${agentId}" ${agent.isEnabled ? 'checked' : ''} 
+                                   style="width: 16px; height: 16px; accent-color: #16e0bd;">
+                            <span style="font-size: 11px; color: rgba(255,255,255,0.6);">Enabled</span>
+                        </label>
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 11px; color: rgba(255,255,255,0.5); margin-bottom: 6px;">System Prompt</label>
+                        <textarea id="agent-prompt-${agentId}" rows="4" 
+                            style="width: 100%; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 10px; color: #fff; font-size: 12px; font-family: 'Menlo', monospace; resize: vertical;"
+                        >${agent.systemPrompt}</textarea>
+                    </div>
+                </div>
+            `;
+        });
+
+        html += `
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
+// Save Standard Profiles
+window.saveStandardProfiles = async function () {
+    const db = firebase.firestore();
+    const agents = {};
+
+    // Collect all agent data from UI
+    Object.keys(DEFAULT_AGENT_PROFILES).forEach(agentId => {
+        const promptEl = document.getElementById(`agent-prompt-${agentId}`);
+        const enabledEl = document.getElementById(`agent-enabled-${agentId}`);
+
+        if (promptEl) {
+            agents[agentId] = {
+                ...DEFAULT_AGENT_PROFILES[agentId],
+                systemPrompt: promptEl.value,
+                isEnabled: enabledEl ? enabledEl.checked : true
+            };
+        }
+    });
+
+    try {
+        await db.collection('systemSettings').doc('standardAgentProfiles').set({
+            version: '5.0',
+            agents: agents,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        currentAgentProfiles = agents;
+        showCustomModal('Success', 'Standard Agent Profiles가 저장되었습니다!', 'success');
+    } catch (error) {
+        console.error('Error saving standard profiles:', error);
+        showCustomModal('Error', '저장 실패: ' + error.message, 'error');
+    }
+};
+
+// Reset to Default Profiles
+window.resetStandardProfiles = async function () {
+    if (!confirm('모든 프롬프트를 기본값으로 초기화하시겠습니까?')) return;
+
+    currentAgentProfiles = { ...DEFAULT_AGENT_PROFILES };
+    renderAgentProfiles();
+    showCustomModal('Reset Complete', '기본값으로 초기화되었습니다. Save All을 눌러 저장하세요.', 'info');
 };
