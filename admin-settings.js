@@ -2189,25 +2189,34 @@ let currentAgentProfiles = {};
 
 // Load Standard Profiles from Firestore
 window.loadStandardProfiles = async function () {
+    console.log('[AgentConfig] loadStandardProfiles called');
     const db = firebase.firestore();
     const container = document.getElementById('standard-profiles-container');
 
+    console.log('[AgentConfig] container found:', !!container);
     if (!container) return;
 
     container.innerHTML = `<div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">Loading agent profiles...</div>`;
 
     try {
+        console.log('[AgentConfig] Fetching from Firestore...');
         const doc = await db.collection('systemSettings').doc('standardAgentProfiles').get();
+        console.log('[AgentConfig] Firestore doc exists:', doc.exists);
 
         if (doc.exists && doc.data().agents) {
             currentAgentProfiles = { ...DEFAULT_AGENT_PROFILES, ...doc.data().agents };
+            console.log('[AgentConfig] Loaded from Firestore');
         } else {
             currentAgentProfiles = { ...DEFAULT_AGENT_PROFILES };
+            console.log('[AgentConfig] Using DEFAULT_AGENT_PROFILES');
         }
 
+        console.log('[AgentConfig] currentAgentProfiles keys:', Object.keys(currentAgentProfiles));
+        console.log('[AgentConfig] Calling renderAgentProfiles...');
         renderAgentProfiles();
+        console.log('[AgentConfig] renderAgentProfiles completed');
     } catch (error) {
-        console.error('Error loading standard profiles:', error);
+        console.error('[AgentConfig] Error loading standard profiles:', error);
         container.innerHTML = `<div style="text-align: center; padding: 40px; color: #ef4444;">Error loading profiles: ${error.message}</div>`;
     }
 };
