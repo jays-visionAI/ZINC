@@ -1059,7 +1059,7 @@ async function loadSubAgents(teamId) {
             .orderBy('display_order', 'asc')
             .get();
 
-        const subAgents = [];
+        let subAgents = [];
         if (!subAgentsSnapshot.empty) {
             subAgentsSnapshot.forEach(doc => {
                 subAgents.push({ id: doc.id, ...doc.data() });
