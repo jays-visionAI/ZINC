@@ -2215,6 +2215,51 @@
     letter-spacing: 0.5px;
 }
 
+/* Agent Settings Modal Unified Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(8px);
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.modal-overlay.open {
+    opacity: 1;
+}
+
+#agent-settings-modal .modal-container {
+    transform: translateY(20px);
+    transition: transform 0.3s ease;
+}
+
+#agent-settings-modal.open .modal-container {
+    transform: translateY(0);
+}
+
+.sub-agent-setting-card {
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.sub-agent-setting-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(139, 92, 246, 0.3) !important;
+}
+
+#agent-settings-modal textarea:focus {
+    outline: none;
+    border-color: rgba(139, 92, 246, 0.5) !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+}
+
 /* Node States */
 .dag-node.waiting .node-bg {
     fill: rgba(30, 30, 45, 0.8);
