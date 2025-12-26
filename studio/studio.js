@@ -2901,12 +2901,14 @@ window.closeTeamSettingsModal = function () {
 };
 
 /**
- * Load team settings from Firestore
+ * Load team settings from Firestore - Unified Brain Architecture
+ * Prioritizes project-level teamDirective and sub-agent settings
  */
 async function loadTeamSettings() {
     const teamId = state.selectedAgentTeam;
+    const projectId = state.projectId;
 
-    if (!teamId) {
+    if (!teamId || !projectId) {
         document.getElementById('settings-team-name').textContent = 'No Agent Team Selected';
         document.getElementById('settings-team-goal').innerHTML = '<p class="placeholder-text">Please select an Agent Team first.</p>';
         document.getElementById('settings-subagents-list').innerHTML = '<div class="loading-placeholder">No team selected</div>';
@@ -2914,37 +2916,48 @@ async function loadTeamSettings() {
     }
 
     try {
-        // Fetch team instance data
-        const teamDoc = await firebase.firestore()
-            .collection('projectAgentTeamInstances')
-            .doc(teamId)
-            .get();
+        const db = firebase.firestore();
 
+        // 1. Fetch Project Data (Primary source for Directive)
+        const projectDoc = await db.collection('projects').doc(projectId).get();
+        if (!projectDoc.exists) throw new Error('Project not found');
+        const projectData = projectDoc.data();
+
+        // 2. Fetch Team Instance Data
+        const teamDoc = await db.collection('projectAgentTeamInstances').doc(teamId).get();
         if (!teamDoc.exists) {
             document.getElementById('settings-team-name').textContent = 'Team Not Found';
             return;
         }
-
         const teamData = teamDoc.data();
         teamSettingsCache = teamData;
 
-        // Update Team Name & Channel
+        // Update UI: Team Name & Channel
         document.getElementById('settings-team-name').textContent = teamData.name || teamData.teamName || 'Unnamed Team';
-        document.getElementById('settings-team-channel').textContent = `Channel: ${teamData.channel || 'X (Twitter)'}`;
+        document.getElementById('settings-team-channel').innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                <span>Channel: ${teamData.channel || 'X (Twitter)'}</span>
+                <span class="read-only-badge">Read-only (Managed in Mission Control)</span>
+            </div>
+        `;
 
-        // Update Team Goal/Directive
+        // Update UI: Team Goal/Directive (Priority: Project > Team)
+        const activeDirective = projectData.teamDirective || teamData.directive || teamData.goal || teamData.teamGoal || '';
         const goalEl = document.getElementById('settings-team-goal');
-        if (teamData.directive || teamData.goal || teamData.teamGoal) {
-            goalEl.innerHTML = `<p>${teamData.directive || teamData.goal || teamData.teamGoal}</p>`;
+        if (activeDirective) {
+            goalEl.innerHTML = `
+                <div style="color: rgba(255,255,255,0.5); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Active Directive</div>
+                <p style="margin: 0; color: #fff; line-height: 1.5;">${activeDirective}</p>
+            `;
         } else {
-            goalEl.innerHTML = '<p class="placeholder-text">No team goal defined. Set one in Mission Control.</p>';
+            goalEl.innerHTML = '<p class="placeholder-text">No active directive defined. Set one in Mission Control.</p>';
         }
 
-        // Fetch and render sub-agents
-        const subAgentsSnap = await firebase.firestore()
-            .collection('projectAgentTeamInstances')
+        // 3. Fetch and render sub-agents
+        const subAgentsSnap = await db.collection('projectAgentTeamInstances')
             .doc(teamId)
             .collection('subAgents')
+            .orderBy('display_order', 'asc')
             .get();
 
         const subAgents = [];
@@ -2952,20 +2965,27 @@ async function loadTeamSettings() {
 
         renderSubAgentConfigs(subAgents);
 
-        // Store in state for DAG Executor
-        state.teamSettings = {
+        // 4. Synchronize with DAG Executor
+        const finalContext = {
             teamName: teamData.name || teamData.teamName,
-            directive: teamData.directive || teamData.goal || teamData.teamGoal || '',
+            directive: activeDirective,
             subAgents: subAgents
         };
 
-        console.log('[Studio] Team Settings loaded:', state.teamSettings);
-        addLogEntry('✅ Team Brain settings loaded', 'success');
+        state.teamSettings = finalContext;
+
+        if (state.executor) {
+            console.log('[Studio] Syncing Team Context with DAGExecutor (Unified Brain)');
+            state.executor.setTeamContext(finalContext);
+        }
+
+        console.log('[Studio] Unified Brain Settings loaded:', state.teamSettings);
+        addLogEntry('✅ Team Brain (Unified) settings loaded', 'success');
 
     } catch (error) {
         console.error('[Studio] Error loading team settings:', error);
         document.getElementById('settings-team-name').textContent = 'Error Loading Team';
-        document.getElementById('settings-subagents-list').innerHTML = '<div class="loading-placeholder">Error loading configuration</div>';
+        document.getElementById('settings-subagents-list').innerHTML = `<div class="loading-placeholder">Error: ${error.message}</div>`;
     }
 }
 
