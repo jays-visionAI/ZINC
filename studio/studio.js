@@ -2083,6 +2083,8 @@ What's your take on the future of AI in content creation?
  * Updated to use new channelContents system.
  */
 async function streamChannelContent(channel, content) {
+    console.log('[Studio] streamChannelContent called:', { channel, contentType: typeof content });
+
     // Extract text from various content formats
     let text = content;
     if (typeof content === 'object' && content !== null) {
@@ -2100,7 +2102,12 @@ async function streamChannelContent(channel, content) {
         }
     }
 
+    console.log('[Studio] Storing content for channel:', channel, 'text length:', text?.length);
+
     // Store content in the new system
+    if (!window.channelContents) {
+        window.channelContents = {};
+    }
     if (!window.channelContents[channel]) {
         window.channelContents[channel] = { status: 'completed' };
     }
@@ -2114,8 +2121,15 @@ async function streamChannelContent(channel, content) {
         tab.classList.add('completed');
     }
 
-    // Re-render if this is the active channel
+    // Always re-render the preview for this channel
+    // If this channel is active, render immediately; otherwise, set it as active and render
     if (activePreviewChannel === channel) {
+        console.log('[Studio] Rendering active channel:', channel);
+        renderSingleChannelPreview(channel);
+    } else if (!activePreviewChannel || activePreviewChannel === state.targetChannels?.[0]) {
+        // If no active channel or it's the first target channel, switch to this one
+        activePreviewChannel = channel;
+        console.log('[Studio] Switching to channel and rendering:', channel);
         renderSingleChannelPreview(channel);
     }
 
