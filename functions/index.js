@@ -4701,58 +4701,30 @@ exports.generateCreativeContent = onCall({ cors: true, timeoutSeconds: 300, memo
                 }
             }
 
-            // OpenAI DALL-E (fallback or if explicitly selected)
-            if (selectedProvider === 'openai' || selectedModel?.includes('dalle')) {
-                try {
-                    const response = await openai.images.generate({
-                        model: "dall-e-3",
-                        prompt: imagePrompt,
-                        n: 1,
-                        size: "1024x1024",
-                        quality: "standard",
-                        response_format: "url"
-                    });
-
-                    return {
-                        success: true,
-                        type: 'image',
-                        data: [response.data[0].url],
-                        metadata: { model: 'dall-e-3', provider: 'openai' }
-                    };
-                } catch (err) {
-                    console.error('DALL-E failed:', err.message);
-                }
-            }
-
-            // Ultimate fallback: Try Imagen then DALL-E
-            console.warn('[generateCreativeContent] No configured provider worked, trying Imagen fallback...');
+            // Ultimate fallback: Google Imagen (NO DALL-E - quality is poor and expensive)
+            console.warn('[generateCreativeContent] No configured provider worked, using Imagen...');
             try {
-                const fallbackResult = await generateWithImagen(imagePrompt, '1024x1024', 'imagen-4.0-fast-generate-001');
+                // Try Imagen 4.0 Fast first (best quality/speed ratio)
+                const imagenResult = await generateWithImagen(imagePrompt, '1024x1024', 'imagen-4.0-fast-generate-001');
                 return {
                     success: true,
                     type: 'image',
-                    data: [fallbackResult],
+                    data: [imagenResult],
                     metadata: { model: 'imagen-4.0-fast-generate-001', provider: 'google' }
                 };
-            } catch (imagenFallbackErr) {
-                console.error('Imagen fallback failed, trying DALL-E...');
+            } catch (imagenErr) {
+                console.error('Imagen 4.0 Fast failed, trying Imagen 3.0...', imagenErr.message);
                 try {
-                    const dalleResponse = await openai.images.generate({
-                        model: "dall-e-3",
-                        prompt: imagePrompt,
-                        n: 1,
-                        size: "1024x1024",
-                        quality: "standard",
-                        response_format: "url"
-                    });
+                    // Fallback to Imagen 3.0
+                    const imagen3Result = await generateWithImagen(imagePrompt, '1024x1024', 'imagen-3.0-fast-generate-001');
                     return {
                         success: true,
                         type: 'image',
-                        data: [dalleResponse.data[0].url],
-                        metadata: { model: 'dall-e-3', provider: 'openai' }
+                        data: [imagen3Result],
+                        metadata: { model: 'imagen-3.0-fast-generate-001', provider: 'google' }
                     };
-                } catch (dalleFallbackErr) {
-                    return { success: false, error: 'All image generation providers failed' };
+                } catch (imagen3Err) {
+                    return { success: false, error: 'Image generation failed: ' + imagen3Err.message };
                 }
             }
         }

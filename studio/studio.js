@@ -1401,7 +1401,7 @@ const AGENT_ESTIMATES = {
     kpi: { time: 8, cost: 0.0001 },              // Gemini: 거의 무료
     planner: { time: 20, cost: 0.0002 },         // Gemini: 거의 무료
     creator_text: { time: 25, cost: 0.0002 },    // Gemini: 거의 무료
-    creator_image: { time: 30, cost: 0.04 },     // DALL-E 3: $0.04/image (1024x1024)
+    creator_image: { time: 30, cost: 0.02 },     // Imagen: $0.02/image (Fast)
     creator_video: { time: 60, cost: 0.10 },     // Video API: ~$0.10/clip
     compliance: { time: 10, cost: 0.0001 },      // Gemini: 거의 무료
     seo_optimizer: { time: 12, cost: 0.0001 },   // Gemini: 거의 무료
