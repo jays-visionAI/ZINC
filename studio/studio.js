@@ -2906,7 +2906,7 @@ window.openTeamSettingsModal = async function () {
     const modal = document.getElementById('agent-settings-modal');
     if (!modal) return;
 
-    currentSettingsProjectId = state.projectId;
+    currentSettingsProjectId = state.selectedProject;
     currentSettingsTeamId = state.selectedAgentTeam;
 
     if (!currentSettingsProjectId || !currentSettingsTeamId) {
