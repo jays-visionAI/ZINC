@@ -2927,12 +2927,35 @@ window.openTeamSettingsModal = async function () {
     const modal = document.getElementById('agent-settings-modal');
     if (!modal) return;
 
+    // Debugging current state
+    console.log('[Studio] Opening Brain Settings. Current State:', {
+        selectedProject: state.selectedProject,
+        selectedAgentTeam: state.selectedAgentTeam
+    });
+
+    // Proactive state recovery: If variables are empty but UI shows selected values, try to recover
+    if (!state.selectedProject) {
+        state.selectedProject = document.getElementById('project-select')?.value || localStorage.getItem('currentProjectId');
+    }
+    if (!state.selectedAgentTeam) {
+        state.selectedAgentTeam = document.getElementById('agentteam-select')?.value;
+    }
+
     currentSettingsProjectId = state.selectedProject;
     currentSettingsTeamId = state.selectedAgentTeam;
 
-    if (!currentSettingsProjectId || !currentSettingsTeamId) {
-        addLogEntry('⚠️ Please select a project and agent team first', 'warning');
+    if (!currentSettingsProjectId) {
+        addLogEntry('⚠️ No project selected. Please select a project first.', 'warning');
         return;
+    }
+
+    if (!currentSettingsTeamId) {
+        addLogEntry('⚠️ No agent team selected for this project.', 'warning');
+        // Try to trigger a reload of teams to fix this
+        await loadAgentTeams(currentSettingsProjectId);
+        currentSettingsTeamId = state.selectedAgentTeam;
+
+        if (!currentSettingsTeamId) return; // Still failed
     }
 
     const directiveInput = document.getElementById('setting-directive');
