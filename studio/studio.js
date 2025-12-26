@@ -1391,20 +1391,22 @@ function getSelectedAgents() {
 // STATS UPDATE
 // ============================================
 
-// Agent-specific time and cost estimates (based on typical API usage)
+// Agent-specific time and cost estimates (based on actual API costs)
+// Using Gemini 2.0 Flash / GPT-4o-mini as default model basis
+// Typical call: 500-1500 tokens at ~$0.0004/1K tokens
 const AGENT_ESTIMATES = {
-    research: { time: 15, cost: 0.03 },        // Web search + analysis
-    seo_watcher: { time: 10, cost: 0.02 },     // SEO monitoring
-    knowledge_curator: { time: 12, cost: 0.025 }, // Knowledge retrieval
-    kpi: { time: 8, cost: 0.015 },             // KPI analysis
-    planner: { time: 20, cost: 0.04 },         // Content planning (core)
-    creator_text: { time: 25, cost: 0.05 },    // Text generation (core)
-    creator_image: { time: 30, cost: 0.08 },   // Image generation (API intensive)
-    creator_video: { time: 60, cost: 0.15 },   // Video planning
-    compliance: { time: 10, cost: 0.02 },      // Compliance check
-    seo_optimizer: { time: 12, cost: 0.025 },  // SEO optimization
-    evaluator: { time: 15, cost: 0.03 },       // Quality evaluation
-    manager: { time: 10, cost: 0.02 }          // Final coordination
+    research: { time: 15, cost: 0.002 },        // Web search + analysis (~1500 tokens)
+    seo_watcher: { time: 10, cost: 0.001 },     // SEO monitoring (~1000 tokens)
+    knowledge_curator: { time: 12, cost: 0.0015 }, // Knowledge retrieval (~1200 tokens)
+    kpi: { time: 8, cost: 0.001 },              // KPI analysis (~800 tokens)
+    planner: { time: 20, cost: 0.003 },         // Content planning (core, ~2000 tokens)
+    creator_text: { time: 25, cost: 0.004 },    // Text generation (core, ~2500 tokens)
+    creator_image: { time: 30, cost: 0.02 },    // Image generation (DALL-E/Imagen API)
+    creator_video: { time: 60, cost: 0.05 },    // Video generation (API intensive)
+    compliance: { time: 10, cost: 0.001 },      // Compliance check (~1000 tokens)
+    seo_optimizer: { time: 12, cost: 0.0015 },  // SEO optimization (~1200 tokens)
+    evaluator: { time: 15, cost: 0.002 },       // Quality evaluation (~1500 tokens)
+    manager: { time: 10, cost: 0.001 }          // Final coordination (~1000 tokens)
 };
 
 function updateStats() {
