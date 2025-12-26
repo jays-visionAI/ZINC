@@ -2240,22 +2240,50 @@ function updateMultiChannelImages(imageUrl) {
 
 // Update Agent Insights circular progress
 function updateContentStats(results) {
-    // SEO Score
-    const seoScore = results?.seo_optimizer?.score || 92;
-    updateCircularProgress('seo', seoScore);
-    document.getElementById('seo-value').textContent = seoScore;
-    document.getElementById('seo-sublabel').textContent = `${seoScore}/100 - Excellent`;
+    console.log('[Studio] updateContentStats called with:', results);
 
-    // Compliance
-    const complianceScore = results?.compliance?.score || 100;
-    updateCircularProgress('compliance', complianceScore);
-    document.getElementById('compliance-value').textContent = complianceScore;
-    document.getElementById('compliance-sublabel').textContent = 'Status: Passed -';
-    document.getElementById('compliance-sublabel').classList.add('passed');
+    // SEO Score - from seo_optimizer agent
+    const seoResult = results?.seo_optimizer;
+    const seoScore = seoResult?.score ?? seoResult?.seoScore ?? null;
 
-    // Show checkmark
-    const checkmark = document.getElementById('compliance-check');
-    if (checkmark) checkmark.style.display = 'flex';
+    if (seoScore !== null) {
+        updateCircularProgress('seo', seoScore);
+        document.getElementById('seo-value').textContent = seoScore;
+        const seoLabel = seoScore >= 90 ? 'Excellent' : seoScore >= 70 ? 'Good' : seoScore >= 50 ? 'Fair' : 'Needs Work';
+        document.getElementById('seo-sublabel').textContent = `${seoScore}/100 - ${seoLabel}`;
+    } else {
+        // No data yet
+        updateCircularProgress('seo', 0);
+        document.getElementById('seo-value').textContent = '--';
+        document.getElementById('seo-sublabel').textContent = '--/100 - Waiting';
+    }
+
+    // Compliance - from compliance agent
+    const complianceResult = results?.compliance;
+    const complianceScore = complianceResult?.score ?? complianceResult?.complianceScore ?? null;
+    const compliancePassed = complianceResult?.passed ?? complianceResult?.isCompliant ?? null;
+
+    if (complianceScore !== null) {
+        updateCircularProgress('compliance', complianceScore);
+        document.getElementById('compliance-value').textContent = complianceScore;
+        document.getElementById('compliance-sublabel').textContent = `Status: ${compliancePassed ? 'Passed' : 'Issues Found'}`;
+        document.getElementById('compliance-sublabel').classList.toggle('passed', compliancePassed);
+
+        const checkmark = document.getElementById('compliance-check');
+        if (checkmark) checkmark.style.display = compliancePassed ? 'flex' : 'none';
+    } else if (compliancePassed !== null) {
+        // Boolean result only
+        updateCircularProgress('compliance', compliancePassed ? 100 : 50);
+        document.getElementById('compliance-value').textContent = compliancePassed ? '100' : '50';
+        document.getElementById('compliance-sublabel').textContent = `Status: ${compliancePassed ? 'Passed' : 'Issues Found'}`;
+        document.getElementById('compliance-sublabel').classList.toggle('passed', compliancePassed);
+    } else {
+        // No data yet
+        updateCircularProgress('compliance', 0);
+        document.getElementById('compliance-value').textContent = '--';
+        document.getElementById('compliance-sublabel').textContent = 'Status: Waiting';
+        document.getElementById('compliance-sublabel').classList.remove('passed');
+    }
 }
 
 // Animate circular progress
