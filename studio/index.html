@@ -742,54 +742,43 @@
         </div>
     </div>
 
-    <!-- Agent Team Settings Modal (Unified with Mission Control) -->
+    <!-- Agent Team Settings Modal (Unified with Mission Control) - 100% Identical -->
     <div id="agent-settings-modal" class="modal-overlay" style="display: none;">
         <div class="modal-container"
             style="max-width: 800px; width: 90%; background: #13131a; border: 1px solid rgba(255,255,255,0.1); max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0,0,0,0.5); border-radius: 16px;">
             <div class="modal-header"
                 style="flex-shrink: 0; border-bottom: 1px solid rgba(255,255,255,0.05); padding: 20px 24px; display: flex; justify-content: space-between; align-items: center;">
-                <h3 class="modal-title" style="margin: 0; font-size: 20px; font-weight: 600; color: #fff;">Agent Team
-                    Settings</h3>
-                <button class="modal-close" onclick="closeAgentSettingsModal()"
-                    style="background:none; border:none; color:#fff; font-size:24px; cursor:pointer;">×</button>
+                <h3 class="modal-title" style="margin: 0; font-size: 20px; font-weight: 600;">Agent Team Settings</h3>
+                <button class="modal-close" onclick="closeAgentSettingsModal()">×</button>
             </div>
             <div class="modal-body" style="overflow-y: auto; flex: 1; padding: 24px;">
-                <div class="form-group" style="margin-bottom: 24px;">
-                    <label class="form-label"
-                        style="display: block; font-size: 14px; font-weight: 500; color: rgba(255,255,255,0.7); margin-bottom: 8px;">🎯
-                        Active Directive (Team Goal)</label>
+                <div class="form-group">
+                    <label class="form-label">🎯 Active Directive (Team Goal)</label>
                     <textarea id="setting-directive" class="form-input" rows="3"
-                        style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; padding: 12px; font-size: 14px; resize: vertical;"
                         placeholder="e.g., Increase brand awareness by posting daily news about AI trends..."></textarea>
-                    <div class="form-helper" style="color: rgba(255,255,255,0.4); font-size: 12px; margin-top: 8px;">
-                        Target specific goals for the entire team to focus on.</div>
+                    <div class="form-helper" style="color: rgba(255,255,255,0.5);">Target specific goals for the entire
+                        team to focus on.</div>
                 </div>
 
                 <div class="form-section-divider"
                     style="height: 1px; background: rgba(255,255,255,0.1); margin: 24px 0;"></div>
 
                 <div class="form-group">
-                    <label class="form-label"
-                        style="display: block; font-size: 14px; font-weight: 500; color: rgba(255,255,255,0.7); margin-bottom: 8px;">🤖
-                        Sub-Agents Configuration</label>
-                    <div class="form-helper"
-                        style="margin-bottom: 16px; color: rgba(255,255,255,0.4); font-size: 12px;">Fine-tune the
+                    <label class="form-label">🤖 Sub-Agents Configuration</label>
+                    <div class="form-helper" style="margin-bottom: 12px; color: rgba(255,255,255,0.5);">Fine-tune the
                         behavior and personality of each agent.</div>
                     <div id="setting-subagents-list" style="display: flex; flex-direction: column; gap: 16px;">
                         <!-- Dynamic Sub-Agents -->
-                        <div class="loading-state"
-                            style="color: rgba(255,255,255,0.5); text-align: center; padding: 20px;">Loading
-                            sub-agents...</div>
+                        <div class="loading-state">Loading sub-agents...</div>
                     </div>
                 </div>
             </div>
             <div class="modal-footer"
                 style="flex-shrink: 0; border-top: 1px solid rgba(255,255,255,0.08); background: #13131a; padding: 20px 24px; display: flex; justify-content: center; gap: 16px;">
                 <button class="btn-secondary" onclick="closeAgentSettingsModal()"
-                    style="flex: 1; max-width: 200px; padding: 12px 24px; border-radius: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; cursor: pointer;">Cancel</button>
+                    style="flex: 1; max-width: 200px; padding: 12px 24px; border-radius: 10px;">Cancel</button>
                 <button class="btn-primary" onclick="saveAgentSettings()"
-                    style="flex: 1; max-width: 200px; padding: 12px 24px; border-radius: 10px; background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%); border: none; color: #fff; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);">Save
-                    Changes</button>
+                    style="flex: 1; max-width: 200px; padding: 12px 24px; border-radius: 10px;">Save Changes</button>
             </div>
         </div>
     </div>

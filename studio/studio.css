@@ -2215,15 +2215,15 @@
     letter-spacing: 0.5px;
 }
 
-/* Agent Settings Modal Unified Styles */
+/* Agent Settings Modal Unified Styles - 100% Identical to Mission Control */
 .modal-overlay {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.85);
-    backdrop-filter: blur(8px);
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(12px);
     z-index: 9999;
     display: none;
     align-items: center;
@@ -2238,11 +2238,57 @@
 
 #agent-settings-modal .modal-container {
     transform: translateY(20px);
-    transition: transform 0.3s ease;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 #agent-settings-modal.open .modal-container {
     transform: translateY(0);
+}
+
+#agent-settings-modal .modal-close {
+    background: #1a1a24;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    font-size: 22px;
+    font-weight: bold;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    line-height: 1;
+}
+
+#agent-settings-modal .modal-close:hover {
+    background: #2a2a3a;
+    border-color: rgba(255, 255, 255, 0.25);
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.1);
+}
+
+/* Textarea Resize Handle */
+#agent-settings-modal textarea,
+.sub-agent-prompt {
+    resize: vertical;
+    padding-bottom: 14px;
+    position: relative;
+}
+
+#agent-settings-modal textarea::-webkit-resizer,
+.sub-agent-prompt::-webkit-resizer {
+    background:
+        linear-gradient(135deg, transparent 0%, transparent 30%,
+            rgba(255, 255, 255, 0.25) 30%, rgba(255, 255, 255, 0.25) 40%,
+            transparent 40%, transparent 50%,
+            rgba(255, 255, 255, 0.25) 50%, rgba(255, 255, 255, 0.25) 60%,
+            transparent 60%, transparent 70%,
+            rgba(255, 255, 255, 0.25) 70%, rgba(255, 255, 255, 0.25) 80%,
+            transparent 80%);
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 0 0 8px 0;
+    cursor: nwse-resize;
 }
 
 .sub-agent-setting-card {

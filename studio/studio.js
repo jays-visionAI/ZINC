@@ -31,9 +31,9 @@ const WORKFLOW_TEMPLATES = {
         name: '🏆 Deep Dive (Full)',
         description: '12명 전체 에이전트 정밀 가동',
         agents: ['research', 'seo_watcher', 'knowledge_curator', 'kpi', 'planner',
-            'creator_text', 'creator_image',
+            'creator_text', 'creator_image', 'creator_video',
             'compliance', 'seo_optimizer', 'evaluator', 'manager'],
-        contentTypes: ['text', 'image'],
+        contentTypes: ['text', 'image', 'video'],
         estimatedTime: '5min',
         estimatedCost: 0.25,
     },
@@ -1068,22 +1068,47 @@ async function loadSubAgents(teamId) {
             console.log('Loaded sub-agents from Instance:', subAgents);
             updateAgentRosterUI(subAgents);
             await updatePreviewChannel(teamId);
-        } else {
+        } else if (teamData.roles && Array.isArray(teamData.roles)) {
             // 2. Fallback: Try agentTeams collection (Structure with 'roles' array)
-            console.log('No sub-agents in Instance, checking agentTeams...');
-            if (teamData.roles && Array.isArray(teamData.roles)) {
-                teamData.roles.forEach(role => {
-                    subAgents.push({
-                        id: role.type,
-                        role_type: role.type,
-                        name: role.name,
-                    });
+            console.log('No sub-agents in Instance, checking agentTeams roles...');
+            teamData.roles.forEach(role => {
+                subAgents.push({
+                    id: role.type,
+                    role_type: role.type,
+                    name: role.name,
                 });
+            });
 
-                console.log('Loaded sub-agents from Team Template:', subAgents);
-                updateAgentRosterUI(subAgents);
-                await updatePreviewChannel(teamId);
-            }
+            console.log('Loaded sub-agents from Team Template:', subAgents);
+            updateAgentRosterUI(subAgents);
+            await updatePreviewChannel(teamId);
+        } else {
+            // 3. Final Fallback: Standard 12 agents (Unified Brain Rule)
+            console.log('[Studio] Defaulting to standard 12 agents for roster...');
+            const standardRoles = [
+                { id: 'research', role: 'researcher', name: 'Research' },
+                { id: 'seo_watcher', role: 'seo_watcher', name: 'SEO Watcher' },
+                { id: 'knowledge_curator', role: 'knowledge_curator', name: 'Knowledge Curator' },
+                { id: 'kpi', role: 'kpi_advisor', name: 'KPI Advisor' },
+                { id: 'planner', role: 'planner', name: 'Planner' },
+                { id: 'creator_text', role: 'writer', name: 'Text Creator' },
+                { id: 'creator_image', role: 'image_creator', name: 'Image Creator' },
+                { id: 'creator_video', role: 'video_planner', name: 'Video Planner' },
+                { id: 'compliance', role: 'compliance', name: 'Compliance' },
+                { id: 'seo_optimizer', role: 'seo_optimizer', name: 'SEO Optimizer' },
+                { id: 'evaluator', role: 'evaluator', name: 'Evaluator' },
+                { id: 'manager', role: 'manager', name: 'Manager' }
+            ];
+            subAgents = standardRoles.map((r, i) => ({
+                id: r.id,
+                role: r.role,
+                role_type: r.id,
+                name: r.name,
+                display_order: i
+            }));
+
+            updateAgentRosterUI(subAgents);
+            await updatePreviewChannel(teamId);
         }
 
         // ✨ Phase 1: Automatically store in state for DAG Executor (No modal required)
@@ -1324,7 +1349,7 @@ function updateAgentRosterUI(subAgents) {
             subAgentMap[agentId.replace('_curator', '')] ||
             subAgentMap[agentId.replace('_optimizer', '')];
 
-        if (isInTeam) {
+        if (isInTeam || subAgents.length >= 10) { // If it's a full team or found in team
             card.classList.add('active');
             card.classList.remove('disabled');
         } else {
@@ -2923,6 +2948,9 @@ let currentSettingsProjectId = null;
 /**
  * Open the Team Settings modal and load data - Mission Control Style
  */
+/**
+ * Open the Team Settings modal and load data - Mission Control Style (100% Identical)
+ */
 window.openTeamSettingsModal = async function () {
     const modal = document.getElementById('agent-settings-modal');
     if (!modal) return;
@@ -2940,74 +2968,115 @@ window.openTeamSettingsModal = async function () {
 
     // Diagnostics for logging
     const projId = state.selectedProject;
-    const teamId = state.selectedAgentTeam;
 
-    console.log('[Studio] openTeamSettingsModal invoked:', { projId, teamId });
+    console.log('[Studio] openTeamSettingsModal invoked:', { projId });
 
     if (!projId) {
         addLogEntry('⚠️ No project active. Please select a project at the top.', 'warning');
         return;
     }
 
-    if (!teamId) {
-        addLogEntry('⚠️ Agent Team not identified. Attempting to reload...', 'info');
-        // Try to trigger a reload of teams to fix this automatically
-        try {
-            await loadAgentTeams(projId);
-            if (state.selectedAgentTeam) {
-                addLogEntry('✅ Agent Team recovered successfully.', 'success');
-            } else {
-                addLogEntry('❌ Failed to find an active Agent Team for this project.', 'error');
-                return;
-            }
-        } catch (e) {
-            addLogEntry('❌ Error recovering team: ' + e.message, 'error');
-            return;
-        }
-    }
-
-    currentSettingsProjectId = state.selectedProject;
-    currentSettingsTeamId = state.selectedAgentTeam;
-
     const directiveInput = document.getElementById('setting-directive');
     const subAgentsList = document.getElementById('setting-subagents-list');
 
-    // Show modal
+    // Show modal with loading state
     modal.style.display = 'flex';
     requestAnimationFrame(() => {
         modal.classList.add('open');
     });
 
     directiveInput.value = 'Loading...';
-    subAgentsList.innerHTML = '<div style="color: rgba(255,255,255,0.5); text-align: center; padding: 20px;">Loading configuration...</div>';
+    subAgentsList.innerHTML = '<div class="loading-state" style="color: rgba(255,255,255,0.5); text-align: center; padding: 20px;">Loading configuration...</div>';
 
     try {
         const db = firebase.firestore();
 
-        // 1. Load Directive from PROJECT (Unified Brain)
-        const projectDoc = await db.collection('projects').doc(currentSettingsProjectId).get();
+        // 1. Load Project Data
+        const projectDoc = await db.collection('projects').doc(projId).get();
         if (!projectDoc.exists) throw new Error('Project not found');
 
         const projectData = projectDoc.data();
+
+        // 2. Load Directive from project-level
         directiveInput.value = projectData.teamDirective || '';
 
-        // 2. Load Sub-Agents from Core Team
-        const coreTeamId = projectData.coreAgentTeamInstanceId || currentSettingsTeamId;
-        const subAgentsSnap = await db.collection('projectAgentTeamInstances')
-            .doc(coreTeamId)
-            .collection('subAgents')
-            .orderBy('display_order', 'asc')
-            .get();
+        // 3. Load Sub-Agents from Core Team
+        let coreTeamId = projectData.coreAgentTeamInstanceId;
 
-        const subAgents = [];
-        subAgentsSnap.forEach(doc => subAgents.push({ id: doc.id, ...doc.data() }));
+        // Fallback: If no coreAgentTeamInstanceId, try to find the team instance for this project
+        if (!coreTeamId) {
+            console.warn('[Studio] No coreAgentTeamInstanceId found on project. Searching for team instance...');
+            const teamSnap = await db.collection('projectAgentTeamInstances')
+                .where('projectId', '==', projId)
+                .limit(1)
+                .get();
 
-        // 3. Render Sub-Agents
+            if (!teamSnap.empty) {
+                coreTeamId = teamSnap.docs[0].id;
+                console.log('[Studio] Found team instance via search:', coreTeamId);
+            }
+        }
+
+        let subAgents = [];
+        if (coreTeamId) {
+            const teamDoc = await db.collection('projectAgentTeamInstances').doc(coreTeamId).get();
+            const teamData = teamDoc.exists ? teamDoc.data() : {};
+
+            const subAgentsSnap = await db.collection('projectAgentTeamInstances')
+                .doc(coreTeamId)
+                .collection('subAgents')
+                .orderBy('display_order', 'asc')
+                .get();
+
+            if (!subAgentsSnap.empty) {
+                subAgentsSnap.forEach(doc => subAgents.push({ id: doc.id, ...doc.data() }));
+            } else if (teamData.roles && Array.isArray(teamData.roles)) {
+                // Fallback to roles array if sub-agents subcollection is missing
+                subAgents = teamData.roles.map(role => ({
+                    id: role.type,
+                    role: role.type,
+                    role_name: role.name,
+                    system_prompt: role.prompt || ''
+                }));
+            }
+        }
+
+        // 4. Final Fallback: If still empty, use the standard 12 agents (Unified Brain Rule)
+        if (subAgents.length === 0) {
+            console.log('[Studio] Defaulting to standard 12 agents roster...');
+            const standardRoles = [
+                { id: 'research', role: 'researcher', name: 'Research' },
+                { id: 'seo_watcher', role: 'seo_watcher', name: 'SEO Watcher' },
+                { id: 'knowledge_curator', role: 'knowledge_curator', name: 'Knowledge Curator' },
+                { id: 'kpi', role: 'kpi_advisor', name: 'KPI Advisor' },
+                { id: 'planner', role: 'planner', name: 'Planner' },
+                { id: 'creator_text', role: 'writer', name: 'Text Creator' },
+                { id: 'creator_image', role: 'image_creator', name: 'Image Creator' },
+                { id: 'creator_video', role: 'video_planner', name: 'Video Planner' },
+                { id: 'compliance', role: 'compliance', name: 'Compliance' },
+                { id: 'seo_optimizer', role: 'seo_optimizer', name: 'SEO Optimizer' },
+                { id: 'evaluator', role: 'evaluator', name: 'Evaluator' },
+                { id: 'manager', role: 'manager', name: 'Manager' }
+            ];
+            subAgents = standardRoles.map((r, i) => ({
+                id: r.id,
+                role: r.role,
+                role_name: r.name,
+                display_order: i,
+                system_prompt: ''
+            }));
+        }
+
+        // 5. Render Sub-Agents
         renderSettingsSubAgents(subAgents);
+
+        // Store for save function
+        currentSettingsProjectId = projId;
+        currentSettingsTeamId = coreTeamId;
 
     } catch (error) {
         console.error('[Studio] Error loading settings:', error);
-        addLogEntry('❌ Failed to load agent settings: ' + error.message, 'error');
+        addLogEntry('❌ Failed to load settings: ' + error.message, 'error');
         closeAgentSettingsModal();
     }
 };
@@ -3026,39 +3095,62 @@ window.closeAgentSettingsModal = function () {
 };
 
 /**
- * Render sub-agent configuration list in modal
+ * Render sub-agent configuration list in modal - 100% Identical to Mission Control
  */
 function renderSettingsSubAgents(subAgents) {
     const list = document.getElementById('setting-subagents-list');
     if (!list) return;
 
     if (subAgents.length === 0) {
-        list.innerHTML = '<div style="color: rgba(255,255,255,0.5); text-align: center; padding: 20px;">No sub-agents found.</div>';
+        list.innerHTML = '<div class="empty-state" style="color: rgba(255,255,255,0.5); text-align: center; padding: 40px; border: 1px dashed rgba(255,255,255,0.1); border-radius: 12px;">No sub-agents found.</div>';
         return;
     }
 
+    // Role-based placeholders for better UX
+    const placeholders = {
+        'researcher': 'e.g., Search for latest tech news from reliable sources like TechCrunch and The Verge. Focus on AI developments...',
+        'writer': 'e.g., Write in a professional yet engaging tone. Use emojis sparingly. Avoid jargon...',
+        'planner': 'e.g., Create a content plan that balances educational posts with promotional content. Schedule posts for optimal times...',
+        'reviewer': 'e.g., Check for grammatical errors and ensure the tone matches our brand voice. Verify all facts...',
+        'default': 'e.g., define the specific tasks and behavioral guidelines for this agent...'
+    };
+
     list.innerHTML = subAgents.map(agent => {
+        const roleKey = (agent.role || '').toLowerCase();
+        // Find best matching placeholder
+        let placeholder = placeholders['default'];
+        if (roleKey.includes('research') || roleKey.includes('search')) placeholder = placeholders['researcher'];
+        else if (roleKey.includes('writ') || roleKey.includes('copy')) placeholder = placeholders['writer'];
+        else if (roleKey.includes('plan') || roleKey.includes('strateg')) placeholder = placeholders['planner'];
+        else if (roleKey.includes('review') || roleKey.includes('compliance')) placeholder = placeholders['reviewer'];
+
         return `
-        <div class="sub-agent-setting-card" style="background: rgba(255,255,255,0.03); padding: 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08);">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+        <div class="sub-agent-setting-card" style="background: rgba(255,255,255,0.03); padding: 20px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
                 <div>
-                    <div style="font-weight: 600; color: #fff; font-size: 15px; margin-bottom: 2px;">${agent.role_name || agent.role || 'Unnamed Agent'}</div>
-                    <div style="font-size: 11px; color: rgba(255,255,255,0.4); display: flex; align-items: center; gap: 4px;">
+                    <div style="font-weight: 600; color: #fff; font-size: 16px; margin-bottom: 4px;">${agent.role_name || agent.role}</div>
+                    <div style="font-size: 12px; color: rgba(255,255,255,0.4); display: flex; align-items: center; gap: 6px;">
                         <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #3B82F6;"></span>
-                        ${agent.model_id || 'Gemini 2.0 Flash'}
+                        ${agent.model_id || 'Default Model'}
                     </div>
                 </div>
-                <div style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-size: 10px; color: rgba(255,255,255,0.6);">
-                    ${agent.id || 'Agent'}
+                <div style="background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; font-size: 11px; color: rgba(255,255,255,0.7);">
+                    ${agent.role || 'Agent'}
                 </div>
             </div>
             
             <div class="form-group">
-                <label style="display: block; font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 6px;">📝 Behavior Instructions (System Prompt)</label>
-                <textarea class="sub-agent-prompt" 
+                <label class="form-label" style="display: block; font-size: 13px; color: rgba(255,255,255,0.9); margin-bottom: 6px;">
+                    📝 Behavior Instructions (System Prompt)
+                </label>
+                <div style="font-size: 11px; color: rgba(255,255,255,0.5); margin-bottom: 8px;">
+                    Define how this agent should act, its personality, and specific rules to follow.
+                </div>
+                <textarea class="form-input sub-agent-prompt" 
                     data-id="${agent.id}" 
-                    style="width: 100%; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: #fff; padding: 10px; font-size: 12px; font-family: monospace; resize: vertical;"
-                    rows="4">${agent.system_prompt || ''}</textarea>
+                    rows="5" 
+                    style="width: 100%; font-size: 13px; font-family: 'Menlo', 'Monaco', 'Courier New', monospace; line-height: 1.5; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; padding: 12px; resize: vertical;"
+                    placeholder="${placeholder}">${agent.system_prompt || ''}</textarea>
             </div>
         </div>
         `;
@@ -3066,7 +3158,7 @@ function renderSettingsSubAgents(subAgents) {
 }
 
 /**
- * Save Agent Settings to Firestore and Update Local State
+ * Save Agent Settings - 100% Identical to Mission Control
  */
 window.saveAgentSettings = async function () {
     if (!currentSettingsProjectId) return;
@@ -3090,9 +3182,7 @@ window.saveAgentSettings = async function () {
         });
 
         // 2. Update Sub-Agents
-        const projectDoc = await projectRef.get();
-        const coreTeamId = projectDoc.data()?.coreAgentTeamInstanceId || currentSettingsTeamId;
-        const teamRef = db.collection('projectAgentTeamInstances').doc(coreTeamId);
+        const teamRef = db.collection('projectAgentTeamInstances').doc(currentSettingsTeamId);
 
         const promptInputs = document.querySelectorAll('.sub-agent-prompt');
         const updatedSubAgents = [];
@@ -3112,7 +3202,7 @@ window.saveAgentSettings = async function () {
 
         await batch.commit();
 
-        // 3. Update Local State and DAG Executor
+        // 🧠 Sync to local executor state
         if (state.executor) {
             state.executor.setTeamContext({
                 directive: directive,
@@ -3120,8 +3210,8 @@ window.saveAgentSettings = async function () {
             });
         }
 
-        addLogEntry('✅ Settings saved and synchronized', 'success');
-        closeAgentSettingsModal();
+        addLogEntry('✅ Settings saved successfully!', 'success');
+        window.closeAgentSettingsModal();
 
     } catch (error) {
         console.error('[Studio] Error saving settings:', error);
