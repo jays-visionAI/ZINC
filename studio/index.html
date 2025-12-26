@@ -47,7 +47,8 @@
                         <option value="">Select Project...</option>
                     </select>
                 </div>
-                <!-- Agent Team selector removed: Auto-loaded from project -->
+                <!-- Hidden selector for compatibility with legacy scripts -->
+                <select id="agentteam-select" style="display: none;"></select>
             </div>
         </div>
 
@@ -807,7 +808,7 @@
     <!-- Studio Scripts -->
     <script src="../utils-channel-profiles.js"></script>
     <script src="dag-executor.js"></script>
-    <script src="studio.js?v=tabbed_preview_v1"></script>
+    <script src="studio.js?v=unified_brain_v2"></script>
 
     <!-- ZYNK AI Chatbot -->
     <link rel="stylesheet" href="../chatbot.css">

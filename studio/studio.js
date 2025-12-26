@@ -2927,36 +2927,47 @@ window.openTeamSettingsModal = async function () {
     const modal = document.getElementById('agent-settings-modal');
     if (!modal) return;
 
-    // Debugging current state
-    console.log('[Studio] Opening Brain Settings. Current State:', {
-        selectedProject: state.selectedProject,
-        selectedAgentTeam: state.selectedAgentTeam
-    });
-
-    // Proactive state recovery: If variables are empty but UI shows selected values, try to recover
+    // Proactive state recovery: Try to find IDs from all possible sources
     if (!state.selectedProject) {
         state.selectedProject = document.getElementById('project-select')?.value || localStorage.getItem('currentProjectId');
+        if (state.selectedProject) console.log('[Studio] Recovered selectedProject from UI/Storage:', state.selectedProject);
     }
+
     if (!state.selectedAgentTeam) {
         state.selectedAgentTeam = document.getElementById('agentteam-select')?.value;
+        if (state.selectedAgentTeam) console.log('[Studio] Recovered selectedAgentTeam from UI:', state.selectedAgentTeam);
+    }
+
+    // Diagnostics for logging
+    const projId = state.selectedProject;
+    const teamId = state.selectedAgentTeam;
+
+    console.log('[Studio] openTeamSettingsModal invoked:', { projId, teamId });
+
+    if (!projId) {
+        addLogEntry('⚠️ No project active. Please select a project at the top.', 'warning');
+        return;
+    }
+
+    if (!teamId) {
+        addLogEntry('⚠️ Agent Team not identified. Attempting to reload...', 'info');
+        // Try to trigger a reload of teams to fix this automatically
+        try {
+            await loadAgentTeams(projId);
+            if (state.selectedAgentTeam) {
+                addLogEntry('✅ Agent Team recovered successfully.', 'success');
+            } else {
+                addLogEntry('❌ Failed to find an active Agent Team for this project.', 'error');
+                return;
+            }
+        } catch (e) {
+            addLogEntry('❌ Error recovering team: ' + e.message, 'error');
+            return;
+        }
     }
 
     currentSettingsProjectId = state.selectedProject;
     currentSettingsTeamId = state.selectedAgentTeam;
-
-    if (!currentSettingsProjectId) {
-        addLogEntry('⚠️ No project selected. Please select a project first.', 'warning');
-        return;
-    }
-
-    if (!currentSettingsTeamId) {
-        addLogEntry('⚠️ No agent team selected for this project.', 'warning');
-        // Try to trigger a reload of teams to fix this
-        await loadAgentTeams(currentSettingsProjectId);
-        currentSettingsTeamId = state.selectedAgentTeam;
-
-        if (!currentSettingsTeamId) return; // Still failed
-    }
 
     const directiveInput = document.getElementById('setting-directive');
     const subAgentsList = document.getElementById('setting-subagents-list');
