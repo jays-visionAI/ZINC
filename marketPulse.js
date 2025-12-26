@@ -1449,6 +1449,10 @@ class BrandHealthIntelligence {
     }
 
     animateMetrics() {
+        if (!this.analysisResults) {
+            console.error('[BrandHealth] Cannot animate: analysisResults is undefined');
+            return;
+        }
         const { score, metrics } = this.analysisResults;
         this.updateStatus('SYNTHESIZING FINAL HEALTH SCORE...', 'indigo');
 
@@ -1548,17 +1552,33 @@ class BrandHealthIntelligence {
             snapshot.forEach(doc => {
                 const data = doc.data();
                 const date = data.createdAt ? data.createdAt.toDate().toLocaleDateString() : 'Just now';
+                const projectName = data.projectName || currentProjectData?.projectName || 'Project';
+                const score = data.score || 0;
+
+                // Reconstruct results if missing (e.g., legacy or Brand Brain entries)
+                const results = data.results || {
+                    score: score,
+                    sentiment: { positive: data.breakdown?.sentiment ? Math.floor((data.breakdown.sentiment / 30) * 100) : 70, neutral: 20, negative: 10 },
+                    topics: ['Synchronized from Brand Brain'],
+                    metrics: {
+                        awareness: data.breakdown?.awareness ? Math.floor((data.breakdown.awareness / 25) * 100) : score,
+                        authority: data.breakdown?.engagement ? Math.floor((data.breakdown.engagement / 20) * 100) : score,
+                        fit: data.breakdown?.consistency ? Math.floor((data.breakdown.consistency / 10) * 100) : score
+                    },
+                    narrative: "This record was captured via the Brand Brain monitoring system. No detailed strategic narrative was generated at the time of this snapshot."
+                };
+
                 const el = document.createElement('div');
                 el.className = 'p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-indigo-500/30 transition-all cursor-pointer group animate-in slide-in-from-left-4';
                 el.innerHTML = `
                     <div class="flex items-center justify-between mb-2">
                         <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">${date}</span>
-                        <span class="text-xs font-black text-indigo-400">${data.score} pts</span>
+                        <span class="text-xs font-black text-indigo-400">${score} pts</span>
                     </div>
-                    <div class="text-[11px] font-bold text-slate-300 group-hover:text-white truncate">${data.projectName} Snapshot</div>
+                    <div class="text-[11px] font-bold text-slate-300 group-hover:text-white truncate">${projectName} Snapshot</div>
                 `;
                 el.onclick = () => {
-                    this.analysisResults = data.results;
+                    this.analysisResults = results;
                     this.currentStep = 3;
                     this.updateUIForStep();
                     this.animateMetrics();

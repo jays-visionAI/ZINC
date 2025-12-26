@@ -1712,6 +1712,7 @@ async function saveBrandHealthHistory(total, breakdown) {
             .add({
                 score: total,
                 breakdown: breakdown,
+                projectName: document.getElementById('project-select')?.options[document.getElementById('project-select').selectedIndex]?.text || 'Project',
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
     } catch (e) { console.error('Error saving health history', e); }
