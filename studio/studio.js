@@ -1391,76 +1391,23 @@ function getSelectedAgents() {
 // STATS UPDATE
 // ============================================
 
-// Agent-specific time and token estimates (tokens per agent call)
+// Agent-specific time and cost estimates (직접 API 원가)
+// 현재 Global Routing Default: Gemini 2.0 Flash (거의 무료)
+// Image: DALL-E 3 or Imagen (per image cost)
 const AGENT_ESTIMATES = {
-    research: { time: 15, tokens: 1500 },        // Web search + analysis
-    seo_watcher: { time: 10, tokens: 1000 },     // SEO monitoring
-    knowledge_curator: { time: 12, tokens: 1200 }, // Knowledge retrieval
-    kpi: { time: 8, tokens: 800 },               // KPI analysis
-    planner: { time: 20, tokens: 2000 },         // Content planning (core)
-    creator_text: { time: 25, tokens: 2500 },    // Text generation (core)
-    creator_image: { time: 30, tokens: 0, imageCost: 0.02 },  // Image generation (fixed cost)
-    creator_video: { time: 60, tokens: 0, videoCost: 0.05 },  // Video generation (fixed cost)
-    compliance: { time: 10, tokens: 1000 },      // Compliance check
-    seo_optimizer: { time: 12, tokens: 1200 },   // SEO optimization
-    evaluator: { time: 15, tokens: 1500 },       // Quality evaluation
-    manager: { time: 10, tokens: 1000 }          // Final coordination
+    research: { time: 15, cost: 0.0001 },        // Gemini: 거의 무료
+    seo_watcher: { time: 10, cost: 0.0001 },     // Gemini: 거의 무료
+    knowledge_curator: { time: 12, cost: 0.0001 }, // Gemini: 거의 무료
+    kpi: { time: 8, cost: 0.0001 },              // Gemini: 거의 무료
+    planner: { time: 20, cost: 0.0002 },         // Gemini: 거의 무료
+    creator_text: { time: 25, cost: 0.0002 },    // Gemini: 거의 무료
+    creator_image: { time: 30, cost: 0.04 },     // DALL-E 3: $0.04/image (1024x1024)
+    creator_video: { time: 60, cost: 0.10 },     // Video API: ~$0.10/clip
+    compliance: { time: 10, cost: 0.0001 },      // Gemini: 거의 무료
+    seo_optimizer: { time: 12, cost: 0.0001 },   // Gemini: 거의 무료
+    evaluator: { time: 15, cost: 0.0001 },       // Gemini: 거의 무료
+    manager: { time: 10, cost: 0.0001 }          // Gemini: 거의 무료
 };
-
-// Cached model pricing from Global Routing Defaults
-let cachedModelPricing = null;
-
-async function loadModelPricing() {
-    if (cachedModelPricing) return cachedModelPricing;
-
-    try {
-        const db = firebase.firestore();
-
-        // Load Global Routing Defaults
-        const llmConfigDoc = await db.collection('systemSettings').doc('llmConfig').get();
-        if (!llmConfigDoc.exists) {
-            console.warn('[Studio] llmConfig not found, using fallback pricing');
-            return { costPer1kTokens: 0.0004 }; // Fallback to GPT-4o-mini pricing
-        }
-
-        const defaultModels = llmConfigDoc.data().defaultModels;
-        const textConfig = defaultModels?.text?.default || defaultModels?.text;
-        const modelId = textConfig?.model || 'gpt-4o-mini';
-
-        // Load model pricing
-        const modelDoc = await db.collection('systemLLMModels').doc(modelId).get();
-        if (modelDoc.exists) {
-            const modelData = modelDoc.data();
-            const inputCost = modelData.costPer1kInputTokens || 0;
-            const outputCost = modelData.costPer1kOutputTokens || 0;
-            // Average input/output cost (assume 50/50 split)
-            cachedModelPricing = {
-                costPer1kTokens: (inputCost + outputCost) / 2,
-                modelName: modelData.displayName || modelId
-            };
-        } else {
-            // Fallback pricing based on known models
-            const knownPricing = {
-                'gemini-2.0-flash-exp': 0,
-                'gemini-2.5-flash': 0.00025,
-                'gpt-4o-mini': 0.000375,
-                'gpt-4o': 0.00625,
-                'claude-3-5-sonnet-20241022': 0.009,
-                'deepseek-chat': 0.00014
-            };
-            cachedModelPricing = {
-                costPer1kTokens: knownPricing[modelId] || 0.0004,
-                modelName: modelId
-            };
-        }
-
-        console.log('[Studio] Model pricing loaded:', cachedModelPricing);
-        return cachedModelPricing;
-    } catch (error) {
-        console.error('[Studio] Error loading model pricing:', error);
-        return { costPer1kTokens: 0.0004 };
-    }
-}
 
 async function updateStats() {
     const selectedAgents = getSelectedAgents();
@@ -1468,9 +1415,6 @@ async function updateStats() {
 
     // Update agent count display
     document.getElementById('stats-agents').textContent = `${selectedAgents.length}/${totalAgents} agents`;
-
-    // Load pricing from Global Routing Defaults
-    const pricing = await loadModelPricing();
 
     // Calculate time and cost based on selected agents
     let totalTimeSeconds = 0;
@@ -1480,18 +1424,11 @@ async function updateStats() {
         const estimate = AGENT_ESTIMATES[agentId];
         if (estimate) {
             totalTimeSeconds += estimate.time;
-
-            // Token-based cost calculation
-            if (estimate.tokens > 0) {
-                totalCost += (estimate.tokens / 1000) * pricing.costPer1kTokens;
-            }
-            // Fixed costs (image/video)
-            if (estimate.imageCost) totalCost += estimate.imageCost;
-            if (estimate.videoCost) totalCost += estimate.videoCost;
+            totalCost += estimate.cost;
         } else {
             // Default fallback for unknown agents
             totalTimeSeconds += 15;
-            totalCost += (1000 / 1000) * pricing.costPer1kTokens;
+            totalCost += 0.0001;
         }
     });
 
