@@ -265,7 +265,24 @@ function updateDashboardWithRealTimeData(data) {
         if (dom.sentimentNegBar) dom.sentimentNegBar.style.width = `${negative}%`;
     }
 
-    // 5. Update Status
+    // 5. Update Growth %
+    const growthEl = document.getElementById('mention-growth');
+    if (growthEl && data.mentions) {
+        const growth = data.mentions.growth || 0;
+        growthEl.textContent = `${growth >= 0 ? '+' : ''}${growth}%`;
+    }
+
+    // 6. Alert Handling
+    const alertBanner = document.getElementById('alert-banner');
+    if (data.alerts && data.alerts.length > 0) {
+        if (alertBanner) alertBanner.style.display = 'block';
+        if (dom.alertTitle) dom.alertTitle.textContent = data.alerts[0].title;
+        if (dom.alertDesc) dom.alertDesc.textContent = data.alerts[0].description;
+    } else {
+        if (alertBanner) alertBanner.style.display = 'none';
+    }
+
+    // 7. Update Status
     const statusBadge = document.getElementById('lab-status-badge');
     if (statusBadge) {
         statusBadge.className = "px-3 py-1 bg-blue-500/10 text-blue-400 text-[10px] font-bold rounded-full border border-blue-500/20";
@@ -362,7 +379,7 @@ function updateDashboardWithProjectData(data) {
         statusBadge.textContent = t('market.status.ready');
     }
 
-    // 3. Update Brand Stats (Dynamic based on project)
+    // 3. Clear Brand Stats (Wait for real data from Scheduler)
     const brandName = data.projectName || data.name || "Your Brand";
 
     // Update Heatmap Label
@@ -371,44 +388,26 @@ function updateDashboardWithProjectData(data) {
         heatmapLabels.forEach(el => el.textContent = brandName.substring(0, 8));
     }
 
-    // Update Mention Count (Mocked stable value for UI)
-    let baseMentions = 1200; // Default fallback
-    if (dom.mentionCount) {
-        // Generate a pseudo-random stable number based on brand name length
-        baseMentions = 500 + (brandName.length * 75);
-        dom.mentionCount.textContent = baseMentions.toLocaleString();
+    // Reset Metrics to neutral state until real data arrives
+    if (dom.mentionCount) dom.mentionCount.textContent = "0";
+    if (document.getElementById('mention-growth')) {
+        document.getElementById('mention-growth').textContent = "0%";
     }
 
-    // Update Sentiment Breakdown (Context-aware pseudo-random)
-    const pos = 60 + Math.floor(Math.random() * 20); // 60-80%
-    const neu = 15 + Math.floor(Math.random() * 10); // 15-25%
-    const neg = 100 - pos - neu;
+    if (dom.sentimentPosVal) dom.sentimentPosVal.textContent = "0%";
+    if (dom.sentimentNeuVal) dom.sentimentNeuVal.textContent = "0%";
+    if (dom.sentimentNegVal) dom.sentimentNegVal.textContent = "0%";
 
-    if (dom.sentimentPosVal) dom.sentimentPosVal.textContent = `${pos}%`;
-    if (dom.sentimentNeuVal) dom.sentimentNeuVal.textContent = `${neu}%`;
-    if (dom.sentimentNegVal) dom.sentimentNegVal.textContent = `${neg}%`;
+    if (dom.sentimentPosBar) dom.sentimentPosBar.style.width = "0%";
+    if (dom.sentimentNeuBar) dom.sentimentNeuBar.style.width = "0%";
+    if (dom.sentimentNegBar) dom.sentimentNegBar.style.width = "0%";
 
-    if (dom.sentimentPosBar) dom.sentimentPosBar.style.width = `${pos}%`;
-    if (dom.sentimentNeuBar) dom.sentimentNeuBar.style.width = `${neu}%`;
-    if (dom.sentimentNegBar) dom.sentimentNegBar.style.width = `${neg}%`;
+    // 4. Hide Alert Banner by default (Wait for backend signals)
+    const alertBanner = document.getElementById('alert-banner');
+    if (alertBanner) alertBanner.style.display = 'none';
 
-    // 4. Update Alert Banner (Context-aware alert)
-    if (dom.alertTitle && dom.alertDesc) {
-        const keywords = data.strategy?.keywords || data.coreIdentity?.keywords || ['Industry'];
-        const keyword = keywords[0] || 'Market';
-
-        dom.alertTitle.textContent = `⚠️ CRITICAL: New '${keyword}' movement detected`;
-        dom.alertDesc.textContent = `Strategic shift in '${keyword}' context • Source: Global Intelligence • Engagement: Trending`;
-    }
-
-    // PHASE 3: Save Snapshot for Brand Brain
-    saveMarketPulseSnapshot(data, {
-        sentiment: { positive: pos, neutral: neu, negative: neg },
-        mentions: { total: baseMentions, growth: 12 },
-        engagement: { score: 78, trend: 'up' }, // Mocked for now (consistent with render)
-        competitors: { rank: 2, gap: 5 },       // Mocked for now
-        keywords: TRENDING_KEYWORDS
-    });
+    // (PHASE 3: We no longer save mock snapshots here. 
+    // Snapshots should only be saved when real research data is processed.)
 }
 
 /**
@@ -1200,5 +1199,395 @@ function showNotification(message, type = 'success') {
     }, 3000);
 }
 
+// ========== BRAND HEALTH INTELLIGENCE CENTER (4-STEP) ==========
+class BrandHealthIntelligence {
+    constructor() {
+        this.currentStep = 1;
+        this.isProcessing = false;
+        this.analysisResults = null;
+        this.history = [];
+        this.dom = {
+            modal: document.getElementById('brand-health-modal'),
+            closeBtn: document.getElementById('close-health-modal'),
+            nextBtn: document.getElementById('health-next-btn'),
+            prevBtn: document.getElementById('health-prev-btn'),
+            stepItems: document.querySelectorAll('.health-step-item'),
+            views: document.querySelectorAll('.health-view'),
+            logs: document.getElementById('health-research-logs'),
+            statusText: document.getElementById('status-text'),
+            statusLight: document.getElementById('status-light'),
+            historyList: document.getElementById('health-history-list'),
+            finalScore: document.getElementById('final-health-score'),
+            scoreRing: document.getElementById('final-score-ring'),
+            narrative: document.getElementById('strategy-narrative')
+        };
+        this.init();
+    }
+
+    init() {
+        if (!this.dom.modal) return;
+
+        // Open Modal Event
+        const openBtn = document.getElementById('btn-open-health-analysis');
+        if (openBtn) {
+            openBtn.addEventListener('click', () => this.openModal());
+        }
+
+        this.dom.closeBtn.addEventListener('click', () => this.closeModal());
+        this.dom.nextBtn.addEventListener('click', () => this.handleNextStep());
+        this.dom.prevBtn.addEventListener('click', () => this.handlePrevStep());
+
+        // Strategy Actions
+        const applyBtn = document.getElementById('btn-apply-narrative');
+        const ignoreBtn = document.getElementById('btn-ignore-narrative');
+
+        if (applyBtn) {
+            applyBtn.addEventListener('click', () => this.applyStrategyToBrandBrain());
+        }
+        if (ignoreBtn) {
+            ignoreBtn.addEventListener('click', () => {
+                showNotification('Analysis saved to History');
+                this.closeModal();
+            });
+        }
+    }
+
+    async applyStrategyToBrandBrain() {
+        if (!currentProjectId || !this.analysisResults) return;
+
+        this.updateStatus('APPLYING STRATEGIC SHIFT...', 'indigo');
+
+        try {
+            // Update Brand Brain strategy
+            await firebase.firestore()
+                .collection('projects')
+                .doc(currentProjectId)
+                .update({
+                    'strategy.narrativeUpdate': this.analysisResults.narrative,
+                    'strategy.lastReputationScore': this.analysisResults.score,
+                    'strategy.updatedAt': firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+            showNotification('⚡ Brand Brain Narrative Successfully Updated!');
+            this.closeModal();
+        } catch (e) {
+            console.error('Failed to apply strategy:', e);
+            showNotification('Failed to update Brand Brain', 'error');
+        }
+    }
+
+    async openModal() {
+        this.dom.modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+        this.resetInternalState();
+        this.loadHistory();
+    }
+
+    closeModal() {
+        this.dom.modal.classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+
+    resetInternalState() {
+        this.currentStep = 1;
+        this.isProcessing = false;
+        this.analysisResults = null;
+        this.updateUIForStep();
+        this.dom.logs.innerHTML = '<div class="opacity-50 italic">> WAITING FOR MISSION START...</div>';
+        this.dom.nextBtn.textContent = 'Start Intelligence Mission';
+        this.dom.nextBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        this.dom.prevBtn.classList.add('opacity-30', 'cursor-not-allowed');
+        this.updateStatus('IDLE: WAITING FOR USER INPUT', 'slate');
+    }
+
+    updateUIForStep() {
+        // Update Step Indicators
+        this.dom.stepItems.forEach(item => {
+            const step = parseInt(item.dataset.step);
+            item.classList.toggle('active', step === this.currentStep);
+            const circle = item.querySelector('.step-circle');
+            if (step < this.currentStep) {
+                circle.classList.add('bg-indigo-600', 'border-indigo-500', 'text-white');
+                circle.innerHTML = '✓';
+            } else if (step === this.currentStep) {
+                circle.classList.add('bg-indigo-500/20', 'border-indigo-500', 'text-indigo-400');
+                circle.innerHTML = step;
+            } else {
+                circle.className = 'w-12 h-12 rounded-full bg-slate-800 border-2 border-slate-700 flex items-center justify-center text-sm font-black text-slate-500 transition-all step-circle';
+                circle.innerHTML = step;
+            }
+        });
+
+        // Update Views
+        this.dom.views.forEach(view => {
+            view.classList.toggle('hidden', view.id !== `health-v-${this.currentStep}`);
+        });
+
+        // Button states
+        this.dom.prevBtn.classList.toggle('opacity-30', this.currentStep === 1);
+        this.dom.prevBtn.classList.toggle('cursor-not-allowed', this.currentStep === 1);
+    }
+
+    async handleNextStep() {
+        if (this.isProcessing) return;
+
+        if (this.currentStep === 4) {
+            this.closeModal();
+            return;
+        }
+
+        if (this.currentStep === 1 && !this.analysisResults) {
+            await this.runFullAnalysis();
+        } else {
+            this.currentStep++;
+            this.updateUIForStep();
+            if (this.currentStep === 3) this.animateMetrics();
+        }
+    }
+
+    handlePrevStep() {
+        if (this.isProcessing || this.currentStep === 1) return;
+        this.currentStep--;
+        this.updateUIForStep();
+    }
+
+    async runFullAnalysis() {
+        this.isProcessing = true;
+        this.dom.nextBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        this.dom.nextBtn.textContent = 'Processing...';
+
+        try {
+            // STEP 1: RESEARCH Simulation
+            await this.simulateResearch();
+
+            // STEP 2: Generate Results
+            this.analysisResults = this.generateAnalysisData();
+
+            // STEP 3: Auto-Advance after short delay
+            setTimeout(() => {
+                this.isProcessing = false;
+                this.currentStep = 2;
+                this.updateUIForStep();
+                this.renderStep2();
+                this.dom.nextBtn.textContent = 'Continue to Metrics';
+                this.dom.nextBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                this.updateStatus('ANALYSIS COMPLETE: CONTEXT DETERMINED', 'emerald');
+            }, 1000);
+
+            // SAVE TO DATABASE
+            this.saveToDatabase();
+
+        } catch (error) {
+            console.error('Analysis failed:', error);
+            this.updateStatus('ERROR: MISSION FAILED', 'red');
+            this.isProcessing = false;
+        }
+    }
+
+    async simulateResearch() {
+        this.updateStatus('RESEARCHING DOMAIN CHANNELS...', 'cyan');
+        this.dom.logs.innerHTML = '';
+        const logs = [
+            'Initializing Health Intelligence Engine v3.0...',
+            'Linking to neural monitoring nodes...',
+            'Targeting project: ' + (currentProjectData?.projectName || 'Untitled'),
+            'Scanning Reddit r/Tech, X Firehose, and specialized domains...',
+            'Extracting sentiment tokens from 420 recent mentions...',
+            'Cross-referencing with Brand Identity directives...',
+            'Calculating competitive delta vs 3 peer projects...',
+            'Finalizing raw data aggregation...'
+        ];
+
+        for (const msg of logs) {
+            const line = document.createElement('div');
+            line.className = 'animate-in fade-in slide-in-from-left-2 duration-300';
+            line.innerHTML = `<span class="text-slate-600">[${new Date().toLocaleTimeString()}]</span> > ${msg}`;
+            this.dom.logs.appendChild(line);
+            this.dom.logs.scrollTop = this.dom.logs.scrollHeight;
+            await new Promise(r => setTimeout(r, 600));
+        }
+
+        // Add some mock source cards
+        const sourcesEl = document.getElementById('health-detected-sources');
+        sourcesEl.innerHTML = '';
+        const sources = [
+            { icon: 'X', color: 'bg-white/10', title: 'Viral Thread on X', hits: 120 },
+            { icon: 'R', color: 'bg-orange-500/20', title: 'Reddit Community FAQ', hits: 85 },
+            { icon: 'W', color: 'bg-cyan-500/20', title: 'Domain Mention: TechCrunch', hits: 12 },
+            { icon: 'D', color: 'bg-blue-500/20', title: 'Discord Sentiment Spike', hits: 240 }
+        ];
+
+        sources.forEach(s => {
+            const card = document.createElement('div');
+            card.className = 'p-4 bg-slate-950 border border-white/5 rounded-xl animate-in zoom-in duration-500';
+            card.innerHTML = `
+                <div class="flex items-center gap-3 mb-2">
+                    <div class="w-8 h-8 ${s.color} rounded flex items-center justify-center font-black text-xs">${s.icon}</div>
+                    <div class="text-[11px] font-bold text-slate-200 truncate">${s.title}</div>
+                </div>
+                <div class="text-[9px] text-slate-500 font-bold uppercase tracking-widest">${s.hits} Signals Detected</div>
+            `;
+            sourcesEl.appendChild(card);
+        });
+    }
+
+    renderStep2() {
+        const { sentiment, topics } = this.analysisResults;
+        document.getElementById('sent-bar-pos').style.height = `${sentiment.positive}%`;
+        document.getElementById('sent-bar-neu').style.height = `${sentiment.neutral}%`;
+        document.getElementById('sent-bar-neg').style.height = `${sentiment.negative}%`;
+        document.getElementById('sentiment-analysis-status').textContent = 'COMPLETED';
+
+        const cloud = document.getElementById('health-topics-cloud');
+        cloud.innerHTML = '';
+        topics.forEach(t => {
+            const chip = document.createElement('div');
+            chip.className = 'px-4 py-2 bg-slate-800 border border-white/5 rounded-full text-[11px] font-bold text-slate-300 animate-in fade-in zoom-in';
+            chip.textContent = t;
+            cloud.appendChild(chip);
+        });
+    }
+
+    animateMetrics() {
+        const { score, metrics } = this.analysisResults;
+        this.updateStatus('SYNTHESIZING FINAL HEALTH SCORE...', 'indigo');
+
+        // Score animation
+        let current = 0;
+        const interval = setInterval(() => {
+            current += 2;
+            if (current >= score) {
+                current = score;
+                clearInterval(interval);
+            }
+            this.dom.finalScore.textContent = current;
+            const offset = 283 - (283 * current) / 100;
+            this.dom.scoreRing.style.strokeDashoffset = offset;
+        }, 30);
+
+        // Grade labeling
+        const rating = score >= 80 ? 'EXCELLENT' : score >= 60 ? 'HEALTHY' : 'WARNING';
+        document.getElementById('reputation-rating').textContent = rating;
+        document.getElementById('reputation-rating').className = `text-[10px] font-bold uppercase tracking-widest mt-2 ${score >= 80 ? 'text-indigo-400' : score >= 60 ? 'text-emerald-400' : 'text-red-400'}`;
+
+        // Bars
+        setTimeout(() => {
+            document.getElementById('metric-visibility').style.width = `${metrics.awareness}%`;
+            document.getElementById('metric-authority').style.width = `${metrics.authority}%`;
+            document.getElementById('metric-sentiment').style.width = `${metrics.fit}%`;
+            document.getElementById('label-aware').textContent = `${metrics.awareness}%`;
+            document.getElementById('label-author').textContent = `${metrics.authority}%`;
+            document.getElementById('label-fit').textContent = `${metrics.fit}%`;
+            this.dom.nextBtn.textContent = 'View Strategy';
+            this.updateStatus('SYSTEM RESTORED: READY FOR STRATEGY', 'slate');
+        }, 500);
+
+        // Narrative
+        this.dom.narrative.textContent = this.analysisResults.narrative;
+    }
+
+    generateAnalysisData() {
+        const base = 75 + Math.floor(Math.random() * 20);
+        return {
+            score: base,
+            sentiment: { positive: 65, neutral: 25, negative: 10 },
+            topics: ['Innovation', 'Community Support', 'UX Design', 'Technical Depth', 'Market Entry', 'Security'],
+            metrics: { awareness: 82, authority: 74, fit: 88 },
+            narrative: "Your current reputation is strongly anchored in 'Innovation'. To maximize growth, the Planner Agent recommends shifting the narrative 15% towards 'Security & Stability' to attract institutional interest. Current community sentiment is prime for an educational campaign."
+        };
+    }
+
+    async saveToDatabase() {
+        if (!currentProjectId || !this.analysisResults) return;
+
+        try {
+            await firebase.firestore()
+                .collection('projects')
+                .doc(currentProjectId)
+                .collection('brandHealthHistory')
+                .add({
+                    score: this.analysisResults.score,
+                    results: this.analysisResults,
+                    // Unified breakdown for Brand Brain Mirroring
+                    breakdown: {
+                        sentiment: Math.floor((this.analysisResults.sentiment.positive / 100) * 30),
+                        awareness: Math.floor((this.analysisResults.metrics.awareness / 100) * 25),
+                        engagement: Math.floor((this.analysisResults.metrics.authority / 100) * 20),
+                        competitive: 12, // Placeholder for AI comparative rank
+                        consistency: Math.floor((this.analysisResults.metrics.fit / 100) * 10)
+                    },
+                    projectName: currentProjectData?.projectName || 'Untitled',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    isIntelligenceReport: true
+                });
+            console.log('[BrandHealth] Analysis saved to database');
+            this.loadHistory();
+        } catch (e) {
+            console.error('Error saving health record:', e);
+        }
+    }
+
+    async loadHistory() {
+        if (!currentProjectId) return;
+
+        try {
+            const snapshot = await firebase.firestore()
+                .collection('projects')
+                .doc(currentProjectId)
+                .collection('brandHealthHistory')
+                .orderBy('createdAt', 'desc')
+                .limit(5)
+                .get();
+
+            this.dom.historyList.innerHTML = '';
+            if (snapshot.empty) {
+                this.dom.historyList.innerHTML = '<div class="p-4 rounded-xl border border-white/5 bg-white/5 opacity-50 text-[11px] text-slate-400 text-center italic">No history yet</div>';
+                return;
+            }
+
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                const date = data.createdAt ? data.createdAt.toDate().toLocaleDateString() : 'Just now';
+                const el = document.createElement('div');
+                el.className = 'p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-indigo-500/30 transition-all cursor-pointer group animate-in slide-in-from-left-4';
+                el.innerHTML = `
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">${date}</span>
+                        <span class="text-xs font-black text-indigo-400">${data.score} pts</span>
+                    </div>
+                    <div class="text-[11px] font-bold text-slate-300 group-hover:text-white truncate">${data.projectName} Snapshot</div>
+                `;
+                el.onclick = () => {
+                    this.analysisResults = data.results;
+                    this.currentStep = 3;
+                    this.updateUIForStep();
+                    this.animateMetrics();
+                    this.dom.nextBtn.textContent = 'View Strategy';
+                };
+                this.dom.historyList.appendChild(el);
+            });
+        } catch (e) {
+            console.error('Error loading health history:', e);
+        }
+    }
+
+    updateStatus(text, color) {
+        this.dom.statusText.textContent = text;
+        const colorMap = {
+            slate: 'bg-slate-600',
+            cyan: 'bg-cyan-500',
+            emerald: 'bg-emerald-500',
+            indigo: 'bg-indigo-500',
+            red: 'bg-red-500'
+        };
+        this.dom.statusLight.className = `w-2.5 h-2.5 rounded-full ${colorMap[color] || 'bg-slate-600'} animate-pulse`;
+    }
+}
+
 // ========== BOOTSTRAP ==========
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', () => {
+    init();
+    // Initialize Health Intelligence Center
+    window.healthCenter = new BrandHealthIntelligence();
+});
+

@@ -1536,6 +1536,42 @@ async function calculateRealBrandHealth(simulationType = null) {
     // REAL DATA FETCH (if not simulating)
     else if (currentProjectId) {
         try {
+            // Priority 1: Check for the latest AI Intelligence Report from Market Pulse
+            // We fetch the absolute latest record and check if it's an AI report in code
+            // to avoid requiring a composite Index (where + orderBy) in Firestore.
+            const historySnapshot = await firebase.firestore()
+                .collection('projects')
+                .doc(currentProjectId)
+                .collection('brandHealthHistory')
+                .orderBy('createdAt', 'desc')
+                .limit(1)
+                .get();
+
+            if (!historySnapshot.empty) {
+                const report = historySnapshot.docs[0].data();
+
+                if (report.isIntelligenceReport === true) {
+                    console.log('[BrandBrain] 🧠 Found AI Intelligence Report - Prioritizing');
+
+                    const updatedTime = report.createdAt ? report.createdAt.toDate() : new Date();
+                    const timeEl = document.getElementById('health-last-updated');
+                    if (timeEl) {
+                        timeEl.innerText = `Report: Intelligence Center • ${updatedTime.getHours()}:${String(updatedTime.getMinutes()).padStart(2, '0')}`;
+                    }
+
+                    // Update UI using the hand-calculated AI score and breakdown
+                    // Use true as 3rd param to skip default timestamp overwrite
+                    updateBrandHealthUI(report.score, report.breakdown, true);
+
+                    // Also update the small pulse dashboard preview if fields match
+                    if (report.results) updateMarketPulseUI(report.results);
+
+                    updateDebugViewer(report.results, 'AI Intelligence Report');
+                    return; // Early return - AI report takes precedence
+                }
+            }
+
+            // Priority 2: Fallback to Raw Market Pulse Calculation
             const doc = await firebase.firestore()
                 .collection('projects')
                 .doc(currentProjectId)
@@ -1681,7 +1717,7 @@ async function saveBrandHealthHistory(total, breakdown) {
     } catch (e) { console.error('Error saving health history', e); }
 }
 
-function updateBrandHealthUI(total, breakdown) {
+function updateBrandHealthUI(total, breakdown, skipTimestamp = false) {
     // 1. Main Gauge
     const totalEl = document.getElementById('brand-health-total');
     const gradeEl = document.getElementById('brand-health-grade');
@@ -1728,11 +1764,13 @@ function updateBrandHealthUI(total, breakdown) {
     updateHealthBar('competitive', breakdown.competitive, 15);
     updateHealthBar('consistency', breakdown.consistency, 10);
 
-    // Update timestamp
-    const timeEl = document.getElementById('health-last-updated');
-    if (timeEl) {
-        const now = new Date();
-        timeEl.innerText = `Updated: ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+    // Update timestamp (unless skipped by Intelligence Report)
+    if (!skipTimestamp) {
+        const timeEl = document.getElementById('health-last-updated');
+        if (timeEl) {
+            const now = new Date();
+            timeEl.innerText = `Updated: ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+        }
     }
 }
 

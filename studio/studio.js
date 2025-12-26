@@ -3117,6 +3117,10 @@ function renderSettingsSubAgents(subAgents) {
 
     list.innerHTML = subAgents.map(agent => {
         const roleKey = (agent.role || '').toLowerCase();
+        const roleName = agent.role_name || agent.role || agent.id || 'Agent';
+        const roleType = agent.role || agent.id || '';
+        const displayOrder = agent.display_order || 0;
+
         // Find best matching placeholder
         let placeholder = placeholders['default'];
         if (roleKey.includes('research') || roleKey.includes('search')) placeholder = placeholders['researcher'];
@@ -3128,14 +3132,14 @@ function renderSettingsSubAgents(subAgents) {
         <div class="sub-agent-setting-card" style="background: rgba(255,255,255,0.03); padding: 20px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08);">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
                 <div>
-                    <div style="font-weight: 600; color: #fff; font-size: 16px; margin-bottom: 4px;">${agent.role_name || agent.role}</div>
+                    <div style="font-weight: 600; color: #fff; font-size: 16px; margin-bottom: 4px;">${roleName}</div>
                     <div style="font-size: 12px; color: rgba(255,255,255,0.4); display: flex; align-items: center; gap: 6px;">
                         <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #3B82F6;"></span>
                         ${agent.model_id || 'Default Model'}
                     </div>
                 </div>
                 <div style="background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; font-size: 11px; color: rgba(255,255,255,0.7);">
-                    ${agent.role || 'Agent'}
+                    ${roleType}
                 </div>
             </div>
             
@@ -3148,6 +3152,9 @@ function renderSettingsSubAgents(subAgents) {
                 </div>
                 <textarea class="form-input sub-agent-prompt" 
                     data-id="${agent.id}" 
+                    data-role-name="${roleName}"
+                    data-role-type="${roleType}"
+                    data-order="${displayOrder}"
                     rows="5" 
                     style="width: 100%; font-size: 13px; font-family: 'Menlo', 'Monaco', 'Courier New', monospace; line-height: 1.5; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; padding: 12px; resize: vertical;"
                     placeholder="${placeholder}">${agent.system_prompt || ''}</textarea>
@@ -3192,10 +3199,15 @@ window.saveAgentSettings = async function () {
             const newPrompt = input.value;
 
             const agentRef = teamRef.collection('subAgents').doc(agentId);
-            batch.update(agentRef, {
+            // ROBUSTNESS: Use set with merge:true to create if missing
+            batch.set(agentRef, {
+                role_name: input.dataset.roleName || '',
+                role_type: input.dataset.roleType || agentId,
+                display_order: parseInt(input.dataset.order || '0'),
                 system_prompt: newPrompt,
+                is_active: true,
                 updated_at: firebase.firestore.FieldValue.serverTimestamp()
-            });
+            }, { merge: true });
 
             updatedSubAgents.push({ id: agentId, systemPrompt: newPrompt });
         });

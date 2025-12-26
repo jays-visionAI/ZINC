@@ -1361,26 +1361,37 @@ function renderBrainSubAgents(subAgents) {
         return;
     }
 
-    list.innerHTML = subAgents.map(agent => `
+    list.innerHTML = subAgents.map(agent => {
+        const roleName = agent.role_name || agent.name || agent.agentType || agent.role_type || agent.id || 'Agent';
+        const roleType = agent.role_type || agent.agentType || agent.id || '';
+        const executionStage = agent.execution_stage || (agent.stage) || 'Agent';
+
+        return `
         <div style="background: rgba(255,255,255,0.03); padding: 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08);">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
                 <div>
-                    <div style="font-weight: 600; color: #fff; font-size: 15px;">${agent.role_name || agent.role_type}</div>
+                    <div style="font-weight: 600; color: #fff; font-size: 15px;">${roleName}</div>
                     <div style="font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 2px;">
                         <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #3B82F6; margin-right: 6px;"></span>
                         ${agent.model_id || 'Default Model'}
                     </div>
                 </div>
                 <div style="background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; font-size: 11px; color: rgba(255,255,255,0.7);">
-                    ${agent.execution_stage || 'Agent'}
+                    ${executionStage}
                 </div>
             </div>
             <div>
                 <label style="font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 6px; display: block;">📝 Behavior Instructions</label>
-                <textarea class="brain-agent-prompt" data-id="${agent.id}" rows="3" style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 10px; color: #fff; font-size: 13px; font-family: 'Menlo', monospace;" placeholder="Define how this agent should act...">${agent.system_prompt || ''}</textarea>
+                <textarea class="brain-agent-prompt" 
+                    data-id="${agent.id}" 
+                    data-role-name="${roleName}"
+                    data-role-type="${roleType}"
+                    data-stage="${executionStage}"
+                    data-order="${agent.display_order || 0}"
+                    rows="3" style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 10px; color: #fff; font-size: 13px; font-family: 'Menlo', monospace;" placeholder="Define how this agent should act...">${agent.system_prompt || ''}</textarea>
             </div>
         </div>
-    `).join('');
+    `}).join('');
 }
 
 window.closeAgentBrainModal = function () {
@@ -1423,12 +1434,20 @@ window.saveAgentBrainSettings = async function () {
             promptInputs.forEach(input => {
                 const agentId = input.dataset.id;
                 const newPrompt = input.value;
-                batch.update(
+
+                // ROBUSTNESS: Use set with merge:true to create if missing
+                batch.set(
                     db.collection('projectAgentTeamInstances').doc(coreTeamId).collection('subAgents').doc(agentId),
                     {
+                        role_name: input.dataset.roleName || '',
+                        role_type: input.dataset.roleType || agentId,
+                        execution_stage: input.dataset.stage || 'creation',
+                        display_order: parseInt(input.dataset.order || '0'),
                         system_prompt: newPrompt,
+                        is_active: true,
                         updated_at: firebase.firestore.FieldValue.serverTimestamp()
-                    }
+                    },
+                    { merge: true }
                 );
             });
         }
@@ -1555,24 +1574,29 @@ window.applyBrainTemplate = function (templateId) {
 
     // Apply Sub-Agent prompts
     Object.entries(template.subAgents).forEach(([agentKey, prompt]) => {
-        // Try to find matching textarea by various ID patterns
+        // Try to find matching textarea by role type, ID patterns, or element ID
         const possibleIds = [
             `agent-prompt-${agentKey}`,
             agentKey
         ];
 
-        for (const id of possibleIds) {
-            const textarea = document.querySelector(`.brain-agent-prompt[data-id*="${agentKey}"]`) ||
-                document.getElementById(id);
-            if (textarea && textarea.tagName === 'TEXTAREA') {
-                textarea.value = prompt;
-                textarea.style.transition = 'background 0.3s';
-                textarea.style.background = 'rgba(139, 92, 246, 0.2)';
-                setTimeout(() => {
-                    textarea.style.background = 'rgba(0,0,0,0.3)';
-                }, 500);
-                break;
+        let textarea = document.querySelector(`.brain-agent-prompt[data-role-type="${agentKey}"]`);
+
+        if (!textarea) {
+            for (const id of possibleIds) {
+                textarea = document.querySelector(`.brain-agent-prompt[data-id*="${agentKey}"]`) ||
+                    document.getElementById(id);
+                if (textarea) break;
             }
+        }
+
+        if (textarea && textarea.tagName === 'TEXTAREA') {
+            textarea.value = prompt;
+            textarea.style.transition = 'background 0.3s';
+            textarea.style.background = 'rgba(139, 92, 246, 0.2)';
+            setTimeout(() => {
+                textarea.style.background = 'rgba(0,0,0,0.3)';
+            }, 500);
         }
     });
 
