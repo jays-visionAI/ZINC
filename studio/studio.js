@@ -1442,7 +1442,7 @@ function updateStats() {
     }
 
     document.getElementById('stats-time').textContent = timeDisplay;
-    document.getElementById('stats-cost').textContent = `$${totalCost.toFixed(2)}`;
+    document.getElementById('stats-cost').textContent = `$${totalCost.toFixed(4)}`;
 }
 
 // ============================================
