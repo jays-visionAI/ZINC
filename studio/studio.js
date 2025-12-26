@@ -441,9 +441,30 @@ async function loadAgentTeams(projectId) {
             console.log('[Studio] Added team:', doc.id, team.name);
         });
 
+        // 🧠 UNIFIED BRAIN IMPROVEMENT: Auto-select the first team if none is selected
+        if (teamsSnapshot.size > 0 && !state.selectedAgentTeam) {
+            const firstTeamId = teamsSnapshot.docs[0].id;
+            const firstTeamData = teamsSnapshot.docs[0].data();
+
+            console.log('[Studio] 🧠 Auto-selecting first available team:', firstTeamId);
+
+            agentTeamSelect.value = firstTeamId;
+            state.selectedAgentTeam = firstTeamId;
+
+            // Auto-load sub-agents for this team
+            await loadSubAgents(firstTeamId);
+            enableStartButton();
+            renderDAGPlaceholder();
+            showMultiChannelToggle();
+
+            addLogEntry(`🤖 Auto-selected team: ${firstTeamData.name || firstTeamId}`, 'success');
+        }
+
         addLogEntry(`🤖 Found ${teamsSnapshot.size} agent team(s)`, 'info');
         agentTeamSelect.disabled = false;
-        agentTeamSelect.classList.add('selection-highlight'); // Highlight to guide next step
+        if (!state.selectedAgentTeam) {
+            agentTeamSelect.classList.add('selection-highlight'); // Only highlight if still nothing selected
+        }
 
     } catch (error) {
         console.error('[Studio] Error loading agent teams:', error);
