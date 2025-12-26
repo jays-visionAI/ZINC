@@ -1491,54 +1491,21 @@ function formatRelativeTime(date) {
 /**
  * Calculate Brand Health Score (Real-time)
  */
-/**
- * Calculate Real Brand Health Score (Phase 3)
- * Fetches real market data from Firestore (saved by Market Pulse)
- */
 async function calculateRealBrandHealth(simulationType = null) {
     console.log('Calculating Real Brand Health...');
 
-    // Default Fallback Data (Phase 2 Simulation)
+    // Default Empty State (Neutral)
     let pulseData = {
-        sentiment: { positive: 65, neutral: 25, negative: 10 },
-        mentions: { total: 1240, growth: 12 },
-        engagement: { score: 78, trend: 'up' },
-        competitors: { rank: 2, gap: 5 }
+        sentiment: { positive: 0, neutral: 100, negative: 0 },
+        mentions: { total: 0, growth: 0 },
+        engagement: { score: 0, trend: 'stable' },
+        competitors: { rank: 0, gap: 0 }
     };
 
-    // DEBUG SIMULATION OVERRIDE
-    if (simulationType) {
-        console.log('[BrandBrain] 🛠️ Debug Simulation:', simulationType);
-        if (simulationType === 'excellent') {
-            pulseData = {
-                sentiment: { positive: 90, neutral: 10, negative: 0 },
-                mentions: { total: 5000, growth: 45 },
-                engagement: { score: 95, trend: 'up' },
-                competitors: { rank: 1, gap: 20 }
-            };
-        } else if (simulationType === 'critical') {
-            pulseData = {
-                sentiment: { positive: 20, neutral: 30, negative: 50 },
-                mentions: { total: 500, growth: -15 },
-                engagement: { score: 30, trend: 'down' },
-                competitors: { rank: 5, gap: -10 }
-            };
-        } else if (simulationType === 'average') {
-            pulseData = {
-                sentiment: { positive: 50, neutral: 40, negative: 10 },
-                mentions: { total: 1500, growth: 5 },
-                engagement: { score: 60, trend: 'stable' },
-                competitors: { rank: 3, gap: 0 }
-            };
-        }
-        updateDebugViewer(pulseData, 'Simulation: ' + simulationType);
-    }
-    // REAL DATA FETCH (if not simulating)
-    else if (currentProjectId) {
+    // REAL DATA FETCH
+    if (currentProjectId) {
         try {
             // Priority 1: Check for the latest AI Intelligence Report from Market Pulse
-            // We fetch the absolute latest record and check if it's an AI report in code
-            // to avoid requiring a composite Index (where + orderBy) in Firestore.
             const historySnapshot = await firebase.firestore()
                 .collection('projects')
                 .doc(currentProjectId)
@@ -1559,15 +1526,10 @@ async function calculateRealBrandHealth(simulationType = null) {
                         timeEl.innerText = `Report: Intelligence Center • ${updatedTime.getHours()}:${String(updatedTime.getMinutes()).padStart(2, '0')}`;
                     }
 
-                    // Update UI using the hand-calculated AI score and breakdown
-                    // Use true as 3rd param to skip default timestamp overwrite
                     updateBrandHealthUI(report.score, report.breakdown, true);
-
-                    // Also update the small pulse dashboard preview if fields match
                     if (report.results) updateMarketPulseUI(report.results);
-
                     updateDebugViewer(report.results, 'AI Intelligence Report');
-                    return; // Early return - AI report takes precedence
+                    return;
                 }
             }
 
@@ -1585,7 +1547,6 @@ async function calculateRealBrandHealth(simulationType = null) {
                     console.log('[BrandBrain] Loaded real Market Pulse data:', realData);
                     pulseData = realData;
 
-                    // Update timestamp to match data source
                     const updatedTime = doc.data().updatedAt ? new Date(doc.data().updatedAt.seconds * 1000) : new Date();
                     const timeEl = document.getElementById('health-last-updated');
                     if (timeEl) {
@@ -1595,16 +1556,16 @@ async function calculateRealBrandHealth(simulationType = null) {
                     updateDebugViewer(realData, 'Firestore (Realtime)');
                 }
             } else {
-                console.log('[BrandBrain] No Market Pulse data found, using simulation.');
+                console.log('[BrandBrain] No Market Pulse data found.');
                 const timeEl = document.getElementById('health-last-updated');
-                if (timeEl) timeEl.innerText = 'Simulation Mode (No Pulse Data)';
-                updateDebugViewer(pulseData, 'Fallback Default');
+                if (timeEl) timeEl.innerText = 'No Pulse Data Sync';
             }
-        } catch (error) {
-            console.error('[BrandBrain] Error loading Market Pulse data:', error);
-            updateDebugViewer({ error: error.message }, 'Error');
+        } catch (e) {
+            console.error('[BrandBrain] Error fetching real data:', e);
         }
     }
+
+    updateDebugViewer(pulseData, 'Current Logic');
 
     let scores = {
         sentiment: 0,   // Max 30
@@ -1615,24 +1576,24 @@ async function calculateRealBrandHealth(simulationType = null) {
     };
 
     // --- Metric 1: Sentiment (30 pts) ---
-    const pos = pulseData.sentiment.positive;
+    const pos = pulseData.sentiment ? pulseData.sentiment.positive : 0;
     scores.sentiment = Math.min(30, Math.floor((pos / 100) * 30) + 5);
 
     // --- Metric 2: Awareness (25 pts) ---
-    const growth = pulseData.mentions.growth;
+    const growth = pulseData.mentions ? pulseData.mentions.growth : 0;
     scores.awareness = Math.min(25, 15 + (growth > 0 ? growth : 0));
 
     // --- Metric 3: Engagement (20 pts) ---
-    scores.engagement = Math.floor((pulseData.engagement.score / 100) * 20);
+    const engagementScore = pulseData.engagement ? pulseData.engagement.score : 0;
+    scores.engagement = Math.floor((engagementScore / 100) * 20);
 
     // --- Metric 4: Competitive (15 pts) ---
-    const rank = pulseData.competitors.rank;
+    const rank = pulseData.competitors ? pulseData.competitors.rank : 0;
     if (rank === 1) scores.competitive = 15;
-    else if (rank <= 3) scores.competitive = 10;
+    else if (rank <= 3 && rank > 0) scores.competitive = 10;
     else scores.competitive = 5;
 
     // --- Metric 5: Consistency (10 pts) ---
-    // In Phase 3, we could calculate this from history, but keeping as placeholder constant for now
     scores.consistency = 8;
 
     // Total
@@ -1645,7 +1606,7 @@ async function calculateRealBrandHealth(simulationType = null) {
     updateMarketPulseUI(pulseData);
 
     // Save calculated score to History (Only if REAL data)
-    if (!simulationType) {
+    if (!simulationType && currentProjectId) {
         saveBrandHealthHistory(totalScore, scores);
     }
 }
