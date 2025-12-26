@@ -1621,15 +1621,19 @@ async function startExecution() {
             }
         })
         .on('onContentGenerated', ({ agentId, content }) => {
-            console.log('[Studio] Content Generated:', agentId, content);
+            console.log('[Studio] ✅ onContentGenerated EVENT FIRED:', { agentId, contentType: typeof content });
+            console.log('[Studio] Content preview:', JSON.stringify(content).substring(0, 200));
 
             if (agentId === 'creator_text') {
+                console.log('[Studio] Processing creator_text content...');
                 try {
                     // Attempt to parse JSON for multi-channel content
                     let contentStr = content.content || content;
+                    console.log('[Studio] contentStr type:', typeof contentStr);
 
                     // If already an object, use directly
                     if (typeof contentStr === 'object') {
+                        console.log('[Studio] Content is object, calling displayMultiChannelContent with object');
                         displayMultiChannelContent(contentStr);
                         return;
                     }
@@ -1652,10 +1656,11 @@ async function startExecution() {
                     contentStr = contentStr.replace(/,(\s*[}\]])/g, '$1');
 
                     const parsed = JSON.parse(contentStr);
+                    console.log('[Studio] Parsed JSON, calling displayMultiChannelContent with parsed:', Object.keys(parsed));
                     displayMultiChannelContent(parsed);
                 } catch (e) {
                     // Fallback to simple text content - this is normal for non-JSON responses
-                    console.log('[Studio] Content is plain text, using as-is');
+                    console.log('[Studio] Content is plain text (parse failed), using as-is. Error:', e.message);
                     displayMultiChannelContent(content.content || content);
                 }
             } else if (agentId === 'creator_image') {
@@ -2178,17 +2183,25 @@ async function streamChannelContent(channel, content) {
  * Handles displaying content across multiple channels simultaneously.
  */
 function displayMultiChannelContent(content) {
-    if (!content) return;
+    console.log('[Studio] displayMultiChannelContent called:', { contentType: typeof content, targetChannels: state.targetChannels });
+
+    if (!content) {
+        console.log('[Studio] displayMultiChannelContent: content is null/undefined');
+        return;
+    }
 
     // If content is a simple string, treat it as primarily for X (legacy support)
     if (typeof content === 'string') {
+        console.log('[Studio] Content is string, streaming to x channel');
         streamChannelContent('x', content);
         return;
     }
 
     // Iterate through all target channels and stream content if available
+    console.log('[Studio] Content keys:', Object.keys(content));
     state.targetChannels.forEach(channel => {
         const channelContent = content[channel] || content.content; // Fallback to generic content
+        console.log('[Studio] Channel:', channel, 'hasContent:', !!channelContent);
         if (channelContent) {
             streamChannelContent(channel, channelContent);
         }
