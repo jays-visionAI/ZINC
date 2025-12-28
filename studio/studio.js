@@ -874,6 +874,20 @@ window.openMultiChannelOverview = function () {
         const icon = getChannelIcon(channel);
         const content = window.channelContents[channel];
 
+        // Use getFormattedPreview for platform-specific preview frames
+        let previewContent;
+        if (content?.text) {
+            previewContent = getFormattedPreview(channel, content);
+        } else {
+            // Show placeholder with platform icon for not-yet-generated content
+            previewContent = `
+                <div class="preview-placeholder" style="min-height: 200px;">
+                    <span style="font-size: 48px; opacity: 0.3;">${icon}</span>
+                    <p style="color: var(--color-text-tertiary); margin: 0;">Content not generated yet...</p>
+                </div>
+            `;
+        }
+
         cardsHtml += `
             <div class="multi-channel-card">
                 <div class="multi-channel-card-header">
@@ -881,7 +895,7 @@ window.openMultiChannelOverview = function () {
                     <span style="font-weight: 600;">${displayName}</span>
                 </div>
                 <div class="multi-channel-card-body">
-                    ${content?.text ? `<p>${content.text}</p>` : '<p style="color: var(--color-text-tertiary);">Content not generated yet...</p>'}
+                    ${previewContent}
                 </div>
             </div>
         `;
@@ -2293,12 +2307,26 @@ function displayMultiChannelContent(content) {
 function updateMultiChannelImages(imageUrl) {
     if (!imageUrl) return;
 
+    // Store image URL in channelContents for each target channel
+    if (!window.channelContents) {
+        window.channelContents = {};
+    }
+
     state.targetChannels.forEach(channel => {
+        // Store in new system
+        if (!window.channelContents[channel]) {
+            window.channelContents[channel] = { status: 'completed' };
+        }
+        window.channelContents[channel].imageUrl = imageUrl;
+
+        // Legacy: Update DOM elements if they exist
         const mediaContainer = document.getElementById(`${channel}-media`);
         if (mediaContainer) {
             mediaContainer.innerHTML = `<img src="${imageUrl}" alt="${channel} vision" class="preview-img">`;
         }
     });
+
+    console.log('[Studio] Image URL stored in channelContents:', imageUrl);
 }
 
 // Update Agent Insights circular progress
@@ -2512,9 +2540,29 @@ function approveContent() {
         `;
     }
 
-    // Get generated content from preview
-    const twitterContent = document.getElementById('twitter-content');
-    const tweetText = twitterContent ? twitterContent.textContent.trim() : '';
+    // NEW: Get content from new channel system (window.channelContents)
+    let tweetText = '';
+    const channel = activePreviewChannel || 'x';
+
+    // Try new system first
+    if (window.channelContents && window.channelContents[channel]) {
+        tweetText = window.channelContents[channel].text || '';
+    }
+
+    // Fallback to legacy system
+    if (!tweetText) {
+        const twitterContent = document.getElementById('twitter-content');
+        tweetText = twitterContent ? twitterContent.textContent.trim() : '';
+    }
+
+    // Fallback to single-channel-preview content
+    if (!tweetText) {
+        const previewArea = document.getElementById('single-channel-preview');
+        const contentEl = previewArea?.querySelector('.x-content, .linkedin-content, .facebook-content, .insta-caption');
+        tweetText = contentEl ? contentEl.textContent.trim() : '';
+    }
+
+    console.log('[Studio] approveContent - channel:', channel, 'text length:', tweetText?.length);
 
     if (!tweetText || tweetText === 'Your generated tweet will appear here...') {
         addLogEntry('❌ No content to publish', 'error');
@@ -2537,10 +2585,22 @@ function approveContent() {
     const contentId = state.currentContentId || `content_${Date.now()}`;
     const userId = firebase.auth().currentUser?.uid;
 
-    // Get image URL if available
-    const imageContainer = document.getElementById('twitter-image');
-    const imageEl = imageContainer?.querySelector('img');
-    const imageUrl = imageEl?.src || null;
+    // Get image URL - try new system first, then legacy
+    let imageUrl = null;
+    if (window.channelContents && window.channelContents[channel]?.imageUrl) {
+        imageUrl = window.channelContents[channel].imageUrl;
+    }
+    if (!imageUrl) {
+        const imageContainer = document.getElementById('twitter-image');
+        const imageEl = imageContainer?.querySelector('img');
+        imageUrl = imageEl?.src || null;
+    }
+    // Also try single-channel-preview
+    if (!imageUrl) {
+        const previewArea = document.getElementById('single-channel-preview');
+        const imgEl = previewArea?.querySelector('img.preview-img, img.x-media-img');
+        imageUrl = imgEl?.src || null;
+    }
 
     console.log('[Studio] Posting with image:', imageUrl);
     addLogEntry('📤 Posting to X (Twitter)...', 'info');
