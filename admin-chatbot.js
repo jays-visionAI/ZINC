@@ -788,7 +788,14 @@ function bindEvents() {
 
 // Open FAQ modal
 window.openFaqModal = function (faqId = null) {
-    document.getElementById('faq-modal').style.display = 'flex';
+    console.log('[Chatbot] openFaqModal called with faqId:', faqId);
+    const modal = document.getElementById('faq-modal');
+    console.log('[Chatbot] faq-modal element:', modal);
+    if (!modal) {
+        console.error('[Chatbot] ERROR: faq-modal element not found!');
+        return;
+    }
+    modal.style.display = 'flex';
     document.getElementById('faq-edit-id').value = faqId || '';
     document.getElementById('faq-modal-title').textContent = faqId ? 'Edit FAQ' : 'Add FAQ';
 
