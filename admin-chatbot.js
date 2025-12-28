@@ -74,16 +74,20 @@ function initChatbotTabs() {
             const generalTab = document.getElementById('tab-general');
             const pageContextTab = document.getElementById('tab-page-context');
             const voiceTab = document.getElementById('tab-voice');
+            const llmTab = document.getElementById('tab-llm');
 
             if (generalTab) generalTab.style.display = targetTab === 'general' ? 'block' : 'none';
             if (pageContextTab) pageContextTab.style.display = targetTab === 'page-context' ? 'block' : 'none';
             if (voiceTab) voiceTab.style.display = targetTab === 'voice' ? 'block' : 'none';
+            if (llmTab) llmTab.style.display = targetTab === 'llm' ? 'block' : 'none';
 
             // Initialize tab content
             if (targetTab === 'page-context') {
                 loadPageContextList();
             } else if (targetTab === 'voice') {
                 loadVoiceSettings();
+            } else if (targetTab === 'llm') {
+                loadLLMSettings();
             }
         });
     });
