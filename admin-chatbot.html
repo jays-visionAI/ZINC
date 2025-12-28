@@ -404,8 +404,10 @@ ZYNK 사용에 관한 질문이 있으시면 편하게 물어보세요!
 </div> <!-- End of FAQ Tab -->
 
 <!-- Add/Edit FAQ Modal -->
-<div id="faq-modal" class="modal-overlay" style="display: none;">
-    <div class="modal-container" style="max-width: 600px;">
+<div id="faq-modal" class="modal-overlay"
+    style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); z-index: 2147483647; justify-content: center; align-items: center; backdrop-filter: blur(4px);">
+    <div class="modal-container"
+        style="max-width: 600px; background: #1e1e24; border: 1px solid #333; width: 90%; z-index: 2147483648; position: relative; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
         <div class="modal-header">
             <h3 id="faq-modal-title">Add FAQ</h3>
             <button class="modal-close" onclick="closeFaqModal()">×</button>
