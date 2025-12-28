@@ -140,7 +140,13 @@ const translations = {
         'market.chip.x': 'X (Twitter)',
         'market.chip.competitor': 'Competitor Site',
         'market.chip.competitorGaps': 'Competitor Gaps',
-        'market.credits': 'Credits'
+        'market.credits': 'Credits',
+
+        // Knowledge Hub - Score Tooltips
+        'score.quantity.tooltip': '5 points per source (max 8 sources = 40 points)',
+        'score.diversity.tooltip': 'Google Drive (+10), Web Link (+10), Note (+10)',
+        'score.recency.tooltip': 'Less than 7 days: +20 pts, 14 days: +10 pts, older: +5 pts',
+        'score.integration.tooltip': 'Connect Google Drive to earn +10 points'
     },
     ko: {
         // Navigation
@@ -282,7 +288,13 @@ const translations = {
         'market.chip.x': 'X (트위터)',
         'market.chip.competitor': '경쟁사 사이트',
         'market.chip.competitorGaps': '경쟁사 약점',
-        'market.credits': '보유 크레딧'
+        'market.credits': '보유 크레딧',
+
+        // Knowledge Hub - Score Tooltips
+        'score.quantity.tooltip': '소스 1개당 5점 (최대 8개 = 40점)',
+        'score.diversity.tooltip': 'Google Drive (+10), 웹 링크 (+10), 노트 (+10)',
+        'score.recency.tooltip': '7일 미만: +20점, 14일 미만: +10점, 이후: +5점',
+        'score.integration.tooltip': 'Google Drive 연결 시 +10점'
     }
 };
 
