@@ -787,12 +787,16 @@ function bindEvents() {
 }
 
 // Open FAQ modal
+// Open FAQ modal
 window.openFaqModal = function (faqId = null) {
     console.log('[Chatbot] openFaqModal called with faqId:', faqId);
-    const modal = document.getElementById('faq-modal');
-    console.log('[Chatbot] faq-modal element:', modal);
+
+    const modalId = 'zynk-faq-modal';
+    const modal = document.getElementById(modalId);
+    console.log(`[Chatbot] ${modalId} element:`, modal);
+
     if (!modal) {
-        console.error('[Chatbot] ERROR: faq-modal element not found!');
+        console.error(`[Chatbot] ERROR: ${modalId} element not found!`);
         return;
     }
 
@@ -820,7 +824,8 @@ window.openFaqModal = function (faqId = null) {
 
 // Close FAQ modal
 window.closeFaqModal = function () {
-    document.getElementById('faq-modal').style.display = 'none';
+    const modal = document.getElementById('zynk-faq-modal');
+    if (modal) modal.style.display = 'none';
 };
 
 // Edit FAQ
