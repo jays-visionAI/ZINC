@@ -24,6 +24,9 @@
         <div class="chatbot-tab" data-tab="llm" id="tab-btn-llm"
             style="padding-bottom: 12px; cursor: pointer; border-bottom: 2px solid transparent; color: rgba(255,255,255,0.5);">
             LLM Settings</div>
+        <div class="chatbot-tab" data-tab="faq" id="tab-btn-faq"
+            style="padding-bottom: 12px; cursor: pointer; border-bottom: 2px solid transparent; color: rgba(255,255,255,0.5);">
+            FAQ Settings</div>
     </div>
 
     <!-- General Settings Tab -->
@@ -105,739 +108,759 @@ ZYNK 사용에 관한 질문이 있으시면 편하게 물어보세요!
             </div>
         </div>
 
-        <!-- FAQ Section -->
-        <div
-            style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 24px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                <h4 style="margin: 0; color: #fff; display: flex; align-items: center; gap: 8px;">
-                    <span>❓</span> FAQ (Quick Answers)
+    </div>
+
+    <!-- Save Button -->
+    <div style="display: flex; justify-content: flex-end; gap: 12px;">
+        <button id="btn-reset-chatbot" class="admin-btn-secondary" style="padding: 12px 24px;">
+            Reset to Defaults
+        </button>
+        <button id="btn-save-chatbot" class="admin-btn-primary" style="padding: 12px 32px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                style="vertical-align: middle; margin-right: 6px;">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                <polyline points="7 3 7 8 15 8"></polyline>
+            </svg>
+            Save Settings
+        </button>
+    </div>
+</div> <!-- End of General Tab -->
+
+<!-- Page Context Tab -->
+<div id="tab-page-context" class="tab-content" style="display: none;">
+    <div
+        style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <div>
+                <h4 style="margin: 0 0 8px 0; color: #fff; display: flex; align-items: center; gap: 8px;">
+                    <span>📄</span> Page Context Management
                 </h4>
-                <button id="btn-add-faq" class="admin-btn-primary" style="padding: 8px 16px;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        style="vertical-align: middle; margin-right: 4px;">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
-                    Add FAQ
+                <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin: 0;">
+                    Configure help text and tips for each page. The chatbot uses this to provide context-aware
+                    assistance.
+                </p>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button id="btn-seed-data" class="admin-btn-secondary" style="padding: 8px 16px;">
+                    🌱 Seed Default Data
+                </button>
+                <button id="btn-refresh-pages" class="admin-btn-secondary" style="padding: 8px 16px;">
+                    🔄 Refresh
                 </button>
             </div>
-            <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 16px;">
-                Pre-defined questions and answers for common queries.
-            </p>
-
-            <div id="faq-list" style="display: flex; flex-direction: column; gap: 12px;">
-                <!-- FAQ items will be rendered here -->
-            </div>
         </div>
 
-        <!-- Save Button -->
-        <div style="display: flex; justify-content: flex-end; gap: 12px;">
-            <button id="btn-reset-chatbot" class="admin-btn-secondary" style="padding: 12px 24px;">
-                Reset to Defaults
-            </button>
-            <button id="btn-save-chatbot" class="admin-btn-primary" style="padding: 12px 32px;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                    style="vertical-align: middle; margin-right: 6px;">
-                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                    <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                    <polyline points="7 3 7 8 15 8"></polyline>
-                </svg>
-                Save Settings
-            </button>
+        <!-- Empty State Message -->
+        <div id="page-context-empty"
+            style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5); display: none;">
+            <div style="font-size: 48px; margin-bottom: 16px;">📭</div>
+            <p style="margin: 0 0 16px 0;">No page contexts found in database.</p>
+            <p style="margin: 0; font-size: 13px;">Click <strong>"🌱 Seed Default Data"</strong> to initialize
+                default page contexts.</p>
         </div>
-    </div> <!-- End of General Tab -->
 
-    <!-- Page Context Tab -->
-    <div id="tab-page-context" class="tab-content" style="display: none;">
-        <div
-            style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 24px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <!-- Page Selector -->
+        <div id="page-selector-container" style="margin-bottom: 16px;">
+            <label style="display: block; margin-bottom: 6px; font-size: 13px; color: #ccc;">Select Page</label>
+            <select id="page-context-select" class="admin-input" style="width: 100%; max-width: 300px;">
+                <option value="">-- Select a page --</option>
+            </select>
+        </div>
+
+        <!-- Page Context Editor (shown when page selected) -->
+        <div id="page-context-editor" style="display: none;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
                 <div>
-                    <h4 style="margin: 0 0 8px 0; color: #fff; display: flex; align-items: center; gap: 8px;">
-                        <span>📄</span> Page Context Management
-                    </h4>
-                    <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin: 0;">
-                        Configure help text and tips for each page. The chatbot uses this to provide context-aware
-                        assistance.
-                    </p>
+                    <label style="display: block; margin-bottom: 6px; font-size: 13px; color: #ccc;">Name
+                        (EN)</label>
+                    <input type="text" id="ctx-name-en" class="admin-input" placeholder="e.g. Brand Brain">
                 </div>
-                <div style="display: flex; gap: 8px;">
-                    <button id="btn-seed-data" class="admin-btn-secondary" style="padding: 8px 16px;">
-                        🌱 Seed Default Data
-                    </button>
-                    <button id="btn-refresh-pages" class="admin-btn-secondary" style="padding: 8px 16px;">
-                        🔄 Refresh
-                    </button>
+                <div>
+                    <label style="display: block; margin-bottom: 6px; font-size: 13px; color: #ccc;">Name
+                        (KO)</label>
+                    <input type="text" id="ctx-name-ko" class="admin-input" placeholder="예: 브랜드 브레인">
                 </div>
             </div>
 
-            <!-- Empty State Message -->
-            <div id="page-context-empty"
-                style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5); display: none;">
-                <div style="font-size: 48px; margin-bottom: 16px;">📭</div>
-                <p style="margin: 0 0 16px 0;">No page contexts found in database.</p>
-                <p style="margin: 0; font-size: 13px;">Click <strong>"🌱 Seed Default Data"</strong> to initialize
-                    default page contexts.</p>
-            </div>
-
-            <!-- Page Selector -->
-            <div id="page-selector-container" style="margin-bottom: 16px;">
-                <label style="display: block; margin-bottom: 6px; font-size: 13px; color: #ccc;">Select Page</label>
-                <select id="page-context-select" class="admin-input" style="width: 100%; max-width: 300px;">
-                    <option value="">-- Select a page --</option>
-                </select>
-            </div>
-
-            <!-- Page Context Editor (shown when page selected) -->
-            <div id="page-context-editor" style="display: none;">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
-                    <div>
-                        <label style="display: block; margin-bottom: 6px; font-size: 13px; color: #ccc;">Name
-                            (EN)</label>
-                        <input type="text" id="ctx-name-en" class="admin-input" placeholder="e.g. Brand Brain">
-                    </div>
-                    <div>
-                        <label style="display: block; margin-bottom: 6px; font-size: 13px; color: #ccc;">Name
-                            (KO)</label>
-                        <input type="text" id="ctx-name-ko" class="admin-input" placeholder="예: 브랜드 브레인">
-                    </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                <div>
+                    <label style="display: block; margin-bottom: 6px; font-size: 13px; color: #ccc;">Description
+                        (EN)</label>
+                    <textarea id="ctx-desc-en" class="admin-input" style="height: 80px;"
+                        placeholder="Describe what this page does..."></textarea>
                 </div>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
-                    <div>
-                        <label style="display: block; margin-bottom: 6px; font-size: 13px; color: #ccc;">Description
-                            (EN)</label>
-                        <textarea id="ctx-desc-en" class="admin-input" style="height: 80px;"
-                            placeholder="Describe what this page does..."></textarea>
-                    </div>
-                    <div>
-                        <label style="display: block; margin-bottom: 6px; font-size: 13px; color: #ccc;">Description
-                            (KO)</label>
-                        <textarea id="ctx-desc-ko" class="admin-input" style="height: 80px;"
-                            placeholder="이 페이지의 기능을 설명하세요..."></textarea>
-                    </div>
-                </div>
-
-                <!-- Tips Section -->
-                <div style="margin-bottom: 16px;">
-                    <div
-                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                        <label style="font-size: 13px; color: #ccc; font-weight: 600;">💡 Help Tips</label>
-                        <button type="button" id="btn-add-tip" class="admin-btn-secondary"
-                            style="padding: 6px 12px; font-size: 12px;">+ Add Tip</button>
-                    </div>
-                    <div id="tips-container" style="display: flex; flex-direction: column; gap: 12px;">
-                        <!-- Tips will be populated here -->
-                    </div>
-                </div>
-
-                <div style="margin-bottom: 16px;">
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                        <input type="checkbox" id="ctx-is-active" checked style="width: 18px; height: 18px;">
-                        <span style="color: #ccc; font-size: 13px;">Page is Active</span>
-                    </label>
-                </div>
-
-                <div style="display: flex; justify-content: flex-end; gap: 12px;">
-                    <button id="btn-save-page-context" class="admin-btn-primary" style="padding: 12px 24px;">
-                        💾 Save Page Context
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div> <!-- End of Page Context Tab -->
-
-    <!-- Voice Settings Tab -->
-    <div id="tab-voice" class="tab-content" style="display: none;">
-        <div
-            style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 24px;">
-            <h4 style="margin: 0 0 16px 0; color: #fff; display: flex; align-items: center; gap: 8px;">
-                <span>🎤</span> Voice Settings
-            </h4>
-            <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 16px;">
-                Configure voice input (speech-to-text) and output (text-to-speech) for the chatbot.
-            </p>
-
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
-                <div
-                    style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 16px;">
-                    <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
-                        <div>
-                            <div style="font-weight: 600; color: #e2e8f0; margin-bottom: 4px;">🎤 Voice Input (STT)
-                            </div>
-                            <div style="font-size: 11px; color: rgba(255,255,255,0.4);">Allow users to speak their
-                                questions</div>
-                        </div>
-                        <input type="checkbox" id="voice-input-enabled" style="width: 24px; height: 24px;">
-                    </label>
-                </div>
-
-                <div
-                    style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 16px;">
-                    <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
-                        <div>
-                            <div style="font-weight: 600; color: #e2e8f0; margin-bottom: 4px;">🔊 Voice Output (TTS)
-                            </div>
-                            <div style="font-size: 11px; color: rgba(255,255,255,0.4);">Read bot responses aloud</div>
-                        </div>
-                        <input type="checkbox" id="voice-output-enabled" style="width: 24px; height: 24px;">
-                    </label>
+                <div>
+                    <label style="display: block; margin-bottom: 6px; font-size: 13px; color: #ccc;">Description
+                        (KO)</label>
+                    <textarea id="ctx-desc-ko" class="admin-input" style="height: 80px;"
+                        placeholder="이 페이지의 기능을 설명하세요..."></textarea>
                 </div>
             </div>
 
-            <div
-                style="margin-top: 16px; padding: 12px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px;">
-                <div style="font-size: 12px; color: #a5b4fc;">
-                    ℹ️ Voice features use the browser's built-in Web Speech API. Supported in Chrome, Edge, and Safari.
+            <!-- Tips Section -->
+            <div style="margin-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <label style="font-size: 13px; color: #ccc; font-weight: 600;">💡 Help Tips</label>
+                    <button type="button" id="btn-add-tip" class="admin-btn-secondary"
+                        style="padding: 6px 12px; font-size: 12px;">+ Add Tip</button>
+                </div>
+                <div id="tips-container" style="display: flex; flex-direction: column; gap: 12px;">
+                    <!-- Tips will be populated here -->
                 </div>
             </div>
 
-            <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 16px;">
-                <button id="btn-save-voice" class="admin-btn-primary" style="padding: 12px 24px;">
-                    💾 Save Voice Settings
-                </button>
-            </div>
-        </div>
-    </div> <!-- End of Voice Tab -->
-
-    <!-- LLM Settings Tab -->
-    <div id="tab-llm" class="tab-content" style="display: none;">
-        <div
-            style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 24px;">
-            <h4 style="margin: 0 0 16px 0; color: #fff; display: flex; align-items: center; gap: 8px;">
-                <span>🤖</span> LLM Model Settings
-            </h4>
-            <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 16px;">
-                Select the AI model used for chatbot responses. Different models have different capabilities and costs.
-            </p>
-
-            <!-- Current Model Display -->
-            <div id="llm-current-display"
-                style="background: rgba(22, 224, 189, 0.1); border: 1px solid rgba(22, 224, 189, 0.3); border-radius: 8px; padding: 16px; margin-bottom: 20px;">
-                <div style="font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 4px;">Currently Active Model
-                </div>
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <span id="llm-current-icon" style="font-size: 24px;">🔮</span>
-                    <div>
-                        <div id="llm-current-model" style="font-weight: 600; color: #16e0bd; font-size: 16px;">
-                            Loading...</div>
-                        <div id="llm-current-provider" style="font-size: 12px; color: rgba(255,255,255,0.5);">--</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Provider Selection -->
-            <div style="margin-bottom: 20px;">
-                <label
-                    style="display: block; margin-bottom: 8px; font-size: 13px; color: #ccc; font-weight: 600;">Provider</label>
-                <select id="llm-provider" class="admin-input" style="width: 100%; max-width: 300px;">
-                    <option value="deepseek">🔮 DeepSeek</option>
-                    <option value="openai">🟢 OpenAI</option>
-                    <option value="anthropic">🟣 Anthropic</option>
-                    <option value="google">🔵 Google</option>
-                </select>
-            </div>
-
-            <!-- Model Selection -->
-            <div style="margin-bottom: 20px;">
-                <label
-                    style="display: block; margin-bottom: 8px; font-size: 13px; color: #ccc; font-weight: 600;">Model</label>
-                <select id="llm-model" class="admin-input" style="width: 100%; max-width: 400px;">
-                    <!-- Populated dynamically -->
-                </select>
-                <p id="llm-model-desc" style="font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 6px;"></p>
-            </div>
-
-            <!-- Temperature Slider -->
-            <div style="margin-bottom: 20px;">
-                <label style="display: block; margin-bottom: 8px; font-size: 13px; color: #ccc; font-weight: 600;">
-                    Temperature: <span id="llm-temp-value" style="color: #16e0bd;">0.7</span>
+            <div style="margin-bottom: 16px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="ctx-is-active" checked style="width: 18px; height: 18px;">
+                    <span style="color: #ccc; font-size: 13px;">Page is Active</span>
                 </label>
-                <input type="range" id="llm-temperature" min="0" max="1" step="0.1" value="0.7"
-                    style="width: 100%; max-width: 300px; accent-color: #16e0bd;">
-                <div
-                    style="display: flex; justify-content: space-between; max-width: 300px; font-size: 10px; color: rgba(255,255,255,0.4);">
-                    <span>Precise (0.0)</span>
-                    <span>Creative (1.0)</span>
-                </div>
             </div>
 
-            <!-- Info Box -->
-            <div
-                style="margin-top: 16px; padding: 12px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px;">
-                <div style="font-size: 12px; color: #a5b4fc;">
-                    ℹ️ <strong>DeepSeek Chat</strong> is recommended for cost-effective, high-quality responses. OpenAI
-                    GPT-4o offers premium quality at higher cost.
-                </div>
-            </div>
-
-            <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px;">
-                <button id="btn-save-llm" class="admin-btn-primary" style="padding: 12px 24px;">
-                    💾 Save LLM Settings
+            <div style="display: flex; justify-content: flex-end; gap: 12px;">
+                <button id="btn-save-page-context" class="admin-btn-primary" style="padding: 12px 24px;">
+                    💾 Save Page Context
                 </button>
             </div>
         </div>
-    </div> <!-- End of LLM Tab -->
+    </div>
+</div> <!-- End of Page Context Tab -->
 
-    <!-- Add/Edit FAQ Modal -->
-    <div id="faq-modal" class="modal-overlay" style="display: none;">
-        <div class="modal-container" style="max-width: 600px;">
-            <div class="modal-header">
-                <h3 id="faq-modal-title">Add FAQ</h3>
-                <button class="modal-close" onclick="closeFaqModal()">×</button>
+<!-- Voice Settings Tab -->
+<div id="tab-voice" class="tab-content" style="display: none;">
+    <div
+        style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 24px;">
+        <h4 style="margin: 0 0 16px 0; color: #fff; display: flex; align-items: center; gap: 8px;">
+            <span>🎤</span> Voice Settings
+        </h4>
+        <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 16px;">
+            Configure voice input (speech-to-text) and output (text-to-speech) for the chatbot.
+        </p>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+            <div
+                style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 16px;">
+                <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+                    <div>
+                        <div style="font-weight: 600; color: #e2e8f0; margin-bottom: 4px;">🎤 Voice Input (STT)
+                        </div>
+                        <div style="font-size: 11px; color: rgba(255,255,255,0.4);">Allow users to speak their
+                            questions</div>
+                    </div>
+                    <input type="checkbox" id="voice-input-enabled" style="width: 24px; height: 24px;">
+                </label>
             </div>
-            <div class="modal-body">
-                <input type="hidden" id="faq-edit-id">
 
-                <div class="form-group">
-                    <label>Question</label>
-                    <input type="text" id="faq-question" class="admin-input" placeholder="e.g. Market Pulse가 뭔가요?"
-                        required>
-                </div>
+            <div
+                style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 16px;">
+                <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+                    <div>
+                        <div style="font-weight: 600; color: #e2e8f0; margin-bottom: 4px;">🔊 Voice Output (TTS)
+                        </div>
+                        <div style="font-size: 11px; color: rgba(255,255,255,0.4);">Read bot responses aloud</div>
+                    </div>
+                    <input type="checkbox" id="voice-output-enabled" style="width: 24px; height: 24px;">
+                </label>
+            </div>
+        </div>
 
-                <div class="form-group">
-                    <label>Answer</label>
-                    <textarea id="faq-answer" class="admin-input" style="height: 150px; resize: vertical;"
-                        placeholder="Enter the answer..." required></textarea>
+        <div
+            style="margin-top: 16px; padding: 12px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px;">
+            <div style="font-size: 12px; color: #a5b4fc;">
+                ℹ️ Voice features use the browser's built-in Web Speech API. Supported in Chrome, Edge, and Safari.
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 16px;">
+            <button id="btn-save-voice" class="admin-btn-primary" style="padding: 12px 24px;">
+                💾 Save Voice Settings
+            </button>
+        </div>
+    </div>
+</div> <!-- End of Voice Tab -->
+
+<!-- LLM Settings Tab -->
+<div id="tab-llm" class="tab-content" style="display: none;">
+    <div
+        style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 24px;">
+        <h4 style="margin: 0 0 16px 0; color: #fff; display: flex; align-items: center; gap: 8px;">
+            <span>🤖</span> LLM Model Settings
+        </h4>
+        <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 16px;">
+            Select the AI model used for chatbot responses. Different models have different capabilities and costs.
+        </p>
+
+        <!-- Current Model Display -->
+        <div id="llm-current-display"
+            style="background: rgba(22, 224, 189, 0.1); border: 1px solid rgba(22, 224, 189, 0.3); border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+            <div style="font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 4px;">Currently Active Model
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span id="llm-current-icon" style="font-size: 24px;">🔮</span>
+                <div>
+                    <div id="llm-current-model" style="font-weight: 600; color: #16e0bd; font-size: 16px;">
+                        Loading...</div>
+                    <div id="llm-current-provider" style="font-size: 12px; color: rgba(255,255,255,0.5);">--</div>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button class="admin-btn-secondary" onclick="closeFaqModal()">Cancel</button>
-                <button class="admin-btn-primary" id="btn-save-faq">Save FAQ</button>
+        </div>
+
+        <!-- Provider Selection -->
+        <div style="margin-bottom: 20px;">
+            <label
+                style="display: block; margin-bottom: 8px; font-size: 13px; color: #ccc; font-weight: 600;">Provider</label>
+            <select id="llm-provider" class="admin-input" style="width: 100%; max-width: 300px;">
+                <option value="deepseek">🔮 DeepSeek</option>
+                <option value="openai">🟢 OpenAI</option>
+                <option value="anthropic">🟣 Anthropic</option>
+                <option value="google">🔵 Google</option>
+            </select>
+        </div>
+
+        <!-- Model Selection -->
+        <div style="margin-bottom: 20px;">
+            <label
+                style="display: block; margin-bottom: 8px; font-size: 13px; color: #ccc; font-weight: 600;">Model</label>
+            <select id="llm-model" class="admin-input" style="width: 100%; max-width: 400px;">
+                <!-- Populated dynamically -->
+            </select>
+            <p id="llm-model-desc" style="font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 6px;"></p>
+        </div>
+
+        <!-- Temperature Slider -->
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; font-size: 13px; color: #ccc; font-weight: 600;">
+                Temperature: <span id="llm-temp-value" style="color: #16e0bd;">0.7</span>
+            </label>
+            <input type="range" id="llm-temperature" min="0" max="1" step="0.1" value="0.7"
+                style="width: 100%; max-width: 300px; accent-color: #16e0bd;">
+            <div
+                style="display: flex; justify-content: space-between; max-width: 300px; font-size: 10px; color: rgba(255,255,255,0.4);">
+                <span>Precise (0.0)</span>
+                <span>Creative (1.0)</span>
+            </div>
+        </div>
+
+        <!-- Info Box -->
+        <div
+            style="margin-top: 16px; padding: 12px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px;">
+            <div style="font-size: 12px; color: #a5b4fc;">
+                ℹ️ <strong>DeepSeek Chat</strong> is recommended for cost-effective, high-quality responses. OpenAI
+                GPT-4o offers premium quality at higher cost.
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px;">
+            <button id="btn-save-llm" class="admin-btn-primary" style="padding: 12px 24px;">
+                💾 Save LLM Settings
+            </button>
+        </div>
+    </div>
+</div> <!-- End of LLM Tab -->
+
+<!-- FAQ Settings Tab -->
+<div id="tab-faq" class="tab-content" style="display: none;">
+    <div
+        style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h4 style="margin: 0; color: #fff; display: flex; align-items: center; gap: 8px;">
+                <span>❓</span> FAQ (Quick Answers)
+            </h4>
+            <button id="btn-add-faq" class="admin-btn-primary" style="padding: 8px 16px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    style="vertical-align: middle; margin-right: 4px;">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Add FAQ
+            </button>
+        </div>
+        <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 16px;">
+            Pre-defined questions and answers for common queries. The chatbot will use these to provide quick responses.
+        </p>
+
+        <div id="faq-list" style="display: flex; flex-direction: column; gap: 12px;">
+            <!-- FAQ items will be rendered here -->
+            <div style="text-align: center; padding: 32px; color: rgba(255,255,255,0.3);">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                    style="margin: 0 auto 12px; opacity: 0.5;">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                <p style="font-size: 13px;">No FAQs added yet. Click "Add FAQ" to create your first one.</p>
             </div>
         </div>
     </div>
 
-    <style>
-        /* Modal Styles (reuse from settings) */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            backdrop-filter: blur(4px);
-        }
+    <!-- Info Box -->
+    <div
+        style="padding: 12px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px;">
+        <div style="font-size: 12px; color: #a5b4fc;">
+            ℹ️ <strong>Tip:</strong> FAQs with exact or similar keyword matches will be suggested as quick responses to
+            users. Use clear, specific questions for best results.
+        </div>
+    </div>
+</div> <!-- End of FAQ Tab -->
 
-        .modal-container {
-            background: #1e1e24;
-            border: 1px solid #333;
-            border-radius: 8px;
-            width: 90%;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-        }
+<!-- Add/Edit FAQ Modal -->
+<div id="faq-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-container" style="max-width: 600px;">
+        <div class="modal-header">
+            <h3 id="faq-modal-title">Add FAQ</h3>
+            <button class="modal-close" onclick="closeFaqModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="faq-edit-id">
 
-        .modal-header {
-            padding: 16px 20px;
-            border-bottom: 1px solid #333;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+            <div class="form-group">
+                <label>Question</label>
+                <input type="text" id="faq-question" class="admin-input" placeholder="e.g. Market Pulse가 뭔가요?" required>
+            </div>
 
-        .modal-body {
-            padding: 20px;
-        }
+            <div class="form-group">
+                <label>Answer</label>
+                <textarea id="faq-answer" class="admin-input" style="height: 150px; resize: vertical;"
+                    placeholder="Enter the answer..." required></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="admin-btn-secondary" onclick="closeFaqModal()">Cancel</button>
+            <button class="admin-btn-primary" id="btn-save-faq">Save FAQ</button>
+        </div>
+    </div>
+</div>
 
-        .modal-footer {
-            padding: 16px 20px;
-            border-top: 1px solid #333;
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-        }
+<style>
+    /* Modal Styles (reuse from settings) */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        backdrop-filter: blur(4px);
+    }
 
-        .modal-close {
-            background: none;
-            border: none;
-            color: #888;
-            font-size: 24px;
-            cursor: pointer;
-        }
+    .modal-container {
+        background: #1e1e24;
+        border: 1px solid #333;
+        border-radius: 8px;
+        width: 90%;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    }
 
-        .form-group {
-            margin-bottom: 16px;
-        }
+    .modal-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid #333;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
 
-        .form-group label {
-            display: block;
-            margin-bottom: 6px;
-            font-size: 13px;
-            color: #ccc;
-        }
+    .modal-body {
+        padding: 20px;
+    }
 
-        .admin-input {
-            width: 100%;
-            padding: 8px 12px;
-            background: #2a2a30;
-            border: 1px solid #444;
-            border-radius: 4px;
-            color: white;
-            font-size: 14px;
-        }
+    .modal-footer {
+        padding: 16px 20px;
+        border-top: 1px solid #333;
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+    }
 
-        .admin-input:focus {
-            border-color: #16e0bd;
-            outline: none;
-        }
+    .modal-close {
+        background: none;
+        border: none;
+        color: #888;
+        font-size: 24px;
+        cursor: pointer;
+    }
 
-        .faq-item {
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 8px;
-            padding: 16px;
-        }
+    .form-group {
+        margin-bottom: 16px;
+    }
 
-        .faq-item:hover {
-            border-color: rgba(255, 255, 255, 0.15);
-        }
+    .form-group label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 13px;
+        color: #ccc;
+    }
 
-        .faq-question {
-            font-weight: 600;
-            color: #e2e8f0;
-            margin-bottom: 8px;
-        }
+    .admin-input {
+        width: 100%;
+        padding: 8px 12px;
+        background: #2a2a30;
+        border: 1px solid #444;
+        border-radius: 4px;
+        color: white;
+        font-size: 14px;
+    }
 
-        .faq-answer {
-            font-size: 13px;
-            color: rgba(255, 255, 255, 0.6);
-            white-space: pre-wrap;
-        }
+    .admin-input:focus {
+        border-color: #16e0bd;
+        outline: none;
+    }
 
-        .faq-actions {
-            margin-top: 12px;
-            display: flex;
-            gap: 8px;
-        }
+    .faq-item {
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        padding: 16px;
+    }
 
-        /* Resizable Textarea Styles */
-        textarea.admin-input {
-            resize: vertical;
-            min-height: 80px;
-            position: relative;
-        }
+    .faq-item:hover {
+        border-color: rgba(255, 255, 255, 0.15);
+    }
 
-        /* Custom resize handle - visible gripper */
-        textarea.admin-input::-webkit-resizer {
-            background: linear-gradient(135deg, transparent 60%, #16e0bd 60%, #16e0bd 70%, transparent 70%),
-                linear-gradient(135deg, transparent 70%, #16e0bd 70%, #16e0bd 80%, transparent 80%),
-                linear-gradient(135deg, transparent 80%, #16e0bd 80%, #16e0bd 90%, transparent 90%);
-            cursor: ns-resize;
-        }
+    .faq-question {
+        font-weight: 600;
+        color: #e2e8f0;
+        margin-bottom: 8px;
+    }
 
-        /* Firefox resize styling */
-        textarea.admin-input {
-            scrollbar-color: #16e0bd #2a2a30;
-        }
+    .faq-answer {
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.6);
+        white-space: pre-wrap;
+    }
 
-        /* Wrapper for resize indicator */
-        .textarea-wrapper {
-            position: relative;
-        }
+    .faq-actions {
+        margin-top: 12px;
+        display: flex;
+        gap: 8px;
+    }
 
-        .textarea-wrapper::after {
-            content: '⋮⋮';
-            position: absolute;
-            bottom: 4px;
-            right: 8px;
-            color: #16e0bd;
-            font-size: 10px;
-            letter-spacing: 2px;
-            pointer-events: none;
-            opacity: 0.7;
-        }
-    </style>
+    /* Resizable Textarea Styles */
+    textarea.admin-input {
+        resize: vertical;
+        min-height: 80px;
+        position: relative;
+    }
 
-    <script>
-        // Textarea height persistence via localStorage
-        function initTextareaResize() {
-            const textareas = document.querySelectorAll('textarea.admin-input[id]');
+    /* Custom resize handle - visible gripper */
+    textarea.admin-input::-webkit-resizer {
+        background: linear-gradient(135deg, transparent 60%, #16e0bd 60%, #16e0bd 70%, transparent 70%),
+            linear-gradient(135deg, transparent 70%, #16e0bd 70%, #16e0bd 80%, transparent 80%),
+            linear-gradient(135deg, transparent 80%, #16e0bd 80%, #16e0bd 90%, transparent 90%);
+        cursor: ns-resize;
+    }
 
-            textareas.forEach(textarea => {
-                const storageKey = `textarea_height_${textarea.id}`;
+    /* Firefox resize styling */
+    textarea.admin-input {
+        scrollbar-color: #16e0bd #2a2a30;
+    }
 
-                // Restore saved height
-                const savedHeight = localStorage.getItem(storageKey);
-                if (savedHeight) {
-                    textarea.style.height = savedHeight;
-                }
+    /* Wrapper for resize indicator */
+    .textarea-wrapper {
+        position: relative;
+    }
 
-                // Save height on resize using ResizeObserver
-                const resizeObserver = new ResizeObserver(entries => {
-                    for (let entry of entries) {
-                        const height = entry.target.style.height || entry.target.offsetHeight + 'px';
-                        localStorage.setItem(storageKey, height);
-                    }
-                });
+    .textarea-wrapper::after {
+        content: '⋮⋮';
+        position: absolute;
+        bottom: 4px;
+        right: 8px;
+        color: #16e0bd;
+        font-size: 10px;
+        letter-spacing: 2px;
+        pointer-events: none;
+        opacity: 0.7;
+    }
+</style>
 
-                resizeObserver.observe(textarea);
-            });
-        }
+<script>
+    // Textarea height persistence via localStorage
+    function initTextareaResize() {
+        const textareas = document.querySelectorAll('textarea.admin-input[id]');
 
-        // Run after DOM is ready
-        document.addEventListener('DOMContentLoaded', initTextareaResize);
+        textareas.forEach(textarea => {
+            const storageKey = `textarea_height_${textarea.id}`;
 
-        // Also run immediately in case DOM is already loaded
-        if (document.readyState !== 'loading') {
-            initTextareaResize();
-        }
-
-        // Auto-initialize Chatbot settings when loaded
-        if (typeof window.initChatbot === 'function') {
-            console.log('[Chatbot Settings] Auto-initializing...');
-            window.initChatbot();
-        } else if (typeof window.initChatbotSettings === 'function') {
-            console.log('[Chatbot Settings] Auto-initializing (legacy)...');
-            window.initChatbotSettings();
-        }
-
-        // ============================================
-        // TAB SWITCHING
-        // ============================================
-
-        function initChatbotTabs() {
-            const tabs = document.querySelectorAll('.chatbot-tab');
-
-            tabs.forEach(tab => {
-                tab.addEventListener('click', () => {
-                    const targetTab = tab.dataset.tab;
-
-                    // Update tab styles (underline style)
-                    tabs.forEach(t => {
-                        t.style.borderBottom = '2px solid transparent';
-                        t.style.color = 'rgba(255,255,255,0.5)';
-                        t.style.fontWeight = '400';
-                        t.classList.remove('active');
-                    });
-
-                    tab.style.borderBottom = '2px solid #16e0bd';
-                    tab.style.color = '#fff';
-                    tab.style.fontWeight = '600';
-                    tab.classList.add('active');
-
-                    // Show/hide content
-                    document.getElementById('tab-general').style.display = targetTab === 'general' ? 'block' : 'none';
-                    document.getElementById('tab-page-context').style.display = targetTab === 'page-context' ? 'block' : 'none';
-                    document.getElementById('tab-voice').style.display = targetTab === 'voice' ? 'block' : 'none';
-                    document.getElementById('tab-llm').style.display = targetTab === 'llm' ? 'block' : 'none';
-
-                    // Initialize tab content
-                    if (targetTab === 'page-context') {
-                        loadPageContextList();
-                    } else if (targetTab === 'voice') {
-                        loadVoiceSettings();
-                    } else if (targetTab === 'llm') {
-                        if (typeof loadLLMSettings === 'function') loadLLMSettings();
-                    }
-                });
-            });
-        }
-
-        // ============================================
-        // PAGE CONTEXT MANAGEMENT
-        // ============================================
-
-        let currentPageContextId = null;
-        let currentPageContextData = null;
-        let currentTips = [];
-
-        async function loadPageContextList() {
-            const select = document.getElementById('page-context-select');
-            select.innerHTML = '<option value="">-- Select a page --</option>';
-
-            try {
-                const db = firebase.firestore();
-                const snapshot = await db.collection('chatbotPageContext').orderBy('order').get();
-
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    const option = document.createElement('option');
-                    option.value = doc.id;
-                    option.textContent = `${data.name?.en || doc.id} (${data.isActive ? '✅' : '❌'})`;
-                    select.appendChild(option);
-                });
-
-                console.log(`[Admin] Loaded ${snapshot.size} page contexts`);
-            } catch (error) {
-                console.error('[Admin] Failed to load page contexts:', error);
+            // Restore saved height
+            const savedHeight = localStorage.getItem(storageKey);
+            if (savedHeight) {
+                textarea.style.height = savedHeight;
             }
+
+            // Save height on resize using ResizeObserver
+            const resizeObserver = new ResizeObserver(entries => {
+                for (let entry of entries) {
+                    const height = entry.target.style.height || entry.target.offsetHeight + 'px';
+                    localStorage.setItem(storageKey, height);
+                }
+            });
+
+            resizeObserver.observe(textarea);
+        });
+    }
+
+    // Run after DOM is ready
+    document.addEventListener('DOMContentLoaded', initTextareaResize);
+
+    // Also run immediately in case DOM is already loaded
+    if (document.readyState !== 'loading') {
+        initTextareaResize();
+    }
+
+    // Auto-initialize Chatbot settings when loaded
+    if (typeof window.initChatbot === 'function') {
+        console.log('[Chatbot Settings] Auto-initializing...');
+        window.initChatbot();
+    } else if (typeof window.initChatbotSettings === 'function') {
+        console.log('[Chatbot Settings] Auto-initializing (legacy)...');
+        window.initChatbotSettings();
+    }
+
+    // ============================================
+    // TAB SWITCHING
+    // ============================================
+
+    function initChatbotTabs() {
+        const tabs = document.querySelectorAll('.chatbot-tab');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const targetTab = tab.dataset.tab;
+
+                // Update tab styles (underline style)
+                tabs.forEach(t => {
+                    t.style.borderBottom = '2px solid transparent';
+                    t.style.color = 'rgba(255,255,255,0.5)';
+                    t.style.fontWeight = '400';
+                    t.classList.remove('active');
+                });
+
+                tab.style.borderBottom = '2px solid #16e0bd';
+                tab.style.color = '#fff';
+                tab.style.fontWeight = '600';
+                tab.classList.add('active');
+
+                // Show/hide content
+                document.getElementById('tab-general').style.display = targetTab === 'general' ? 'block' : 'none';
+                document.getElementById('tab-page-context').style.display = targetTab === 'page-context' ? 'block' : 'none';
+                document.getElementById('tab-voice').style.display = targetTab === 'voice' ? 'block' : 'none';
+                document.getElementById('tab-llm').style.display = targetTab === 'llm' ? 'block' : 'none';
+
+                // Initialize tab content
+                if (targetTab === 'page-context') {
+                    loadPageContextList();
+                } else if (targetTab === 'voice') {
+                    loadVoiceSettings();
+                } else if (targetTab === 'llm') {
+                    if (typeof loadLLMSettings === 'function') loadLLMSettings();
+                }
+            });
+        });
+    }
+
+    // ============================================
+    // PAGE CONTEXT MANAGEMENT
+    // ============================================
+
+    let currentPageContextId = null;
+    let currentPageContextData = null;
+    let currentTips = [];
+
+    async function loadPageContextList() {
+        const select = document.getElementById('page-context-select');
+        select.innerHTML = '<option value="">-- Select a page --</option>';
+
+        try {
+            const db = firebase.firestore();
+            const snapshot = await db.collection('chatbotPageContext').orderBy('order').get();
+
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                const option = document.createElement('option');
+                option.value = doc.id;
+                option.textContent = `${data.name?.en || doc.id} (${data.isActive ? '✅' : '❌'})`;
+                select.appendChild(option);
+            });
+
+            console.log(`[Admin] Loaded ${snapshot.size} page contexts`);
+        } catch (error) {
+            console.error('[Admin] Failed to load page contexts:', error);
+        }
+    }
+
+    async function loadPageContext(pageId) {
+        if (!pageId) {
+            document.getElementById('page-context-editor').style.display = 'none';
+            return;
         }
 
-        async function loadPageContext(pageId) {
-            if (!pageId) {
-                document.getElementById('page-context-editor').style.display = 'none';
+        try {
+            const db = firebase.firestore();
+            const doc = await db.collection('chatbotPageContext').doc(pageId).get();
+
+            if (!doc.exists) {
+                alert('Page context not found');
                 return;
             }
 
-            try {
-                const db = firebase.firestore();
-                const doc = await db.collection('chatbotPageContext').doc(pageId).get();
+            currentPageContextId = pageId;
+            currentPageContextData = doc.data();
+            currentTips = currentPageContextData.tips || [];
 
-                if (!doc.exists) {
-                    alert('Page context not found');
-                    return;
-                }
+            // Populate form
+            document.getElementById('ctx-name-en').value = currentPageContextData.name?.en || '';
+            document.getElementById('ctx-name-ko').value = currentPageContextData.name?.ko || '';
+            document.getElementById('ctx-desc-en').value = currentPageContextData.description?.en || '';
+            document.getElementById('ctx-desc-ko').value = currentPageContextData.description?.ko || '';
+            document.getElementById('ctx-is-active').checked = currentPageContextData.isActive !== false;
 
-                currentPageContextId = pageId;
-                currentPageContextData = doc.data();
-                currentTips = currentPageContextData.tips || [];
+            // Render tips
+            renderTips();
 
-                // Populate form
-                document.getElementById('ctx-name-en').value = currentPageContextData.name?.en || '';
-                document.getElementById('ctx-name-ko').value = currentPageContextData.name?.ko || '';
-                document.getElementById('ctx-desc-en').value = currentPageContextData.description?.en || '';
-                document.getElementById('ctx-desc-ko').value = currentPageContextData.description?.ko || '';
-                document.getElementById('ctx-is-active').checked = currentPageContextData.isActive !== false;
+            document.getElementById('page-context-editor').style.display = 'block';
 
-                // Render tips
-                renderTips();
-
-                document.getElementById('page-context-editor').style.display = 'block';
-
-            } catch (error) {
-                console.error('[Admin] Failed to load page context:', error);
-                alert('Error loading page context');
-            }
+        } catch (error) {
+            console.error('[Admin] Failed to load page context:', error);
+            alert('Error loading page context');
         }
+    }
 
-        function renderTips() {
-            const container = document.getElementById('tips-container');
-            container.innerHTML = '';
+    function renderTips() {
+        const container = document.getElementById('tips-container');
+        container.innerHTML = '';
 
-            currentTips.forEach((tip, index) => {
-                const tipEl = document.createElement('div');
-                tipEl.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; padding: 12px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px;';
-                tipEl.innerHTML = `
+        currentTips.forEach((tip, index) => {
+            const tipEl = document.createElement('div');
+            tipEl.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; padding: 12px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px;';
+            tipEl.innerHTML = `
                     <input type="text" class="admin-input tip-en" data-index="${index}" placeholder="Tip in English..." value="${tip.en || ''}">
                     <input type="text" class="admin-input tip-ko" data-index="${index}" placeholder="팁 (한국어)..." value="${tip.ko || ''}">
                     <button type="button" class="admin-btn-secondary btn-remove-tip" data-index="${index}" style="padding: 8px 12px; color: #ef4444;">🗑️</button>
                 `;
-                container.appendChild(tipEl);
-            });
+            container.appendChild(tipEl);
+        });
 
-            // Add event listeners
-            container.querySelectorAll('.tip-en, .tip-ko').forEach(input => {
-                input.addEventListener('change', (e) => {
-                    const idx = parseInt(e.target.dataset.index);
-                    const lang = e.target.classList.contains('tip-en') ? 'en' : 'ko';
-                    if (!currentTips[idx]) currentTips[idx] = {};
-                    currentTips[idx][lang] = e.target.value;
-                });
+        // Add event listeners
+        container.querySelectorAll('.tip-en, .tip-ko').forEach(input => {
+            input.addEventListener('change', (e) => {
+                const idx = parseInt(e.target.dataset.index);
+                const lang = e.target.classList.contains('tip-en') ? 'en' : 'ko';
+                if (!currentTips[idx]) currentTips[idx] = {};
+                currentTips[idx][lang] = e.target.value;
             });
+        });
 
-            container.querySelectorAll('.btn-remove-tip').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const idx = parseInt(e.target.dataset.index);
-                    currentTips.splice(idx, 1);
-                    renderTips();
-                });
+        container.querySelectorAll('.btn-remove-tip').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const idx = parseInt(e.target.dataset.index);
+                currentTips.splice(idx, 1);
+                renderTips();
             });
+        });
+    }
+
+    function addTip() {
+        currentTips.push({ en: '', ko: '' });
+        renderTips();
+    }
+
+    async function savePageContext() {
+        if (!currentPageContextId) return;
+
+        const data = {
+            name: {
+                en: document.getElementById('ctx-name-en').value,
+                ko: document.getElementById('ctx-name-ko').value
+            },
+            description: {
+                en: document.getElementById('ctx-desc-en').value,
+                ko: document.getElementById('ctx-desc-ko').value
+            },
+            tips: currentTips.filter(t => t.en || t.ko),
+            isActive: document.getElementById('ctx-is-active').checked,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        try {
+            const db = firebase.firestore();
+            await db.collection('chatbotPageContext').doc(currentPageContextId).update(data);
+
+            alert('✅ Page context saved!');
+            loadPageContextList();
+        } catch (error) {
+            console.error('[Admin] Failed to save page context:', error);
+            alert('❌ Error saving page context');
         }
+    }
 
-        function addTip() {
-            currentTips.push({ en: '', ko: '' });
-            renderTips();
+    // ============================================
+    // VOICE SETTINGS
+    // ============================================
+
+    async function loadVoiceSettings() {
+        try {
+            const db = firebase.firestore();
+            const doc = await db.collection('chatbotConfig').doc('default').get();
+
+            if (doc.exists) {
+                const config = doc.data();
+                document.getElementById('voice-input-enabled').checked = config.voiceInputEnabled || false;
+                document.getElementById('voice-output-enabled').checked = config.voiceOutputEnabled || false;
+            }
+        } catch (error) {
+            console.error('[Admin] Failed to load voice settings:', error);
         }
+    }
 
-        async function savePageContext() {
-            if (!currentPageContextId) return;
-
-            const data = {
-                name: {
-                    en: document.getElementById('ctx-name-en').value,
-                    ko: document.getElementById('ctx-name-ko').value
-                },
-                description: {
-                    en: document.getElementById('ctx-desc-en').value,
-                    ko: document.getElementById('ctx-desc-ko').value
-                },
-                tips: currentTips.filter(t => t.en || t.ko),
-                isActive: document.getElementById('ctx-is-active').checked,
+    async function saveVoiceSettings() {
+        try {
+            const db = firebase.firestore();
+            await db.collection('chatbotConfig').doc('default').update({
+                voiceEnabled: true,
+                voiceInputEnabled: document.getElementById('voice-input-enabled').checked,
+                voiceOutputEnabled: document.getElementById('voice-output-enabled').checked,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-            };
-
-            try {
-                const db = firebase.firestore();
-                await db.collection('chatbotPageContext').doc(currentPageContextId).update(data);
-
-                alert('✅ Page context saved!');
-                loadPageContextList();
-            } catch (error) {
-                console.error('[Admin] Failed to save page context:', error);
-                alert('❌ Error saving page context');
-            }
-        }
-
-        // ============================================
-        // VOICE SETTINGS
-        // ============================================
-
-        async function loadVoiceSettings() {
-            try {
-                const db = firebase.firestore();
-                const doc = await db.collection('chatbotConfig').doc('default').get();
-
-                if (doc.exists) {
-                    const config = doc.data();
-                    document.getElementById('voice-input-enabled').checked = config.voiceInputEnabled || false;
-                    document.getElementById('voice-output-enabled').checked = config.voiceOutputEnabled || false;
-                }
-            } catch (error) {
-                console.error('[Admin] Failed to load voice settings:', error);
-            }
-        }
-
-        async function saveVoiceSettings() {
-            try {
-                const db = firebase.firestore();
-                await db.collection('chatbotConfig').doc('default').update({
-                    voiceEnabled: true,
-                    voiceInputEnabled: document.getElementById('voice-input-enabled').checked,
-                    voiceOutputEnabled: document.getElementById('voice-output-enabled').checked,
-                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-
-                alert('✅ Voice settings saved!');
-            } catch (error) {
-                console.error('[Admin] Failed to save voice settings:', error);
-                alert('❌ Error saving voice settings');
-            }
-        }
-
-        // ============================================
-        // EVENT LISTENERS
-        // ============================================
-
-        // Initialize immediately since this HTML is dynamically loaded
-        // (DOMContentLoaded has already fired when admin.js loads this page)
-        function initChatbotAdmin() {
-            console.log('[Chatbot Admin] Initializing tabs and event listeners...');
-
-            initChatbotTabs();
-
-            // Page Context
-            document.getElementById('page-context-select')?.addEventListener('change', (e) => {
-                loadPageContext(e.target.value);
             });
 
-            document.getElementById('btn-refresh-pages')?.addEventListener('click', loadPageContextList);
-            document.getElementById('btn-add-tip')?.addEventListener('click', addTip);
-            document.getElementById('btn-save-page-context')?.addEventListener('click', savePageContext);
-
-            // Voice
-            document.getElementById('btn-save-voice')?.addEventListener('click', saveVoiceSettings);
-
-            console.log('[Chatbot Admin] Initialization complete');
+            alert('✅ Voice settings saved!');
+        } catch (error) {
+            console.error('[Admin] Failed to save voice settings:', error);
+            alert('❌ Error saving voice settings');
         }
+    }
 
-        // Run immediately
-        initChatbotAdmin();
+    // ============================================
+    // EVENT LISTENERS
+    // ============================================
 
-        // Also expose globally for admin.js compatibility
-        window.initChatbot = initChatbotAdmin;
-    </script>
+    // Initialize immediately since this HTML is dynamically loaded
+    // (DOMContentLoaded has already fired when admin.js loads this page)
+    function initChatbotAdmin() {
+        console.log('[Chatbot Admin] Initializing tabs and event listeners...');
+
+        initChatbotTabs();
+
+        // Page Context
+        document.getElementById('page-context-select')?.addEventListener('change', (e) => {
+            loadPageContext(e.target.value);
+        });
+
+        document.getElementById('btn-refresh-pages')?.addEventListener('click', loadPageContextList);
+        document.getElementById('btn-add-tip')?.addEventListener('click', addTip);
+        document.getElementById('btn-save-page-context')?.addEventListener('click', savePageContext);
+
+        // Voice
+        document.getElementById('btn-save-voice')?.addEventListener('click', saveVoiceSettings);
+
+        console.log('[Chatbot Admin] Initialization complete');
+    }
+
+    // Run immediately
+    initChatbotAdmin();
+
+    // Also expose globally for admin.js compatibility
+    window.initChatbot = initChatbotAdmin;
+</script>

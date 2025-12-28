@@ -75,11 +75,13 @@ function initChatbotTabs() {
             const pageContextTab = document.getElementById('tab-page-context');
             const voiceTab = document.getElementById('tab-voice');
             const llmTab = document.getElementById('tab-llm');
+            const faqTab = document.getElementById('tab-faq');
 
             if (generalTab) generalTab.style.display = targetTab === 'general' ? 'block' : 'none';
             if (pageContextTab) pageContextTab.style.display = targetTab === 'page-context' ? 'block' : 'none';
             if (voiceTab) voiceTab.style.display = targetTab === 'voice' ? 'block' : 'none';
             if (llmTab) llmTab.style.display = targetTab === 'llm' ? 'block' : 'none';
+            if (faqTab) faqTab.style.display = targetTab === 'faq' ? 'block' : 'none';
 
             // Initialize tab content
             if (targetTab === 'page-context') {
@@ -88,6 +90,8 @@ function initChatbotTabs() {
                 loadVoiceSettings();
             } else if (targetTab === 'llm') {
                 loadLLMSettings();
+            } else if (targetTab === 'faq') {
+                if (typeof loadFaqItems === 'function') loadFaqItems();
             }
         });
     });
