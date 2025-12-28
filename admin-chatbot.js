@@ -787,7 +787,7 @@ function bindEvents() {
 }
 
 // Open FAQ modal
-function openFaqModal(faqId = null) {
+window.openFaqModal = function (faqId = null) {
     document.getElementById('faq-modal').style.display = 'flex';
     document.getElementById('faq-edit-id').value = faqId || '';
     document.getElementById('faq-modal-title').textContent = faqId ? 'Edit FAQ' : 'Add FAQ';
@@ -802,7 +802,7 @@ function openFaqModal(faqId = null) {
         document.getElementById('faq-question').value = '';
         document.getElementById('faq-answer').value = '';
     }
-}
+};
 
 // Close FAQ modal
 window.closeFaqModal = function () {
