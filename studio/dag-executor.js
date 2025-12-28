@@ -261,11 +261,12 @@ class DAGExecutor {
             };
         }
 
-        // Fallback defaults
+        // Fallback defaults - v5.1: Respect user preference for no GPT-4o
+        // Uses Deepseek models as fallback since they're more cost-effective
         const fallbacks = {
             '1_economy': { provider: 'deepseek', model: 'deepseek-chat', creditMultiplier: 0.2 },
-            '2_balanced': { provider: 'openai', model: 'gpt-4o-mini', creditMultiplier: 1.0 },
-            '3_standard': { provider: 'openai', model: 'gpt-4o', creditMultiplier: 2.0 },
+            '2_balanced': { provider: 'deepseek', model: 'deepseek-chat', creditMultiplier: 0.5 },
+            '3_standard': { provider: 'deepseek', model: 'deepseek-reasoner', creditMultiplier: 1.0 },
             '4_premium': { provider: 'anthropic', model: 'claude-3-5-sonnet-20241022', creditMultiplier: 3.0 },
             '5_ultra': { provider: 'deepseek', model: 'deepseek-reasoner', creditMultiplier: 5.0 }
         };
@@ -608,7 +609,7 @@ class DAGExecutor {
         }
 
         let attempts = 0;
-        const maxAttempts = 2;
+        const maxAttempts = 3; // Increased retries before fallback
         let currentProvider = agentConfig.provider;
 
         // PATCH (Gemini Fix): Backend Cloud Function expects 'gemini' as provider ID (matching DB doc ID), 
@@ -647,13 +648,21 @@ class DAGExecutor {
                 console.error(`[DAGExecutor] Attempt ${attempts} failed for ${agentId} (${currentProvider}/${currentModel}):`, error);
 
                 if (attempts < maxAttempts) {
-                    // Switch to Safe Fallback (OpenAI / GPT-4o)
-                    console.warn(`[DAGExecutor] ⚠️ Switching to Fallback Provider (OpenAI) and retrying...`);
-                    this.emit('onLog', { message: `   ⚠️ Auto-Switching to Backup Model (GPT-4o)...`, type: 'warning' });
-                    currentProvider = 'openai';
-                    currentModel = 'gpt-4o';
-                    // Wait a ms before retry
-                    await new Promise(r => setTimeout(r, 500));
+                    // v5.1 FIX: Respect Global Routing - DO NOT switch to GPT-4o
+                    // Instead, retry with same provider (network issues) or use economy tier
+                    if (attempts === 1) {
+                        // First retry: Wait and try again with same model (might be network issue)
+                        console.warn(`[DAGExecutor] ⚠️ Retry ${attempts + 1}: Retrying with same model after delay...`);
+                        this.emit('onLog', { message: `   ⚠️ Retrying with same model...`, type: 'warning' });
+                        await new Promise(r => setTimeout(r, 2000));
+                    } else {
+                        // Second retry: Switch to economy tier (deepseek-chat) instead of GPT-4o
+                        console.warn(`[DAGExecutor] ⚠️ Retry ${attempts + 1}: Switching to economy model (deepseek-chat)...`);
+                        this.emit('onLog', { message: `   ⚠️ Switching to economy model (deepseek-chat)...`, type: 'warning' });
+                        currentProvider = 'deepseek';
+                        currentModel = 'deepseek-chat';
+                        await new Promise(r => setTimeout(r, 500));
+                    }
                 } else {
                     // Final failure
                     this.emit('onLog', { message: `   ❌ All attempts failed. Using static fallback.`, type: 'error' });
@@ -695,10 +704,10 @@ class DAGExecutor {
                 providerName = this.state.routingDefaults.text.default.provider;
             }
 
-            // Final fallback to OpenAI if nothing is configured
-            providerName = (providerName || 'openai').toLowerCase();
+            // Final fallback to Deepseek if nothing is configured (respecting no-GPT-4o preference)
+            providerName = (providerName || 'deepseek').toLowerCase();
 
-            globalModel = 'gpt-4o'; // Absolute fallback
+            globalModel = 'deepseek-reasoner'; // Absolute fallback - v5.1: Use Deepseek instead of GPT-4o
 
             // Check loaded defaults to find the exact model for this provider
             const tierKey = (this.state.qualityTier === 'BOOST') ? 'boost' : 'default';
@@ -1003,7 +1012,8 @@ class DAGExecutor {
         try {
             this.emit('onLog', { message: '   🎨 Generating image with configured provider...', type: 'info' });
 
-            const generateFn = firebase.functions().httpsCallable('generateCreativeContent');
+            // Set longer timeout for image generation (3 minutes instead of default ~70s)
+            const generateFn = firebase.functions().httpsCallable('generateCreativeContent', { timeout: 180000 });
             const result = await generateFn({
                 type: 'promo_images',
                 inputs: {
