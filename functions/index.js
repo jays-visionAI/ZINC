@@ -1608,6 +1608,15 @@ exports.askZynkBot = onCall({ cors: true }, async (request) => {
         let systemPrompt = config.systemPrompt || getDefaultSystemPrompt();
         const status = config.status || 'active';
 
+        // LLM Settings from Admin (NEW)
+        const llmProvider = config.llmProvider || null;
+        const llmModel = config.llmModel || null;
+        const llmTemperature = config.llmTemperature ?? 0.7;
+
+        if (llmProvider && llmModel) {
+            console.log(`[askZynkBot] Admin LLM Config: ${llmProvider}/${llmModel} (temp: ${llmTemperature})`);
+        }
+
         // Add language instruction to system prompt
         const langInstruction = language === 'en'
             ? '\n\n## IMPORTANT: Respond in English only.'
@@ -1651,14 +1660,23 @@ exports.askZynkBot = onCall({ cors: true }, async (request) => {
         let usageData = {};
 
         try {
-            // Use LLMRouter to pick the best model (Gemini 3.0, Nano Banana, or OpenAI)
-            // 'CHATBOT' feature will default to Google/Gemini if not explicitly overridden
-            const routerResult = await llmRouter.route({
+            // Use LLMRouter with explicit provider/model if configured in Admin
+            const routerOptions = {
                 feature: 'CHATBOT',
                 userId: userId,
                 messages: messages,
-                callLLM: callLLM
-            });
+                callLLM: callLLM,
+                temperature: llmTemperature
+            };
+
+            // Pass admin-configured provider/model as explicit overrides
+            if (llmProvider && llmModel) {
+                routerOptions.provider = llmProvider;
+                routerOptions.model = llmModel;
+                console.log(`[askZynkBot] Using Admin-configured model: ${llmProvider}/${llmModel}`);
+            }
+
+            const routerResult = await llmRouter.route(routerOptions);
 
             answer = routerResult.content;
             usedModel = routerResult.model;

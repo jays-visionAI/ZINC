@@ -105,6 +105,236 @@ function bindTabEvents() {
 
     // Voice
     document.getElementById('btn-save-voice')?.addEventListener('click', saveVoiceSettings);
+
+    // LLM Settings
+    document.getElementById('btn-save-llm')?.addEventListener('click', saveLLMSettings);
+    document.getElementById('llm-provider')?.addEventListener('change', onProviderChange);
+    document.getElementById('llm-model')?.addEventListener('change', onModelChange);
+    document.getElementById('llm-temperature')?.addEventListener('input', onTemperatureChange);
+}
+
+// ============================================
+// LLM SETTINGS MANAGEMENT
+// ============================================
+
+// Provider-Model mapping with descriptions
+const LLM_PROVIDERS = {
+    deepseek: {
+        name: 'DeepSeek',
+        icon: '🔮',
+        models: [
+            { id: 'deepseek-chat', name: 'DeepSeek Chat', desc: 'Cost-effective, high-quality chat model. Recommended for helpdesk use.' },
+            { id: 'deepseek-reasoner', name: 'DeepSeek Reasoner', desc: 'Advanced reasoning capabilities for complex queries.' }
+        ]
+    },
+    openai: {
+        name: 'OpenAI',
+        icon: '🟢',
+        models: [
+            { id: 'gpt-4o', name: 'GPT-4o', desc: 'Latest multimodal model with excellent performance.' },
+            { id: 'gpt-4o-mini', name: 'GPT-4o Mini', desc: 'Faster and more affordable version of GPT-4o.' },
+            { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', desc: 'Fast and cost-effective for simple queries.' }
+        ]
+    },
+    anthropic: {
+        name: 'Anthropic',
+        icon: '🟣',
+        models: [
+            { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet', desc: 'Best balance of intelligence and speed.' },
+            { id: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku', desc: 'Fastest Claude model for quick responses.' }
+        ]
+    },
+    google: {
+        name: 'Google',
+        icon: '🔵',
+        models: [
+            { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', desc: 'Advanced model with long context window.' },
+            { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', desc: 'Fast and efficient for quick responses.' }
+        ]
+    }
+};
+
+let currentLLMSettings = {
+    provider: 'deepseek',
+    model: 'deepseek-chat',
+    temperature: 0.7
+};
+
+// Load LLM settings from Firestore
+async function loadLLMSettings() {
+    console.log('[Chatbot Settings] Loading LLM settings...');
+
+    try {
+        const db = firebase.firestore();
+        const doc = await db.collection('chatbotConfig').doc('default').get();
+
+        if (doc.exists) {
+            const data = doc.data();
+            currentLLMSettings = {
+                provider: data.llmProvider || 'deepseek',
+                model: data.llmModel || 'deepseek-chat',
+                temperature: data.llmTemperature ?? 0.7
+            };
+        }
+
+        // Update UI
+        updateLLMUI();
+        console.log('[Chatbot Settings] LLM settings loaded:', currentLLMSettings);
+
+    } catch (error) {
+        console.error('[Chatbot Settings] Failed to load LLM settings:', error);
+        updateLLMUI(); // Use defaults
+    }
+}
+
+// Update all LLM UI elements
+function updateLLMUI() {
+    // Set provider dropdown
+    const providerSelect = document.getElementById('llm-provider');
+    if (providerSelect) {
+        providerSelect.value = currentLLMSettings.provider;
+    }
+
+    // Populate model dropdown based on provider
+    populateModelsDropdown(currentLLMSettings.provider);
+
+    // Set model dropdown
+    const modelSelect = document.getElementById('llm-model');
+    if (modelSelect) {
+        modelSelect.value = currentLLMSettings.model;
+    }
+
+    // Set temperature
+    const tempSlider = document.getElementById('llm-temperature');
+    const tempValue = document.getElementById('llm-temp-value');
+    if (tempSlider) {
+        tempSlider.value = currentLLMSettings.temperature;
+    }
+    if (tempValue) {
+        tempValue.textContent = currentLLMSettings.temperature.toFixed(1);
+    }
+
+    // Update current display
+    updateCurrentDisplay();
+
+    // Update model description
+    onModelChange();
+}
+
+// Populate models dropdown based on selected provider
+function populateModelsDropdown(providerId) {
+    const modelSelect = document.getElementById('llm-model');
+    if (!modelSelect) return;
+
+    const provider = LLM_PROVIDERS[providerId];
+    if (!provider) return;
+
+    modelSelect.innerHTML = provider.models.map(model =>
+        `<option value="${model.id}">${model.name}</option>`
+    ).join('');
+}
+
+// Update current model display at top of tab
+function updateCurrentDisplay() {
+    const provider = LLM_PROVIDERS[currentLLMSettings.provider];
+    const model = provider?.models.find(m => m.id === currentLLMSettings.model);
+
+    const iconEl = document.getElementById('llm-current-icon');
+    const modelEl = document.getElementById('llm-current-model');
+    const providerEl = document.getElementById('llm-current-provider');
+
+    if (iconEl) iconEl.textContent = provider?.icon || '🔮';
+    if (modelEl) modelEl.textContent = model?.name || currentLLMSettings.model;
+    if (providerEl) providerEl.textContent = provider?.name || currentLLMSettings.provider;
+}
+
+// Provider change handler
+function onProviderChange() {
+    const providerSelect = document.getElementById('llm-provider');
+    if (!providerSelect) return;
+
+    const newProvider = providerSelect.value;
+    currentLLMSettings.provider = newProvider;
+
+    // Populate new models and select first
+    populateModelsDropdown(newProvider);
+
+    const provider = LLM_PROVIDERS[newProvider];
+    if (provider && provider.models.length > 0) {
+        currentLLMSettings.model = provider.models[0].id;
+        const modelSelect = document.getElementById('llm-model');
+        if (modelSelect) modelSelect.value = currentLLMSettings.model;
+    }
+
+    onModelChange();
+}
+
+// Model change handler
+function onModelChange() {
+    const modelSelect = document.getElementById('llm-model');
+    if (!modelSelect) return;
+
+    currentLLMSettings.model = modelSelect.value;
+
+    // Update description
+    const provider = LLM_PROVIDERS[currentLLMSettings.provider];
+    const model = provider?.models.find(m => m.id === currentLLMSettings.model);
+
+    const descEl = document.getElementById('llm-model-desc');
+    if (descEl) {
+        descEl.textContent = model?.desc || '';
+    }
+}
+
+// Temperature change handler
+function onTemperatureChange() {
+    const tempSlider = document.getElementById('llm-temperature');
+    const tempValue = document.getElementById('llm-temp-value');
+
+    if (tempSlider) {
+        currentLLMSettings.temperature = parseFloat(tempSlider.value);
+    }
+    if (tempValue) {
+        tempValue.textContent = currentLLMSettings.temperature.toFixed(1);
+    }
+}
+
+// Save LLM settings to Firestore
+async function saveLLMSettings() {
+    const btn = document.getElementById('btn-save-llm');
+    if (!btn) return;
+
+    const originalText = btn.innerHTML;
+    btn.innerHTML = 'Saving...';
+    btn.disabled = true;
+
+    try {
+        const db = firebase.firestore();
+        await db.collection('chatbotConfig').doc('default').set({
+            llmProvider: currentLLMSettings.provider,
+            llmModel: currentLLMSettings.model,
+            llmTemperature: currentLLMSettings.temperature,
+            llmUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            llmUpdatedBy: firebase.auth().currentUser?.uid || 'unknown'
+        }, { merge: true });
+
+        // Update display
+        updateCurrentDisplay();
+
+        btn.innerHTML = '✓ Saved!';
+        console.log('[Chatbot Settings] LLM settings saved:', currentLLMSettings);
+
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }, 2000);
+
+    } catch (error) {
+        console.error('[Chatbot Settings] Failed to save LLM settings:', error);
+        alert('❌ Error saving LLM settings: ' + error.message);
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
 }
 
 // ============================================
