@@ -795,6 +795,13 @@ window.openFaqModal = function (faqId = null) {
         console.error('[Chatbot] ERROR: faq-modal element not found!');
         return;
     }
+
+    // Move modal to body to ensure proper fixed positioning
+    if (modal.parentElement !== document.body) {
+        document.body.appendChild(modal);
+        console.log('[Chatbot] Modal moved to body');
+    }
+
     modal.style.display = 'flex';
     document.getElementById('faq-edit-id').value = faqId || '';
     document.getElementById('faq-modal-title').textContent = faqId ? 'Edit FAQ' : 'Add FAQ';
