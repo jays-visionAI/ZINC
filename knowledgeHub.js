@@ -3444,13 +3444,17 @@ const CREATIVE_CONFIGS = {
     },
     product_brochure: {
         name: 'Product Brochure',
-        subtitle: 'Generate a high-quality PDF brochure',
+        subtitle: 'Generate a high-quality PDF brochure with AI images',
         buttonLabel: 'Brochure',
         credits: 20,
         controls: [
             { id: 'brochure-title', type: 'text', label: 'Title', placeholder: 'Brochure title' },
             { id: 'brochure-sections', type: 'select', label: 'Sections', options: ['3 sections', '4 sections', '5 sections'] },
-            { id: 'brochure-content', type: 'textarea', label: 'Key Content Points', placeholder: 'Main features, benefits, use cases...' }
+            { id: 'brochure-content', type: 'textarea', label: 'Key Content Points', placeholder: 'Main features, benefits, use cases...' },
+            { id: 'brochure-image-style', type: 'select', label: '🎨 Image Style', options: ['Modern & Clean', 'Corporate Professional', 'Bold & Creative', 'Minimalist', 'Tech & Futuristic', 'Natural & Organic'] },
+            { id: 'brochure-image-count', type: 'select', label: '📷 Image Count', options: ['2 images (Standard)', '3 images (Enhanced)', '4 images (Premium)'] },
+            { id: 'brochure-color-scheme', type: 'select', label: '🎨 Color Scheme', options: ['Auto (Match Brand)', 'Blue & Professional', 'Green & Nature', 'Orange & Energy', 'Purple & Creative', 'Monochrome'] },
+            { id: 'brochure-image-prompt', type: 'textarea', label: '✏️ Custom Image Instructions (Optional)', placeholder: 'Add specific instructions for AI image generation, e.g., "Include people using the product", "Show outdoor environment"...' }
         ]
     },
     promo_images: {
@@ -3776,8 +3780,35 @@ async function generateCreativeItem() {
         });
         specificInputs.format = format;
 
-        const styleSelect = container.querySelectorAll('select')[1]; // Second select is style
-        specificInputs.style = styleSelect ? styleSelect.value : '';
+        // Collect all select values by their IDs
+        const selects = container.querySelectorAll('select');
+        selects.forEach(sel => {
+            const id = sel.id || sel.closest('[id]')?.id || '';
+            if (id.includes('sections') || sel.previousElementSibling?.textContent?.includes('Sections')) {
+                specificInputs.sections = sel.value;
+            }
+            if (id.includes('image-style') || sel.previousElementSibling?.textContent?.includes('Image Style')) {
+                specificInputs.imageStyle = sel.value;
+            }
+            if (id.includes('image-count') || sel.previousElementSibling?.textContent?.includes('Image Count')) {
+                specificInputs.imageCount = sel.value;
+            }
+            if (id.includes('color-scheme') || sel.previousElementSibling?.textContent?.includes('Color Scheme')) {
+                specificInputs.colorScheme = sel.value;
+            }
+        });
+
+        // Get custom image prompt
+        const customPromptTextarea = container.querySelector('textarea[placeholder*="Add specific instructions"]');
+        if (customPromptTextarea) {
+            specificInputs.customImagePrompt = customPromptTextarea.value;
+        }
+
+        // Legacy: style from old UI
+        const styleSelect = container.querySelectorAll('select')[1];
+        if (!specificInputs.imageStyle) {
+            specificInputs.style = styleSelect ? styleSelect.value : '';
+        }
     }
     else if (currentCreativeType === 'pitch_deck') {
         const buttons = container.querySelectorAll('button');

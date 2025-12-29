@@ -4847,13 +4847,43 @@ exports.generateCreativeContent = onCall({ cors: true, timeoutSeconds: 300, memo
         let generatedImages = [];
 
         if (type === 'product_brochure') {
-            // Generate brochure images using Nano Banana Pro
-            console.log('[generateCreativeContent] 📸 Generating brochure images with Nano Banana Pro...');
+            // Extract user image customization preferences
+            const imageStyle = inputs.imageStyle || inputs.style || 'Modern & Clean';
+            const imageCountStr = inputs.imageCount || '2 images (Standard)';
+            const colorScheme = inputs.colorScheme || 'Auto (Match Brand)';
+            const customImagePrompt = inputs.customImagePrompt || '';
+
+            // Parse image count
+            let imageCount = 2;
+            if (imageCountStr.includes('3')) imageCount = 3;
+            if (imageCountStr.includes('4')) imageCount = 4;
+
+            // Map color scheme to style modifier
+            const colorModifiers = {
+                'Auto (Match Brand)': '',
+                'Blue & Professional': 'blue tones, professional corporate colors',
+                'Green & Nature': 'green and natural earth tones, eco-friendly colors',
+                'Orange & Energy': 'vibrant orange and warm energetic colors',
+                'Purple & Creative': 'purple and violet creative palette',
+                'Monochrome': 'black and white, grayscale, monochrome'
+            };
+            const colorMod = colorModifiers[colorScheme] || '';
+
+            // Build dynamic image prompts based on user preferences
+            console.log(`[generateCreativeContent] 📸 Generating ${imageCount} brochure images with Nano Banana Pro...`);
+            console.log(`[generateCreativeContent] Style: ${imageStyle}, Color: ${colorScheme}, Custom: ${customImagePrompt ? 'Yes' : 'None'}`);
+
             try {
-                const imagePrompts = [
-                    `Professional product hero image for: ${topic}. Modern, clean design, premium quality, ${style || 'corporate'} style.`,
-                    `Abstract background visual representing: ${topic}. Suitable for brochure design, gradient style, professional.`
+                const basePrompts = [
+                    `Professional product hero image for: ${topic}. Style: ${imageStyle}. ${colorMod}. Premium quality, no text.`,
+                    `Abstract background visual for: ${topic}. Style: ${imageStyle}. ${colorMod}. Suitable for brochure, gradient style.`,
+                    `Detail/feature showcase image for: ${topic}. Style: ${imageStyle}. ${colorMod}. Clean composition.`,
+                    `Lifestyle/application scene for: ${topic}. Style: ${imageStyle}. ${colorMod}. Contextual usage.`
                 ];
+
+                const imagePrompts = basePrompts.slice(0, imageCount).map(prompt =>
+                    customImagePrompt ? `${prompt} ${customImagePrompt}` : prompt
+                );
 
                 for (const imgPrompt of imagePrompts) {
                     try {
@@ -4872,7 +4902,7 @@ exports.generateCreativeContent = onCall({ cors: true, timeoutSeconds: 300, memo
                 ? `\n\nGenerated Images for brochure (use these URLs in your HTML):\n${generatedImages.map((url, i) => `Image ${i + 1}: ${url}`).join('\n')}\n\n`
                 : '';
 
-            userPrompt += `Create a specialized Product Brochure in ${format} layout. Structure HTML for A4. Use Tailwind CSS. Sections: Cover, Problem, Solution, Key Features.${imageSection}Include <img> tags with the provided image URLs if available.`;
+            userPrompt += `Create a specialized Product Brochure in ${format} layout. Structure HTML for A4. Use Tailwind CSS. Sections: Cover, Problem, Solution, Key Features.${imageSection}Include <img> tags with the provided image URLs if available. Match the ${imageStyle} visual style and ${colorScheme} color theme.`;
         } else if (type === 'one_pager') {
             userPrompt += `Create a high-density One-Pager Executive Summary. Sections: Challenge, Approach, Roadmap, Metrics.`;
         } else if (type === 'pitch_deck') {
