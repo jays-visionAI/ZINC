@@ -3382,47 +3382,75 @@ async function generateWithImagen(prompt, size, model = 'imagen-4.0-fast-generat
     }
 
     // All Imagen models failed - try DALL-E as reliable fallback (Gemini Flash often returns text, not images)
-    console.warn(`[generateWithImagen] ⚠️ All Imagen models failed. Falling back to DALL-E 3...`);
-    return await generateWithDallE(prompt, size);
+    console.warn(`[generateWithImagen] ⚠️ All Imagen models failed. Falling back to Nano Banana Pro (gemini-3-pro-image-preview)...`);
+    return await generateWithNanoBananaPro(prompt, size);
 }
 
 /**
- * Reliable Fallback: DALL-E 3 via OpenAI API
+ * Fallback: Nano Banana Pro (gemini-3-pro-image-preview)
+ * Uses generateContent API which reliably produces images
  */
-async function generateWithDallE(prompt, size) {
-    const openaiKey = await getSystemApiKey('openai');
-    if (!openaiKey) {
-        throw new Error('OpenAI API key not configured for DALL-E fallback');
+async function generateWithNanoBananaPro(prompt, size) {
+    const apiKey = await getSystemApiKey('google');
+    if (!apiKey) {
+        throw new Error('Google API key not configured for Nano Banana Pro');
     }
 
-    const { OpenAI } = require('openai');
-    const openai = new OpenAI({ apiKey: openaiKey });
+    const { GoogleGenerativeAI, SchemaType } = require('@google/generative-ai');
+    const genAI = new GoogleGenerativeAI(apiKey);
 
-    // Map size to DALL-E supported sizes
-    const sizeMap = {
-        '1024x1024': '1024x1024',
-        '1792x1024': '1792x1024',
-        '1024x1792': '1024x1792'
-    };
-    const dalleSize = sizeMap[size] || '1024x1024';
+    // Try multiple Nano Banana models in order of preference
+    const modelsToTry = [
+        'gemini-3-pro-image-preview',  // Nano Banana Pro (highest quality)
+        'gemini-2.5-flash-image',      // Nano Banana (faster)
+        'gemini-2.0-flash-exp'         // Legacy fallback
+    ];
 
-    console.log(`[generateWithDallE] Generating image with DALL-E 3 (${dalleSize})...`);
+    console.log(`[generateWithNanoBananaPro] Starting image generation with prompt: "${prompt.substring(0, 50)}..."`);
 
-    const response = await openai.images.generate({
-        model: 'dall-e-3',
-        prompt: prompt,
-        n: 1,
-        size: dalleSize,
-        quality: 'standard'
-    });
+    for (const modelName of modelsToTry) {
+        try {
+            console.log(`[generateWithNanoBananaPro] 🔄 Trying model: ${modelName}`);
 
-    const imageUrl = response.data[0]?.url;
-    if (!imageUrl) {
-        throw new Error('DALL-E returned no image URL');
+            const model = genAI.getGenerativeModel({
+                model: modelName,
+                generationConfig: {
+                    responseModalities: ['TEXT', 'IMAGE'],
+                    temperature: 1,
+                    maxOutputTokens: 8192,
+                }
+            });
+
+            const enhancedPrompt = `Generate a high-quality image: ${prompt}. 
+Style: Professional, visually striking, relevant to the content.
+Do not include any text, letters, numbers, logos, or watermarks in the image.`;
+
+            const result = await model.generateContent({
+                contents: [{ role: 'user', parts: [{ text: enhancedPrompt }] }],
+            });
+
+            const response = result.response;
+            const parts = response.candidates?.[0]?.content?.parts || [];
+
+            for (const part of parts) {
+                if (part.inlineData && part.inlineData.mimeType?.startsWith('image/')) {
+                    console.log(`[generateWithNanoBananaPro] ✅ Image generated successfully with ${modelName}`);
+                    return await uploadBase64ToStorage(part.inlineData.data, modelName);
+                }
+            }
+
+            // No image in response, check for text
+            const textResponse = parts.find(p => p.text)?.text || '';
+            console.warn(`[generateWithNanoBananaPro] ${modelName} returned text instead of image: "${textResponse.substring(0, 100)}..."`);
+            // Continue to next model
+
+        } catch (error) {
+            console.error(`[generateWithNanoBananaPro] ${modelName} failed:`, error.message);
+            // Continue to next model
+        }
     }
 
-    console.log(`[generateWithDallE] ✅ DALL-E image generated successfully`);
-    return imageUrl;
+    throw new Error('All Nano Banana models failed to generate an image');
 }
 
 /**
