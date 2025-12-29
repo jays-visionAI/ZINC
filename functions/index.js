@@ -3535,6 +3535,7 @@ async function getImageApiKey(provider) {
 
 /**
  * Helper: Upload base64 image to Firebase Storage
+ * Uses Signed URL for compatibility with uniform bucket-level access
  */
 async function uploadBase64ToStorage(base64Data, provider) {
     const bucket = admin.storage().bucket();
@@ -3543,11 +3544,21 @@ async function uploadBase64ToStorage(base64Data, provider) {
 
     const buffer = Buffer.from(base64Data, 'base64');
     await file.save(buffer, {
-        metadata: { contentType: 'image/png' }
+        metadata: {
+            contentType: 'image/png',
+            cacheControl: 'public, max-age=31536000' // 1 year cache
+        }
     });
 
-    await file.makePublic();
-    return `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+    // Use Signed URL instead of makePublic for uniform bucket-level access
+    // This generates a long-lived public URL (1 year expiry)
+    const [signedUrl] = await file.getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 365 * 24 * 60 * 60 * 1000 // 1 year
+    });
+
+    console.log(`[uploadBase64ToStorage] ✅ Image uploaded: ${fileName}`);
+    return signedUrl;
 }
 
 /**
