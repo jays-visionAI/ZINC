@@ -3401,9 +3401,10 @@ async function generateWithNanoBananaPro(prompt, size) {
 
     // Try multiple Nano Banana models in order of preference (using REST API)
     const modelsToTry = [
-        'gemini-2.5-flash-image',      // Nano Banana (most reliable for images)
-        'gemini-3-pro-image-preview',  // Nano Banana Pro (highest quality)
-        'gemini-2.0-flash-exp'         // Legacy fallback
+        'Nano Banana Pro',           // High Quality
+        'Nano Banana',               // Standard Quality
+        'gemini-3-pro-image-preview', // Fallback
+        'gemini-2.5-flash-preview-image'
     ];
 
     const enhancedPrompt = `Generate a high-quality image: ${prompt}. 
