@@ -503,8 +503,7 @@ async function selectProject(projectId) {
             await Promise.all([
                 loadSources(),
                 loadBrandSummaries(),
-                loadSavedPlans(),
-                loadUpcomingSchedules() // Ensure all related data loads together
+                loadSavedPlans()
             ]);
 
             updateSourceCounts();
@@ -1535,9 +1534,8 @@ function initializePlanCards() {
         });
     }
 
-    // Load saved plans and schedules
+    // Load saved plans
     loadSavedPlans();
-    loadUpcomingSchedules();
 }
 
 /**
@@ -5002,7 +5000,6 @@ async function confirmSchedule() {
 
         // Refresh saved plans list
         await loadSavedPlans();
-        await loadUpcomingSchedules();
 
     } catch (error) {
         console.error('Error scheduling content:', error);
@@ -5066,87 +5063,6 @@ async function submitFeedback(rating) {
     }
 }
 
-async function loadUpcomingSchedules() {
-    if (!currentProjectId) return;
-
-    try {
-        const now = new Date();
-        const snapshot = await firebase.firestore()
-            .collection('projects')
-            .doc(currentProjectId)
-            .collection('scheduledContent')
-            .where('status', '==', 'scheduled')
-            .where('scheduledAt', '>=', firebase.firestore.Timestamp.fromDate(now))
-            .orderBy('scheduledAt', 'asc')
-            .limit(5)
-            .get();
-
-        scheduledItems = [];
-        snapshot.forEach(doc => {
-            scheduledItems.push({ id: doc.id, ...doc.data() });
-        });
-
-        renderUpcomingSchedules();
-
-    } catch (error) {
-        console.error('Error loading schedules:', error);
-    }
-}
-
-function renderUpcomingSchedules() {
-    // Find or create the upcoming schedules container
-    let container = document.getElementById('upcoming-schedules-container');
-
-    if (!container) {
-        // Add to saved plans section
-        const savedPlansSection = document.querySelector('#saved-plans-list')?.parentElement;
-        if (savedPlansSection) {
-            const scheduleSection = document.createElement('div');
-            scheduleSection.className = 'border-t border-slate-800 p-3 mt-2';
-            scheduleSection.innerHTML = `
-                < div class="flex items-center justify-between mb-2" >
-                    <span class="text-xs font-semibold text-emerald-400">📅 Upcoming</span>
-                </div >
-                <div id="upcoming-schedules-container" class="space-y-1"></div>
-            `;
-            savedPlansSection.after(scheduleSection);
-            container = document.getElementById('upcoming-schedules-container');
-        }
-    }
-
-    if (!container) return;
-
-    if (scheduledItems.length === 0) {
-        container.innerHTML = '<p class="text-[11px] text-slate-600 text-center py-2">No upcoming schedules</p>';
-        return;
-    }
-
-    container.innerHTML = scheduledItems.map(item => {
-        const date = item.scheduledAt?.toDate?.() || new Date();
-        const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-        const channels = item.channels?.map(c => getChannelEmoji(c)).join(' ') || '';
-
-        return `
-                < div class="flex items-center justify-between p-2 bg-emerald-900/20 border border-emerald-500/20 rounded-lg" >
-                <div class="flex-1 min-w-0">
-                    <p class="text-xs font-medium text-slate-300 truncate">${escapeHtml(item.title)}</p>
-                    <p class="text-[10px] text-slate-500">${dateStr} at ${timeStr} ${channels}</p>
-                </div>
-                <button onclick="cancelSchedule('${item.id}')" class="text-xs text-slate-500 hover:text-red-400 p-1" title="Cancel">✕</button>
-            </div >
-                `;
-    }).join('');
-}
-
-function getChannelEmoji(channel) {
-    switch (channel) {
-        case 'x': return '𝕏';
-        case 'instagram': return '📸';
-        case 'linkedin': return '💼';
-        default: return '📢';
-    }
-}
 
 async function cancelSchedule(scheduleId) {
     if (!confirm('Cancel this scheduled content?')) return;
@@ -5160,7 +5076,6 @@ async function cancelSchedule(scheduleId) {
             .update({ status: 'cancelled' });
 
         showNotification('Schedule cancelled', 'info');
-        await loadUpcomingSchedules();
     } catch (error) {
         console.error('Error cancelling schedule:', error);
         showNotification('Failed to cancel', 'error');
