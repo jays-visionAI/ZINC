@@ -23,6 +23,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
     <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         body {
             background-color: #020617;
@@ -1575,6 +1576,19 @@
                                         <line x1="12" y1="15" x2="12" y2="3"></line>
                                     </svg>
                                     Download
+                                </button>
+                                <button id="btn-creative-download-pdf" onclick="downloadCreativeAsPDF()"
+                                    class="hidden px-3 py-1.5 text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded hover:bg-rose-500/20 flex items-center gap-1.5">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                        <polyline points="14 2 14 8 20 8"></polyline>
+                                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                                        <polyline points="10 9 9 9 8 9"></polyline>
+                                    </svg>
+                                    PDF
                                 </button>
                                 <button id="btn-creative-copy" onclick="copyCreativeItem()"
                                     class="hidden px-3 py-1.5 text-xs text-slate-400 bg-slate-800 border border-slate-700 rounded hover:text-white flex items-center gap-1.5">

@@ -3905,6 +3905,12 @@ async function generateCreativeItem() {
             document.getElementById('creative-result-container').classList.remove('hidden');
             document.getElementById('btn-creative-download').classList.remove('hidden');
 
+            // Show PDF download button for brochure/one-pager types
+            const pdfBtn = document.getElementById('btn-creative-download-pdf');
+            if (pdfBtn && (currentCreativeType === 'product_brochure' || currentCreativeType === 'one_pager' || currentCreativeType === 'pitch_deck')) {
+                pdfBtn.classList.remove('hidden');
+            }
+
             // Setup Download Button
             const downloadBtn = document.getElementById('btn-creative-download');
             downloadBtn.onclick = () => {
@@ -3943,6 +3949,49 @@ function renderCreativeImages(images) {
         </div>
     `;
 }
+
+/**
+ * Download creative content as PDF using html2pdf.js
+ */
+window.downloadCreativeAsPDF = function () {
+    const container = document.getElementById('creative-result-container');
+    if (!container || !container.innerHTML.trim()) {
+        showNotification('No content to export', 'error');
+        return;
+    }
+
+    // Show loading
+    showNotification('Generating PDF... Please wait', 'info');
+
+    // Get the content element
+    const contentEl = container.querySelector('.prose') || container.firstElementChild;
+
+    // Configure html2pdf options
+    const options = {
+        margin: 10,
+        filename: `zynk-${currentCreativeType || 'creative'}-${Date.now()}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: {
+            scale: 2,
+            useCORS: true,
+            logging: false
+        },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    // Generate PDF
+    html2pdf()
+        .set(options)
+        .from(contentEl)
+        .save()
+        .then(() => {
+            showNotification('PDF downloaded successfully!', 'success');
+        })
+        .catch((error) => {
+            console.error('PDF generation error:', error);
+            showNotification('Failed to generate PDF: ' + error.message, 'error');
+        });
+};
 
 /**
  * Render creative text/HTML result
