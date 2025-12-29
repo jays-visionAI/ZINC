@@ -1509,6 +1509,7 @@ const PLAN_CATEGORY_ITEMS = {
         { id: 'product_brochure', name: 'Product Brochure', desc: 'PDF + Image brochure', credits: 20 },
         { id: 'promo_images', name: 'Promo Images', desc: 'AI-generated images', credits: 5 },
         { id: 'one_pager', name: '1-Pager PDF', desc: 'Executive summary document', credits: 15 },
+        { id: 'pitch_deck', name: 'Pitch Deck', desc: 'Full presentation with AI visuals', credits: 25 },
         { id: 'email_template', name: 'Email Template', desc: 'Marketing email drafts', credits: 5 },
         { id: 'press_release', name: 'Press Release', desc: 'Media announcement draft', credits: 10 }
     ]
@@ -3469,23 +3470,30 @@ const CREATIVE_CONFIGS = {
     },
     one_pager: {
         name: '1-Pager PDF',
-        subtitle: 'Generate a single-page summary document',
+        subtitle: 'Generate a single-page executive summary with AI images',
         buttonLabel: '1-Pager',
         credits: 15,
         controls: [
             { id: 'onepager-title', type: 'text', label: 'Document Title', placeholder: 'Title for the document' },
-            { id: 'onepager-content', type: 'textarea', label: 'Main Content', placeholder: 'Key information to include...' }
+            { id: 'onepager-content', type: 'textarea', label: 'Main Content', placeholder: 'Key information to include...' },
+            { id: 'onepager-format', type: 'select', label: '📄 Layout Format', options: ['Executive Summary', 'Problem-Solution', 'Product Overview', 'Company Profile'] },
+            { id: 'onepager-style', type: 'select', label: '🎨 Visual Style', options: ['Modern & Clean', 'Corporate Professional', 'Minimalist', 'Bold & Creative'] },
+            { id: 'onepager-include-image', type: 'select', label: '📷 Include AI Image', options: ['Yes - Hero Image', 'Yes - Background Visual', 'No Image'] }
         ]
     },
     pitch_deck: {
-        name: 'Pitch Deck Outline',
-        subtitle: 'Generate a presentation outline',
-        buttonLabel: 'Outline',
-        credits: 10,
+        name: 'Pitch Deck',
+        subtitle: 'Generate a full pitch deck presentation with AI visuals',
+        buttonLabel: 'Deck',
+        credits: 25,
         controls: [
-            { id: 'pitch-topic', type: 'text', label: 'Topic', placeholder: 'What is this pitch about?' },
-            { id: 'pitch-slides', type: 'select', label: 'Number of Slides', options: ['5 slides', '8 slides', '10 slides', '12 slides'] },
-            { id: 'pitch-audience', type: 'text', label: 'Target Audience', placeholder: 'e.g., Investors, Partners, Customers' }
+            { id: 'pitch-title', type: 'text', label: 'Presentation Title', placeholder: 'Title of your pitch deck' },
+            { id: 'pitch-topic', type: 'textarea', label: 'Pitch Overview', placeholder: 'Brief description of what this pitch is about...' },
+            { id: 'pitch-slides', type: 'select', label: '📊 Number of Slides', options: ['5 slides (Quick)', '8 slides (Standard)', '10 slides (Detailed)', '12 slides (Comprehensive)'] },
+            { id: 'pitch-purpose', type: 'select', label: '🎯 Pitch Purpose', options: ['Investor Pitch', 'Sales Pitch', 'Partnership Proposal', 'Product Launch', 'Company Overview'] },
+            { id: 'pitch-style', type: 'select', label: '🎨 Visual Style', options: ['Modern Tech', 'Corporate Classic', 'Creative Bold', 'Minimalist', 'Startup Friendly'] },
+            { id: 'pitch-audience', type: 'text', label: '👥 Target Audience', placeholder: 'e.g., VCs, Enterprise Clients, Partners' },
+            { id: 'pitch-include-images', type: 'select', label: '📷 AI Generated Images', options: ['Yes - Cover + Section Headers', 'Yes - Cover Only', 'No Images'] }
         ]
     }
 };
