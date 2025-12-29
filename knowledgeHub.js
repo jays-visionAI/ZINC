@@ -226,19 +226,31 @@ function setAnalysisLevel(level) {
     if (!standardBtn || !depthBtn || !levelInput) return;
 
     levelInput.value = level;
+    console.log('[KnowledgeHub] setting analysis level to:', level);
 
     if (level === 'standard') {
-        standardBtn.className = 'px-3 py-1 text-[10px] font-bold rounded-md transition-all bg-indigo-600 text-white';
-        depthBtn.className = 'px-3 py-1 text-[10px] font-bold rounded-md transition-all text-slate-500 hover:text-slate-300';
+        // Active: Standard
+        standardBtn.classList.remove('text-slate-500', 'hover:text-slate-300');
+        standardBtn.classList.add('bg-indigo-600', 'text-white');
+
+        // Inactive: Depth
+        depthBtn.classList.remove('bg-indigo-600', 'text-white');
+        depthBtn.classList.add('text-slate-500', 'hover:text-slate-300');
+
         if (depthOptions) depthOptions.classList.add('hidden');
     } else {
-        standardBtn.className = 'px-3 py-1 text-[10px] font-bold rounded-md transition-all text-slate-500 hover:text-slate-300';
-        depthBtn.className = 'px-3 py-1 text-[10px] font-bold rounded-md transition-all bg-indigo-600 text-white';
+        // Inactive: Standard
+        standardBtn.classList.remove('bg-indigo-600', 'text-white');
+        standardBtn.classList.add('text-slate-500', 'hover:text-slate-300');
+
+        // Active: Depth
+        depthBtn.classList.remove('text-slate-500', 'hover:text-slate-300');
+        depthBtn.classList.add('bg-indigo-600', 'text-white');
+
         if (depthOptions) depthOptions.classList.remove('hidden');
     }
-
-    console.log('[KnowledgeHub] Analysis level set to:', level);
 }
+window.setAnalysisLevel = setAnalysisLevel;
 
 /**
  * Open Google Picker to select files
@@ -2273,11 +2285,17 @@ function initializeEventListeners() {
         langSelector.addEventListener('change', (e) => {
             targetLanguage = e.target.value;
             localStorage.setItem('knowledgeHub_targetLanguage', targetLanguage);
-            showNotification(`Target language changed to ${getLanguageName(targetLanguage)}`, 'success');
+            if (window.showNotification) window.showNotification(`Target language changed to ${getLanguageName(targetLanguage)}`, 'success');
             // Regenerate summary with new language
             generateSummary();
         });
     }
+
+    // Analysis Level Toggles
+    const btnStandard = document.getElementById('btn-analysis-standard');
+    const btnDepth = document.getElementById('btn-analysis-depth');
+    if (btnStandard) btnStandard.addEventListener('click', () => setAnalysisLevel('standard'));
+    if (btnDepth) btnDepth.addEventListener('click', () => setAnalysisLevel('depth'));
 }
 
 function getLanguageName(code) {
@@ -5513,7 +5531,6 @@ function openHistoryPlan(index) {
 
 // Export functions to window for HTML onclick handlers
 window.regenerateSummary = generateSummary;
-window.setAnalysisLevel = setAnalysisLevel;
 
 /**
  * Set input text from suggested question
