@@ -399,7 +399,9 @@ exports.routeLLM = functions.https.onCall(async (data, context) => {
         messages: rawMessages,
         temperature = 0.7,
         projectId,
-        metadata = {}
+        metadata = {},
+        provider: explicitProvider,
+        model: explicitModel
     } = payload;
 
     // Get user ID from auth context
@@ -434,6 +436,8 @@ exports.routeLLM = functions.https.onCall(async (data, context) => {
             temperature,
             userId,
             projectId,
+            provider: explicitProvider,
+            model: explicitModel,
             callLLM  // Pass the existing callLLM function
         });
 

@@ -214,6 +214,33 @@ function requestGoogleDriveAccess() {
 }
 
 /**
+ * NEW: Set Analysis Level for Brand Intelligence
+ * @param {string} level - 'standard' or 'depth'
+ */
+function setAnalysisLevel(level) {
+    const standardBtn = document.getElementById('btn-analysis-standard');
+    const depthBtn = document.getElementById('btn-analysis-depth');
+    const depthOptions = document.getElementById('depth-options');
+    const levelInput = document.getElementById('current-analysis-level');
+
+    if (!standardBtn || !depthBtn || !levelInput) return;
+
+    levelInput.value = level;
+
+    if (level === 'standard') {
+        standardBtn.className = 'px-3 py-1 text-[10px] font-bold rounded-md transition-all bg-indigo-600 text-white';
+        depthBtn.className = 'px-3 py-1 text-[10px] font-bold rounded-md transition-all text-slate-500 hover:text-slate-300';
+        if (depthOptions) depthOptions.classList.add('hidden');
+    } else {
+        standardBtn.className = 'px-3 py-1 text-[10px] font-bold rounded-md transition-all text-slate-500 hover:text-slate-300';
+        depthBtn.className = 'px-3 py-1 text-[10px] font-bold rounded-md transition-all bg-indigo-600 text-white';
+        if (depthOptions) depthOptions.classList.remove('hidden');
+    }
+
+    console.log('[KnowledgeHub] Analysis level set to:', level);
+}
+
+/**
  * Open Google Picker to select files
  */
 function openGooglePicker() {
@@ -2598,12 +2625,32 @@ async function generateSummary() {
     const summaryTitle = document.getElementById('summary-title');
     const summaryContent = document.getElementById('summary-content');
     const btnRegenerate = document.getElementById('btn-regenerate-summary');
+    const analysisLevel = document.getElementById('current-analysis-level')?.value || 'standard';
+    const analysisFocus = document.getElementById('analysis-focus')?.value || 'general';
 
-    if (summaryTitle) summaryTitle.textContent = 'Generating summary...';
+    if (summaryTitle) summaryTitle.textContent = analysisLevel === 'depth' ? 'Generating Depth Report...' : 'Generating summary...';
     if (summaryContent) summaryContent.textContent = 'Analyzing your documents...';
     if (btnRegenerate) btnRegenerate.disabled = true;
 
     try {
+        // 0. Fetch Pipeline Settings from Firestore
+        console.log('[KnowledgeHub] Fetching Pipeline Settings...');
+        const settingsDoc = await db.collection('pipelineSettings').doc('knowledge_hub').get();
+        const settings = settingsDoc.exists ? settingsDoc.data() : {};
+
+        // Select Agent Config
+        const agentConfig = analysisLevel === 'depth' ? (settings.depth || {}) : (settings.standard || {});
+
+        // Finalize Prompts
+        let systemPrompt = agentConfig.systemPrompt || (analysisLevel === 'depth'
+            ? 'You are a Senior Strategic Brand Analyst. Generate a deep, A4-length report.'
+            : 'You are a Brand Intelligence AI. Generate a comprehensive brand summary.');
+
+        // Add focus if depth mode
+        if (analysisLevel === 'depth' && analysisFocus !== 'general') {
+            systemPrompt += `\n\n### FOCUS AREA: ${analysisFocus.toUpperCase()}\nPlease provide extra detail and strategic depth in this specific area while maintaining the overall report structure.`;
+        }
+
         // Prepare Context
         // Calculate percentages
         const totalPoints = activeSources.reduce((sum, s) => sum + (s.importance === 3 ? 3 : (s.importance === 1 ? 1 : 2)), 0);
@@ -2621,10 +2668,9 @@ async function generateSummary() {
         // Determine Tier (Standard vs Boost)
         const boostActiveEl = document.getElementById('main-summary-boost-active');
         const boostActive = boostActiveEl ? boostActiveEl.value === 'true' : false;
-        const qualityTier = boostActive ? 'BOOST' : 'DEFAULT';
+        const qualityTier = (analysisLevel === 'depth' || boostActive) ? 'BOOST' : 'DEFAULT';
 
         // Prepare Prompts
-        const systemPrompt = 'You are a Brand Intelligence AI. Analyze the provided source documents and generate a comprehensive brand summary in JSON format.';
         const userPrompt = `Please analyze the following source documents and generate a Brand Summary in ${targetLanguage === 'ko' ? 'Korean' : 'English'}.
             
 Source Weights (Importance 1-3):
@@ -2632,14 +2678,14 @@ ${sourceWeights.map(s => `- ${s.title} (Importance: ${s.importance})`).join('\n'
 
 Output Format (JSON):
 {
-    "summary": "Executive summary text...",
+    "summary": "Executive summary text (A4 level detail)...",
     "keyInsights": ["Insight 1...", "Insight 2..."],
     "suggestedQuestions": ["Question 1?", "Question 2?"],
     "sourceNames": ["Source 1", "Source 2"]
 }
 
 Sources Content:
-${activeSources.map(s => `--- Source: ${s.title} ---\n${s.summary || s.content?.substring(0, 3000) || ''}`).join('\n\n')}`;
+${activeSources.map(s => `--- Source: ${s.title} ---\n${s.summary || s.content?.substring(0, 5000) || ''}`).join('\n\n')}`;
 
         // Call LLM Router Cloud Function
         const routeLLM = firebase.functions().httpsCallable('routeLLM');
@@ -2648,7 +2694,8 @@ ${activeSources.map(s => `--- Source: ${s.title} ---\n${s.summary || s.content?.
             qualityTier: qualityTier,
             systemPrompt: systemPrompt,
             userPrompt: userPrompt,
-            temperature: 0.2, // Lower temp for factual summary
+            temperature: agentConfig.temperature || 0.2, // Lower temp for factual summary
+            model: agentConfig.model || (analysisLevel === 'depth' ? 'gpt-4o' : 'gpt-4o-mini'),
             projectId: currentProjectId
         });
 
@@ -5464,8 +5511,9 @@ function openHistoryPlan(index) {
     }
 }
 
-// Alias for HTML button
+// Export functions to window for HTML onclick handlers
 window.regenerateSummary = generateSummary;
+window.setAnalysisLevel = setAnalysisLevel;
 
 /**
  * Set input text from suggested question
