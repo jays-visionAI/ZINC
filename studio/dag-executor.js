@@ -460,7 +460,17 @@ class DAGExecutor {
             phase.agents.forEach(agentId => {
                 const nodeId = this.getNodeId(agentId);
                 this.state.completedNodes.push(agentId);
-                this.emit('onNodeComplete', { nodeId, agentId, result: { content: 'Context loaded from source', skipped: true } });
+                const result = {
+                    content: 'Context loaded from source',
+                    skipped: true,
+                    metadata: {
+                        model: 'REUSED',
+                        provider: 'context',
+                        isSkipped: true
+                    }
+                };
+                this.state.executionResults[agentId] = result;
+                this.emit('onNodeComplete', { nodeId, agentId, result });
             });
 
             this.emit('onPhaseComplete', { phase: phase.name, index: this.state.currentPhase, skipped: true });

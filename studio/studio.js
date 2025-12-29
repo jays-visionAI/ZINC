@@ -1679,7 +1679,11 @@ async function startExecution() {
             // DEBUG: Detailed log to help verify model/provider
             console.log('[Studio] Node Complete:', agentId, result);
             const meta = result?.metadata || {};
-            addLogEntry(`🔍 DEBUG: ${agentId} finished. Model: ${meta.model || 'N/A'}, Provider: ${meta.provider || 'N/A'}`, 'info');
+            const isReused = result?.skipped || meta.isSkipped;
+            const logModel = isReused ? 'REUSED' : (meta.model || 'N/A');
+            const logProvider = isReused ? 'context' : (meta.provider || 'N/A');
+
+            addLogEntry(`🔍 DEBUG: ${agentId} finished. Model: ${logModel}, Provider: ${logProvider}`, 'info');
 
             setNodeState(nodeId, 'complete');
             fireParticles(nodeId);
@@ -2813,7 +2817,10 @@ function addReviewButton(node, nodeId) {
         const res = execInstance.state.executionResults[agentId];
         const meta = res.metadata || (res.data && res.data.metadata);
 
-        if (meta && meta.model) {
+        if (res.skipped || (meta && meta.isSkipped)) {
+            modelName = 'REUSED';
+            isMock = false;
+        } else if (meta && meta.model) {
             modelName = meta.model;
             isMock = meta.isMock || (meta.provider === 'system');
         } else if (meta && meta.provider) {
