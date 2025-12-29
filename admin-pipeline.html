@@ -1,0 +1,166 @@
+<div class="admin-chatbot-container">
+    <div class="admin-tabs">
+        <button class="admin-tab-btn active" data-tab="knowledge">1. Knowledge Hub</button>
+        <button class="admin-tab-btn" data-tab="strategic">2. Strategic Planning</button>
+        <button class="admin-tab-btn" data-tab="quick">3. Quick Content</button>
+        <button class="admin-tab-btn" data-tab="studio">4. Studio</button>
+        <button class="admin-tab-btn" data-tab="growth">5. Growth</button>
+    </div>
+
+    <!-- 1. Knowledge Hub Tab -->
+    <div id="tab-knowledge" class="admin-tab-content active">
+        <div class="admin-card">
+            <div class="admin-card-header">
+                <h3>Brand Intelligence Agents</h3>
+                <p>Configure specialized agents for document analysis and summarization.</p>
+            </div>
+
+            <div class="admin-section-divider"></div>
+
+            <!-- Agent A: Brand Summary (Standard) -->
+            <div class="agent-setting-group">
+                <div class="flex-between mb-4">
+                    <h4>Agent A: Brand Summary (Standard)</h4>
+                    <span class="status-badge success">Active</span>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Default Model</label>
+                        <select id="agent-standard-model" class="admin-input">
+                            <option value="gpt-4o">GPT-4o (High Quality)</option>
+                            <option value="gpt-4o-mini">GPT-4o Mini (Fast)</option>
+                            <option value="deepseek-chat">Deepseek V3 (Economical)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Temperature</label>
+                        <input type="range" id="agent-standard-temp" min="0" max="1" step="0.1" value="0.2">
+                        <span id="label-standard-temp">0.2</span>
+                    </div>
+                </div>
+
+                <div class="form-group mt-4">
+                    <label>System Prompt (Intelligence Profile)</label>
+                    <textarea id="agent-standard-prompt" class="admin-input prompt-textarea"
+                        placeholder="Enter system instructions for standard summary..."></textarea>
+                </div>
+            </div>
+
+            <div class="admin-section-divider mt-8 mb-8"></div>
+
+            <!-- Agent B: Depth Report (A4 Analysis) -->
+            <div class="agent-setting-group">
+                <div class="flex-between mb-4">
+                    <h4>Agent B: Depth Report (A4 Analysis)</h4>
+                    <span class="status-badge info">Detailed Mode</span>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>High Performance Model</label>
+                        <select id="agent-depth-model" class="admin-input">
+                            <option value="gpt-4o">GPT-4o (High Quality)</option>
+                            <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet (Logic/Detail)</option>
+                            <option value="o1-preview">OpenAI o1-preview (Deep Reasoning)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Temperature</label>
+                        <input type="range" id="agent-depth-temp" min="0" max="1" step="0.1" value="0.3">
+                        <span id="label-depth-temp">0.3</span>
+                    </div>
+                </div>
+
+                <div class="form-group mt-4">
+                    <label>Depth Analysis Prompt (Multi-step Logic)</label>
+                    <textarea id="agent-depth-prompt" class="admin-input prompt-textarea"
+                        placeholder="Enter system instructions for deep A4 reporting..."></textarea>
+                </div>
+                <p class="text-xs text-slate-500 mt-2">Note: Depth reports use multi-step generation to ensure long-form
+                    output (1500+ words).</p>
+            </div>
+
+            <div class="admin-actions mt-8">
+                <button id="save-knowledge-settings" class="admin-btn-primary">Save Pipeline Settings</button>
+                <button id="reset-knowledge-settings" class="admin-btn-secondary">Reset to Defaults</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Strategic Planning Tab (Placeholder) -->
+    <div id="tab-strategic" class="admin-tab-content">
+        <div class="admin-placeholder">
+            <h3>Step 2: Strategic Planning</h3>
+            <p>Phase 2: Configure Content Policy & Strategic Tone agents.</p>
+        </div>
+    </div>
+
+    <!-- 3. Quick Content Tab (Placeholder) -->
+    <div id="tab-quick" class="admin-tab-content">
+        <div class="admin-placeholder">
+            <h3>Step 3: Quick Content</h3>
+            <p>Phase 3: Configure Ideation & Quick Post-generation agents.</p>
+        </div>
+    </div>
+
+    <!-- 4. Studio Tab (Placeholder) -->
+    <div id="tab-studio" class="admin-tab-content">
+        <div class="admin-placeholder">
+            <h3>Step 4: Studio (Creation)</h3>
+            <p>Phase 4: Configure DAG Orchestrator & Channel-specific agents.</p>
+        </div>
+    </div>
+
+    <!-- 5. Growth Tab (Placeholder) -->
+    <div id="tab-growth" class="admin-tab-content">
+        <div class="admin-placeholder">
+            <h3>Step 5: Growth (Optimization)</h3>
+            <p>Phase 5: Configure ROI analysis & Optimization loops.</p>
+        </div>
+    </div>
+</div>
+
+<style>
+    .prompt-textarea {
+        height: 200px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .flex-between {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .admin-section-divider {
+        height: 1px;
+        background: #333;
+        margin: 20px 0;
+    }
+
+    .agent-setting-group h4 {
+        color: #16e0bd;
+        margin: 0;
+    }
+
+    .status-badge {
+        font-size: 10px;
+        padding: 2px 8px;
+        border-radius: 4px;
+        text-transform: uppercase;
+        font-weight: 700;
+    }
+
+    .status-badge.info {
+        background: rgba(59, 130, 246, 0.2);
+        color: #60a5fa;
+    }
+
+    .status-badge.success {
+        background: rgba(16, 185, 129, 0.2);
+        color: #34d399;
+    }
+</style>
