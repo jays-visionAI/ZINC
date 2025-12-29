@@ -3388,7 +3388,7 @@ async function generateWithImagen(prompt, size, model = 'imagen-4.0-fast-generat
 
 /**
  * Fallback: Nano Banana Pro (gemini-3-pro-image-preview)
- * Uses generateContent API which reliably produces images
+ * Uses REST API directly for reliable image generation
  */
 async function generateWithNanoBananaPro(prompt, size) {
     const apiKey = await getSystemApiKey('google');
@@ -3396,42 +3396,43 @@ async function generateWithNanoBananaPro(prompt, size) {
         throw new Error('Google API key not configured for Nano Banana Pro');
     }
 
-    const { GoogleGenerativeAI, SchemaType } = require('@google/generative-ai');
-    const genAI = new GoogleGenerativeAI(apiKey);
+    const axios = require('axios');
 
-    // Try multiple Nano Banana models in order of preference
+    // Try multiple Nano Banana models in order of preference (using REST API)
     const modelsToTry = [
+        'gemini-2.5-flash-image',      // Nano Banana (most reliable for images)
         'gemini-3-pro-image-preview',  // Nano Banana Pro (highest quality)
-        'gemini-2.5-flash-image',      // Nano Banana (faster)
         'gemini-2.0-flash-exp'         // Legacy fallback
     ];
+
+    const enhancedPrompt = `Generate a high-quality image: ${prompt}. 
+Style: Professional, visually striking, relevant to the content.
+Do not include any text, letters, numbers, logos, or watermarks in the image.`;
 
     console.log(`[generateWithNanoBananaPro] Starting image generation with prompt: "${prompt.substring(0, 50)}..."`);
 
     for (const modelName of modelsToTry) {
         try {
-            console.log(`[generateWithNanoBananaPro] 🔄 Trying model: ${modelName}`);
+            console.log(`[generateWithNanoBananaPro] 🔄 Trying REST API with model: ${modelName}`);
 
-            const model = genAI.getGenerativeModel({
-                model: modelName,
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+
+            const response = await axios.post(url, {
+                contents: [{
+                    parts: [{ text: enhancedPrompt }]
+                }],
                 generationConfig: {
-                    responseModalities: ['TEXT', 'IMAGE'],
-                    temperature: 1,
-                    maxOutputTokens: 8192,
+                    responseModalities: ['IMAGE', 'TEXT'],
+                    temperature: 1
                 }
+            }, {
+                headers: { 'Content-Type': 'application/json' },
+                timeout: 120000 // 2 minute timeout for image generation
             });
 
-            const enhancedPrompt = `Generate a high-quality image: ${prompt}. 
-Style: Professional, visually striking, relevant to the content.
-Do not include any text, letters, numbers, logos, or watermarks in the image.`;
+            const parts = response.data?.candidates?.[0]?.content?.parts || [];
 
-            const result = await model.generateContent({
-                contents: [{ role: 'user', parts: [{ text: enhancedPrompt }] }],
-            });
-
-            const response = result.response;
-            const parts = response.candidates?.[0]?.content?.parts || [];
-
+            // Look for image data in response
             for (const part of parts) {
                 if (part.inlineData && part.inlineData.mimeType?.startsWith('image/')) {
                     console.log(`[generateWithNanoBananaPro] ✅ Image generated successfully with ${modelName}`);
@@ -3439,18 +3440,32 @@ Do not include any text, letters, numbers, logos, or watermarks in the image.`;
                 }
             }
 
-            // No image in response, check for text
-            const textResponse = parts.find(p => p.text)?.text || '';
-            console.warn(`[generateWithNanoBananaPro] ${modelName} returned text instead of image: "${textResponse.substring(0, 100)}..."`);
+            // Check if text was returned instead
+            const textPart = parts.find(p => p.text);
+            if (textPart) {
+                console.warn(`[generateWithNanoBananaPro] ${modelName} returned text instead of image: "${textPart.text.substring(0, 100)}..."`);
+            } else {
+                console.warn(`[generateWithNanoBananaPro] ${modelName} returned empty response`);
+            }
+
             // Continue to next model
 
         } catch (error) {
-            console.error(`[generateWithNanoBananaPro] ${modelName} failed:`, error.message);
+            const status = error.response?.status;
+            const errorMsg = error.response?.data?.error?.message || error.message;
+            console.error(`[generateWithNanoBananaPro] ${modelName} failed (${status}):`, errorMsg);
+
+            // If it's a model not found error (404), try next model
+            // If it's a quota error (429/403), throw immediately
+            if (status === 429 || status === 403) {
+                throw new Error(`Google API quota/billing issue: ${errorMsg}`);
+            }
+
             // Continue to next model
         }
     }
 
-    throw new Error('All Nano Banana models failed to generate an image');
+    throw new Error('All Nano Banana models failed to generate an image. Check Google API key and model availability.');
 }
 
 /**
