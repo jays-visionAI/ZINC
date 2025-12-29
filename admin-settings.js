@@ -1840,7 +1840,7 @@ function renderGlobalDefaultsUI(config) {
     const imageConfig = config?.image || {};
     const videoConfig = config?.video || {};
     const imageDef = imageConfig.default || { provider: 'google', model: 'nano-banana-pro-preview' };
-    const imageBoost = imageConfig.boost || { provider: 'google', model: 'imagen-4.0-ultra-generate-001' };
+    const imageBoost = imageConfig.boost || { provider: 'google', model: 'nano-banana-pro-preview' };
     const videoDef = videoConfig.default || { provider: 'runway', model: 'runway-gen-3' };
     const videoBoost = videoConfig.boost || { provider: 'google_veo', model: 'veo-3.0-fast-generate-001' };
 

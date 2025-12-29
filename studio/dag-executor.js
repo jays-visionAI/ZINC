@@ -1028,7 +1028,7 @@ class DAGExecutor {
                 },
                 projectContext: context?.content || '',
                 targetLanguage: 'English',
-                mode: 'balanced'
+                mode: (this.state.qualityTier === 'BOOST' || this.state.qualityTier === 'ULTRA') ? 'boost' : 'balanced'
             });
 
             if (result.data.success && result.data.data && result.data.data.length > 0) {
