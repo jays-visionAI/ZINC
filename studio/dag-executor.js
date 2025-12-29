@@ -578,7 +578,7 @@ class DAGExecutor {
         const agentConfig = this.getAgentConfig(agentId, context);
 
 
-        const executeSubAgent = firebase.functions().httpsCallable('executeSubAgent');
+        const executeSubAgent = firebase.functions().httpsCallable('executeSubAgent', { timeout: 300000 });
 
         // v4.0: runtimeProfileId (Source of Truth)
         const runtimeProfileId =
