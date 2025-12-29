@@ -13,7 +13,22 @@ service cloud.firestore {
     // Helper function: Check if user is admin
     function isAdmin() {
       return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+    }
+
+    // --- CORE SYSTEM SETTINGS (High Priority) ---
+    
+    // 5-Step Pipeline Settings: Admin can write, Public read
+    match /pipelineSettings/{stepId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // System LLM Providers (OpenAI, etc.)
+    match /systemLLMProviders/{providerId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
     
     // Helper function: Check if user owns the project
@@ -314,15 +329,7 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // System LLM Providers (OpenAI, etc.)
-    // ⚠️ WORKAROUND: Allow all reads because Cloud Functions Admin SDK
-    //    is failing to bypass security rules (PERMISSION_DENIED error).
-    //    This is needed for agent execution. API keys are stored here.
-    //    TODO: Fix IAM permissions for Cloud Functions service account.
-    match /systemLLMProviders/{providerId} {
-      allow read: if true;  // Allow Cloud Functions to read
-      allow write: if isAdmin();  // Only Admin can modify
-    }
+
 
     // ============================================
     // PRD 11.6 - LLM Router & Booster System
@@ -412,10 +419,6 @@ service cloud.firestore {
       allow write: if isAdmin();  // Only Admin can modify
     }
 
-    // 5-Step Pipeline Settings: Admin can write, Public read
-    match /pipelineSettings/{stepId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
+
   }
 }
