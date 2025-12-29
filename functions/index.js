@@ -24,7 +24,8 @@ const ALLOWED_ORIGINS = true;
 // Initialize Admin SDK with explicit project config
 admin.initializeApp({
     credential: admin.credential.applicationDefault(),
-    projectId: 'zinc-c790f'
+    projectId: 'zinc-c790f',
+    storageBucket: 'zinc-c790f.firebasestorage.app'
 });
 
 const db = admin.firestore();
