@@ -53,11 +53,11 @@ async function initPipeline(currentUser, initialTab = 'market') {
 }
 
 async function loadAllSettings() {
-    console.log('[Pipeline] Loading all settings from Firestore...');
+    console.log('[Pipeline] Loading all settings from Firestore (via chatbotConfig)...');
 
     // Step 1: Market Pulse
     try {
-        const doc = await db.collection('pipelineSettings').doc('market_pulse').get();
+        const doc = await db.collection('chatbotConfig').doc('pipeline_market_pulse').get();
         if (doc.exists) {
             const data = doc.data();
             if (data.research) {
@@ -77,7 +77,7 @@ async function loadAllSettings() {
 
     // Step 2: Brand Brain
     try {
-        const doc = await db.collection('pipelineSettings').doc('brand_brain').get();
+        const doc = await db.collection('chatbotConfig').doc('pipeline_brand_brain').get();
         if (doc.exists) {
             const data = doc.data();
             if (data.planner) {
@@ -91,7 +91,7 @@ async function loadAllSettings() {
 
     // Step 3: Knowledge Hub
     try {
-        const doc = await db.collection('pipelineSettings').doc('knowledge_hub').get();
+        const doc = await db.collection('chatbotConfig').doc('pipeline_knowledge_hub').get();
         if (doc.exists) {
             const data = doc.data();
             if (data.standard) {
@@ -111,7 +111,7 @@ async function loadAllSettings() {
 
     // Step 4: Studio
     try {
-        const doc = await db.collection('pipelineSettings').doc('studio').get();
+        const doc = await db.collection('chatbotConfig').doc('pipeline_studio').get();
         if (doc.exists) {
             const data = doc.data();
             if (data.creator) {
@@ -131,7 +131,7 @@ async function loadAllSettings() {
 
     // Step 5: Growth
     try {
-        const doc = await db.collection('pipelineSettings').doc('growth').get();
+        const doc = await db.collection('chatbotConfig').doc('pipeline_growth').get();
         if (doc.exists) {
             const data = doc.data();
             if (data.manager) {
@@ -164,7 +164,7 @@ function setupSaveListeners() {
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 }
             };
-            await db.collection('pipelineSettings').doc('market_pulse').set(settings, { merge: true });
+            await db.collection('chatbotConfig').doc('pipeline_market_pulse').set(settings, { merge: true });
             if (window.showNotification) window.showNotification('Market Pulse Settings saved!', 'success');
         } catch (e) { alert(e.message); } finally { btn.disabled = false; }
     });
@@ -182,7 +182,7 @@ function setupSaveListeners() {
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 }
             };
-            await db.collection('pipelineSettings').doc('brand_brain').set(settings, { merge: true });
+            await db.collection('chatbotConfig').doc('pipeline_brand_brain').set(settings, { merge: true });
             if (window.showNotification) window.showNotification('Brand Brain Settings saved!', 'success');
         } catch (e) { alert(e.message); } finally { btn.disabled = false; }
     });
@@ -206,7 +206,7 @@ function setupSaveListeners() {
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 }
             };
-            await db.collection('pipelineSettings').doc('knowledge_hub').set(settings, { merge: true });
+            await db.collection('chatbotConfig').doc('pipeline_knowledge_hub').set(settings, { merge: true });
             if (window.showNotification) window.showNotification('Knowledge Hub Settings saved!', 'success');
         } catch (e) { alert(e.message); } finally { btn.disabled = false; }
     });
@@ -230,7 +230,7 @@ function setupSaveListeners() {
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 }
             };
-            await db.collection('pipelineSettings').doc('studio').set(settings, { merge: true });
+            await db.collection('chatbotConfig').doc('pipeline_studio').set(settings, { merge: true });
             if (window.showNotification) window.showNotification('Studio Settings saved!', 'success');
         } catch (e) { alert(e.message); } finally { btn.disabled = false; }
     });
@@ -248,7 +248,7 @@ function setupSaveListeners() {
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 }
             };
-            await db.collection('pipelineSettings').doc('growth').set(settings, { merge: true });
+            await db.collection('chatbotConfig').doc('pipeline_growth').set(settings, { merge: true });
             if (window.showNotification) window.showNotification('Growth Settings saved!', 'success');
         } catch (e) { alert(e.message); } finally { btn.disabled = false; }
     });

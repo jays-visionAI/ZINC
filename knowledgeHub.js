@@ -2633,9 +2633,9 @@ async function generateSummary() {
     if (btnRegenerate) btnRegenerate.disabled = true;
 
     try {
-        // 0. Fetch Pipeline Settings from Firestore
+        // 0. Fetch Pipeline Settings from Firestore (via chatbotConfig workaround for rules)
         console.log('[KnowledgeHub] Fetching Pipeline Settings...');
-        const settingsDoc = await db.collection('pipelineSettings').doc('knowledge_hub').get();
+        const settingsDoc = await db.collection('chatbotConfig').doc('pipeline_knowledge_hub').get();
         const settings = settingsDoc.exists ? settingsDoc.data() : {};
 
         // Select Agent Config
