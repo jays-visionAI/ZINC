@@ -77,8 +77,11 @@ async function loadPipelineSettings() {
         } else {
             console.log('[Pipeline] No settings found, using defaults.');
             // Set defaults if empty
+            document.getElementById('agent-standard-model').value = 'deepseek-chat';
             document.getElementById('agent-standard-prompt').value = "You are a Brand Intelligence AI. Analyze the provided source documents and generate a comprehensive brand summary in JSON format.";
-            document.getElementById('agent-depth-prompt').value = "You are a Senior Strategic Brand Analyst. Your task is to generate a deep, A4-length comprehensive report (approx. 1500-2000 words) based on the provided Knowledge Hub data. Break down the report into: 1. Core Vision & Philosophy, 2. Technical Stack & Innovation, 3. Market Positioning, 4. Competitive Moat, 5. Future Roadmap. Be extremely detailed and academic in tone.";
+
+            document.getElementById('agent-depth-model').value = 'deepseek-reasoner';
+            document.getElementById('agent-depth-prompt').value = "You are a Senior Strategic Brand Analyst. Your task is to generate a deep, A4-length comprehensive report (approx. 1500-2000 words) based on the provided Knowledge Hub data. Use your reasoning capabilities to connect disparate data points. Break down the report into: 1. Core Vision & Philosophy, 2. Technical Stack & Innovation, 3. Market Positioning, 4. Competitive Moat, 5. Future Roadmap. Be extremely detailed, analytical, and professional.";
         }
     } catch (err) {
         console.error('[Pipeline] Error loading settings:', err);
