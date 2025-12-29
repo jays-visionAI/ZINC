@@ -1136,7 +1136,7 @@ window.getFilteredTextModels = function (provider) {
     }
 
     const targetProvider = (provider || '').trim().toLowerCase();
-    const getStd = (p) => (p === 'google' || p === 'gemini') ? 'gemini' : p;
+    const getStd = (p) => (p === 'google' || p === 'gemini' || p === 'google_veo') ? 'gemini' : p;
     const p2 = getStd(targetProvider);
 
     return models.filter(m => {
@@ -1157,20 +1157,65 @@ window.getFilteredTextModels = function (provider) {
             lowerId.includes('dalle') ||
             lowerId.includes('flux') ||
             lowerId.includes('stable-diffusion') ||
+            lowerId.includes('runway') ||
             lowerId.includes('midjourney');
 
         if (isVisual) return false;
 
-        // Positive filter: check for text-related capabilities OR fallback to true if no visual labels
-        const cap = (m.capabilities || []).map(c => c.toLowerCase());
-        const hasTextCap = cap.length === 0 ||
-            cap.includes('chat') ||
-            cap.includes('reasoning') ||
-            cap.includes('text') ||
-            cap.includes('coding') ||
-            cap.includes('math');
+        return true;
+    });
+};
 
-        return hasTextCap;
+/**
+ * Filter models by provider and Image category
+ */
+window.getFilteredImageModels = function (provider) {
+    const models = window.llmModels || [];
+    const targetProvider = (provider || '').trim().toLowerCase();
+    const getStd = (p) => (p === 'google' || p === 'gemini' || p === 'google_veo') ? 'gemini' : p;
+    const p2 = getStd(targetProvider);
+
+    return models.filter(m => {
+        const mProviderStr = (m.provider || m.providerId || '').trim().toLowerCase();
+        const p1 = getStd(mProviderStr);
+        if (p1 !== p2) return false;
+
+        const lowerName = (m.displayName || '').toLowerCase();
+        const lowerId = (m.modelId || '').toLowerCase();
+
+        return lowerName.includes('(image)') ||
+            lowerId.includes('imagen') ||
+            lowerId.includes('dalle') ||
+            lowerId.includes('flux') ||
+            lowerId.includes('stable-diffusion') ||
+            lowerId.includes('midjourney') ||
+            lowerId.includes('nano-banana');
+    });
+};
+
+/**
+ * Filter models by provider and Video category
+ */
+window.getFilteredVideoModels = function (provider) {
+    const models = window.llmModels || [];
+    const targetProvider = (provider || '').trim().toLowerCase();
+    const getStd = (p) => (p === 'google' || p === 'gemini' || p === 'google_veo') ? 'gemini' : p;
+    const p2 = getStd(targetProvider);
+
+    return models.filter(m => {
+        const mProviderStr = (m.provider || m.providerId || '').trim().toLowerCase();
+        const p1 = getStd(mProviderStr);
+        if (p1 !== p2) return false;
+
+        const lowerName = (m.displayName || '').toLowerCase();
+        const lowerId = (m.modelId || '').toLowerCase();
+
+        return lowerName.includes('(video)') ||
+            lowerId.includes('veo') ||
+            lowerId.includes('sora') ||
+            lowerId.includes('runway') ||
+            lowerId.includes('luma') ||
+            lowerId.includes('kling');
     });
 };
 
@@ -1779,8 +1824,8 @@ function renderGlobalDefaultsUI(config) {
         { id: '5_ultra', name: 'ULTRA', desc: '고난이도 추론', color: '#ef4444', creditMultiplier: 5.0 }
     ];
 
-    // Default Tier Configs
-    const DEFAULT_TIER_CONFIGS = {
+    // Default Tier Configs (Text)
+    const DEFAULT_TEXT_TIERS = {
         '1_economy': { provider: 'deepseek', model: 'deepseek-chat' },
         '2_balanced': { provider: 'openai', model: 'gpt-4o-mini' },
         '3_standard': { provider: 'openai', model: 'gpt-4o' },
@@ -1788,79 +1833,81 @@ function renderGlobalDefaultsUI(config) {
         '5_ultra': { provider: 'deepseek', model: 'deepseek-reasoner' }
     };
 
-    // Provider Options with DeepSeek
-    const providerOptions = `
-        <option value="deepseek">DeepSeek</option>
-        <option value="openai">OpenAI</option>
-        <option value="google">Google Gemini</option>
-        <option value="anthropic">Anthropic</option>
-    `;
+    // Default Tier Configs (Image)
+    const DEFAULT_IMAGE_TIERS = {
+        '1_economy': { provider: 'google', model: 'imagen-3.0-fast-generate-001' },
+        '2_balanced': { provider: 'google', model: 'imagen-3.0-generate-001' },
+        '3_standard': { provider: 'openai', model: 'dall-e-3' },
+        '4_premium': { provider: 'replicate', model: 'flux-pro' },
+        '5_ultra': { provider: 'replicate', model: 'flux-pro' }
+    };
 
-    // Get existing tiers config or use defaults
-    const tiersConfig = config?.text?.tiers || config?.tiers || {};
+    // Default Tier Configs (Video)
+    const DEFAULT_VIDEO_TIERS = {
+        '1_economy': { provider: 'google', model: 'veo-1.0-fast' },
+        '2_balanced': { provider: 'google', model: 'veo-1.0-generate' },
+        '3_standard': { provider: 'runway', model: 'runway-gen-2' },
+        '4_premium': { provider: 'runway', model: 'runway-gen-3' },
+        '5_ultra': { provider: 'luma', model: 'luma-dream-machine' }
+    };
 
-    // Build 5-Tier UI for Text (Main focus)
-    let tiersHtml = FIVE_TIERS.map(tier => {
-        const tierData = tiersConfig[tier.id] || DEFAULT_TIER_CONFIGS[tier.id];
-        const selectedProvider = tierData?.provider || DEFAULT_TIER_CONFIGS[tier.id].provider;
-        const selectedModel = tierData?.model || DEFAULT_TIER_CONFIGS[tier.id].model;
+    const buildTierGrid = (category, categoryConfig) => {
+        const tiersConfig = categoryConfig?.tiers || {};
+        const defaults = category === 'text' ? DEFAULT_TEXT_TIERS :
+            category === 'image' ? DEFAULT_IMAGE_TIERS : DEFAULT_VIDEO_TIERS;
 
-        const filteredModels = window.getFilteredTextModels(selectedProvider);
+        const providers = [
+            { id: 'openai', name: 'OpenAI' },
+            { id: 'google', name: 'Google' },
+            { id: 'anthropic', name: 'Anthropic' },
+            { id: 'deepseek', name: 'DeepSeek' },
+            { id: 'replicate', name: 'Replicate' },
+            { id: 'runway', name: 'Runway' },
+            { id: 'luma', name: 'Luma' }
+        ];
 
-        return `
-        <div style="display: grid; grid-template-columns: 140px 1fr 1fr 80px; gap: 12px; align-items: center; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px; border-left: 3px solid ${tier.color};">
-            <div>
-                <div style="font-weight: 600; color: ${tier.color}; font-size: 12px;">${tier.name}</div>
-                <div style="font-size: 10px; color: rgba(255,255,255,0.5);">${tier.desc}</div>
+        return FIVE_TIERS.map(tier => {
+            const tierData = tiersConfig[tier.id] || defaults[tier.id] || { provider: 'openai', model: '' };
+            const selectedProvider = tierData.provider;
+            const selectedModel = tierData.model;
+
+            let filteredModels = [];
+            if (category === 'text') filteredModels = window.getFilteredTextModels(selectedProvider);
+            else if (category === 'image') filteredModels = window.getFilteredImageModels(selectedProvider);
+            else if (category === 'video') filteredModels = window.getFilteredVideoModels(selectedProvider);
+
+            return `
+            <div style="display: grid; grid-template-columns: 140px 1fr 1fr 80px; gap: 12px; align-items: center; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px; border-left: 3px solid ${tier.color};">
+                <div>
+                    <div style="font-weight: 600; color: ${tier.color}; font-size: 12px;">${tier.name}</div>
+                    <div style="font-size: 10px; color: rgba(255,255,255,0.5);">${tier.desc}</div>
+                </div>
+                <div>
+                    <label style="display: block; font-size: 10px; color: rgba(255,255,255,0.4); margin-bottom: 2px;">Provider</label>
+                    <select id="${category}-tier-${tier.id}-provider" class="admin-input" style="font-size: 12px; padding: 6px 8px;" onchange="updateModelOptions('${category}', '${tier.id}')">
+                        ${providers.map(p => `<option value="${p.id}" ${p.id === selectedProvider ? 'selected' : ''}>${p.name}</option>`).join('')}
+                    </select>
+                </div>
+                <div>
+                    <label style="display: block; font-size: 10px; color: rgba(255,255,255,0.4); margin-bottom: 2px;">Model</label>
+                    <select id="${category}-tier-${tier.id}-model" class="admin-input" style="font-size: 12px; padding: 6px 8px;">
+                        ${filteredModels.length > 0
+                    ? filteredModels.map(m => `<option value="${m.modelId}" ${m.modelId === selectedModel ? 'selected' : ''}>${m.displayName}</option>`).join('')
+                    : `<option value="${selectedModel}" selected>${selectedModel || '(No models found)'}</option>`
+                }
+                    </select>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 10px; color: rgba(255,255,255,0.4);">Credit</div>
+                    <div style="font-size: 14px; font-weight: 700; color: ${tier.color};">${tier.creditMultiplier}x</div>
+                </div>
             </div>
-            <div>
-                <label style="display: block; font-size: 10px; color: rgba(255,255,255,0.4); margin-bottom: 2px;">Provider</label>
-                <select id="tier-${tier.id}-provider" class="admin-input" style="font-size: 12px; padding: 6px 8px;" onchange="updateModelOptions('${tier.id}')">
-                    ${providerOptions.replace(`value="${selectedProvider}"`, `value="${selectedProvider}" selected`)}
-                </select>
-            </div>
-            <div>
-                <label style="display: block; font-size: 10px; color: rgba(255,255,255,0.4); margin-bottom: 2px;">Model</label>
-                <select id="tier-${tier.id}-model" class="admin-input" style="font-size: 12px; padding: 6px 8px;">
-                    ${filteredModels.length > 0
-                ? filteredModels.map(m => `<option value="${m.modelId}" ${m.modelId === selectedModel ? 'selected' : ''}>${m.displayName}</option>`).join('')
-                : `<option value="">(No ${selectedProvider} models found. Please click 'Seed'.)</option>`
-            }
-                </select>
-            </div>
-            <div style="text-align: center;">
-                <div style="font-size: 10px; color: rgba(255,255,255,0.4);">Credit</div>
-                <div style="font-size: 14px; font-weight: 700; color: ${tier.color};">${tier.creditMultiplier}x</div>
-            </div>
-        </div>
-        `;
-    }).join('');
-
-    // Legacy 2-Tier for Image/Video (kept for backward compatibility)
-    const imageConfig = config?.image || {};
-    const videoConfig = config?.video || {};
-    const imageDef = imageConfig.default || { provider: 'google', model: 'nano-banana-pro-preview' };
-    const imageBoost = imageConfig.boost || { provider: 'google', model: 'nano-banana-pro-preview' };
-    const videoDef = videoConfig.default || { provider: 'runway', model: 'runway-gen-3' };
-    const videoBoost = videoConfig.boost || { provider: 'google_veo', model: 'veo-3.0-fast-generate-001' };
-
-    const imageModels = [
-        { id: 'nano-banana-pro-preview', name: 'Nano Banana Pro' },
-        { id: 'imagen-3.0-generate-001', name: 'Google Imagen 3' },
-        { id: 'imagen-3.0-fast-generate-001', name: 'Google Imagen 3 Fast' },
-        { id: 'flux-pro', name: 'Flux Pro' }
-    ];
-
-    const videoModels = [
-        { id: 'runway-gen-3', name: 'Runway Gen-3' },
-        { id: 'veo-3.0-fast-generate-001', name: 'Veo 3.0 Fast' },
-        { id: 'veo-3.1-fast-generate-preview', name: 'Veo 3.1 Fast' },
-        { id: 'sora-2', name: 'Sora 2.0' },
-        { id: 'sora-2-pro', name: 'Sora 2.0 Pro' }
-    ];
+            `;
+        }).join('');
+    };
 
     container.innerHTML = `
-        <!-- 5-Tier Text Generation -->
+        <!-- Text Generation -->
         <div style="margin-bottom: 24px; border: 1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.2); border-radius: 12px; padding: 20px;">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 12px;">
                 <div style="display: flex; align-items: center; gap: 10px;">
@@ -1870,62 +1917,44 @@ function renderGlobalDefaultsUI(config) {
                         <span style="font-size: 11px; color: rgba(255,255,255,0.5);">5-Tier Complexity Routing</span>
                     </div>
                 </div>
-                <span style="background: linear-gradient(135deg, #16e0bd, #8b5cf6); padding: 4px 10px; border-radius: 12px; font-size: 10px; font-weight: 600; color: #000;">NEW v5.0</span>
+                <span style="background: linear-gradient(135deg, #16e0bd, #8b5cf6); padding: 4px 10px; border-radius: 12px; font-size: 10px; font-weight: 600; color: #000;">v5.0</span>
             </div>
-            
             <div style="display: flex; flex-direction: column; gap: 8px;">
-                ${tiersHtml}
-            </div>
-            
-            <div style="margin-top: 16px; padding: 12px; background: rgba(16, 224, 189, 0.05); border: 1px solid rgba(16, 224, 189, 0.2); border-radius: 8px;">
-                <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: rgba(255,255,255,0.7);">
-                    <span>💡</span>
-                    <span>Runtime Profile Agent가 작업 복잡도를 분석하여 자동으로 적합한 Tier를 선택합니다.</span>
-                </div>
+                ${buildTierGrid('text', config?.text || { tiers: config?.tiers || {} })}
             </div>
         </div>
 
-        <!-- Image Generation (2-Tier Legacy) -->
-        <div style="margin-bottom: 24px; border: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.2); border-radius: 8px; padding: 20px;">
-            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 10px;">
-                <span style="font-size: 20px;">🎨</span>
-                <h5 style="margin: 0; color: #fff; font-size: 14px;">Image Generation</h5>
+        <!-- Image Generation -->
+        <div style="margin-bottom: 24px; border: 1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.2); border-radius: 12px; padding: 20px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 12px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 24px;">🎨</span>
+                    <div>
+                        <h5 style="margin: 0; color: #fff; font-size: 16px; font-weight: 600;">Image Generation</h5>
+                        <span style="font-size: 11px; color: rgba(255,255,255,0.5);">5-Tier Complexity Routing</span>
+                    </div>
+                </div>
+                <span style="background: linear-gradient(135deg, #16e0bd, #8b5cf6); padding: 4px 10px; border-radius: 12px; font-size: 10px; font-weight: 600; color: #000;">NEW v5.1</span>
             </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                <div>
-                    <div style="font-size: 11px; color: #94a3b8; font-weight: 600; margin-bottom: 8px;">STANDARD</div>
-                    <select id="image-def-model" class="admin-input">
-                        ${imageModels.map(m => `<option value="${m.id}" ${m.id === imageDef.model ? 'selected' : ''}>${m.name}</option>`).join('')}
-                    </select>
-                </div>
-                <div>
-                    <div style="font-size: 11px; color: #818cf8; font-weight: 600; margin-bottom: 8px;">PREMIUM 🚀</div>
-                    <select id="image-boost-model" class="admin-input">
-                        ${imageModels.map(m => `<option value="${m.id}" ${m.id === imageBoost.model ? 'selected' : ''}>${m.name}</option>`).join('')}
-                    </select>
-                </div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                ${buildTierGrid('image', config?.image)}
             </div>
         </div>
 
-        <!-- Video Generation (2-Tier Legacy) -->
-        <div style="margin-bottom: 24px; border: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.2); border-radius: 8px; padding: 20px;">
-            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 10px;">
-                <span style="font-size: 20px;">🎥</span>
-                <h5 style="margin: 0; color: #fff; font-size: 14px;">Video Generation</h5>
+        <!-- Video Generation -->
+        <div style="margin-bottom: 24px; border: 1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.2); border-radius: 12px; padding: 20px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 12px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 24px;">🎥</span>
+                    <div>
+                        <h5 style="margin: 0; color: #fff; font-size: 16px; font-weight: 600;">Video Generation</h5>
+                        <span style="font-size: 11px; color: rgba(255,255,255,0.5);">5-Tier Complexity Routing</span>
+                    </div>
+                </div>
+                <span style="background: linear-gradient(135deg, #16e0bd, #8b5cf6); padding: 4px 10px; border-radius: 12px; font-size: 10px; font-weight: 600; color: #000;">NEW v5.1</span>
             </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                <div>
-                    <div style="font-size: 11px; color: #94a3b8; font-weight: 600; margin-bottom: 8px;">STANDARD</div>
-                    <select id="video-def-model" class="admin-input">
-                        ${videoModels.map(m => `<option value="${m.id}" ${m.id === videoDef.model ? 'selected' : ''}>${m.name}</option>`).join('')}
-                    </select>
-                </div>
-                <div>
-                    <div style="font-size: 11px; color: #818cf8; font-weight: 600; margin-bottom: 8px;">PREMIUM 🚀</div>
-                    <select id="video-boost-model" class="admin-input">
-                        ${videoModels.map(m => `<option value="${m.id}" ${m.id === videoBoost.model ? 'selected' : ''}>${m.name}</option>`).join('')}
-                    </select>
-                </div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                ${buildTierGrid('video', config?.video)}
             </div>
         </div>
     `;
@@ -1940,65 +1969,49 @@ window.saveGlobalDefaults = async function () {
         saveBtn.disabled = true;
     }
 
-    // Helper to get values
-    const getVal = (id) => document.getElementById(id)?.value;
-
-    // Helper to resolve provider from model ID for Image/Video
-    const resolveImageVideoProvider = (modelId) => {
-        if (!modelId) return 'google';
-        if (modelId.includes('flux')) return 'replicate';
-        if (modelId.includes('imagen')) return 'google';
-        if (modelId.includes('nano-banana')) return 'google';
-        if (modelId.includes('runway')) return 'runway';
-        if (modelId.includes('veo')) return 'google_veo';
-        if (modelId.includes('sora')) return 'openai';
-        if (modelId.includes('dalle')) return 'openai';
-        return 'google';
-    };
-
-    // 5-Tier Configuration for Text
     const TIER_IDS = ['1_economy', '2_balanced', '3_standard', '4_premium', '5_ultra'];
     const CREDIT_MULTIPLIERS = { '1_economy': 0.2, '2_balanced': 1.0, '3_standard': 2.0, '4_premium': 3.0, '5_ultra': 5.0 };
 
-    const tiers = {};
-    TIER_IDS.forEach(tierId => {
-        tiers[tierId] = {
-            provider: getVal(`tier-${tierId}-provider`),
-            model: getVal(`tier-${tierId}-model`),
-            creditMultiplier: CREDIT_MULTIPLIERS[tierId]
-        };
-    });
+    const getVal = (id) => document.getElementById(id)?.value;
 
-    // Legacy 2-Tier for Image/Video
-    const imgModel = getVal('image-def-model');
-    const imgBoostModel = getVal('image-boost-model');
-    const vidModel = getVal('video-def-model');
-    const vidBoostModel = getVal('video-boost-model');
+    const collectTiers = (category) => {
+        const tiers = {};
+        TIER_IDS.forEach(tierId => {
+            tiers[tierId] = {
+                provider: getVal(`${category}-tier-${tierId}-provider`),
+                model: getVal(`${category}-tier-${tierId}-model`),
+                creditMultiplier: CREDIT_MULTIPLIERS[tierId]
+            };
+        });
+        return tiers;
+    };
 
-    const imageConfig = {
-        default: { provider: resolveImageVideoProvider(imgModel), model: imgModel, creditMultiplier: 2.0 },
-        boost: { provider: resolveImageVideoProvider(imgBoostModel), model: imgBoostModel, creditMultiplier: 5.0 }
-    };
-    const videoConfig = {
-        default: { provider: resolveImageVideoProvider(vidModel), model: vidModel, creditMultiplier: 5.0 },
-        boost: { provider: resolveImageVideoProvider(vidBoostModel), model: vidBoostModel, creditMultiplier: 10.0 }
-    };
+    const textTiers = collectTiers('text');
+    const imageTiers = collectTiers('image');
+    const videoTiers = collectTiers('video');
 
     try {
         await db.collection('systemSettings').doc('llmConfig').set({
             defaultModels: {
                 text: {
-                    tiers: tiers,
-                    // Backward Compatibility: Map tier 2 to default, tier 4 to boost
-                    default: tiers['2_balanced'],
-                    boost: tiers['4_premium']
+                    tiers: textTiers,
+                    default: textTiers['2_balanced'],
+                    boost: textTiers['4_premium']
                 },
-                image: imageConfig,
-                video: videoConfig,
+                image: {
+                    tiers: imageTiers,
+                    default: imageTiers['2_balanced'],
+                    boost: imageTiers['4_premium']
+                },
+                video: {
+                    tiers: videoTiers,
+                    default: videoTiers['2_balanced'],
+                    boost: videoTiers['4_premium']
+                },
                 // Root-level backward compatibility
-                default: tiers['2_balanced'],
-                boost: tiers['4_premium'],
-                tiers: tiers
+                default: textTiers['2_balanced'],
+                boost: textTiers['4_premium'],
+                tiers: textTiers
             },
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
@@ -2014,12 +2027,15 @@ window.saveGlobalDefaults = async function () {
     }
 };
 
-window.updateModelOptions = function (tierId) {
-    const provider = document.getElementById(`tier-${tierId}-provider`).value;
-    const modelSelect = document.getElementById(`tier-${tierId}-model`);
+window.updateModelOptions = function (category, tierId) {
+    const provider = document.getElementById(`${category}-tier-${tierId}-provider`).value;
+    const modelSelect = document.getElementById(`${category}-tier-${tierId}-model`);
     if (!modelSelect) return;
 
-    const filteredModels = window.getFilteredTextModels(provider);
+    let filteredModels = [];
+    if (category === 'text') filteredModels = window.getFilteredTextModels(provider);
+    else if (category === 'image') filteredModels = window.getFilteredImageModels(provider);
+    else if (category === 'video') filteredModels = window.getFilteredVideoModels(provider);
 
     if (filteredModels.length === 0) {
         modelSelect.innerHTML = `<option value="">(No ${provider} models found. Seed required.)</option>`;

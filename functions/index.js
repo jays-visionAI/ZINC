@@ -4647,12 +4647,12 @@ exports.generateCreativeContent = onCall({ cors: true, timeoutSeconds: 300, memo
             const providersDoc = await db.collection('systemSettings').doc('imageProviders').get();
             const providers = providersDoc.exists ? providersDoc.data() : {};
 
-            // Priority: Global Config > Ideogram (if text) > Flux (Performance) > DALL-E (Fallback)
-            let selectedProvider = defaultImageProvider || 'dalle';
-            let selectedModel = defaultImageModel || 'dall-e-3';
+            // Priority: Explicit Input > Global Config > Ideogram (if text) > Flux (Performance) > DALL-E (Fallback)
+            let selectedProvider = inputs.provider || defaultImageProvider || 'dalle';
+            let selectedModel = inputs.model || defaultImageModel || 'dall-e-3';
 
-            // Only apply smart routing fallbacks if Global Routing Defaults are not configured
-            if (!defaultImageProvider) {
+            // Only apply smart routing fallbacks if NEITHER explicit NOR Global Routing Defaults are configured
+            if (!inputs.provider && !defaultImageProvider) {
                 if (hasTextRequirement && providers.ideogram?.apiKey && providers.ideogram?.enabled !== false) {
                     selectedProvider = 'ideogram';
                 } else if (providers.flux?.apiKey && providers.flux?.enabled !== false) {
@@ -4673,8 +4673,11 @@ exports.generateCreativeContent = onCall({ cors: true, timeoutSeconds: 300, memo
             // Google Imagen (Gemini API)
             if (selectedProvider === 'google' || selectedModel?.includes('imagen')) {
                 try {
-                    const imagenModel = selectedModel || 'imagen-4.0-fast-generate-001';
-                    console.log(`[generateCreativeContent] Using Google Imagen: ${imagenModel}`);
+                    // Safety check: Ensure we don't use a text model for Imagen
+                    const isImagenModel = selectedModel?.includes('imagen') || selectedModel?.includes('nano-banana');
+                    const imagenModel = isImagenModel ? selectedModel : 'imagen-3.0-generate-001';
+
+                    console.log(`[generateCreativeContent] Using Google Imagen: ${imagenModel} (Original select: ${selectedModel})`);
                     const imagenResult = await generateWithImagen(imagePrompt, '1024x1024', imagenModel);
                     return {
                         success: true,

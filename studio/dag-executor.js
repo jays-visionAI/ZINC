@@ -130,13 +130,20 @@ class DAGExecutor {
             if (doc.exists && doc.data().defaultModels) {
                 this.state.routingDefaults = doc.data().defaultModels;
 
-                // v5.0: Extract tier config
-                if (this.state.routingDefaults.tiers || this.state.routingDefaults.text?.tiers) {
-                    this.state.tierConfig = this.state.routingDefaults.tiers || this.state.routingDefaults.text?.tiers;
-                    console.log('✅ 5-Tier Config Loaded:', Object.keys(this.state.tierConfig));
-                }
+                // v5.1: Categorical 5-Tier logic
+                this.state.multiTiers = {
+                    text: this.state.routingDefaults.text?.tiers || this.state.routingDefaults.tiers || {},
+                    image: this.state.routingDefaults.image?.tiers || {},
+                    video: this.state.routingDefaults.video?.tiers || {}
+                };
 
-                console.log('✅ Global Routing Defaults Loaded:', this.state.routingDefaults);
+                // Legacy fallback for this.state.tierConfig (strictly text)
+                this.state.tierConfig = this.state.multiTiers.text;
+
+                console.log('✅ Multi-Modal 5-Tier Config Loaded');
+                console.log('   - Text Models:', Object.keys(this.state.multiTiers.text).length);
+                console.log('   - Image Models:', Object.keys(this.state.multiTiers.image).length);
+                console.log('   - Video Models:', Object.keys(this.state.multiTiers.video).length);
             }
         } catch (error) {
             console.warn('⚠️ Failed to load global routing defaults:', error);
@@ -250,15 +257,43 @@ class DAGExecutor {
     /**
      * v5.0: Get provider and model from tier configuration
      */
-    getProviderModelFromTier(tierId) {
-        const tierConfig = this.state.tierConfig?.[tierId];
+    getProviderModelFromTier(tierId, category = 'text') {
+        // Try specific category tiers first, then fallback to general tierConfig
+        const tiers = (this.state.multiTiers && this.state.multiTiers[category] && Object.keys(this.state.multiTiers[category]).length > 0)
+            ? this.state.multiTiers[category]
+            : (category === 'text' ? this.state.tierConfig : null);
 
-        if (tierConfig) {
+        const tierConfig = tiers ? tiers[tierId] : null;
+
+        if (tierConfig && tierConfig.model) {
             return {
                 provider: tierConfig.provider,
                 model: tierConfig.model,
                 creditMultiplier: tierConfig.creditMultiplier || 1.0
             };
+        }
+
+        // v5.1: Category-aware fallbacks
+        if (category === 'image') {
+            const imgFallbacks = {
+                '1_economy': { provider: 'google', model: 'imagen-3.0-fast-generate-001', creditMultiplier: 1.0 },
+                '2_balanced': { provider: 'google', model: 'imagen-3.0-generate-001', creditMultiplier: 2.0 },
+                '3_standard': { provider: 'openai', model: 'dall-e-3', creditMultiplier: 3.0 },
+                '4_premium': { provider: 'replicate', model: 'flux-pro', creditMultiplier: 5.0 },
+                '5_ultra': { provider: 'replicate', model: 'flux-pro', creditMultiplier: 10.0 }
+            };
+            return imgFallbacks[tierId] || imgFallbacks['3_standard'];
+        }
+
+        if (category === 'video') {
+            const vidFallbacks = {
+                '1_economy': { provider: 'google', model: 'veo-1.0-fast', creditMultiplier: 5.0 },
+                '2_balanced': { provider: 'google', model: 'veo-1.0-generate', creditMultiplier: 10.0 },
+                '3_standard': { provider: 'runway', model: 'runway-gen-2', creditMultiplier: 15.0 },
+                '4_premium': { provider: 'runway', model: 'runway-gen-3', creditMultiplier: 20.0 },
+                '5_ultra': { provider: 'luma', model: 'luma-dream-machine', creditMultiplier: 30.0 }
+            };
+            return vidFallbacks[tierId] || vidFallbacks['3_standard'];
         }
 
         // Fallback defaults - v5.1: Respect user preference for no GPT-4o
@@ -579,13 +614,16 @@ class DAGExecutor {
      * Each agent type has specific prompts and capabilities
      */
     async invokeAgent(agentId, context) {
+        // v5.1: Calculate config first (includes categorical 5-Tier routing)
+        const agentConfig = this.getAgentConfig(agentId, context);
+
         // For image generation, use specialized handler
         if (agentId === 'creator_image') {
-            return await this.invokeImageGenerator(context);
+            return await this.invokeImageGenerator(agentConfig);
         }
 
         // Prepare agent-specific prompts
-        const agentConfig = this.getAgentConfig(agentId, context);
+        // v5.1: agentConfig already calculated at start of invokeAgent
 
 
         const executeSubAgent = firebase.functions().httpsCallable('executeSubAgent', { timeout: 300000 });
@@ -691,20 +729,26 @@ class DAGExecutor {
         const planContent = context?.content || context?.planName || 'Create engaging content relevant to the project and brand.';
         const userFeedback = context?.userFeedback ? `\n\nIMPORTANT USER FEEDBACK FOR REGENERATION:\n"${context.userFeedback}"\n\nYou MUST incorporate this feedback into your output.` : '';
 
-        console.log(`[DAGExecutor v5.0] getAgentConfig for ${agentId}:`, { planContent, context, userFeedback });
+        console.log(`[DAGExecutor v5.1] getAgentConfig for ${agentId}:`, { planContent, context, userFeedback });
 
-        // v5.0: Use 5-Tier routing if enabled
+        // v5.1: Use Multi-Modal 5-Tier routing if enabled
         let providerName, globalModel;
 
-        if (this.state.useTierRouting && this.state.tierConfig) {
+        if (this.state.useTierRouting && (this.state.tierConfig || this.state.multiTiers)) {
             // Get tier for this agent
             const tierId = this.getTierForAgent(agentId);
-            const tierSettings = this.getProviderModelFromTier(tierId);
+
+            // v5.1: Categorical Routing (Text/Image/Video)
+            let category = 'text';
+            if (agentId === 'creator_image') category = 'image';
+            else if (agentId === 'creator_video') category = 'video';
+
+            const tierSettings = this.getProviderModelFromTier(tierId, category);
 
             providerName = tierSettings.provider;
             globalModel = tierSettings.model;
 
-            console.log(`[DAGExecutor v5.0] 5-Tier Routing: ${agentId} → ${tierId} → ${providerName}/${globalModel}`);
+            console.log(`[DAGExecutor v5.1] 5-Tier Routing: ${agentId} → ${tierId} (${category}) → ${providerName}/${globalModel}`);
         } else {
             // Legacy routing (fallback)
             providerName = this.state.selectedAgentTeam?.provider;
@@ -875,6 +919,20 @@ class DAGExecutor {
                 model: globalModel,
                 temperature: 0.6
             }),
+            creator_image: configWithProvider({
+                systemPrompt: `You are an AI image generation specialist.`,
+                taskPrompt: `High-quality visual for: ${planContent}`,
+                model: globalModel,
+                provider: providerName,
+                runtimeProfileId: this.state.selectedAgentTeam?.runtimeProfileId
+            }),
+            creator_video: configWithProvider({
+                systemPrompt: `You are an AI video generation specialist.`,
+                taskPrompt: `High-quality video for: ${planContent}`,
+                model: globalModel,
+                provider: providerName,
+                runtimeProfileId: this.state.selectedAgentTeam?.runtimeProfileId
+            }),
             engagement: configWithProvider({
                 systemPrompt: `You are a community manager. Draft engagement responses.`,
                 taskPrompt: `Draft potential responses to user comments for:\n${planContent}\n\nProvide:\n1. FAQ responses\n2. Engagement starters\n3. Positive sentiment reinforcement\n4. Crisis management (if applicable)`,
@@ -1030,11 +1088,11 @@ class DAGExecutor {
                     topic: context?.planName || 'professional business content',
                     audience: 'general',
                     tone: 'professional',
-                    plan: context.planContext || '', // Pass plan context specifically if needed
-                    type: context.agentId, // Used as subAgentId/engineType
-                    runtimeProfileId: context.config?.runtimeProfileId, // v4.0: Pass the ID
-                    // provider: context.config?.provider, // DISABLED: Force Router Logic
-                    // model: context.config?.model // DISABLED: Force Router Logic
+                    plan: context.planContext || context.content || '', // Pass plan context specifically if needed
+                    type: context.agentId || 'creator_image',
+                    runtimeProfileId: context.config?.runtimeProfileId || context.runtimeProfileId,
+                    provider: context.provider || context.config?.provider, // v5.1: Enable explicit routing
+                    model: context.model || context.config?.model // v5.1: Enable explicit routing
                 },
                 projectContext: context?.content || '',
                 targetLanguage: 'English',
