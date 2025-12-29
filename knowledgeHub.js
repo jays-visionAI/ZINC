@@ -3493,7 +3493,8 @@ const CREATIVE_CONFIGS = {
             { id: 'pitch-purpose', type: 'select', label: '🎯 Pitch Purpose', options: ['Investor Pitch', 'Sales Pitch', 'Partnership Proposal', 'Product Launch', 'Company Overview'] },
             { id: 'pitch-style', type: 'select', label: '🎨 Visual Style', options: ['Modern Tech', 'Corporate Classic', 'Creative Bold', 'Minimalist', 'Startup Friendly'] },
             { id: 'pitch-audience', type: 'text', label: '👥 Target Audience', placeholder: 'e.g., VCs, Enterprise Clients, Partners' },
-            { id: 'pitch-include-images', type: 'select', label: '📷 AI Generated Images', options: ['Yes - Cover + Section Headers', 'Yes - Cover Only', 'No Images'] }
+            { id: 'pitch-include-images', type: 'select', label: '📷 AI Generated Images', options: ['Yes - Cover + Section Headers', 'Yes - Cover Only', 'No Images'] },
+            { id: 'pitch-context-tuning', type: 'textarea', label: '🔧 Additional Context / Instructions', placeholder: 'Fine-tune the output by adding specific details, valid data points, or instructions here...' }
         ]
     }
 };
