@@ -1,0 +1,99 @@
+<div class="admin-chatbot-container">
+    <div class="admin-card">
+        <div class="admin-card-header">
+            <h3>5. The Growth: Optimization & Analytics Agents</h3>
+            <p>Configure agents that monitor performance, enforce compliance, and predict ROI.</p>
+        </div>
+
+        <div class="admin-section-divider"></div>
+
+        <!-- Agent: Evaluation Manager -->
+        <div class="agent-setting-group">
+            <div class="flex-between mb-4">
+                <h4>Evaluation Manager (manager/evaluator)</h4>
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Model</label>
+                    <select id="agent-manager-model" class="admin-input">
+                        <option value="gpt-4o" selected>GPT-4o</option>
+                        <option value="o1-preview">o1-preview</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Temp</label>
+                    <input type="range" id="agent-manager-temp" min="0" max="1" step="0.1" value="0.2">
+                    <span id="label-manager-temp">0.2</span>
+                </div>
+            </div>
+            <textarea id="agent-manager-prompt" class="admin-input prompt-textarea tiny mt-2"
+                placeholder="Quality evaluation instructions..."></textarea>
+        </div>
+
+        <div class="admin-section-divider"></div>
+
+        <!-- Agent: Compliance Officer -->
+        <div class="agent-setting-group">
+            <div class="flex-between mb-4">
+                <h4>Compliance Officer (compliance)</h4>
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Model</label>
+                    <select id="agent-compliance-model" class="admin-input">
+                        <option value="gpt-4o-mini" selected>GPT-4o Mini</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Temp</label>
+                    <input type="range" id="agent-compliance-temp" min="0" max="1" step="0.1" value="0.0">
+                    <span id="label-compliance-temp">0.0</span>
+                </div>
+            </div>
+            <textarea id="agent-compliance-prompt" class="admin-input prompt-textarea tiny mt-2"
+                placeholder="Compliance check rules..."></textarea>
+        </div>
+
+        <div class="admin-section-divider"></div>
+
+        <!-- Agent: KPI Engine -->
+        <div class="agent-setting-group">
+            <div class="flex-between mb-4">
+                <h4>KPI Engine (kpi_engine)</h4>
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Model</label>
+                    <select id="agent-kpi-model" class="admin-input">
+                        <option value="gpt-4o" selected>GPT-4o</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Temp</label>
+                    <input type="range" id="agent-kpi-temp" min="0" max="1" step="0.1" value="0.1">
+                    <span id="label-kpi-temp">0.1</span>
+                </div>
+            </div>
+            <textarea id="agent-kpi-prompt" class="admin-input prompt-textarea tiny mt-2"
+                placeholder="KPI prediction logic..."></textarea>
+        </div>
+
+        <div class="admin-actions mt-8">
+            <button id="save-growth-settings" class="admin-btn-primary">Save Growth Settings</button>
+            <button id="reset-growth-settings" class="admin-btn-secondary">Reset to Defaults</button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .prompt-textarea.tiny {
+        height: 100px;
+        font-size: 12px;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 10px;
+    }
+</style>

@@ -1,26 +1,6 @@
-// admin-pipeline.js - Logic for 5-Step Pipeline Settings
-
-window.initPipeline = async function (currentUser) {
-    console.log('[Pipeline Settings] Initializing...');
-
-    // 1. Tab Switching Logic
-    const tabBtns = document.querySelectorAll('.admin-tab-btn');
-    const tabContents = document.querySelectorAll('.admin-tab-content');
-
-    tabBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const tabId = btn.dataset.tab;
-
-            // Update buttons
-            tabBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-
-            // Update content visibility
-            tabContents.forEach(content => {
-                content.classList.toggle('active', content.id === `tab-${tabId}`);
-            });
-        });
-    });
+// admin-pipeline-knowledge.js - Step 3: Knowledge Hub
+window.initPipelineKnowledge = async function (currentUser) {
+    console.log('[Pipeline: Knowledge Hub] Initializing...');
 
     // 2. Slider Labels
     const sliders = [

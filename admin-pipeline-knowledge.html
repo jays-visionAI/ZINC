@@ -1,0 +1,125 @@
+<div class="admin-chatbot-container">
+    <div class="admin-card">
+        <div class="admin-card-header">
+            <h3>3. Knowledge Hub: Brand Intelligence Agents</h3>
+            <p>Configure specialized agents for document analysis, summarization, and deep reporting.</p>
+        </div>
+
+        <div class="admin-section-divider"></div>
+
+        <!-- Agent A: Brand Summary (Standard) -->
+        <div class="agent-setting-group">
+            <div class="flex-between mb-4">
+                <h4>Agent A: Brand Summary (Standard)</h4>
+                <span class="status-badge success">Active</span>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Default Model</label>
+                    <select id="agent-standard-model" class="admin-input">
+                        <option value="gpt-4o">GPT-4o (High Quality)</option>
+                        <option value="gpt-4o-mini">GPT-4o Mini (Fast)</option>
+                        <option value="deepseek-chat">DeepSeek V3 (Economical)</option>
+                        <option value="deepseek-reasoner">DeepSeek R1 (Reasoning)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Temperature</label>
+                    <input type="range" id="agent-standard-temp" min="0" max="1" step="0.1" value="0.2">
+                    <span id="label-standard-temp">0.2</span>
+                </div>
+            </div>
+
+            <div class="form-group mt-4">
+                <label>System Prompt (Intelligence Profile)</label>
+                <textarea id="agent-standard-prompt" class="admin-input prompt-textarea"
+                    placeholder="Enter system instructions for standard summary..."></textarea>
+            </div>
+        </div>
+
+        <div class="admin-section-divider mt-8 mb-8"></div>
+
+        <!-- Agent B: Depth Report (A4 Analysis) -->
+        <div class="agent-setting-group">
+            <div class="flex-between mb-4">
+                <h4>Agent B: Depth Report (A4 Analysis)</h4>
+                <span class="status-badge info">Detailed Mode</span>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>High Performance Model</label>
+                    <select id="agent-depth-model" class="admin-input">
+                        <option value="gpt-4o">GPT-4o (High Quality)</option>
+                        <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet (Logic/Detail)</option>
+                        <option value="o1-preview">OpenAI o1-preview (Deep Reasoning)</option>
+                        <option value="deepseek-reasoner">DeepSeek R1 (Deep Reasoning)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Temperature</label>
+                    <input type="range" id="agent-depth-temp" min="0" max="1" step="0.1" value="0.3">
+                    <span id="label-depth-temp">0.3</span>
+                </div>
+            </div>
+
+            <div class="form-group mt-4">
+                <label>Depth Analysis Prompt (Multi-step Logic)</label>
+                <textarea id="agent-depth-prompt" class="admin-input prompt-textarea"
+                    placeholder="Enter system instructions for deep A4 reporting..."></textarea>
+            </div>
+            <p class="text-xs text-slate-500 mt-2">Note: Depth reports use multi-step generation to ensure long-form
+                output (1500+ words).</p>
+        </div>
+
+        <div class="admin-actions mt-8">
+            <button id="save-knowledge-settings" class="admin-btn-primary">Save Knowledge Hub Settings</button>
+            <button id="reset-knowledge-settings" class="admin-btn-secondary">Reset to Defaults</button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .prompt-textarea {
+        height: 200px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .flex-between {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .admin-section-divider {
+        height: 1px;
+        background: #333;
+        margin: 20px 0;
+    }
+
+    .agent-setting-group h4 {
+        color: #16e0bd;
+        margin: 0;
+    }
+
+    .status-badge {
+        font-size: 10px;
+        padding: 2px 8px;
+        border-radius: 4px;
+        text-transform: uppercase;
+        font-weight: 700;
+    }
+
+    .status-badge.info {
+        background: rgba(59, 130, 246, 0.2);
+        color: #60a5fa;
+    }
+
+    .status-badge.success {
+        background: rgba(16, 185, 129, 0.2);
+        color: #34d399;
+    }
+</style>

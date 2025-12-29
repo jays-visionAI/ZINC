@@ -174,6 +174,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             subscriptions: "Subscription Management",
             chatbot: "AI Chatbot Settings",
             pipeline: "5-Step Pipeline Management",
+            'pipeline-market': "Pipeline: Market Pulse Settings",
+            'pipeline-brand': "Pipeline: Brand Brain Settings",
+            'pipeline-knowledge': "Pipeline: Knowledge Hub Settings",
+            'pipeline-studio': "Pipeline: Studio Settings",
+            'pipeline-growth': "Pipeline: The Growth Settings",
             settings: "Settings",
             'ui-menu': "UI & Menu Management"
         };

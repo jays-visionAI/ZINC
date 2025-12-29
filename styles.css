@@ -2520,10 +2520,13 @@ body {
     letter-spacing: 0.5px;
 }
 
-.admin-nav {
-    flex: 1;
-    padding: 20px 0;
-    overflow-y: auto;
+.admin-nav-header {
+    padding: 20px 20px 8px 20px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.4);
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 .admin-nav-item {

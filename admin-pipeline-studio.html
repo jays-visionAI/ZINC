@@ -1,0 +1,100 @@
+<div class="admin-chatbot-container">
+    <div class="admin-card">
+        <div class="admin-card-header">
+            <h3>4. Studio: Creation & Orchestration Agents</h3>
+            <p>Configure agents that generate multi-modal content and manage workflow execution.</p>
+        </div>
+
+        <div class="admin-section-divider"></div>
+
+        <!-- Agent: Base Creator -->
+        <div class="agent-setting-group">
+            <div class="flex-between mb-4">
+                <h4>Base Creator (creator)</h4>
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Model</label>
+                    <select id="agent-creator-model" class="admin-input">
+                        <option value="gpt-4o" selected>GPT-4o</option>
+                        <option value="gpt-4o-mini">GPT-4o Mini</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Temp</label>
+                    <input type="range" id="agent-creator-temp" min="0" max="1" step="0.1" value="0.7">
+                    <span id="label-creator-temp">0.7</span>
+                </div>
+            </div>
+            <textarea id="agent-creator-prompt" class="admin-input prompt-textarea tiny mt-2"
+                placeholder="Base creator instructions..."></textarea>
+        </div>
+
+        <div class="admin-section-divider"></div>
+
+        <!-- Agent: Text Specialist -->
+        <div class="agent-setting-group">
+            <div class="flex-between mb-4">
+                <h4>Text Specialist (creator_text)</h4>
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Model</label>
+                    <select id="agent-text-model" class="admin-input">
+                        <option value="gpt-4o" selected>GPT-4o</option>
+                        <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Temp</label>
+                    <input type="range" id="agent-text-temp" min="0" max="1" step="0.1" value="0.8">
+                    <span id="label-text-temp">0.8</span>
+                </div>
+            </div>
+            <textarea id="agent-text-prompt" class="admin-input prompt-textarea tiny mt-2"
+                placeholder="Copywriting instructions..."></textarea>
+        </div>
+
+        <div class="admin-section-divider"></div>
+
+        <!-- Agent: Image Specialist -->
+        <div class="agent-setting-group">
+            <div class="flex-between mb-4">
+                <h4>Image Specialist (creator_image)</h4>
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Model</label>
+                    <select id="agent-image-model" class="admin-input">
+                        <option value="gpt-4o" selected>GPT-4o (DALL-E 3)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Temp</label>
+                    <input type="range" id="agent-image-temp" min="0" max="1" step="0.1" value="0.6">
+                    <span id="label-image-temp">0.6</span>
+                </div>
+            </div>
+            <textarea id="agent-image-prompt" class="admin-input prompt-textarea tiny mt-2"
+                placeholder="Visual style instructions..."></textarea>
+        </div>
+
+        <div class="admin-actions mt-8">
+            <button id="save-studio-settings" class="admin-btn-primary">Save Studio Settings</button>
+            <button id="reset-studio-settings" class="admin-btn-secondary">Reset to Defaults</button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .prompt-textarea.tiny {
+        height: 100px;
+        font-size: 12px;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 10px;
+    }
+</style>
