@@ -411,5 +411,11 @@ service cloud.firestore {
       allow read: if isAuthenticated();  // Users need to read for context
       allow write: if isAdmin();  // Only Admin can modify
     }
+
+    // 5-Step Pipeline Settings: Admin can write, authenticated users can read
+    match /pipelineSettings/{stepId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
   }
 }
