@@ -4920,9 +4920,143 @@ exports.generateCreativeContent = onCall({ cors: true, timeoutSeconds: 300, memo
 
             userPrompt += `Create a specialized Product Brochure in ${format} layout. Structure HTML for A4. Use Tailwind CSS. Sections: Cover, Problem, Solution, Key Features.${imageSection}Include <img> tags with the provided image URLs if available. Match the ${imageStyle} visual style and ${colorScheme} color theme.`;
         } else if (type === 'one_pager') {
-            userPrompt += `Create a high-density One-Pager Executive Summary. Sections: Challenge, Approach, Roadmap, Metrics.`;
+            // Extract one-pager options
+            const onepagerFormat = inputs['onepager-format'] || inputs.format || 'Executive Summary';
+            const onepagerStyle = inputs['onepager-style'] || inputs.style || 'Modern & Clean';
+            const includeImage = inputs['onepager-include-image'] || 'Yes - Hero Image';
+
+            // Generate AI image if requested
+            if (!includeImage.includes('No')) {
+                try {
+                    console.log('[generateCreativeContent] 📸 Generating 1-Pager image with Nano Banana Pro...');
+                    const imageType = includeImage.includes('Hero') ? 'hero visual' : 'abstract background';
+                    const imagePrompt = `Professional ${imageType} for: ${topic}. Style: ${onepagerStyle}. Clean, modern, corporate.`;
+                    const imageUrl = await generateWithNanoBananaPro(imagePrompt, '1024x1024');
+                    generatedImages.push(imageUrl);
+                    console.log(`[generateCreativeContent] ✅ 1-Pager image generated`);
+                } catch (error) {
+                    console.warn('[generateCreativeContent] 1-Pager image generation skipped:', error.message);
+                }
+            }
+
+            const imageSection = generatedImages.length > 0
+                ? `\n\nGenerated Image (use this URL in your HTML): ${generatedImages[0]}\n\n`
+                : '';
+
+            userPrompt += `Create a professional One-Pager document in ${onepagerFormat} format. Style: ${onepagerStyle}.
+Structure: Single A4 page, dense but readable.
+Sections based on format:
+- Executive Summary: Vision, Key Points, Call to Action
+- Problem-Solution: Problem Statement, Our Solution, Benefits
+- Product Overview: Features, Benefits, Use Cases
+- Company Profile: About, Team, Achievements
+${imageSection}Include <img> tag with the image URL if provided. Use Tailwind CSS with modern gradients and typography.`;
         } else if (type === 'pitch_deck') {
-            userPrompt += `Create content for a ${slideCount} slide Pitch Deck. Return HTML grid of cards.`;
+            // Extract pitch deck options
+            const pitchTitle = inputs['pitch-title'] || inputs.title || topic;
+            const pitchOverview = inputs['pitch-topic'] || inputs.overview || '';
+            const slideCountStr = inputs['pitch-slides'] || '10 slides (Detailed)';
+            const pitchPurpose = inputs['pitch-purpose'] || 'Investor Pitch';
+            const pitchStyle = inputs['pitch-style'] || 'Modern Tech';
+            const targetAudience = inputs['pitch-audience'] || inputs.audience || 'Investors';
+            const includeImages = inputs['pitch-include-images'] || 'Yes - Cover + Section Headers';
+
+            // Parse slide count
+            let slideCount = 10;
+            if (slideCountStr.includes('5')) slideCount = 5;
+            if (slideCountStr.includes('8')) slideCount = 8;
+            if (slideCountStr.includes('12')) slideCount = 12;
+
+            // Map style to visual attributes
+            const styleConfig = {
+                'Modern Tech': { gradient: 'from-indigo-600 to-purple-600', accent: 'indigo', bg: 'slate-900' },
+                'Corporate Classic': { gradient: 'from-blue-700 to-blue-900', accent: 'blue', bg: 'gray-900' },
+                'Creative Bold': { gradient: 'from-pink-500 to-orange-500', accent: 'pink', bg: 'gray-900' },
+                'Minimalist': { gradient: 'from-gray-700 to-gray-900', accent: 'gray', bg: 'white' },
+                'Startup Friendly': { gradient: 'from-emerald-500 to-teal-600', accent: 'emerald', bg: 'slate-900' }
+            };
+            const style = styleConfig[pitchStyle] || styleConfig['Modern Tech'];
+
+            // Generate AI images if requested
+            if (!includeImages.includes('No')) {
+                console.log(`[generateCreativeContent] 📸 Generating Pitch Deck images with Nano Banana Pro...`);
+                try {
+                    // Cover image
+                    const coverPrompt = `Professional pitch deck cover visual for: ${pitchTitle}. ${pitchPurpose} style. Modern, impactful, no text. Style: ${pitchStyle}.`;
+                    const coverImage = await generateWithNanoBananaPro(coverPrompt, '1024x1024');
+                    generatedImages.push({ type: 'cover', url: coverImage });
+                    console.log(`[generateCreativeContent] ✅ Cover image generated`);
+
+                    // Section header images if full option selected
+                    if (includeImages.includes('Section Headers')) {
+                        const sectionPrompts = [
+                            `Abstract visual representing business problem/challenge. Dark, dramatic. Style: ${pitchStyle}.`,
+                            `Visual representing innovative solution. Bright, hopeful. Style: ${pitchStyle}.`,
+                            `Visual representing growth and market opportunity. Charts, upward trends. Style: ${pitchStyle}.`
+                        ];
+                        for (let i = 0; i < Math.min(3, sectionPrompts.length); i++) {
+                            try {
+                                const sectionImage = await generateWithNanoBananaPro(sectionPrompts[i], '1024x1024');
+                                generatedImages.push({ type: `section-${i + 1}`, url: sectionImage });
+                                console.log(`[generateCreativeContent] ✅ Section image ${i + 1} generated`);
+                            } catch (err) {
+                                console.warn(`[generateCreativeContent] Section image ${i + 1} skipped:`, err.message);
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.warn('[generateCreativeContent] Pitch deck image generation failed:', error.message);
+                }
+            }
+
+            const imageSection = generatedImages.length > 0
+                ? `\n\nGenerated Images for slides (use these URLs in your HTML):\n${generatedImages.map((img, i) => `${img.type || `Image ${i + 1}`}: ${img.url || img}`).join('\n')}\n\n`
+                : '';
+
+            userPrompt += `Create a PROFESSIONAL ${slideCount}-slide Pitch Deck presentation.
+
+PRESENTATION DETAILS:
+- Title: "${pitchTitle}"
+- Purpose: ${pitchPurpose}
+- Audience: ${targetAudience}
+- Overview: ${pitchOverview || topic}
+
+SLIDE STRUCTURE (${slideCount} slides):
+${slideCount >= 5 ? `
+1. COVER SLIDE: Title, tagline, logo placeholder
+2. PROBLEM: Pain points you're solving
+3. SOLUTION: Your unique approach
+4. PRODUCT/FEATURES: Key capabilities
+5. CALL TO ACTION: Next steps, contact
+` : ''}
+${slideCount >= 8 ? `
+6. MARKET OPPORTUNITY: TAM/SAM/SOM, growth
+7. BUSINESS MODEL: Revenue streams
+8. TRACTION: Metrics, achievements
+` : ''}
+${slideCount >= 10 ? `
+9. TEAM: Key people, experience
+10. FINANCIALS/ASK: Funding request, use of funds
+` : ''}
+${slideCount >= 12 ? `
+11. ROADMAP: Timeline, milestones
+12. APPENDIX: Additional data
+` : ''}
+
+${imageSection}
+
+DESIGN REQUIREMENTS:
+- Return FULL HTML with embedded Tailwind CSS
+- Use gradient: bg-gradient-to-r ${style.gradient}
+- Background: bg-${style.bg}, accent color: ${style.accent}
+- Each slide: Full viewport height section (min-h-screen)
+- Modern typography: text-4xl for headers, text-lg for body
+- Include SVG icons (use inline SVG or Unicode symbols)
+- Use <img> tags with provided image URLs for visuals
+- Professional spacing, alignment, visual hierarchy
+- Add subtle animations: hover effects, transitions
+
+OUTPUT: Complete, print-ready HTML that looks like a real presentation deck.`;
         } else if (type === 'email_template') {
             userPrompt += `Create a professional Email Template for ${inputs.emailType}. Include Subject, Body, Signature.`;
         } else if (type === 'press_release') {
