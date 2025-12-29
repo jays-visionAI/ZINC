@@ -862,15 +862,19 @@ window.editFaq = function (faqId) {
 };
 
 // Delete FAQ
-window.deleteFaq = function (faqId) {
+window.deleteFaq = async function (faqId) {
     if (confirm('Are you sure you want to delete this FAQ?')) {
+        console.log('[Chatbot] Deleting FAQ:', faqId);
         chatbotSettings.faq = chatbotSettings.faq.filter(f => f.id !== faqId);
         renderFaqList();
+
+        // Immediate save for persistence
+        await saveSettings(true);
     }
 };
 
 // Save FAQ
-function saveFaq() {
+async function saveFaq() {
     const question = document.getElementById('faq-question').value.trim();
     const answer = document.getElementById('faq-answer').value.trim();
     const editId = document.getElementById('faq-edit-id').value;
@@ -898,40 +902,60 @@ function saveFaq() {
 
     closeFaqModal();
     renderFaqList();
+
+    // Immediate save for persistence
+    console.log('[Chatbot] Persistence: Saving changes after FAQ update...');
+    await saveSettings(true);
 }
 
 // Save all settings to Firestore
-async function saveSettings() {
+async function saveSettings(silent = false) {
     const btn = document.getElementById('btn-save-chatbot');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = 'Saving...';
-    btn.disabled = true;
+    const originalText = btn ? btn.innerHTML : '';
+
+    if (btn && !silent) {
+        btn.innerHTML = 'Saving...';
+        btn.disabled = true;
+    }
 
     try {
-        // Gather values from UI
-        chatbotSettings.systemPrompt = document.getElementById('chatbot-system-prompt').value;
-        chatbotSettings.welcomeMessage = document.getElementById('chatbot-welcome-message').value;
-        chatbotSettings.dailyLimit = parseInt(document.getElementById('chatbot-daily-limit').value) || 50;
-        chatbotSettings.status = document.getElementById('chatbot-status').value;
+        // Gather values from UI (if they exist)
+        const systemPromptEl = document.getElementById('chatbot-system-prompt');
+        const welcomeMessageEl = document.getElementById('chatbot-welcome-message');
+        const dailyLimitEl = document.getElementById('chatbot-daily-limit');
+        const statusEl = document.getElementById('chatbot-status');
+
+        if (systemPromptEl) chatbotSettings.systemPrompt = systemPromptEl.value;
+        if (welcomeMessageEl) chatbotSettings.welcomeMessage = welcomeMessageEl.value;
+        if (dailyLimitEl) chatbotSettings.dailyLimit = parseInt(dailyLimitEl.value) || 50;
+        if (statusEl) chatbotSettings.status = statusEl.value;
+
+        console.log('[Chatbot Settings] Persisting to Firestore:', chatbotSettings);
 
         const db = firebase.firestore();
         await db.collection('chatbotConfig').doc('default').set({
             ...chatbotSettings,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
             updatedBy: firebase.auth().currentUser?.uid || 'unknown'
-        });
+        }, { merge: true });
 
-        btn.innerHTML = '✓ Saved!';
-        setTimeout(() => {
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-        }, 2000);
+        if (btn && !silent) {
+            btn.innerHTML = '✓ Saved!';
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }, 2000);
+        } else if (!silent) {
+            alert('✅ Settings saved!');
+        }
 
     } catch (error) {
         console.error('[Chatbot Settings] Save error:', error);
-        alert('Failed to save settings: ' + error.message);
-        btn.innerHTML = originalText;
-        btn.disabled = false;
+        if (!silent) alert('Failed to save settings: ' + error.message);
+        if (btn && !silent) {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
     }
 }
 
