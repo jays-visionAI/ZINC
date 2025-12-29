@@ -1846,9 +1846,8 @@ function renderGlobalDefaultsUI(config) {
 
     const imageModels = [
         { id: 'nano-banana-pro-preview', name: 'Nano Banana Pro' },
-        { id: 'imagen-4.0-generate-001', name: 'Google Imagen 4' },
-        { id: 'imagen-4.0-fast-generate-001', name: 'Google Imagen 4 Fast' },
-        { id: 'imagen-4.0-ultra-generate-001', name: 'Google Imagen 4 Ultra' },
+        { id: 'imagen-3.0-generate-001', name: 'Google Imagen 3' },
+        { id: 'imagen-3.0-fast-generate-001', name: 'Google Imagen 3 Fast' },
         { id: 'flux-pro', name: 'Flux Pro' }
     ];
 

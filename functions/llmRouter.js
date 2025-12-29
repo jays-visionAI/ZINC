@@ -347,12 +347,15 @@ class LLMRouter {
                     console.log('[LLMRouter] 🚀 BOOST MODE ACTIVATED');
 
                     // 1. Try Root BOOST config (Script) OR Admin UI structure (defaultModels.boost)
+                    // [BUG FIX] Only override if explicit model is NOT provided (respect Studio settings)
                     const boostConfig = globalDefaults?.boost || globalDefaults?.defaultModels?.boost;
 
-                    if (boostConfig) {
+                    if (!explicitModel && boostConfig) {
                         resolvedProvider = boostConfig.provider;
                         resolvedModel = boostConfig.model;
                         console.log(`[LLMRouter] Boost overrides model to: ${resolvedProvider}/${resolvedModel}`);
+                    } else if (explicitModel) {
+                        console.log(`[LLMRouter] Respecting explicit model in BOOST mode: ${resolvedProvider}/${resolvedModel}`);
                     } else if (globalDefaults?.tagMappings?.reasoning_optimized) {
                         // 2. Fallback: Use 'reasoning_optimized'
                         const map = globalDefaults.tagMappings.reasoning_optimized;

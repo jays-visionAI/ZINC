@@ -305,8 +305,8 @@ exports.executeSubAgent = onCall({
 
         const llmRouter = new LLMRouter(admin.firestore());
 
-        // Determine quality tier (legacy logic, mostly overridden by Profile now if Profile has tiers)
-        const qualityTier = (['planner', 'manager', 'compliance'].includes(subAgentId)) ? 'BOOST' : 'DEFAULT';
+        // Determine quality tier (Use passed tier if available, otherwise legacy auto-boost for specific agents)
+        const qualityTier = payload.qualityTier || (['planner', 'manager', 'compliance'].includes(subAgentId) ? 'BOOST' : 'DEFAULT');
 
         const routingResult = await llmRouter.route({
             feature: 'agent_execution',
@@ -3312,15 +3312,14 @@ async function generateWithImagen(prompt, size, model = 'imagen-4.0-fast-generat
     // Map Nano Banana aliases to actual Imagen models if needed
     let targetModel = model;
     if (targetModel.includes('nano-banana')) {
-        targetModel = 'imagen-4.0-ultra-generate-001'; // Map premium alias to ultra
+        targetModel = 'imagen-3.0-generate-001'; // Map premium alias to Imagen 3.0
     }
 
     // Try the requested model first, then fall back to others
     const modelsToTry = [
         targetModel,
-        'imagen-4.0-fast-generate-001',
-        'imagen-4.0-generate-001',
-        'imagen-4.0-ultra-generate-001'
+        'imagen-3.0-generate-001',
+        'imagen-3.0-fast-generate-001'
     ].filter((v, i, a) => a.indexOf(v) === i); // Unique values
 
     for (const modelName of modelsToTry) {
