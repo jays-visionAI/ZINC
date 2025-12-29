@@ -29,6 +29,22 @@
             FAQ Settings</div>
     </div>
 
+    <!-- Global Actions (Visible across tabs) -->
+    <div id="chatbot-global-actions" style="display: flex; justify-content: flex-end; gap: 12px; margin-bottom: 24px;">
+        <button id="btn-reset-chatbot" class="admin-btn-secondary" style="padding: 12px 24px;">
+            Reset to Defaults
+        </button>
+        <button id="btn-save-chatbot" class="admin-btn-primary" style="padding: 12px 32px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                style="vertical-align: middle; margin-right: 6px;">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                <polyline points="7 3 7 8 15 8"></polyline>
+            </svg>
+            Save Settings
+        </button>
+    </div>
+
     <!-- General Settings Tab -->
     <div id="tab-general" class="tab-content">
 
@@ -108,22 +124,6 @@ ZYNK 사용에 관한 질문이 있으시면 편하게 물어보세요!
             </div>
         </div>
 
-    </div>
-
-    <!-- Save Button -->
-    <div style="display: flex; justify-content: flex-end; gap: 12px;">
-        <button id="btn-reset-chatbot" class="admin-btn-secondary" style="padding: 12px 24px;">
-            Reset to Defaults
-        </button>
-        <button id="btn-save-chatbot" class="admin-btn-primary" style="padding: 12px 32px;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                style="vertical-align: middle; margin-right: 6px;">
-                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                <polyline points="7 3 7 8 15 8"></polyline>
-            </svg>
-            Save Settings
-        </button>
     </div>
 </div> <!-- End of General Tab -->
 
@@ -649,18 +649,34 @@ ZYNK 사용에 관한 질문이 있으시면 편하게 물어보세요!
                 tab.classList.add('active');
 
                 // Show/hide content
-                document.getElementById('tab-general').style.display = targetTab === 'general' ? 'block' : 'none';
-                document.getElementById('tab-page-context').style.display = targetTab === 'page-context' ? 'block' : 'none';
-                document.getElementById('tab-voice').style.display = targetTab === 'voice' ? 'block' : 'none';
-                document.getElementById('tab-llm').style.display = targetTab === 'llm' ? 'block' : 'none';
+                const tabGeneral = document.getElementById('tab-general');
+                const tabContext = document.getElementById('tab-page-context');
+                const tabVoice = document.getElementById('tab-voice');
+                const tabLLM = document.getElementById('tab-llm');
+                const tabFAQ = document.getElementById('tab-faq');
+
+                if (tabGeneral) tabGeneral.style.display = targetTab === 'general' ? 'block' : 'none';
+                if (tabContext) tabContext.style.display = targetTab === 'page-context' ? 'block' : 'none';
+                if (tabVoice) tabVoice.style.display = targetTab === 'voice' ? 'block' : 'none';
+                if (tabLLM) tabLLM.style.display = targetTab === 'llm' ? 'block' : 'none';
+                if (tabFAQ) tabFAQ.style.display = targetTab === 'faq' ? 'block' : 'none';
+
+                // Manage global actions visibility
+                const globalActions = document.getElementById('chatbot-global-actions');
+                if (globalActions) {
+                    // Only show for General and FAQ tabs
+                    globalActions.style.display = (targetTab === 'general' || targetTab === 'faq') ? 'flex' : 'none';
+                }
 
                 // Initialize tab content
                 if (targetTab === 'page-context') {
-                    loadPageContextList();
+                    if (typeof loadPageContextList === 'function') loadPageContextList();
                 } else if (targetTab === 'voice') {
-                    loadVoiceSettings();
+                    if (typeof loadVoiceSettings === 'function') loadVoiceSettings();
                 } else if (targetTab === 'llm') {
                     if (typeof loadLLMSettings === 'function') loadLLMSettings();
+                } else if (targetTab === 'faq') {
+                    if (typeof renderFaqList === 'function') renderFaqList();
                 }
             });
         });

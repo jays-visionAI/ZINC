@@ -83,6 +83,12 @@ function initChatbotTabs() {
             if (llmTab) llmTab.style.display = targetTab === 'llm' ? 'block' : 'none';
             if (faqTab) faqTab.style.display = targetTab === 'faq' ? 'block' : 'none';
 
+            // Manage global actions visibility
+            const globalActions = document.getElementById('chatbot-global-actions');
+            if (globalActions) {
+                globalActions.style.display = (targetTab === 'general' || targetTab === 'faq') ? 'flex' : 'none';
+            }
+
             // Initialize tab content
             if (targetTab === 'page-context') {
                 loadPageContextList();
@@ -91,7 +97,7 @@ function initChatbotTabs() {
             } else if (targetTab === 'llm') {
                 loadLLMSettings();
             } else if (targetTab === 'faq') {
-                if (typeof loadFaqItems === 'function') loadFaqItems();
+                renderFaqList();
             }
         });
     });
