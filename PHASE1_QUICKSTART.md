@@ -1,4 +1,4 @@
-# ZYIC AGENT OS - Phase 1 Quick Start Guide
+# ZYNK AGENT OS - Phase 1 Quick Start Guide
 
 ## 🚀 Phase 1 초기화 및 테스트
 
@@ -24,7 +24,7 @@ Phase 1에서는 **LLM 연동 없이** Mock 데이터로 전체 흐름을 검증
 
 **결과 확인**:
 ```
-🚀 ZYIC AGENT OS - Phase 1 Initialization
+🚀 ZYNK AGENT OS - Phase 1 Initialization
 ==========================================
 
 📦 Step 1: Creating Sub-Agents...

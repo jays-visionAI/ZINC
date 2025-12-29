@@ -1,8 +1,8 @@
-// ZYIC AGENT OS - Phase 1 Orchestration Engine
+// ZYNK AGENT OS - Phase 1 Orchestration Engine
 // Planner → Creator → Manager 순차 실행
 
 (async function setupOrchestration() {
-    console.log("🎯 ZYIC AGENT OS - Orchestration Engine");
+    console.log("🎯 ZYNK AGENT OS - Orchestration Engine");
     console.log("========================================\n");
 
     if (typeof db === 'undefined') {

@@ -1,4 +1,4 @@
-// Firestore Security Rules for ZYIC AGENT OS - Phase 1
+// Firestore Security Rules for ZYNK AGENT OS - Phase 1
 // 경로: Firebase Console → Firestore Database → Rules
 
 rules_version = '2';
@@ -38,7 +38,7 @@ service cloud.firestore {
     }
 
     // ============================================
-    // ZYIC AGENT OS Collections
+    // ZYNK AGENT OS Collections
     // ============================================
     
     // Sub-Agents: Admin can write, authenticated users can read

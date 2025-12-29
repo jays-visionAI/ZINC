@@ -1,8 +1,8 @@
-// ZYIC AGENT OS - Phase 1.5: Version Management System
+// ZYNK AGENT OS - Phase 1.5: Version Management System
 // SubAgent 버전 업데이트 및 AgentSet 자동 버전 증가
 
 (function setupVersionManagement() {
-    console.log("📦 ZYIC AGENT OS - Version Management");
+    console.log("📦 ZYNK AGENT OS - Version Management");
     console.log("=====================================\n");
 
     if (typeof db === 'undefined') {

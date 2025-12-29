@@ -1,8 +1,8 @@
-// ZYIC AGENT OS - PRD 5.1 Phase 1 Collection Initialization
+// ZYNK AGENT OS - PRD 5.1 Phase 1 Collection Initialization
 // Seeds engineConfigs, runtimeProfiles, and placeholder documents for new collections.
 
 (async function initPhase1Collections() {
-    console.log("🚀 ZYIC AGENT OS - PRD 5.1 Phase 1 Collection Initialization");
+    console.log("🚀 ZYNK AGENT OS - PRD 5.1 Phase 1 Collection Initialization");
     console.log("==========================================================\n");
 
     if (typeof db === 'undefined') {

@@ -1,8 +1,8 @@
-// ZYIC AGENT OS - Phase 1 Initial Seed Script
+// ZYNK AGENT OS - Phase 1 Initial Seed Script
 // 초기 SubAgent 및 AgentSet 생성
 
 (async function initAgentOS() {
-    console.log("🚀 ZYIC AGENT OS - Phase 1 Initialization");
+    console.log("🚀 ZYNK AGENT OS - Phase 1 Initialization");
     console.log("==========================================\n");
 
     if (typeof db === 'undefined') {
@@ -262,7 +262,7 @@ Output a JSON with: decision, release_ready, comments`,
     console.log("2. Test creating a task with: createTestTask()");
     console.log("3. Run orchestration with: runAgentSetTask(taskId)\n");
 
-    alert("✅ ZYIC AGENT OS Phase 1 initialized successfully!\n\nCheck console for details.");
+    alert("✅ ZYNK AGENT OS Phase 1 initialized successfully!\n\nCheck console for details.");
 
 })();
 
