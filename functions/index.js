@@ -4844,8 +4844,35 @@ exports.generateCreativeContent = onCall({ cors: true, timeoutSeconds: 300, memo
         let userPrompt = `Context: ${projectContext}\nTopic: ${topic}\nTone: ${tone}\nTarget Audience: ${audience}\n`;
 
         // Type-specific additions
+        let generatedImages = [];
+
         if (type === 'product_brochure') {
-            userPrompt += `Create a specialized Product Brochure in ${format} layout. Structure HTML for A4. Use Tailwind CSS. Sections: Cover, Problem, Solution, Key Features.`;
+            // Generate brochure images using Nano Banana Pro
+            console.log('[generateCreativeContent] 📸 Generating brochure images with Nano Banana Pro...');
+            try {
+                const imagePrompts = [
+                    `Professional product hero image for: ${topic}. Modern, clean design, premium quality, ${style || 'corporate'} style.`,
+                    `Abstract background visual representing: ${topic}. Suitable for brochure design, gradient style, professional.`
+                ];
+
+                for (const imgPrompt of imagePrompts) {
+                    try {
+                        const imageUrl = await generateWithNanoBananaPro(imgPrompt, '1024x1024');
+                        generatedImages.push(imageUrl);
+                        console.log(`[generateCreativeContent] ✅ Brochure image generated: ${imageUrl.substring(0, 50)}...`);
+                    } catch (imgError) {
+                        console.warn(`[generateCreativeContent] ⚠️ Image generation failed:`, imgError.message);
+                    }
+                }
+            } catch (error) {
+                console.warn('[generateCreativeContent] Image generation skipped:', error.message);
+            }
+
+            const imageSection = generatedImages.length > 0
+                ? `\n\nGenerated Images for brochure (use these URLs in your HTML):\n${generatedImages.map((url, i) => `Image ${i + 1}: ${url}`).join('\n')}\n\n`
+                : '';
+
+            userPrompt += `Create a specialized Product Brochure in ${format} layout. Structure HTML for A4. Use Tailwind CSS. Sections: Cover, Problem, Solution, Key Features.${imageSection}Include <img> tags with the provided image URLs if available.`;
         } else if (type === 'one_pager') {
             userPrompt += `Create a high-density One-Pager Executive Summary. Sections: Challenge, Approach, Roadmap, Metrics.`;
         } else if (type === 'pitch_deck') {
