@@ -4861,6 +4861,13 @@ exports.generateCreativeContent = onCall({ cors: true, timeoutSeconds: 300, memo
         // 4. ZYNK Core Routing (Text Generation)
         // Plan the strategy
         const plan = StrategyPlanner.plan({ mode, taskType: type });
+
+        // FORCE DISABLE ARENA for HTML-heavy types to prevent structure degradation and ensure DeepSeek-R1 raw output
+        if (['pitch_deck', 'one_pager', 'product_brochure'].includes(type) || plan.modelConfig.model === 'deepseek-reasoner') {
+            console.log(`[ZYNK Core] 🚨 Forcing Arena OFF for ${type} to preserve HTML structure & Chain of Thought`);
+            plan.useArena = false;
+        }
+
         console.log(`[ZYNK Core] Strategy Planned: ${plan.mode} (Arena: ${plan.useArena})`);
 
         let resultData = '';
