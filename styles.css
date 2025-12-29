@@ -2540,6 +2540,11 @@ body {
     border-left: 2px solid transparent;
 }
 
+.admin-nav-sub-item {
+    padding-left: 32px;
+    font-size: 0.85rem;
+}
+
 .admin-nav-item:hover {
     background: rgba(255, 255, 255, 0.03);
     color: rgba(255, 255, 255, 0.9);

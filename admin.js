@@ -193,10 +193,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         contentArea.innerHTML = '<div class="admin-loading">Loading...</div>';
 
         try {
+            // Handle Pipeline sub-pages by loading the unified pipeline page
+            const fetchPage = page.startsWith('pipeline-') ? 'pipeline' : page;
+
             // Cache busting for development
             const timestamp = Date.now();
-            const response = await fetch(`admin-${page}.html?v=${timestamp}`);
-            console.log(`Loading page: admin-${page}.html`);
+            const response = await fetch(`admin-${fetchPage}.html?v=${timestamp}`);
+            console.log(`Loading page: admin-${fetchPage}.html for route: ${page}`);
             if (response.ok) {
                 const html = await response.text();
                 contentArea.innerHTML = html;
@@ -239,14 +242,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     function loadPageScript(page, callback) {
+        const fetchPage = page.startsWith('pipeline-') ? 'pipeline' : page;
+
         // Remove old script if exists
-        const oldScript = document.querySelector(`script[data-page="${page}"]`);
+        const oldScript = document.querySelector(`script[data-page="${fetchPage}"]`);
         if (oldScript) oldScript.remove();
 
         // Try to load new script with cache busting
         const script = document.createElement("script");
-        script.src = `admin-${page}.js?v=${Date.now()}`;
-        script.dataset.page = page;
+        script.src = `admin-${fetchPage}.js?v=${Date.now()}`;
+        script.dataset.page = fetchPage;
         script.onload = () => {
             console.log(`Script loaded for ${page}`);
             if (callback) callback();

@@ -1,0 +1,324 @@
+<div class="admin-chatbot-container">
+    <div class="admin-tabs">
+        <button class="admin-tab-btn" data-tab="market">1. Market Pulse</button>
+        <button class="admin-tab-btn" data-tab="brand">2. Brand Brain</button>
+        <button class="admin-tab-btn" data-tab="knowledge">3. Knowledge Hub</button>
+        <button class="admin-tab-btn" data-tab="studio">4. Studio</button>
+        <button class="admin-tab-btn" data-tab="growth">5. Growth</button>
+    </div>
+
+    <!-- 1. Market Pulse Tab -->
+    <div id="tab-market" class="admin-tab-content">
+        <div class="admin-card">
+            <div class="admin-card-header">
+                <h3>1. Market Pulse: Trend & Research Agents</h3>
+                <p>Configure agents for real-time market sentiment, trend analysis, and SEO research.</p>
+            </div>
+            <div class="admin-section-divider"></div>
+            <!-- Agent: Trend Researcher -->
+            <div class="agent-setting-group">
+                <div class="flex-between mb-4">
+                    <h4>Agent: Trend Researcher (research)</h4>
+                    <span class="status-badge success">Active</span>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Default Model</label>
+                        <select id="agent-research-model" class="admin-input">
+                            <option value="gpt-4o">GPT-4o (High Quality)</option>
+                            <option value="gpt-4o-mini">GPT-4o Mini (Fast)</option>
+                            <option value="deepseek-chat">DeepSeek V3 (Economical)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Temperature</label>
+                        <input type="range" id="agent-research-temp" min="0" max="1" step="0.1" value="0.7">
+                        <span id="label-research-temp">0.7</span>
+                    </div>
+                </div>
+                <div class="form-group mt-4">
+                    <label>System Prompt</label>
+                    <textarea id="agent-research-prompt" class="admin-input prompt-textarea"
+                        placeholder="You are a Trend Researcher..."></textarea>
+                </div>
+            </div>
+            <div class="admin-section-divider mt-8 mb-8"></div>
+            <!-- Agent: SEO Watcher -->
+            <div class="agent-setting-group">
+                <div class="flex-between mb-4">
+                    <h4>Agent: SEO Watcher (seo_watcher)</h4>
+                    <span class="status-badge success">Active</span>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Default Model</label>
+                        <select id="agent-seo-model" class="admin-input">
+                            <option value="gpt-4o">GPT-4o (High Quality)</option>
+                            <option value="gpt-4o-mini" selected>GPT-4o Mini (Fast)</option>
+                            <option value="deepseek-chat">DeepSeek V3 (Economical)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Temperature</label>
+                        <input type="range" id="agent-seo-temp" min="0" max="1" step="0.1" value="0.3">
+                        <span id="label-seo-temp">0.3</span>
+                    </div>
+                </div>
+                <div class="form-group mt-4">
+                    <label>System Prompt</label>
+                    <textarea id="agent-seo-prompt" class="admin-input prompt-textarea"
+                        placeholder="You are an SEO Specialist..."></textarea>
+                </div>
+            </div>
+            <div class="admin-actions mt-8">
+                <button id="save-market-settings" class="admin-btn-primary">Save Market Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Brand Brain Tab -->
+    <div id="tab-brand" class="admin-tab-content">
+        <div class="admin-card">
+            <div class="admin-card-header">
+                <h3>2. Brand Brain: Strategic Planning Agent</h3>
+                <p>Configure the lead agent responsible for project mission, vision, and core strategy.</p>
+            </div>
+            <div class="admin-section-divider"></div>
+            <div class="agent-setting-group">
+                <div class="flex-between mb-4">
+                    <h4>Agent: Strategic Planner (planner)</h4>
+                    <span class="status-badge success">Active</span>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Default Model</label>
+                        <select id="agent-planner-model" class="admin-input">
+                            <option value="gpt-4o" selected>GPT-4o (High Quality)</option>
+                            <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
+                            <option value="deepseek-reasoner">DeepSeek R1 (Deep Reasoning)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Temperature</label>
+                        <input type="range" id="agent-planner-temp" min="0" max="1" step="0.1" value="0.5">
+                        <span id="label-planner-temp">0.5</span>
+                    </div>
+                </div>
+                <div class="form-group mt-4">
+                    <label>System Prompt (Strategy Core)</label>
+                    <textarea id="agent-planner-prompt" class="admin-input prompt-textarea"
+                        placeholder="You are a Senior Brand Strategist..."></textarea>
+                </div>
+            </div>
+            <div class="admin-actions mt-8">
+                <button id="save-brand-settings" class="admin-btn-primary">Save Brand Brain Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Knowledge Hub Tab -->
+    <div id="tab-knowledge" class="admin-tab-content">
+        <div class="admin-card">
+            <div class="admin-card-header">
+                <h3>3. Knowledge Hub: Brand Intelligence Agents</h3>
+                <p>Configure specialized agents for document analysis and deep reporting.</p>
+            </div>
+            <div class="admin-section-divider"></div>
+            <!-- Agent A: Brand Summary (Standard) -->
+            <div class="agent-setting-group">
+                <div class="flex-between mb-4">
+                    <h4>Agent A: Brand Summary (Standard)</h4>
+                    <span class="status-badge success">Active</span>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Default Model</label>
+                        <select id="agent-standard-model" class="admin-input">
+                            <option value="gpt-4o">GPT-4o (High Quality)</option>
+                            <option value="gpt-4o-mini">GPT-4o Mini (Fast)</option>
+                            <option value="deepseek-chat">DeepSeek V3 (Economical)</option>
+                            <option value="deepseek-reasoner">DeepSeek R1 (Reasoning)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Temperature</label>
+                        <input type="range" id="agent-standard-temp" min="0" max="1" step="0.1" value="0.2">
+                        <span id="label-standard-temp">0.2</span>
+                    </div>
+                </div>
+                <div class="form-group mt-4">
+                    <label>System Prompt</label>
+                    <textarea id="agent-standard-prompt" class="admin-input prompt-textarea"
+                        placeholder="Standard summary instructions..."></textarea>
+                </div>
+            </div>
+            <div class="admin-section-divider mt-8 mb-8"></div>
+            <!-- Agent B: Depth Report (A4 Analysis) -->
+            <div class="agent-setting-group">
+                <div class="flex-between mb-4">
+                    <h4>Agent B: Depth Report (A4 Analysis)</h4>
+                    <span class="status-badge info">Detailed Mode</span>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>High Performance Model</label>
+                        <select id="agent-depth-model" class="admin-input">
+                            <option value="gpt-4o">GPT-4o (High Quality)</option>
+                            <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
+                            <option value="o1-preview">OpenAI o1-preview</option>
+                            <option value="deepseek-reasoner">DeepSeek R1</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Temperature</label>
+                        <input type="range" id="agent-depth-temp" min="0" max="1" step="0.1" value="0.3">
+                        <span id="label-depth-temp">0.3</span>
+                    </div>
+                </div>
+                <div class="form-group mt-4">
+                    <label>Depth Analysis Prompt</label>
+                    <textarea id="agent-depth-prompt" class="admin-input prompt-textarea"
+                        placeholder="Deep A4 reporting instructions..."></textarea>
+                </div>
+            </div>
+            <div class="admin-actions mt-8">
+                <button id="save-knowledge-settings" class="admin-btn-primary">Save Knowledge Hub Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Studio Tab -->
+    <div id="tab-studio" class="admin-tab-content">
+        <div class="admin-card">
+            <div class="admin-card-header">
+                <h3>4. Studio: Creation & Orchestration Agents</h3>
+                <p>Configure agents that generate multi-modal content.</p>
+            </div>
+            <div class="admin-section-divider"></div>
+            <!-- Agent: Base Creator -->
+            <div class="agent-setting-group">
+                <h4>Base Creator (creator)</h4>
+                <div class="form-grid">
+                    <div class="form-group"><label>Model</label><select id="agent-creator-model" class="admin-input">
+                            <option value="gpt-4o">GPT-4o</option>
+                        </select></div>
+                    <div class="form-group">
+                        <label>Temp</label>
+                        <input type="range" id="agent-creator-temp" min="0" max="1" step="0.1" value="0.7">
+                        <span id="label-creator-temp">0.7</span>
+                    </div>
+                </div>
+                <textarea id="agent-creator-prompt" class="admin-input prompt-textarea tiny mt-2"></textarea>
+            </div>
+            <div class="admin-section-divider"></div>
+            <!-- Agent: Text Specialist -->
+            <div class="agent-setting-group">
+                <h4>Text Specialist (creator_text)</h4>
+                <div class="form-grid">
+                    <div class="form-group"><label>Model</label><select id="agent-text-model" class="admin-input">
+                            <option value="gpt-4o">GPT-4o</option>
+                        </select></div>
+                    <div class="form-group">
+                        <label>Temp</label>
+                        <input type="range" id="agent-text-temp" min="0" max="1" step="0.1" value="0.8">
+                        <span id="label-text-temp">0.8</span>
+                    </div>
+                </div>
+                <textarea id="agent-text-prompt" class="admin-input prompt-textarea tiny mt-2"></textarea>
+            </div>
+            <div class="admin-actions mt-8">
+                <button id="save-studio-settings" class="admin-btn-primary">Save Studio Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. Growth Tab -->
+    <div id="tab-growth" class="admin-tab-content">
+        <div class="admin-card">
+            <div class="admin-card-header">
+                <h3>5. The Growth: Optimization & Analytics Agents</h3>
+                <p>Configure agents that monitor performance and ROI.</p>
+            </div>
+            <div class="admin-section-divider"></div>
+            <!-- Agent: Evaluation Manager -->
+            <div class="agent-setting-group">
+                <h4>Evaluation Manager (manager)</h4>
+                <div class="form-grid">
+                    <div class="form-group"><label>Model</label><select id="agent-manager-model" class="admin-input">
+                            <option value="gpt-4o">GPT-4o</option>
+                        </select></div>
+                    <div class="form-group">
+                        <label>Temp</label>
+                        <input type="range" id="agent-manager-temp" min="0" max="1" step="0.1" value="0.2">
+                        <span id="label-manager-temp">0.2</span>
+                    </div>
+                </div>
+                <textarea id="agent-manager-prompt" class="admin-input prompt-textarea tiny mt-2"></textarea>
+            </div>
+            <div class="admin-actions mt-8">
+                <button id="save-growth-settings" class="admin-btn-primary">Save Growth Settings</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .admin-tabs {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding-bottom: 10px;
+    }
+
+    .admin-tab-btn {
+        padding: 10px 20px;
+        background: transparent;
+        border: none;
+        color: rgba(255, 255, 255, 0.5);
+        cursor: pointer;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+
+    .admin-tab-btn:hover {
+        background: rgba(255, 255, 255, 0.05);
+        color: #fff;
+    }
+
+    .admin-tab-btn.active {
+        background: rgba(0, 255, 255, 0.1);
+        color: var(--color-cyan);
+    }
+
+    .admin-tab-content {
+        display: none;
+    }
+
+    .admin-tab-content.active {
+        display: block;
+    }
+
+    .prompt-textarea {
+        height: 180px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 13px;
+    }
+
+    .prompt-textarea.tiny {
+        height: 100px;
+    }
+
+    .flex-between {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+</style>
