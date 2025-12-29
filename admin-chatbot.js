@@ -787,43 +787,60 @@ function bindEvents() {
 }
 
 // Open FAQ modal
-// Open FAQ modal
 window.openFaqModal = function (faqId = null) {
-    console.log('[Chatbot] openFaqModal called with faqId:', faqId);
+    try {
+        console.log('[Chatbot] openFaqModal EXECUTION START, faqId:', faqId);
 
-    const modalId = 'zynk-faq-modal';
-    const modal = document.getElementById(modalId);
-    console.log(`[Chatbot] ${modalId} element:`, modal);
+        const modalId = 'zynk-faq-modal';
+        const modal = document.getElementById(modalId);
 
-    if (!modal) {
-        console.error(`[Chatbot] ERROR: ${modalId} element not found!`);
-        return;
-    }
-
-    // Move modal to body to ensure proper fixed positioning
-    if (modal.parentElement !== document.body) {
-        document.body.appendChild(modal);
-        console.log('[Chatbot] Modal moved to body');
-    }
-
-    // Force display with !important equivalent (direct style set)
-    modal.style.setProperty('display', 'flex', 'important');
-    modal.style.setProperty('opacity', '1', 'important');
-    modal.style.setProperty('visibility', 'visible', 'important');
-    modal.style.zIndex = '2147483647';
-
-    document.getElementById('faq-edit-id').value = faqId || '';
-    document.getElementById('faq-modal-title').textContent = faqId ? 'Edit FAQ' : 'Add FAQ';
-
-    if (faqId) {
-        const faq = chatbotSettings.faq.find(f => f.id === faqId);
-        if (faq) {
-            document.getElementById('faq-question').value = faq.question;
-            document.getElementById('faq-answer').value = faq.answer;
+        if (!modal) {
+            console.error(`[Chatbot] CRITICAL ERROR: ${modalId} element not found in DOM!`);
+            return;
         }
-    } else {
-        document.getElementById('faq-question').value = '';
-        document.getElementById('faq-answer').value = '';
+
+        // Move modal to body to ensure proper fixed positioning
+        if (modal.parentElement !== document.body) {
+            document.body.appendChild(modal);
+            console.log('[Chatbot] Modal moved to body');
+        }
+
+        // Force display with max priority
+        modal.style.setProperty('display', 'flex', 'important');
+        modal.style.setProperty('opacity', '1', 'important');
+        modal.style.setProperty('visibility', 'visible', 'important');
+        modal.style.zIndex = '2147483647';
+
+        // Helper to safely set values
+        const setVal = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) {
+                if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.value = val;
+                else el.textContent = val;
+            } else {
+                console.warn(`[Chatbot] UI element #${id} not found inside modal.`);
+            }
+        };
+
+        setVal('faq-edit-id', faqId || '');
+        setVal('faq-modal-title', faqId ? 'Edit FAQ' : 'Add FAQ');
+
+        if (faqId) {
+            if (typeof chatbotSettings !== 'undefined' && chatbotSettings.faq) {
+                const faq = chatbotSettings.faq.find(f => f.id === faqId);
+                if (faq) {
+                    setVal('faq-question', faq.question);
+                    setVal('faq-answer', faq.answer);
+                }
+            }
+        } else {
+            setVal('faq-question', '');
+            setVal('faq-answer', '');
+        }
+
+        console.log('[Chatbot] openFaqModal EXECUTION COMPLETE');
+    } catch (err) {
+        console.error('[Chatbot] CRITICAL EXCEPTION in openFaqModal:', err);
     }
 };
 
