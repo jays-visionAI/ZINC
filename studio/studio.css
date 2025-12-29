@@ -293,6 +293,15 @@
     padding: 16px;
 }
 
+/* Unified Brain: Remove nested borders when in sidebar frame */
+.sidebar-preview-frame .multi-channel-card-body .preview-x-post,
+.sidebar-preview-frame .multi-channel-card-body .preview-instagram-post,
+.sidebar-preview-frame .multi-channel-card-body .preview-linkedin-post {
+    border: none;
+    background: transparent;
+    padding: 4px 0;
+}
+
 .preview-x-post {
     max-width: 500px;
 }
@@ -374,6 +383,48 @@
     padding: 16px;
     max-height: 450px;
     overflow-y: auto;
+}
+
+/* Sidebar Specific Preview Frame Adjustments */
+.sidebar-preview-frame {
+    border-radius: 16px;
+    height: auto;
+    max-height: 500px;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-preview-frame .multi-channel-card-header {
+    background: #000;
+    padding: 12px 20px;
+    gap: 12px;
+}
+
+.sidebar-preview-frame .preview-frame-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+}
+
+.sidebar-preview-frame .preview-frame-icon svg {
+    width: 100%;
+    height: 100%;
+}
+
+.sidebar-preview-frame .preview-frame-label {
+    font-size: 20px;
+    font-weight: 700;
+    color: #fff;
+    text-transform: lowercase;
+}
+
+.sidebar-preview-frame .multi-channel-card-body {
+    padding: 12px;
+    background: #000;
+    max-height: none;
+    overflow: visible;
 }
 
 /* ============================================

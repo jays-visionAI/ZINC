@@ -714,9 +714,17 @@ window.renderSingleChannelPreview = function (channel) {
 
     if (!content || !content.text) {
         previewArea.innerHTML = `
-            <div class="preview-placeholder">
-                <span style="font-size: 32px;">${icon}</span>
-                <p>Waiting for ${displayName} content...</p>
+            <div class="multi-channel-card sidebar-preview-frame">
+                <div class="multi-channel-card-header">
+                    <span class="preview-frame-icon">${icon}</span>
+                    <span class="preview-frame-label">${displayName}</span>
+                </div>
+                <div class="multi-channel-card-body">
+                    <div class="preview-placeholder">
+                        <span style="font-size: 32px; opacity: 0.3;">${icon}</span>
+                        <p>Waiting for ${displayName} content...</p>
+                    </div>
+                </div>
             </div>
         `;
         return;
@@ -724,8 +732,19 @@ window.renderSingleChannelPreview = function (channel) {
 
     // Render platform-specific preview
     const formattedHTML = getFormattedPreview(channel, content);
-    console.log('[Studio] Generated HTML length:', formattedHTML.length, 'First 200 chars:', formattedHTML.substring(0, 200));
-    previewArea.innerHTML = formattedHTML;
+
+    // Wrap in professional multi-channel-card frame
+    previewArea.innerHTML = `
+        <div class="multi-channel-card sidebar-preview-frame">
+            <div class="multi-channel-card-header">
+                <span class="preview-frame-icon">${icon}</span>
+                <span class="preview-frame-label">${displayName}</span>
+            </div>
+            <div class="multi-channel-card-body">
+                ${formattedHTML}
+            </div>
+        </div>
+    `;
 };
 
 // Get formatted preview based on platform
