@@ -3319,15 +3319,19 @@ async function generateWithImagen(prompt, size, model = 'imagen-4.0-fast-generat
     const modelsToTry = [
         targetModel,
         'imagen-3.0-generate-001',
-        'imagen-3.0-fast-generate-001'
-    ].filter((v, i, a) => a.indexOf(v) === i); // Unique values
+        'imagen-3.0-fast-generate-001',
+        'imagen-3.0-generate-002',
+        'imagen-3-generate-001'
+    ].filter((v, i, a) => a.indexOf(v) === i && v && v !== 'undefined'); // Unique valid values
 
+    console.log(`[generateWithImagen] Will try models: ${modelsToTry.join(', ')}`);
+
+    let lastError = null;
     for (const modelName of modelsToTry) {
         try {
-            console.log(`[generateWithImagen] Trying model: ${modelName}`);
+            console.log(`[generateWithImagen] 🔄 Attempting Imagen with model: ${modelName}...`);
 
             // Use Gemini API REST endpoint for image generation
-            // Reference: https://ai.google.dev/gemini-api/docs/imagen
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:predict?key=${apiKey}`;
 
             const response = await axios.post(url, {
@@ -3377,9 +3381,48 @@ async function generateWithImagen(prompt, size, model = 'imagen-4.0-fast-generat
         }
     }
 
-    // All models failed - try generateContent as last resort with gemini-2.0-flash-exp
-    console.log(`[generateWithImagen] All Imagen models failed, trying Gemini 2.0 Flash with image generation...`);
-    return await generateWithGeminiFlashImage(prompt, size, apiKey);
+    // All Imagen models failed - try DALL-E as reliable fallback (Gemini Flash often returns text, not images)
+    console.warn(`[generateWithImagen] ⚠️ All Imagen models failed. Falling back to DALL-E 3...`);
+    return await generateWithDallE(prompt, size);
+}
+
+/**
+ * Reliable Fallback: DALL-E 3 via OpenAI API
+ */
+async function generateWithDallE(prompt, size) {
+    const openaiKey = await getSystemApiKey('openai');
+    if (!openaiKey) {
+        throw new Error('OpenAI API key not configured for DALL-E fallback');
+    }
+
+    const { OpenAI } = require('openai');
+    const openai = new OpenAI({ apiKey: openaiKey });
+
+    // Map size to DALL-E supported sizes
+    const sizeMap = {
+        '1024x1024': '1024x1024',
+        '1792x1024': '1792x1024',
+        '1024x1792': '1024x1792'
+    };
+    const dalleSize = sizeMap[size] || '1024x1024';
+
+    console.log(`[generateWithDallE] Generating image with DALL-E 3 (${dalleSize})...`);
+
+    const response = await openai.images.generate({
+        model: 'dall-e-3',
+        prompt: prompt,
+        n: 1,
+        size: dalleSize,
+        quality: 'standard'
+    });
+
+    const imageUrl = response.data[0]?.url;
+    if (!imageUrl) {
+        throw new Error('DALL-E returned no image URL');
+    }
+
+    console.log(`[generateWithDallE] ✅ DALL-E image generated successfully`);
+    return imageUrl;
 }
 
 /**
