@@ -806,7 +806,12 @@ window.openFaqModal = function (faqId = null) {
         console.log('[Chatbot] Modal moved to body');
     }
 
-    modal.style.display = 'flex';
+    // Force display with !important equivalent (direct style set)
+    modal.style.setProperty('display', 'flex', 'important');
+    modal.style.setProperty('opacity', '1', 'important');
+    modal.style.setProperty('visibility', 'visible', 'important');
+    modal.style.zIndex = '2147483647';
+
     document.getElementById('faq-edit-id').value = faqId || '';
     document.getElementById('faq-modal-title').textContent = faqId ? 'Edit FAQ' : 'Add FAQ';
 
