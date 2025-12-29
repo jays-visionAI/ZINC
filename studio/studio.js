@@ -773,11 +773,18 @@ function getFormattedPreview(channel, content) {
                 </div>
             `;
         case 'instagram':
+            const igProfile = state.channelProfile || {};
+            const igName = igProfile.name || state.projectName || 'brand';
+            const igHandle = igProfile.handle || '@' + (state.projectName || 'brand').toLowerCase().replace(/\s/g, '');
+            const igAvatar = igProfile.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(igName)}&backgroundColor=e1306c`;
+
             return `
                 <div class="preview-instagram-post">
                     <div class="insta-header">
-                        <div class="insta-avatar">${icon}</div>
-                        <span class="insta-username">${state.projectName || 'brand'}</span>
+                        <div class="insta-avatar">
+                            <img src="${igAvatar}" alt="avatar" style="width:100%;height:100%;border-radius:50%;">
+                        </div>
+                        <span class="insta-username">${igName}</span>
                     </div>
                     ${content.imageUrl ? `<img class="insta-image" src="${content.imageUrl}" alt="Post image">` : '<div class="insta-image-placeholder">📷</div>'}
                     <div class="insta-actions">
@@ -786,16 +793,22 @@ function getFormattedPreview(channel, content) {
                         <span>📤</span>
                         <span style="margin-left:auto;">🔖</span>
                     </div>
-                    <div class="insta-caption"><strong>${state.projectName || 'brand'}</strong> ${content.text}</div>
+                    <div class="insta-caption"><strong>${igName}</strong> ${content.text}</div>
                 </div>
             `;
         case 'linkedin':
+            const liProfile = state.channelProfile || {};
+            const liName = liProfile.name || state.projectName || 'Brand';
+            const liAvatar = liProfile.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(liName)}&backgroundColor=0a66c2`;
+
             return `
                 <div class="preview-linkedin-post">
                     <div class="linkedin-header">
-                        <div class="linkedin-avatar">${icon}</div>
+                        <div class="linkedin-avatar">
+                            <img src="${liAvatar}" alt="avatar" style="width:100%;height:100%;border-radius:4px;">
+                        </div>
                         <div class="linkedin-user-info">
-                            <span class="linkedin-name">${state.projectName || 'Brand'}</span>
+                            <span class="linkedin-name">${liName}</span>
                             <span class="linkedin-title">Company Page</span>
                         </div>
                     </div>
@@ -1253,7 +1266,12 @@ async function updatePreviewChannel(teamId) {
         addLogEntry(`📺 Channel set to: ${channelDisplayNames[provider] || provider}`, 'info');
 
         // Check for bindings and update profile
-        const credentialId = bindings[provider];
+        // Normalize provider key for bindings lookup (handles 'x' vs 'twitter' legacy keys)
+        const bindingKey = (provider === 'x' || provider === 'twitter')
+            ? (bindings['x'] ? 'x' : 'twitter')
+            : provider;
+
+        const credentialId = bindings[bindingKey];
         if (credentialId) {
             try {
                 // Fetch credential details to get handle/avatar
