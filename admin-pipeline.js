@@ -45,11 +45,26 @@ async function initPipeline(currentUser, initialTab = 'market') {
         }
     });
 
-    // 3. Load all data
-    await loadAllSettings();
-
-    // 4. Save Event Listeners
+    // 3. Save Event Listeners (Attach immediately so UI is responsive)
+    console.log('[Pipeline] Attaching save listeners...');
     setupSaveListeners();
+
+    // 4. Load all data (Async, doesn't block UI listeners)
+    console.log('[Pipeline] Starting async settings load...');
+    loadAllSettings().then(() => {
+        console.log('[Pipeline] All settings loaded successfully');
+    }).catch(err => {
+        console.error('[Pipeline] Error in loadAllSettings:', err);
+    });
+}
+
+function notify(msg, type = 'success') {
+    if (window.showNotification) {
+        window.showNotification(msg, type);
+    } else {
+        console.log(`[Notification] ${type.toUpperCase()}: ${msg}`);
+        alert(msg);
+    }
 }
 
 async function loadAllSettings() {
@@ -165,8 +180,8 @@ function setupSaveListeners() {
                 }
             };
             await db.collection('chatbotConfig').doc('pipeline_market_pulse').set(settings, { merge: true });
-            if (window.showNotification) window.showNotification('Market Pulse Settings saved!', 'success');
-        } catch (e) { alert(e.message); } finally { btn.disabled = false; }
+            notify('Market Pulse Settings saved!', 'success');
+        } catch (e) { notify(e.message, 'error'); } finally { btn.disabled = false; }
     });
 
     // 2. Brand
@@ -183,8 +198,8 @@ function setupSaveListeners() {
                 }
             };
             await db.collection('chatbotConfig').doc('pipeline_brand_brain').set(settings, { merge: true });
-            if (window.showNotification) window.showNotification('Brand Brain Settings saved!', 'success');
-        } catch (e) { alert(e.message); } finally { btn.disabled = false; }
+            notify('Brand Brain Settings saved!', 'success');
+        } catch (e) { notify(e.message, 'error'); } finally { btn.disabled = false; }
     });
 
     // 3. Knowledge
@@ -207,8 +222,8 @@ function setupSaveListeners() {
                 }
             };
             await db.collection('chatbotConfig').doc('pipeline_knowledge_hub').set(settings, { merge: true });
-            if (window.showNotification) window.showNotification('Knowledge Hub Settings saved!', 'success');
-        } catch (e) { alert(e.message); } finally { btn.disabled = false; }
+            notify('Knowledge Hub Settings saved!', 'success');
+        } catch (e) { notify(e.message, 'error'); } finally { btn.disabled = false; }
     });
 
     // 4. Studio
@@ -231,8 +246,8 @@ function setupSaveListeners() {
                 }
             };
             await db.collection('chatbotConfig').doc('pipeline_studio').set(settings, { merge: true });
-            if (window.showNotification) window.showNotification('Studio Settings saved!', 'success');
-        } catch (e) { alert(e.message); } finally { btn.disabled = false; }
+            notify('Studio Settings saved!', 'success');
+        } catch (e) { notify(e.message, 'error'); } finally { btn.disabled = false; }
     });
 
     // 5. Growth
@@ -249,7 +264,7 @@ function setupSaveListeners() {
                 }
             };
             await db.collection('chatbotConfig').doc('pipeline_growth').set(settings, { merge: true });
-            if (window.showNotification) window.showNotification('Growth Settings saved!', 'success');
-        } catch (e) { alert(e.message); } finally { btn.disabled = false; }
+            notify('Growth Settings saved!', 'success');
+        } catch (e) { notify(e.message, 'error'); } finally { btn.disabled = false; }
     });
 }
