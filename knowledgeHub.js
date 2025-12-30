@@ -5028,7 +5028,7 @@ function renderFeedbackUI() {
     if (document.getElementById('feedback-ui-section')) return;
 
     const feedbackHtml = `
-                < div id = "feedback-ui-section" class="mt-6 pt-4 border-t border-slate-700/50" >
+                <div id="feedback-ui-section" class="mt-6 pt-4 border-t border-slate-700/50">
                     <div class="flex items-center justify-between">
                         <span class="text-xs text-slate-500">How was this result?</span>
                         <div class="flex gap-2">
@@ -5040,7 +5040,7 @@ function renderFeedbackUI() {
                             </button>
                         </div>
                     </div>
-        </div >
+        </div>
                 `;
 
     // Append to the content container (assuming standard layout)
@@ -5056,7 +5056,7 @@ function renderFeedbackUI() {
 async function submitFeedback(rating) {
     const feedbackSection = document.getElementById('feedback-ui-section');
     if (feedbackSection) {
-        feedbackSection.innerHTML = `< span class="text-xs text-emerald-400" > Thanks for your feedback!</span > `;
+        feedbackSection.innerHTML = `<span class="text-xs text-emerald-400">Thanks for your feedback!</span>`;
     }
 
     try {

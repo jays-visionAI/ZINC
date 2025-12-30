@@ -105,9 +105,11 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type) {
 
     IMAGE RULES:
     - Do NOT invent image URLs.
-    - Use EXACT placeholders:
+    - Use EXACT placeholders provided below for 'src' attributes or 'background-image'.
     ${assetInstructions}
-
+    - STRICT FORBIDDEN: Do NOT write <img src="..."> with any other value than the placeholders above. If you do, the system will crash.
+    - If you want an extra image that is not in the list, use a colored gradient div or a FontAwesome icon instead.
+    
     Output pure HTML only. No markdown.
     `;
 
