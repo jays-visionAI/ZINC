@@ -92,25 +92,41 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type) {
     }));
 
     // 3. HTML ASSEMBLY
-    const assetInstructions = visualPlan.visuals.map(v => `- For ${v.id}, use strictly: "{{ ${v.id}}}"`).join('\n');
+    const assetInstructions = visualPlan.visuals.map(v => `- For ${v.id}: use exactly "{{${v.id}}}"`).join('\n');
 
     const systemPrompt = `
-    You are an Expert Frontend Developer & UI Designer.
-    Write a single HTML file using Tailwind CSS.
-
-    DESIGN RULES:
-    - Use 'Inter' font.
-    - Theme: ${style} (Reflect in colors/layout).
-    - Responsive and Mobile-friendly.
-
-    IMAGE RULES:
-    - Do NOT invent image URLs.
-    - Use EXACT placeholders provided below for 'src' attributes or 'background-image'.
-    ${assetInstructions}
-    - STRICT FORBIDDEN: Do NOT write <img src="..."> with any other value than the placeholders above. If you do, the system will crash.
-    - If you want an extra image that is not in the list, use a colored gradient div or a FontAwesome icon instead.
+    You are an Expert Frontend Developer & UI Designer specializing in premium, modern web design.
     
-    Output pure HTML only. No markdown.
+    CRITICAL REQUIREMENTS:
+    1. Start with <!DOCTYPE html> and include Tailwind CSS CDN in <head>:
+       <script src="https://cdn.tailwindcss.com"></script>
+       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    2. DARK MODE DESIGN (MANDATORY):
+       - Body: bg-slate-900 text-white
+       - Cards: bg-slate-800/50 backdrop-blur border border-slate-700
+       - Headings: text-white, text-2xl/3xl font-bold
+       - Text: text-slate-300
+       - Accents: Use gradient (from-indigo-500 to-purple-600) for buttons/highlights
+    
+    3. LAYOUT:
+       - Use 'Inter' font-family for all text
+       - Add generous padding (p-8, p-12)
+       - Use modern shadows (shadow-xl, shadow-2xl)
+       - Sections: Add gradient overlays, rounded corners (rounded-2xl)
+    
+    4. HERO HEADER (MANDATORY):
+       - Full-width header with background image using {{${strategy.visualIds[0].id}}}
+       - Use: style="background-image: url('{{${strategy.visualIds[0].id}}}')"
+       - Add dark overlay: bg-black/50 or bg-gradient-to-b from-black/70
+       - Large title with text-4xl or text-5xl font-bold
+    
+    5. IMAGE USAGE (CRITICAL):
+    ${assetInstructions}
+       - You MUST use at least one image token as background-image in the header.
+       - NEVER invent URLs like via.placeholder.com or picsum.photos. ONLY use the tokens above.
+    
+    6. OUTPUT: Pure HTML only. No markdown fences. No explanations.
     `;
 
     const taskPrompt = `
@@ -121,11 +137,19 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type) {
 
     CORE CONTENT (Use this Source Material):
     """
-    ${context || 'No context.'}
+    ${context || 'No context provided.'}
     """
 
-    Ensure the layout is stunning and professional.
-    Add "zynk-watermark" class div at the bottom right.
+    DESIGN REQUIREMENTS:
+    - Create a visually STUNNING, premium design that would impress executives
+    - Use the dark mode color scheme (bg-slate-900 base)
+    - Add subtle gradient accents (indigo/purple/blue)
+    - Include smooth hover effects on interactive elements
+    - Use cards with glass-morphism effect (bg-white/10 backdrop-blur)
+    - Add icons from Font Awesome or Heroicons where appropriate
+    - Include a professional footer with the zynk-watermark class
+    
+    MANDATORY: Use {{${strategy.visualIds[0].id}}} as background-image in the hero/header section.
     `;
 
     console.log('[UniversalCreator] 🏗️ Assembling HTML...');
