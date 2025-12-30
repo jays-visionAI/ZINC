@@ -3425,39 +3425,50 @@ const CREATIVE_CONFIGS = {
         buttonLabel: 'Email',
         credits: 5,
         controls: [
-            { id: 'email-type', type: 'select', label: 'Email Type', options: ['Newsletter', 'Promotional', 'Welcome', 'Follow-up', 'Announcement'] },
-            { id: 'email-subject', type: 'text', label: 'Subject Line (optional)', placeholder: 'e.g., Introducing our new feature...' },
-            { id: 'email-keypoints', type: 'textarea', label: 'Key Points', placeholder: 'Enter key points to include (one per line)' },
-            { id: 'email-cta', type: 'text', label: 'Call to Action', placeholder: 'e.g., Try it now, Learn more' },
-            { id: 'email-tone', type: 'select', label: 'Tone', options: ['Professional', 'Friendly', 'Urgent', 'Casual', 'Formal'] }
-        ]
-    },
-    press_release: {
-        name: 'Press Release',
-        subtitle: 'Generate a media-ready press release',
-        buttonLabel: 'Press Release',
-        credits: 10,
-        controls: [
-            { id: 'pr-headline', type: 'text', label: 'Headline', placeholder: 'Main announcement headline' },
-            { id: 'pr-subheadline', type: 'text', label: 'Subheadline (optional)', placeholder: 'Supporting detail' },
-            { id: 'pr-announcement', type: 'textarea', label: 'Announcement Details', placeholder: 'What are you announcing? Key facts and details...' },
-            { id: 'pr-quote', type: 'textarea', label: 'Quote (optional)', placeholder: 'A quote from the CEO or spokesperson' },
-            { id: 'pr-boilerplate', type: 'checkbox', label: 'Include company boilerplate' }
+            { id: 'emailType', type: 'select', label: 'Email Type', options: ['Newsletter', 'Promotional', 'Welcome', 'Follow-up', 'Announcement'] },
+            { id: 'topic', type: 'text', label: 'Subject Line', placeholder: 'e.g., Introducing our new feature...' },
+            { id: 'keyPoints', type: 'textarea', label: 'Key Points', placeholder: 'Enter key points to include...' },
+            { id: 'cta', type: 'text', label: 'Call to Action', placeholder: 'e.g., Try it now' },
+            { id: 'tone', type: 'select', label: 'Tone', options: ['Professional', 'Friendly', 'Urgent', 'Casual'] }
         ]
     },
     product_brochure: {
         name: 'Product Brochure',
-        subtitle: 'Generate a high-quality PDF brochure with AI images',
-        buttonLabel: 'Brochure',
+        subtitle: 'Generate a high-quality PDF brochure with AI visuals',
+        buttonLabel: 'Brochure', // Updated label
         credits: 20,
         controls: [
-            { id: 'brochure-title', type: 'text', label: 'Title', placeholder: 'Brochure title' },
-            { id: 'brochure-sections', type: 'select', label: 'Sections', options: ['3 sections', '4 sections', '5 sections'] },
-            { id: 'brochure-content', type: 'textarea', label: 'Key Content Points', placeholder: 'Main features, benefits, use cases...' },
-            { id: 'brochure-image-style', type: 'select', label: '🎨 Image Style', options: ['Modern & Clean', 'Corporate Professional', 'Bold & Creative', 'Minimalist', 'Tech & Futuristic', 'Natural & Organic'] },
-            { id: 'brochure-image-count', type: 'select', label: '📷 Image Count', options: ['2 images (Standard)', '3 images (Enhanced)', '4 images (Premium)'] },
-            { id: 'brochure-color-scheme', type: 'select', label: '🎨 Color Scheme', options: ['Auto (Match Brand)', 'Blue & Professional', 'Green & Nature', 'Orange & Energy', 'Purple & Creative', 'Monochrome'] },
-            { id: 'brochure-image-prompt', type: 'textarea', label: '✏️ Custom Image Instructions (Optional)', placeholder: 'Add specific instructions for AI image generation, e.g., "Include people using the product", "Show outdoor environment"...' }
+            { id: 'topic', type: 'text', label: 'Product Name', placeholder: 'e.g., ZYNK Pro' },
+            { id: 'audience', type: 'text', label: 'Target Audience', placeholder: 'e.g., Enterprise CTOs' },
+            { id: 'style', type: 'select', label: 'Visual Style', options: ['Modern Tech', 'Corporate', 'Minimalist', 'Creative'] },
+            { id: 'specifications', type: 'textarea', label: 'Product Specs (Key-Value)', placeholder: 'e.g.,\nProcessor: M2 Chip\nBattery: 20 Hours\nWeight: 1.2kg' }, // New field
+            { id: 'usps', type: 'textarea', label: 'Unique Selling Points (USP)', placeholder: 'List 3 key differentiators...' },
+            { id: 'cta', type: 'text', label: 'Call to Action', placeholder: 'e.g., Schedule a Demo' }
+        ]
+    },
+    one_pager: {
+        name: 'Executive One-Pager',
+        subtitle: 'Generate a concise A4 summary for stakeholders',
+        buttonLabel: 'One-Pager', // Updated label
+        credits: 15,
+        controls: [
+            { id: 'topic', type: 'text', label: 'Document Title', placeholder: 'e.g., Q3 Performance Review' },
+            { id: 'executiveSummary', type: 'textarea', label: 'Executive Summary', placeholder: 'Brief overview of the main message...' },
+            { id: 'style', type: 'select', label: 'Layout Style', options: ['Corporate', 'Startup', 'Data-Heavy', 'Newsletter'] },
+            { id: 'contactInfo', type: 'text', label: 'Contact Info', placeholder: 'e.g., sales@zynk.ai | +82 10-1234-5678' }
+        ]
+    },
+    pitch_deck: {
+        name: 'Pitch Deck',
+        subtitle: 'Generate a full pitch deck presentation',
+        buttonLabel: 'Pitch Deck',
+        credits: 25,
+        controls: [
+            { id: 'topic', type: 'text', label: 'Deck Title', placeholder: 'e.g., Series A Investor Deck' },
+            { id: 'pitchOverview', type: 'textarea', label: 'Pitch Overview / Problem', placeholder: 'Describe the problem and your solution...' },
+            { id: 'audience', type: 'text', label: 'Target Audience', placeholder: 'e.g., VCs, Angel Investors' },
+            { id: 'slideCount', type: 'select', label: 'Slide Count', options: ['5', '8', '10', '12'] },
+            { id: 'style', type: 'select', label: 'Visual Style', options: ['Modern Tech', 'Creative Bold', 'Minimalist', 'Corporate'] }
         ]
     },
     promo_images: {
@@ -3466,37 +3477,8 @@ const CREATIVE_CONFIGS = {
         buttonLabel: 'Images',
         credits: 5,
         controls: [
-            { id: 'promo-concept', type: 'textarea', label: 'Image Concept', placeholder: 'Describe the image you want...' },
-            { id: 'promo-style', type: 'select', label: 'Style', options: ['Modern', 'Minimalist', 'Bold', 'Corporate', 'Creative'] }
-        ]
-    },
-    one_pager: {
-        name: '1-Pager PDF',
-        subtitle: 'Generate a single-page executive summary with AI images',
-        buttonLabel: '1-Pager',
-        credits: 15,
-        controls: [
-            { id: 'onepager-title', type: 'text', label: 'Document Title', placeholder: 'Title for the document' },
-            { id: 'onepager-content', type: 'textarea', label: 'Main Content', placeholder: 'Key information to include...' },
-            { id: 'onepager-format', type: 'select', label: '📄 Layout Format', options: ['Executive Summary', 'Problem-Solution', 'Product Overview', 'Company Profile'] },
-            { id: 'onepager-style', type: 'select', label: '🎨 Visual Style', options: ['Modern & Clean', 'Corporate Professional', 'Minimalist', 'Bold & Creative'] },
-            { id: 'onepager-include-image', type: 'select', label: '📷 Include AI Image', options: ['Yes - Hero Image', 'Yes - Background Visual', 'No Image'] }
-        ]
-    },
-    pitch_deck: {
-        name: 'Pitch Deck',
-        subtitle: 'Generate a full pitch deck presentation with AI visuals',
-        buttonLabel: 'Deck',
-        credits: 25,
-        controls: [
-            { id: 'pitch-title', type: 'text', label: 'Presentation Title', placeholder: 'Title of your pitch deck' },
-            { id: 'pitch-topic', type: 'textarea', label: 'Pitch Overview', placeholder: 'Brief description of what this pitch is about...' },
-            { id: 'pitch-slides', type: 'select', label: '📊 Number of Slides', options: ['5 slides (Quick)', '8 slides (Standard)', '10 slides (Detailed)', '12 slides (Comprehensive)'] },
-            { id: 'pitch-purpose', type: 'select', label: '🎯 Pitch Purpose', options: ['Investor Pitch', 'Sales Pitch', 'Partnership Proposal', 'Product Launch', 'Company Overview'] },
-            { id: 'pitch-style', type: 'select', label: '🎨 Visual Style', options: ['Modern Tech', 'Corporate Classic', 'Creative Bold', 'Minimalist', 'Startup Friendly'] },
-            { id: 'pitch-audience', type: 'text', label: '👥 Target Audience', placeholder: 'e.g., VCs, Enterprise Clients, Partners' },
-            { id: 'pitch-include-images', type: 'select', label: '📷 AI Generated Images', options: ['Yes - Cover + Section Headers', 'Yes - Cover Only', 'No Images'] },
-            { id: 'pitch-context-tuning', type: 'textarea', label: '🔧 Additional Context / Instructions', placeholder: 'Fine-tune the output by adding specific details, valid data points, or instructions here...' }
+            { id: 'topic', type: 'textarea', label: 'Image Concept', placeholder: 'Describe the image...' },
+            { id: 'style', type: 'select', label: 'Style', options: ['Photorealistic', '3D Render', 'Illustration', 'Cyberpunk'] }
         ]
     }
 };
@@ -3601,7 +3583,7 @@ async function generateCreativeItem() {
     const config = CREATIVE_CONFIGS[currentCreativeType];
     if (!config) return;
 
-    // Collect input values
+    // 1. Collect inputs
     const inputs = {};
     config.controls.forEach(ctrl => {
         const el = document.getElementById(ctrl.id);
@@ -3610,40 +3592,60 @@ async function generateCreativeItem() {
         }
     });
 
-    console.log('[CreativeModal] Generating with inputs:', inputs);
+    // 2. Prepare Context (from global 'sources')
+    const activeSources = sources.filter(s => s.isActive !== false);
+    const contextText = activeSources.map(s => `${s.title}: ${s.content ? s.content.substring(0, 2000) : 'No content'}`).join('\n\n');
 
-    // Show loading
+    console.log('[CreativeModal] Generating:', currentCreativeType, inputs, 'Context Len:', contextText.length);
+
+    // 3. UI Loading
     document.getElementById('creative-placeholder').classList.add('hidden');
     document.getElementById('creative-loading').classList.remove('hidden');
     document.getElementById('creative-loading').style.display = 'flex';
+    document.getElementById('creative-result-container').classList.add('hidden');
+
+    // Show specific message
+    const loadingText = document.querySelector('.loading-text');
+    if (loadingText) loadingText.textContent = `Creating your ${config.name}...`;
 
     try {
-        // TODO: Replace with actual backend call
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API call
+        const generateFn = firebase.functions().httpsCallable('generateCreativeContent');
+        const result = await generateFn({
+            type: currentCreativeType,
+            inputs: inputs,
+            projectContext: contextText,
+            targetLanguage: 'English',
+            mode: (typeof currentUserPerformanceMode !== 'undefined') ? currentUserPerformanceMode : 'balanced'
+        });
 
-        // Mock result for Email/Press Release (text-based)
-        let mockResult = '';
-        if (currentCreativeType === 'email_template') {
-            mockResult = generateMockEmail(inputs);
-        } else if (currentCreativeType === 'press_release') {
-            mockResult = generateMockPressRelease(inputs);
-        } else {
-            mockResult = `<p class="text-slate-400">Generation for ${config.name} coming soon!</p>`;
-        }
+        const htmlContent = result.data.data;
 
         // Show result
         document.getElementById('creative-loading').classList.add('hidden');
         document.getElementById('creative-loading').style.display = 'none';
-        document.getElementById('creative-result-container').classList.remove('hidden');
-        document.getElementById('creative-result-container').innerHTML = `
-            <div class="prose prose-invert max-w-none h-full overflow-auto p-4 bg-slate-900 rounded-lg border border-slate-800">
-                ${mockResult}
-            </div>
-        `;
+
+        const resultContainer = document.getElementById('creative-result-container');
+        resultContainer.classList.remove('hidden');
+
+        // Render Result
+        if (['pitch_deck', 'product_brochure', 'one_pager'].includes(currentCreativeType)) {
+            // Use Iframe for full HTML documents/slides
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            resultContainer.innerHTML = `<iframe src="${url}" class="w-full h-full rounded-lg border border-slate-700 bg-white" style="min-height: 600px; height: 100%;"></iframe>`;
+        } else {
+            // Text based (Email, etc)
+            resultContainer.innerHTML = `
+                <div class="prose prose-invert max-w-none p-4 bg-slate-900 rounded-lg border border-slate-800">
+                    ${htmlContent}
+                </div>
+            `;
+        }
 
         // Show action buttons
         document.getElementById('btn-creative-copy').classList.remove('hidden');
         document.getElementById('btn-creative-copy').style.display = 'flex';
+        // Enable Download logic here if needed
 
         showNotification(`${config.name} generated successfully!`, 'success');
 
@@ -3777,192 +3779,87 @@ function showPlanStep(step) {
 // CREATIVE STUDIO FUNCTIONS
 // ==========================================
 
-async function generateCreativeItem() {
-    if (!currentCreativeType) return;
 
-    // 1. Gather Inputs
-    const topic = document.getElementById('creative-input-topic')?.value || '';
-    const audience = document.getElementById('creative-input-audience')?.value || '';
-    const tone = document.getElementById('creative-input-tone')?.value || '';
+// 3. UI Loading State
+document.getElementById('creative-placeholder').style.display = 'none';
+document.getElementById('creative-result-container').classList.add('hidden');
+document.getElementById('creative-loading').style.display = 'flex';
+document.querySelector('.loading-text').textContent = 'Generating with AI...';
 
-    // Construct specific inputs based on type
-    let specificInputs = {};
-    const container = document.getElementById('creative-controls-container');
+try {
+    // 4. Call Cloud Function
+    // 4. Call Cloud Function with extended timeout (9 minutes) matching server config
+    const generateFn = firebase.functions().httpsCallable('generateCreativeContent', { timeout: 540000 });
+    const result = await generateFn(requestData);
 
-    if (currentCreativeType === 'product_brochure') {
-        // Find selected format button
-        const buttons = container.querySelectorAll('button');
-        let format = 'Tri-Fold';
-        buttons.forEach(btn => {
-            if (btn.classList.contains('border-indigo-500')) format = btn.textContent;
-        });
-        specificInputs.format = format;
+    if (result.data.success) {
+        currentCreativeData = result.data.type === 'image' ? result.data.data : result.data.content;
+        window.lastGenerationMetadata = result.data.metadata; // Store metadata for UI display
 
-        // Collect all select values by their IDs
-        const selects = container.querySelectorAll('select');
-        selects.forEach(sel => {
-            const id = sel.id || sel.closest('[id]')?.id || '';
-            if (id.includes('sections') || sel.previousElementSibling?.textContent?.includes('Sections')) {
-                specificInputs.sections = sel.value;
-            }
-            if (id.includes('image-style') || sel.previousElementSibling?.textContent?.includes('Image Style')) {
-                specificInputs.imageStyle = sel.value;
-            }
-            if (id.includes('image-count') || sel.previousElementSibling?.textContent?.includes('Image Count')) {
-                specificInputs.imageCount = sel.value;
-            }
-            if (id.includes('color-scheme') || sel.previousElementSibling?.textContent?.includes('Color Scheme')) {
-                specificInputs.colorScheme = sel.value;
-            }
-        });
-
-        // Get custom image prompt
-        const customPromptTextarea = container.querySelector('textarea[placeholder*="Add specific instructions"]');
-        if (customPromptTextarea) {
-            specificInputs.customImagePrompt = customPromptTextarea.value;
-        }
-
-        // Legacy: style from old UI
-        const styleSelect = container.querySelectorAll('select')[1];
-        if (!specificInputs.imageStyle) {
-            specificInputs.style = styleSelect ? styleSelect.value : '';
-        }
-    }
-    else if (currentCreativeType === 'pitch_deck') {
-        const buttons = container.querySelectorAll('button');
-        let slideCount = '10';
-        buttons.forEach(btn => {
-            if (btn.classList.contains('border-indigo-500')) slideCount = btn.textContent.replace(' Slides', '');
-        });
-        specificInputs.slideCount = slideCount;
-
-        const purposeSelect = container.querySelectorAll('select')[1];
-        specificInputs.purpose = purposeSelect ? purposeSelect.value : '';
-    }
-    else if (currentCreativeType === 'promo_images') {
-        const buttons = container.querySelectorAll('button');
-        let ratio = 'Square (1:1)';
-        buttons.forEach(btn => {
-            if (btn.classList.contains('border-indigo-500')) ratio = btn.textContent;
-        });
-        specificInputs.ratio = ratio;
-
-        const styleSelect = container.querySelectorAll('select')[1];
-        specificInputs.style = styleSelect ? styleSelect.value : '';
-        const negInput = container.querySelector('input[placeholder*="text, blur"]');
-        specificInputs.negativePrompt = negInput ? negInput.value : '';
-    }
-    else if (currentCreativeType === 'email_template') {
-        const typeSelect = container.querySelectorAll('select')[1];
-        specificInputs.emailType = typeSelect ? typeSelect.value : '';
-        const senderInput = container.querySelector('input[placeholder*="John Doe"]');
-        specificInputs.senderName = senderInput ? senderInput.value : '';
-    }
-    else if (currentCreativeType === 'press_release') {
-        const typeSelect = container.querySelectorAll('select')[1];
-        specificInputs.announcementType = typeSelect ? typeSelect.value : '';
-        const quoteInput = container.querySelector('input[placeholder*="CEO"]');
-        specificInputs.quoteRole = quoteInput ? quoteInput.value : '';
-    }
-
-    // 2. Prepare Context (Active Sources)
-    const activeSources = sources.filter(s => s.isActive !== false);
-    const contextText = activeSources.map(s => `${s.title}: ${s.content ? s.content.substring(0, 2000) : 'No content'}`).join('\n\n');
-
-    const requestData = {
-        type: currentCreativeType,
-        inputs: {
-            topic,
-            audience,
-            tone,
-            ...specificInputs
-        },
-        projectContext: contextText,
-        projectContext: contextText,
-        targetLanguage: targetLanguage || 'English',
-        mode: currentUserPerformanceMode // Pass Eco/Balanced/Pro mode
-    };
-
-    // 3. UI Loading State
-    document.getElementById('creative-placeholder').style.display = 'none';
-    document.getElementById('creative-result-container').classList.add('hidden');
-    document.getElementById('creative-loading').style.display = 'flex';
-    document.querySelector('.loading-text').textContent = 'Generating with AI...';
-
-    try {
-        // 4. Call Cloud Function
-        // 4. Call Cloud Function with extended timeout (9 minutes) matching server config
-        const generateFn = firebase.functions().httpsCallable('generateCreativeContent', { timeout: 540000 });
-        const result = await generateFn(requestData);
-
-        if (result.data.success) {
-            currentCreativeData = result.data.type === 'image' ? result.data.data : result.data.content;
-            window.lastGenerationMetadata = result.data.metadata; // Store metadata for UI display
-
-            // 5. Render Real Result
-            if (result.data.type === 'image') {
-                renderCreativeImages(currentCreativeData);
-            } else {
-                renderCreativeResult(currentCreativeType, currentCreativeData);
-                // Inject Feedback UI
-                setTimeout(renderFeedbackUI, 100);
-            }
+        // 5. Render Real Result
+        if (result.data.type === 'image') {
+            renderCreativeImages(currentCreativeData);
         } else {
-            throw new Error(result.data.error || 'Generation failed');
+            renderCreativeResult(currentCreativeType, currentCreativeData);
+            // Inject Feedback UI
+            setTimeout(renderFeedbackUI, 100);
         }
-
-    } catch (error) {
-        console.error('Generation Error:', error);
-        showNotification('Generation failed: ' + error.message, 'error');
-        document.getElementById('creative-placeholder').style.display = 'block';
-        document.getElementById('creative-placeholder').innerHTML = `<p class="text-red-400">Error: ${error.message}</p>`;
-    } finally {
-        document.getElementById('creative-loading').style.display = 'none';
-
-        // If success, show actions
-        if (currentCreativeData) {
-            document.getElementById('creative-result-container').style.display = 'block';
-            document.getElementById('creative-result-container').classList.remove('hidden');
-            document.getElementById('btn-creative-download').classList.remove('hidden');
-
-            // Show PDF download button for brochure/one-pager types
-            const pdfBtn = document.getElementById('btn-creative-download-pdf');
-            if (pdfBtn && (currentCreativeType === 'product_brochure' || currentCreativeType === 'one_pager' || currentCreativeType === 'pitch_deck')) {
-                pdfBtn.classList.remove('hidden');
-            }
-
-            // Display Model Info Toast if metadata exists (Added for DeepSeek/Nano Banana Verification)
-            // Note: 'result' variable is from the try block scope, we need to access it here or use a scoped variable if refactored.
-            // Since this is inside finally, 'result' is not accessible. We'll use a globally scoped or return-value scoped variable approach if needed,
-            // but for now, we assume 'currentCreativeData' is populated. Metadata needs to be stored in a closure or global var.
-            // Let's check window.lastGenerationMetadata which we will set in the try block.
-            if (window.lastGenerationMetadata && window.lastGenerationMetadata.model) {
-                let msg = `Generated using ${window.lastGenerationMetadata.provider || 'AI'} ${window.lastGenerationMetadata.model}`;
-                if (window.lastGenerationMetadata.imageModel) {
-                    msg += ` & ${window.lastGenerationMetadata.imageModel}`;
-                }
-                showNotification(msg, 'success');
-            }
-
-            // Setup Download Button
-            const downloadBtn = document.getElementById('btn-creative-download');
-            downloadBtn.onclick = () => {
-                if (currentCreativeType === 'promo_images' && currentCreativeData && currentCreativeData.length > 0) {
-                    window.open(currentCreativeData[0], '_blank');
-                } else {
-                    // For text content
-                    const blob = new Blob([currentCreativeData], { type: 'text/html' });
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `zynk-creative-${Date.now()}.html`;
-                    a.click();
-                }
-            };
-
-            document.getElementById('btn-creative-copy').classList.remove('hidden');
-        }
+    } else {
+        throw new Error(result.data.error || 'Generation failed');
     }
+
+} catch (error) {
+    console.error('Generation Error:', error);
+    showNotification('Generation failed: ' + error.message, 'error');
+    document.getElementById('creative-placeholder').style.display = 'block';
+    document.getElementById('creative-placeholder').innerHTML = `<p class="text-red-400">Error: ${error.message}</p>`;
+} finally {
+    document.getElementById('creative-loading').style.display = 'none';
+
+    // If success, show actions
+    if (currentCreativeData) {
+        document.getElementById('creative-result-container').style.display = 'block';
+        document.getElementById('creative-result-container').classList.remove('hidden');
+        document.getElementById('btn-creative-download').classList.remove('hidden');
+
+        // Show PDF download button for brochure/one-pager types
+        const pdfBtn = document.getElementById('btn-creative-download-pdf');
+        if (pdfBtn && (currentCreativeType === 'product_brochure' || currentCreativeType === 'one_pager' || currentCreativeType === 'pitch_deck')) {
+            pdfBtn.classList.remove('hidden');
+        }
+
+        // Display Model Info Toast if metadata exists (Added for DeepSeek/Nano Banana Verification)
+        // Note: 'result' variable is from the try block scope, we need to access it here or use a scoped variable if refactored.
+        // Since this is inside finally, 'result' is not accessible. We'll use a globally scoped or return-value scoped variable approach if needed,
+        // but for now, we assume 'currentCreativeData' is populated. Metadata needs to be stored in a closure or global var.
+        // Let's check window.lastGenerationMetadata which we will set in the try block.
+        if (window.lastGenerationMetadata && window.lastGenerationMetadata.model) {
+            let msg = `Generated using ${window.lastGenerationMetadata.provider || 'AI'} ${window.lastGenerationMetadata.model}`;
+            if (window.lastGenerationMetadata.imageModel) {
+                msg += ` & ${window.lastGenerationMetadata.imageModel}`;
+            }
+            showNotification(msg, 'success');
+        }
+
+        // Setup Download Button
+        const downloadBtn = document.getElementById('btn-creative-download');
+        downloadBtn.onclick = () => {
+            if (currentCreativeType === 'promo_images' && currentCreativeData && currentCreativeData.length > 0) {
+                window.open(currentCreativeData[0], '_blank');
+            } else {
+                // For text content
+                const blob = new Blob([currentCreativeData], { type: 'text/html' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `zynk-creative-${Date.now()}.html`;
+                a.click();
+            }
+        };
+
+        document.getElementById('btn-creative-copy').classList.remove('hidden');
+    }
+}
 }
 
 function renderCreativeImages(images) {
