@@ -3894,6 +3894,7 @@ async function generateCreativeItem() {
 
         if (result.data.success) {
             currentCreativeData = result.data.type === 'image' ? result.data.data : result.data.content;
+            window.lastGenerationMetadata = result.data.metadata; // Store metadata for UI display
 
             // 5. Render Real Result
             if (result.data.type === 'image') {
@@ -3925,6 +3926,15 @@ async function generateCreativeItem() {
             const pdfBtn = document.getElementById('btn-creative-download-pdf');
             if (pdfBtn && (currentCreativeType === 'product_brochure' || currentCreativeType === 'one_pager' || currentCreativeType === 'pitch_deck')) {
                 pdfBtn.classList.remove('hidden');
+            }
+
+            // Display Model Info Toast if metadata exists (Added for DeepSeek/Nano Banana Verification)
+            // Note: 'result' variable is from the try block scope, we need to access it here or use a scoped variable if refactored.
+            // Since this is inside finally, 'result' is not accessible. We'll use a globally scoped or return-value scoped variable approach if needed,
+            // but for now, we assume 'currentCreativeData' is populated. Metadata needs to be stored in a closure or global var.
+            // Let's check window.lastGenerationMetadata which we will set in the try block.
+            if (window.lastGenerationMetadata && window.lastGenerationMetadata.model) {
+                showNotification(`Generated using ${window.lastGenerationMetadata.provider || 'AI'} ${window.lastGenerationMetadata.model}`, 'success');
             }
 
             // Setup Download Button
