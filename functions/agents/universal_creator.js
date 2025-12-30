@@ -175,13 +175,42 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type) {
         /https?:\/\/picsum\.photos[^\s"')]+/g,
         /https?:\/\/placehold\.[^\s"')]+/g,
         /https?:\/\/placeholder\.[^\s"')]+/g,
-        /{{[A-Z_]+}}/g // Any remaining unreplaced tokens
+        /{{[A-Z_0-9]+}}/g // Any remaining unreplaced tokens
     ];
 
     const fallbackKeyword = encodeURIComponent(topic.split(' ')[0] || 'technology');
     placeholderPatterns.forEach(pattern => {
         htmlResult = htmlResult.replace(pattern, `https://source.unsplash.com/1600x900/?${fallbackKeyword},business&sig=${Math.random()}`);
     });
+
+    // 6. AGGRESSIVE IMAGE REPAIR: Fix broken/empty img src attributes
+    console.log('[UniversalCreator] 🔧 Repairing broken images...');
+    // Match img tags with empty src, relative paths, or no http
+    htmlResult = htmlResult.replace(/<img([^>]*)src=["'](?!http|data:)([^"']*)["']([^>]*)>/gi, (match, before, src, after) => {
+        const randomImg = `https://source.unsplash.com/800x600/?${fallbackKeyword},abstract&sig=${Math.random()}`;
+        return `<img${before}src="${randomImg}"${after}>`;
+    });
+    // Also fix img tags with completely empty src
+    htmlResult = htmlResult.replace(/<img([^>]*)src=["']["']([^>]*)>/gi, (match, before, after) => {
+        const randomImg = `https://source.unsplash.com/800x600/?${fallbackKeyword},tech&sig=${Math.random()}`;
+        return `<img${before}src="${randomImg}"${after}>`;
+    });
+
+    // 7. FORCE TAILWIND CSS: Inject CDN if not present
+    if (!htmlResult.includes('tailwindcss.com') && !htmlResult.includes('tailwind.css')) {
+        console.log('[UniversalCreator] 💉 Injecting Tailwind CSS CDN...');
+        const tailwindCDN = `<script src="https://cdn.tailwindcss.com"></script>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+        <style>body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: white; }</style>`;
+
+        if (htmlResult.includes('</head>')) {
+            htmlResult = htmlResult.replace('</head>', `${tailwindCDN}</head>`);
+        } else if (htmlResult.includes('<body')) {
+            htmlResult = htmlResult.replace('<body', `<head>${tailwindCDN}</head><body`);
+        } else {
+            htmlResult = `<!DOCTYPE html><html><head>${tailwindCDN}</head><body class="bg-slate-900 text-white p-8">${htmlResult}</body></html>`;
+        }
+    }
 
     console.log('[UniversalCreator] ✅ HTML generation complete.');
     return htmlResult;
