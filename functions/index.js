@@ -3424,17 +3424,18 @@ Do not include any text, letters, numbers, logos, or watermarks in the image.`;
 
             // Direct mapping for Tuned Models or specific IDs might be needed.
             // If modelName implies Imagen, use the proper endpoint or helper.
-            if (modelName.includes('Nano') || modelName.includes('gemini-3')) {
-                // Try using Imagen 3 directly as the "Nano Banana Pro" implementation
-                // because 'gemini-3-pro-image-preview' might be an invalid public ID yet.
+            if (modelName.includes('Nano') || modelName.includes('gemini-3') || modelName === 'imagen4' || modelName === 'imagen-4') {
+                // Map to highest quality available: Imagen 4.0 if enabled, else Imagen 3.0
+                // User requested 'Imagen 4.0' specifically.
+                const targetModel = (modelName === 'imagen4' || modelName === 'imagen-4') ? 'imagen-4.0-generate-001' : 'imagen-3.0-generate-001';
+
                 try {
-                    const imagenResult = await generateWithImagen(prompt, size, 'imagen-3.0-generate-001');
-                    console.log(`[generateWithNanoBananaPro] ✅ Image generated via Imagen 3 (Nano Banana Engine)`);
-                    // Return result but KEEP metadata as Nano Banana Pro for user satisfaction
+                    // Use Vertex AI directly (ADC Auth) instead of API Key based Imagen helper
+                    const imagenResult = await generateWithVertexAI(prompt, targetModel);
+                    console.log(`[generateWithNanoBananaPro] ✅ Image generated via Vertex AI (${targetModel})`);
                     return imagenResult;
                 } catch (imagenErr) {
-                    console.warn(`[generateWithNanoBananaPro] Imagen 3 fallback failed: ${imagenErr.message}. Trying next...`);
-                    // Fallthrough to standard REST attempt
+                    console.warn(`[generateWithNanoBananaPro] Vertex AI (${targetModel}) failed: ${imagenErr.message}. Trying standard fallback...`);
                 }
             }
 
@@ -3540,6 +3541,82 @@ Create only visual design elements.`;
     }
 }
 
+
+
+/**
+ * Helper: Get Google Cloud Access Token (for Vertex AI)
+ * Uses Application Default Credentials (ADC)
+ */
+async function getVertexAccessToken() {
+    const { GoogleAuth } = require('google-auth-library');
+    const auth = new GoogleAuth({
+        scopes: ['https://www.googleapis.com/auth/cloud-platform']
+    });
+    const client = await auth.getClient();
+    const accessToken = await client.getAccessToken();
+    // Support both raw token string and object with token property
+    return accessToken.token || accessToken;
+}
+
+/**
+ * Generate Image using Vertex AI (REST API)
+ * Supports: imagen-3.0-generate-001, imagen-4.0-generate-001 (Preview)
+ */
+async function generateWithVertexAI(prompt, modelId = 'imagen-3.0-generate-001') {
+    const projectId = process.env.GCLOUD_PROJECT || 'zinc-c790f';
+    const location = 'us-central1';
+
+    console.log(`[generateWithVertexAI] 🚀 Calling Vertex AI: ${modelId} for project ${projectId}`);
+
+    try {
+        const accessToken = await getVertexAccessToken();
+        const axios = require('axios');
+
+        // Imagen 3/4 uses 'predict' endpoint
+        const endpoint = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${modelId}:predict`;
+
+        const payload = {
+            instances: [
+                { prompt: prompt }
+            ],
+            parameters: {
+                sampleCount: 1,
+                aspectRatio: "16:9",
+                // safetyFilterLevel: "block_some" 
+            }
+        };
+
+        const response = await axios.post(endpoint, payload, {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+            },
+            timeout: 120000
+        });
+
+        const predictions = response.data.predictions;
+        if (predictions && predictions.length > 0) {
+            // Imagen returns base64 string directly or in bytesBase64Encoded
+            // The response format can vary slightly between versions, handle both.
+            const prediction = predictions[0];
+            const imageBase64 = prediction.bytesBase64Encoded || prediction;
+
+            if (imageBase64 && typeof imageBase64 === 'string') {
+                console.log(`[generateWithVertexAI] ✅ Success! Image generated.`);
+                return await uploadBase64ToStorage(imageBase64, modelId);
+            }
+        }
+
+        throw new Error('No image data found in Vertex AI response');
+
+    } catch (error) {
+        console.error('[generateWithVertexAI] Error:', error.response?.data?.error || error.message);
+        if (error.response?.data) {
+            console.error('Vertex AI Error Details:', JSON.stringify(error.response.data));
+        }
+        throw error;
+    }
+}
 
 /**
  * Helper: Get image provider API key
