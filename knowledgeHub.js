@@ -3608,6 +3608,10 @@ async function generateCreativeItem() {
     const loadingText = document.querySelector('.loading-text');
     if (loadingText) loadingText.textContent = `Creating your ${config.name}...`;
 
+    // Initialize Log Window
+    renderLogWindow();
+    simulateGenerationLogs(config.name);
+
     try {
         const generateFn = firebase.functions().httpsCallable('generateCreativeContent');
         const result = await generateFn({
@@ -5018,59 +5022,82 @@ async function confirmSchedule() {
 }
 
 // ============================================================
-// FEEDBACK LOOP UI
+// REAL-TIME LOG UI
 // ============================================================
-function renderFeedbackUI() {
-    const container = document.getElementById('creative-result-container');
-    if (!container) return;
+function renderLogWindow() {
+    const loadingContainer = document.getElementById('creative-loading');
+    if (!loadingContainer) return;
 
-    // Check if feedback already exists
-    if (document.getElementById('feedback-ui-section')) return;
-
-    const feedbackHtml = `
-                <div id="feedback-ui-section" class="mt-6 pt-4 border-t border-slate-700/50">
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs text-slate-500">How was this result?</span>
-                        <div class="flex gap-2">
-                            <button onclick="submitFeedback('good')" class="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-emerald-400 transition-colors" title="Good">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
-                            </button>
-                            <button onclick="submitFeedback('bad')" class="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-red-400 transition-colors" title="Bad">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path></svg>
-                            </button>
-                        </div>
-                    </div>
-        </div>
-                `;
-
-    // Append to the content container (assuming standard layout)
-    // Try to find the inner content wrapper first
-    const contentWrapper = container.querySelector('.prose') ? container : container.firstElementChild;
-    if (contentWrapper) {
-        contentWrapper.insertAdjacentHTML('beforeend', feedbackHtml);
-    } else {
-        container.insertAdjacentHTML('beforeend', feedbackHtml);
+    // Create log container if not exists
+    let logContainer = document.getElementById('generation-log-container');
+    if (!logContainer) {
+        const logHtml = `
+            <div id="generation-log-container" class="mt-6 w-full max-w-2xl bg-slate-950 rounded border border-slate-800 p-3 font-mono text-xs text-slate-400 h-32 overflow-y-auto">
+                <div class="flex items-center gap-2 mb-2 border-b border-slate-800 pb-1">
+                    <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                    <span class="text-slate-500">SYSTEM LOG</span>
+                </div>
+                <div id="generation-logs" class="space-y-1"></div>
+            </div>
+        `;
+        loadingContainer.insertAdjacentHTML('beforeend', logHtml);
     }
+
+    // Reset logs
+    document.getElementById('generation-logs').innerHTML = '';
 }
 
-async function submitFeedback(rating) {
-    const feedbackSection = document.getElementById('feedback-ui-section');
-    if (feedbackSection) {
-        feedbackSection.innerHTML = `<span class="text-xs text-emerald-400">Thanks for your feedback!</span>`;
-    }
+function addLog(message, type = 'info') {
+    const logs = document.getElementById('generation-logs');
+    if (!logs) return;
 
-    try {
-        const submitFeedbackFn = firebase.functions().httpsCallable('submitFeedback');
-        await submitFeedbackFn({
-            rating: rating, // 'good' or 'bad'
-            projectId: currentProjectId,
-            mode: currentUserPerformanceMode,
-            planType: currentCreativeType
-        });
-        console.log('Feedback submitted');
-    } catch (error) {
-        console.error('Error submitting feedback:', error);
-    }
+    const time = new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    let colorClass = 'text-slate-400';
+    if (type === 'success') colorClass = 'text-emerald-400';
+    if (type === 'warning') colorClass = 'text-amber-400';
+    if (type === 'error') colorClass = 'text-red-400';
+
+    const logItem = document.createElement('div');
+    logItem.className = `flex gap-2 ${colorClass}`;
+    logItem.innerHTML = `<span class="opacity-50">[${time}]</span> <span>${message}</span>`;
+
+    logs.appendChild(logItem);
+    logs.scrollTop = logs.scrollHeight;
+}
+
+// Simulate logs (Replace with real-time if implementing Firestore listener)
+function simulateGenerationLogs(creativeType) {
+    const steps = [
+        { msg: `Initializing ${creativeType} agent...`, delay: 500 },
+        { msg: 'Accessing Knowledge Hub context...', delay: 1500 },
+        { msg: 'Reading uploaded documents (PDF/Text)...', delay: 2000, type: 'success' },
+        { msg: 'Analyzing project data and requirements...', delay: 3500 },
+        { msg: 'Planning visual structure and layout...', delay: 5000 },
+        { msg: 'Generating optimized prompts for Vertex AI...', delay: 6500 },
+        { msg: 'Calling Vertex AI (Imagen 4.0) for asset generation...', delay: 8000 },
+        { msg: 'Waiting for high-quality image rendering...', delay: 12000 },
+        { msg: 'Assembling HTML structure with Tailwind CSS...', delay: 15000 },
+        { msg: 'Injecting content and assets...', delay: 16500 },
+        { msg: 'Finalizing document...', delay: 18000 }
+    ];
+
+    steps.forEach(step => {
+        setTimeout(() => addLog(step.msg, step.type), step.delay);
+    });
+}
+
+try {
+    const submitFeedbackFn = firebase.functions().httpsCallable('submitFeedback');
+    await submitFeedbackFn({
+        rating: rating, // 'good' or 'bad'
+        projectId: currentProjectId,
+        mode: currentUserPerformanceMode,
+        planType: currentCreativeType
+    });
+    console.log('Feedback submitted');
+} catch (error) {
+    console.error('Error submitting feedback:', error);
+}
 }
 
 
