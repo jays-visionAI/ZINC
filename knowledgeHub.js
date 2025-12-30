@@ -1558,7 +1558,6 @@ function selectPlanCategory(category) {
         const cat = btn.dataset.category;
         if (cat === category) {
             btn.classList.add('ring-2', 'ring-offset-2', 'ring-offset-slate-900');
-            // Add ring color based on category
             if (cat === 'knowledge') btn.classList.add('ring-amber-500');
             else if (cat === 'strategic') btn.classList.add('ring-indigo-500');
             else if (cat === 'quick') btn.classList.add('ring-emerald-500');
@@ -1568,6 +1567,18 @@ function selectPlanCategory(category) {
                 'ring-amber-500', 'ring-indigo-500', 'ring-emerald-500', 'ring-rose-500');
         }
     });
+
+    // Unhide category details area if hidden
+    const details = document.getElementById('plan-category-details');
+    if (details) details.classList.remove('hidden');
+
+    // If 'create' category selected, maybe suggest switching to Studio tab?
+    // Actually, let's keep it manual or auto-switch for better UX
+    if (category === 'create') {
+        switchAssetTab('studio');
+    } else {
+        switchAssetTab('plans');
+    }
 
     // Render category items
     renderCategoryItems(category);
@@ -5403,6 +5414,53 @@ function viewSavedPlan(id, plan) {
     showPlanResult();
     document.getElementById('btn-generate-another').classList.add('hidden');
     document.getElementById('plan-modal').style.display = 'block';
+}
+
+// ============================================================
+// UI PANEL / TAB LOGIC
+// ============================================================
+function togglePanel(side) {
+    const isLeft = side === 'left';
+    const panelId = isLeft ? 'sources-panel' : 'plans-panel';
+    const panel = document.getElementById(panelId);
+    const icon = document.getElementById(`toggle-icon-${side}`);
+    const collapseClass = isLeft ? 'collapsed-left' : 'collapsed-right';
+
+    if (panel.classList.contains(collapseClass)) {
+        panel.classList.remove(collapseClass);
+        icon.className = isLeft ? 'fas fa-chevron-left' : 'fas fa-chevron-right';
+        showNotification(`${isLeft ? 'Sources' : 'Plans'} panel expanded`, 'info');
+    } else {
+        panel.classList.add(collapseClass);
+        icon.className = isLeft ? 'fas fa-chevron-right' : 'fas fa-chevron-left';
+        showNotification(`${isLeft ? 'Sources' : 'Plans'} panel collapsed`, 'info');
+    }
+}
+
+function switchAssetTab(tab) {
+    const isPlans = tab === 'plans';
+    const plansBtn = document.getElementById('tab-plans');
+    const studioBtn = document.getElementById('tab-studio');
+    const plansContainer = document.getElementById('asset-container-plans');
+    const studioContainer = document.getElementById('asset-container-studio');
+
+    if (!plansBtn || !studioBtn) return;
+
+    if (isPlans) {
+        plansBtn.classList.add('active');
+        plansBtn.classList.remove('opacity-50');
+        studioBtn.classList.remove('active');
+        studioBtn.classList.add('opacity-50');
+        plansContainer.classList.remove('hidden');
+        studioContainer.classList.add('hidden');
+    } else {
+        studioBtn.classList.add('active');
+        studioBtn.classList.remove('opacity-50');
+        plansBtn.classList.remove('active');
+        plansBtn.classList.add('opacity-50');
+        studioContainer.classList.remove('hidden');
+        plansContainer.classList.add('hidden');
+    }
 }
 
 // ============================================================
