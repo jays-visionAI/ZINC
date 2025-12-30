@@ -3451,11 +3451,15 @@ const CREATIVE_CONFIGS = {
         ],
         advancedControls: [
             { id: 'colorScheme', type: 'select', label: 'Color Scheme', icon: 'fa-palette', options: ['Indigo/Purple (Default)', 'Blue/Cyan', 'Green/Teal', 'Orange/Red', 'Monochrome', 'Custom Gradient'] },
-            { id: 'animationLevel', type: 'select', label: 'Animation Level', icon: 'fa-wand-magic-sparkles', options: ['None', 'Subtle', 'Medium', 'Rich'] },
+            { id: 'contentTone', type: 'select', label: 'Content Tone', icon: 'fa-bullhorn', options: ['Professional', 'Persuasive', 'Technical', 'Creative', 'Academic'] },
+            { id: 'imageStyle', type: 'select', label: 'AI Image Style', icon: 'fa-paint-brush', options: ['Photorealistic', '3D Render', 'Minimalist Illustration', 'Cyberpunk Digital Art', 'Abstract'] },
             { id: 'iconStyle', type: 'select', label: 'Icon Style', icon: 'fa-icons', options: ['Heroicons', 'Phosphor'] },
+            { id: 'includeCharts', type: 'select', label: 'Data Visualization', icon: 'fa-chart-pie', options: ['None', 'Bar Charts', 'Line Graphs', 'Progress Rings', 'Infographic Cards'] },
             { id: 'layoutDensity', type: 'select', label: 'Layout Density', icon: 'fa-table-cells', options: ['Spacious', 'Balanced', 'Compact'] },
             { id: 'imageCount', type: 'select', label: 'AI Images', icon: 'fa-images', options: ['1', '2', '3', '4', '5'] },
-            { id: 'customPrompt', type: 'textarea', label: 'Custom Instructions', icon: 'fa-comment-dots', placeholder: 'Add any specific design instructions...\ne.g., "Use blue gradients, include a testimonial section, make CTA buttons larger"' }
+            { id: 'glassmorphism', type: 'checkbox', label: 'Glassmorphism Cards', icon: 'fa-square' },
+            { id: 'floatingBlobs', type: 'checkbox', label: 'Floating Gradient Blobs', icon: 'fa-circle' },
+            { id: 'customPrompt', type: 'textarea', label: 'Custom Instructions', icon: 'fa-comment-dots', placeholder: 'Add any specific design instructions...' }
         ]
     },
     one_pager: {
@@ -3471,8 +3475,10 @@ const CREATIVE_CONFIGS = {
         ],
         advancedControls: [
             { id: 'colorScheme', type: 'select', label: 'Color Scheme', icon: 'fa-palette', options: ['Indigo/Purple (Default)', 'Blue/Cyan', 'Green/Teal', 'Orange/Red', 'Monochrome', 'Custom Gradient'] },
-            { id: 'animationLevel', type: 'select', label: 'Animation Level', icon: 'fa-wand-magic-sparkles', options: ['None', 'Subtle', 'Medium', 'Rich'] },
+            { id: 'contentTone', type: 'select', label: 'Content Tone', icon: 'fa-bullhorn', options: ['Professional', 'Persuasive', 'Technical', 'Creative', 'Academic'] },
+            { id: 'imageStyle', type: 'select', label: 'AI Image Style', icon: 'fa-paint-brush', options: ['Photorealistic', '3D Render', 'Minimalist Illustration', 'Cyberpunk Digital Art', 'Abstract'] },
             { id: 'iconStyle', type: 'select', label: 'Icon Style', icon: 'fa-icons', options: ['Heroicons', 'Phosphor'] },
+            { id: 'includeCharts', type: 'select', label: 'Data Visualization', icon: 'fa-chart-pie', options: ['None', 'Bar Charts', 'Line Graphs', 'Progress Rings', 'Infographic Cards'] },
             { id: 'layoutDensity', type: 'select', label: 'Layout Density', icon: 'fa-table-cells', options: ['Spacious', 'Balanced', 'Compact'] },
             { id: 'imageCount', type: 'select', label: 'AI Images', icon: 'fa-images', options: ['1', '2', '3'] },
             { id: 'glassmorphism', type: 'checkbox', label: 'Glassmorphism Cards', icon: 'fa-square' },

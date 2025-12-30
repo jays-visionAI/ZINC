@@ -323,6 +323,14 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Creative Studio Projects (Studio Assets)
+    match /creativeProjects/{projectId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
     // Channel Profile Versions: Admin can write, authenticated users can read
     match /channelProfileVersions/{versionId} {
       allow read: if isAuthenticated();
