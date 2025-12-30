@@ -3522,10 +3522,17 @@ function openCreativeModal(planType) {
     const controlsContainer = document.getElementById('creative-controls-container');
     controlsContainer.innerHTML = generateCreativeControls(config.controls);
 
-    // Reset preview area
+    // Reset preview area & Clear previous results
     document.getElementById('creative-placeholder').classList.remove('hidden');
     document.getElementById('creative-loading').classList.add('hidden');
-    document.getElementById('creative-result-container').classList.add('hidden');
+
+    const resultContainer = document.getElementById('creative-result-container');
+    resultContainer.classList.add('hidden');
+    resultContainer.innerHTML = ''; // FORCE CLEAR CONTENT
+
+    const previewContent = document.getElementById('creative-preview-content');
+    if (previewContent) previewContent.innerHTML = ''; // FORCE CLEAR PREVIEW
+
     document.getElementById('btn-creative-download').classList.add('hidden');
     document.getElementById('btn-creative-copy').classList.add('hidden');
 
