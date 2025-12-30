@@ -3891,7 +3891,8 @@ async function generateCreativeItem() {
 
     try {
         // 4. Call Cloud Function
-        const generateFn = firebase.functions().httpsCallable('generateCreativeContent');
+        // 4. Call Cloud Function with extended timeout (9 minutes) matching server config
+        const generateFn = firebase.functions().httpsCallable('generateCreativeContent', { timeout: 540000 });
         const result = await generateFn(requestData);
 
         if (result.data.success) {
