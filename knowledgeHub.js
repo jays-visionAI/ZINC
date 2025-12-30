@@ -31,6 +31,8 @@ const MAX_SUMMARY_HISTORY = 20; // Maximum number of summary notes to keep
 // Plan Management State
 let currentPlanCategory = 'knowledge'; // Default
 let cachedSavedPlans = []; // Store fetched plans for client-side filtering
+let creativeProjectsUnsubscribe = null; // Unsubscribe listener for creative projects
+let creativeProjects = []; // List of creative generation projects
 
 // Chat Configuration
 let chatConfig = {
@@ -70,6 +72,7 @@ async function initializeKnowledgeHub() {
             initializePlanCards();
             loadChatConfig(); // Load saved chat configuration
             initializePanelClickOutside();  // Initialize panel collapse on outside click
+            loadCreativeProjects(); // NEW: Load background generation history
         } else {
             window.location.href = 'index.html';
         }
@@ -3770,130 +3773,402 @@ function closeCreativeModal() {
 }
 
 /**
- * Generate creative item (placeholder - will connect to backend)
+ * Generate creative item (Enhanced: Async, Auto-save, Refinement)
  */
 async function generateCreativeItem() {
     if (!currentCreativeType) return;
-
     const config = CREATIVE_CONFIGS[currentCreativeType];
     if (!config) return;
 
-    // 1. Collect basic inputs
+    // 1. Collect inputs
     const inputs = {};
     config.controls.forEach(ctrl => {
         const el = document.getElementById(ctrl.id);
-        if (el) {
-            inputs[ctrl.id] = ctrl.type === 'checkbox' ? el.checked : el.value;
-        }
+        if (el) inputs[ctrl.id] = (ctrl.type === 'checkbox') ? el.checked : el.value;
     });
 
-    // 2. Collect advanced options (if any)
     const advancedOptions = {};
     if (config.advancedControls) {
         config.advancedControls.forEach(ctrl => {
             const el = document.getElementById(ctrl.id);
-            if (el) {
-                advancedOptions[ctrl.id] = ctrl.type === 'checkbox' ? el.checked : el.value;
-            }
+            if (el) advancedOptions[ctrl.id] = (ctrl.type === 'checkbox') ? el.checked : el.value;
         });
     }
 
-    // 3. Prepare Context (from global 'sources')
+    const topic = inputs.topic || config.name;
     const activeSources = sources.filter(s => s.isActive !== false);
     const contextText = activeSources.map(s => `${s.title}: ${s.content ? s.content.substring(0, 2000) : 'No content'}`).join('\n\n');
 
-    console.log('[CreativeModal] Generating:', currentCreativeType, { inputs, advancedOptions }, 'Context Len:', contextText.length);
+    // 2. Initialize Firestore Record (Auto-save)
+    showNotification('Starting creation workspace...', 'info');
+    let projectId;
+    try {
+        const projectRef = await db.collection('creativeProjects').add({
+            userId: currentUser.uid,
+            mainProjectId: currentProjectId,
+            topic: topic,
+            type: currentCreativeType,
+            status: 'processing',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            inputs: inputs,
+            advancedOptions: advancedOptions,
+            configName: config.name
+        });
+        projectId = projectRef.id;
+    } catch (e) {
+        showNotification('Storage initialization failed.', 'error');
+        return;
+    }
 
-    // 4. UI Loading
+    // UI Loading state
     document.getElementById('creative-placeholder').classList.add('hidden');
-    document.getElementById('creative-loading').classList.remove('hidden');
-    document.getElementById('creative-loading').style.display = 'flex';
+    const loadingEl = document.getElementById('creative-loading');
+    loadingEl.classList.remove('hidden');
+    loadingEl.style.display = 'flex';
     document.getElementById('creative-result-container').classList.add('hidden');
 
-    // Show specific message
-    const loadingText = document.querySelector('.loading-text');
-    if (loadingText) loadingText.textContent = `Creating your ${config.name}...`;
-
-    // Initialize Log Window
+    startProgressBar();
     renderLogWindow();
-    startProgressBar(); // NEW: Start progress bar
+    addLog(`Workspace created: ${projectId}`, 'info');
 
     try {
-        // Increase timeout to 10 minutes for complex generations
         const generateFn = firebase.functions().httpsCallable('generateCreativeContent', { timeout: 600000 });
         const result = await generateFn({
+            projectId: projectId,
             type: currentCreativeType,
             inputs: inputs,
             advancedOptions: advancedOptions,
             projectContext: contextText,
-            targetLanguage: 'English',
-            mode: (typeof currentUserPerformanceMode !== 'undefined') ? currentUserPerformanceMode : 'balanced'
+            targetLanguage: 'English'
         });
 
-        stopProgressBar(100); // Complete progress bar
-        console.log('[CreativeModal] Backend Response:', result.data);
+        stopProgressBar(100);
+        const html = result.data?.data || result.data?.html || result.data?.content;
 
-        // Defensive: Check multiple possible response structures
-        const htmlContent = result.data?.data || result.data?.content || result.data?.html || 'No content generated.';
+        // Final update
+        await db.collection('creativeProjects').doc(projectId).update({
+            htmlContent: html,
+            status: 'completed',
+            completedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
 
-        // Show result
-        document.getElementById('creative-loading').classList.add('hidden');
-        document.getElementById('creative-loading').style.display = 'none';
+        addLog('Generation Success!', 'success');
+        viewCreativeProject(projectId);
 
-        const resultContainer = document.getElementById('creative-result-container');
-        resultContainer.classList.remove('hidden');
+    } catch (error) {
+        console.error('[Creative] Failed:', error);
+        stopProgressBar();
+        addLog(`Error: ${error.message}`, 'error');
+        db.collection('creativeProjects').doc(projectId).update({ status: 'failed', error: error.message });
+        showNotification('Creation failed: ' + error.message, 'error');
+    }
+}
 
-        // Render Result
-        if (['pitch_deck', 'product_brochure', 'one_pager'].includes(currentCreativeType)) {
-            // Use Iframe for full HTML documents/slides
-            const blob = new Blob([htmlContent], { type: 'text/html' });
-            const url = URL.createObjectURL(blob);
-            resultContainer.innerHTML = `<iframe src="${url}" class="w-full h-full rounded-lg border border-slate-700 bg-white" style="min-height: 600px; height: 100%;"></iframe>`;
-        } else {
-            // Text based (Email, etc)
-            resultContainer.innerHTML = `
-                <div class="prose prose-invert max-w-none p-4 bg-slate-900 rounded-lg border border-slate-800">
-                    ${htmlContent}
+/**
+ * View Project in detail with Granular Edit hooks
+ */
+async function viewCreativeProject(docId) {
+    const proj = creativeProjects.find(p => p.id === docId);
+    if (!proj || proj.status !== 'completed') return;
+
+    currentCreativeType = proj.type;
+    currentCreativeData = { html: proj.htmlContent };
+
+    openCreativeModal(proj.type);
+
+    document.getElementById('creative-placeholder').classList.add('hidden');
+    document.getElementById('creative-loading').classList.add('hidden');
+    document.getElementById('creative-loading').style.display = 'none';
+    const resultContainer = document.getElementById('creative-result-container');
+    resultContainer.classList.remove('hidden');
+    resultContainer.innerHTML = '';
+
+    const iframe = document.createElement('iframe');
+    iframe.id = 'creative-result-iframe';
+    iframe.className = 'w-full h-[650px] border-none rounded-lg bg-white shadow-2xl';
+
+    const fullHTML = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <script src="https://cdn.tailwindcss.com"></script>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+            <style>
+                body { margin: 0; padding: 0; overflow-x: hidden; scroll-behavior: smooth; }
+                .refine-btn { position: absolute; z-index: 50; display: none; }
+                section:hover .refine-btn { display: flex; }
+                .img-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; color: white; cursor: pointer; border-radius: inherit; }
+                .img-container:hover .img-overlay { display: flex; }
+            </style>
+        </head>
+        <body class="bg-black text-white">
+            ${proj.htmlContent}
+        </body>
+        </html>
+    `;
+
+    resultContainer.appendChild(iframe);
+    iframe.contentWindow.document.open();
+    iframe.contentWindow.document.write(fullHTML);
+    iframe.contentWindow.document.close();
+
+    // Setup action bar (Edit, PDF etc)
+    injectActionButtonsToHeader();
+
+    iframe.onload = () => setupDetailedEditing(iframe, docId);
+}
+
+/**
+ * Add History management functions (Load, Render, Delete)
+ */
+let lastProjectCount = 0;
+async function loadCreativeProjects() {
+    if (!currentUser || !currentProjectId) return;
+    if (creativeProjectsUnsubscribe) creativeProjectsUnsubscribe();
+
+    creativeProjectsUnsubscribe = db.collection('creativeProjects')
+        .where('userId', '==', currentUser.uid)
+        .where('mainProjectId', '==', currentProjectId)
+        .orderBy('createdAt', 'desc')
+        .onSnapshot(snapshot => {
+            const newProjects = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            // UX: Check if a project just finished in the background
+            if (lastProjectCount > 0 && newProjects.length === lastProjectCount) {
+                const finishedProject = newProjects.find((p, i) => p.status === 'completed' && creativeProjects[i]?.status === 'processing');
+                if (finishedProject) {
+                    showNotification(`✨ "${finishedProject.topic}" generation complete!`, 'success');
+                    // Optional: Visual highlight on the item
+                }
+            }
+
+            creativeProjects = newProjects;
+            lastProjectCount = creativeProjects.length;
+            renderCreativeHistory();
+        });
+}
+
+function renderCreativeHistory() {
+    const listContainer = document.getElementById('creative-history-list');
+    if (!listContainer) return;
+
+    if (creativeProjects.length === 0) {
+        listContainer.innerHTML = `
+            <div class="flex flex-col items-center justify-center py-8 opacity-40">
+                <i class="fas fa-folder-open text-2xl mb-2"></i>
+                <p class="text-[10px] italic">No studio assets found</p>
+            </div>
+        `;
+        return;
+    }
+
+    listContainer.innerHTML = creativeProjects.map(proj => {
+        let statusColor = proj.status === 'processing' ? 'indigo' : (proj.status === 'completed' ? 'emerald' : 'rose');
+        let icon = proj.type === 'pitch_deck' ? 'fa-presentation-screen' : (proj.type === 'product_brochure' ? 'fa-file-invoice' : 'fa-lightbulb');
+
+        return `
+            <div class="group relative p-3 bg-slate-800/40 hover:bg-slate-700/60 border border-slate-700/50 rounded-xl mb-3 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98] shadow-sm hover:shadow-indigo-500/10" 
+                 onclick="viewCreativeProject('${proj.id}')">
+                <div class="flex justify-between items-start mb-2">
+                    <div class="flex items-center gap-2">
+                        <div class="w-7 h-7 rounded-lg bg-${statusColor}-500/10 flex items-center justify-center">
+                            <i class="fas ${icon} text-${statusColor}-400 text-[10px]"></i>
+                        </div>
+                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">${proj.configName || proj.type}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[8px] font-bold text-${statusColor}-400 active-pulse">${proj.status}</span>
+                        <button onclick="event.stopPropagation(); deleteCreativeProject('${proj.id}')" 
+                                class="opacity-0 group-hover:opacity-100 p-1 hover:text-rose-400 text-slate-500 transition-all">
+                            <i class="fas fa-trash-alt text-[10px]"></i>
+                        </button>
+                    </div>
                 </div>
-            `;
-        }
+                <h4 class="text-[11px] font-semibold text-slate-100 truncate pr-4">${proj.topic}</h4>
+                <div class="flex justify-between items-center mt-2">
+                    <span class="text-[8px] text-slate-600">${proj.createdAt ? new Date(proj.createdAt.toDate()).toLocaleDateString() : 'Just now'}</span>
+                    <i class="fas fa-chevron-right text-[8px] text-slate-700 group-hover:text-indigo-400 transition-colors"></i>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
 
-        // Show action buttons
-        document.getElementById('btn-creative-copy').classList.remove('hidden');
-        document.getElementById('btn-creative-copy').style.display = 'flex';
+function injectActionButtonsToHeader() {
+    let actionsContainer = document.querySelector('#creative-modal .flex.gap-3.justify-end');
+    if (!actionsContainer) return;
 
-        const downloadBtn = document.getElementById('btn-creative-download');
+    // Clear and inject
+    actionsContainer.querySelectorAll('.btn-creative-injected').forEach(b => b.remove());
+
+    const editBtn = document.createElement('button');
+    editBtn.id = 'btn-creative-edit';
+    editBtn.className = 'btn-creative-injected px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium flex items-center transition-all';
+    editBtn.innerHTML = '<i class="fas fa-edit mr-2 text-indigo-400"></i>Edit Content';
+    editBtn.onclick = () => toggleEditMode();
+
+    const downloadBtn = document.getElementById('btn-creative-download');
+    if (downloadBtn) {
+        downloadBtn.id = 'btn-creative-download';
+        downloadBtn.className = 'btn-creative-injected px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium flex items-center transition-all';
         downloadBtn.classList.remove('hidden');
         downloadBtn.style.display = 'flex';
         downloadBtn.innerHTML = '<i class="fas fa-file-pdf mr-2"></i>Download PDF';
         downloadBtn.onclick = () => downloadCreativeAsPDF();
+    }
 
-        // Add Edit Toggle Button
-        let editBtn = document.getElementById('btn-creative-edit');
-        if (!editBtn) {
-            const btnContainer = document.querySelector('#creative-modal .flex.gap-3.justify-end');
-            if (btnContainer) {
-                const editBtnHtml = `
-                    <button id="btn-creative-edit" onclick="toggleEditMode()" 
-                        class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium flex items-center transition-all">
-                        <i class="fas fa-edit mr-2"></i>Edit Content
-                    </button>
-                `;
-                btnContainer.insertAdjacentHTML('afterbegin', editBtnHtml);
-            }
-        } else {
-            editBtn.classList.remove('hidden');
-            editBtn.style.display = 'flex';
+    actionsContainer.prepend(editBtn);
+    document.getElementById('btn-creative-copy').classList.remove('hidden');
+    document.getElementById('btn-creative-copy').style.display = 'flex';
+}
+
+/**
+ * Delete a creative project from Firestore
+ */
+async function deleteCreativeProject(docId) {
+    if (!confirm('Are you sure you want to delete this asset?')) return;
+
+    try {
+        await db.collection('creativeProjects').doc(docId).delete();
+        showNotification('Asset deleted', 'success');
+    } catch (e) {
+        showNotification('Failed to delete asset', 'error');
+    }
+}
+
+/**
+ * Setup Detailed Editing (Section refinement, Image swap)
+ */
+function setupDetailedEditing(iframe, docId) {
+    const doc = iframe.contentDocument;
+    if (!doc) return;
+
+    // 1. Image Swap Overlays
+    doc.querySelectorAll('img').forEach(img => {
+        if (img.closest('.img-container')) return;
+
+        const wrapper = doc.createElement('div');
+        wrapper.className = 'relative inline-block img-container w-full h-full';
+        img.parentNode.insertBefore(wrapper, img);
+        wrapper.appendChild(img);
+
+        const overlay = doc.createElement('div');
+        overlay.className = 'img-overlay';
+        overlay.innerHTML = '<div class="flex flex-col items-center gap-1"><i class="fas fa-sync-alt"></i><span class="text-[8px] font-bold uppercase tracking-widest">Swap with AI</span></div>';
+        overlay.onclick = (e) => {
+            e.stopPropagation();
+            swapCreativeImage(docId, img);
+        };
+        wrapper.appendChild(overlay);
+    });
+
+    // 2. Section Refinement
+    doc.querySelectorAll('section').forEach((section, idx) => {
+        section.classList.add('relative', 'group');
+
+        const refineBtn = doc.createElement('button');
+        refineBtn.className = 'refine-btn top-4 right-4 bg-indigo-600/90 hover:bg-indigo-500 text-white text-[9px] font-bold py-1.5 px-3 rounded-full flex items-center shadow-2xl transition-all hover:scale-105';
+        refineBtn.innerHTML = '<i class="fas fa-wand-magic-sparkles mr-2"></i>Refine Section';
+        refineBtn.onclick = (e) => {
+            e.stopPropagation();
+            refineCreativeSection(docId, idx, section);
+        };
+        section.appendChild(refineBtn);
+    });
+}
+
+/**
+ * Sync updated HTML from iframe back to Firestore
+ */
+async function syncCreativeChanges(docId) {
+    const iframe = document.getElementById('creative-result-iframe');
+    if (!iframe || !iframe.contentDocument) return;
+
+    // Clone and clean for storage (remove UI buttons before saving)
+    const docClone = iframe.contentDocument.documentElement.cloneNode(true);
+    docClone.querySelectorAll('.refine-btn, .img-overlay').forEach(el => el.remove());
+
+    // Get clean body content
+    const updatedHtml = docClone.querySelector('body').innerHTML.trim();
+
+    try {
+        await db.collection('creativeProjects').doc(docId).update({
+            htmlContent: updatedHtml,
+            lastModified: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        console.log('[Creative] Changes synced to Cloud.');
+    } catch (e) {
+        console.error('Failed to sync changes:', e);
+    }
+}
+
+/**
+ * Refine a specific section using AI (Enhanced UX)
+ */
+async function refineCreativeSection(docId, sectionIdx, sectionEl) {
+    // Premium Design: Replace prompt with a custom UI (simplified here but functional)
+    const instruction = prompt('AI Refinement: How should I improve this section?');
+    if (!instruction) return;
+
+    showNotification('AI is thinking...', 'info');
+    sectionEl.classList.add('opacity-40', 'transition-opacity', 'duration-500');
+
+    try {
+        const refineFn = firebase.functions().httpsCallable('refineCreativeContent');
+        const result = await refineFn({
+            projectId: docId,
+            sectionIndex: sectionIdx,
+            instruction: instruction,
+            currentContent: sectionEl.innerHTML
+        });
+
+        if (result.data && result.data.newHtml) {
+            sectionEl.innerHTML = result.data.newHtml;
+            showNotification('Section updated successfully!', 'success');
+
+            // Re-setup the refine button for the new content
+            const iframe = document.getElementById('creative-result-iframe');
+            if (iframe) setupDetailedEditing(iframe, docId);
+
+            // AUTO-SAVE: Sync the whole document back to Firestore
+            await syncCreativeChanges(docId);
         }
-
-        showNotification(`${config.name} generated successfully!`, 'success');
-
     } catch (error) {
-        console.error('[CreativeModal] Generation error:', error);
-        stopProgressBar(0); // Show failed state
-        document.getElementById('creative-loading').classList.add('hidden');
-        document.getElementById('creative-placeholder').classList.remove('hidden');
-        showNotification('Generation failed: ' + error.message, 'error');
+        showNotification('Refinement failed: ' + error.message, 'error');
+    } finally {
+        sectionEl.classList.remove('opacity-40');
+    }
+}
+
+/**
+ * Swap or Refine Image with AI (Enhanced UX)
+ */
+async function swapCreativeImage(docId, imgEl) {
+    const promptText = prompt('Describe the new image for this spot:');
+    if (promptText === null) return;
+
+    showNotification('Generating new visual...', 'info');
+    imgEl.classList.add('animate-pulse', 'brightness-50');
+
+    try {
+        const swapFn = firebase.functions().httpsCallable('refreshCreativeImage');
+        const result = await swapFn({
+            projectId: docId,
+            prompt: promptText,
+            currentUrl: imgEl.src
+        });
+
+        if (result.data && result.data.imageUrl) {
+            imgEl.src = result.data.imageUrl;
+            showNotification('Image updated!', 'success');
+
+            // AUTO-SAVE
+            await syncCreativeChanges(docId);
+        }
+    } catch (error) {
+        showNotification('Image swap failed.', 'error');
+    } finally {
+        imgEl.classList.remove('animate-pulse', 'brightness-50');
     }
 }
 
@@ -4052,7 +4327,13 @@ window.downloadCreativeAsPDF = function () {
     showNotification('Generating PDF... Please wait', 'info');
 
     // Get the content element
-    const contentEl = container.querySelector('.prose') || container.firstElementChild;
+    let contentEl;
+    const iframe = container.querySelector('iframe');
+    if (iframe) {
+        contentEl = iframe.contentDocument.body;
+    } else {
+        contentEl = container.querySelector('.prose') || container.firstElementChild;
+    }
 
     // Configure html2pdf options
     const options = {

@@ -4730,339 +4730,333 @@ exports.generateCreativeContent = onCall({ cors: true, timeoutSeconds: 540, memo
         return { success: false, error: 'Unauthenticated' };
     }
 
-    const { type, inputs, advancedOptions = {}, projectContext, plan = {} } = request.data;
+    const { type, inputs, advancedOptions = {}, projectContext, plan = {}, projectId } = request.data;
 
-    console.log('[generateCreativeContent] Starting:', type, 'Advanced Options:', JSON.stringify(advancedOptions));
+    console.log('[generateCreativeContent] Starting:', type, 'ProjectID:', projectId);
 
-    // Define executeLLM helper for agents to use (Centralized LLM Caller with Fallback)
+    // Define executeLLM helper
     const executeLLM = async (systemPrompt, userPrompt) => {
-        // Priority Order: DeepSeek → OpenAI → Google
         const fallbackProviders = [
             { provider: 'deepseek', model: 'deepseek-chat' },
             { provider: 'openai', model: 'gpt-4o' },
             { provider: 'google', model: 'gemini-2.0-flash-exp' }
         ];
 
-        // Use plan config if provided, otherwise try fallback chain
         const configuredProvider = plan.modelConfig?.provider;
         const configuredModel = plan.modelConfig?.model;
-
         if (configuredProvider && configuredModel) {
-            // If explicitly configured, try that first then fallback
             fallbackProviders.unshift({ provider: configuredProvider, model: configuredModel });
         }
 
         let lastError = null;
         for (const { provider, model } of fallbackProviders) {
             try {
-                console.log(`[executeLLM] Trying ${provider}/${model}...`);
-                const response = await callLLM(
-                    provider,
-                    model,
-                    [
-                        { role: 'system', content: systemPrompt },
-                        { role: 'user', content: userPrompt }
-                    ],
-                    0.7
-                );
-                console.log(`[executeLLM] ✅ Success with ${provider}/${model}`);
+                const response = await callLLM(provider, model, [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }], 0.7);
                 return response.content || response;
             } catch (error) {
-                console.log(`[executeLLM] ❌ ${provider}/${model} failed: ${error.message}`);
+                console.log(`[executeLLM] ${provider}/${model} failed: ${error.message}`);
                 lastError = error;
-                // Continue to next provider
             }
         }
-
-        // All providers failed
         throw lastError || new Error('All LLM providers failed');
     };
 
-    // === UNIVERSAL CREATIVE AGENT ROUTING ===
-    const agentSupportedTypes = ['pitch_deck', 'product_brochure', 'one_pager'];
-    if (agentSupportedTypes.includes(type)) {
-        try {
-            // Pass 'type' and 'advancedOptions' to the universal agent so it knows which strategy to use
-            const resultHTML = await createCreativeContent(inputs, projectContext, plan, executeLLM, type, advancedOptions);
-            return {
-                success: true,
-                type: 'html',
-                data: resultHTML,
-                metadata: {
-                    provider: 'agent:universal_creator',
-                    contentType: type,
-                    model: 'multi-step',
-                    imageModel: 'imagen-4.0-generate-001'
-                }
-            };
-        } catch (agentErr) {
-            console.error(`[generateCreativeContent] Universal Agent (${type}) failed:`, agentErr);
-            return { success: false, error: `Agent Generation Failed: ${agentErr.message}` };
-        }
-    }
-    // ========================================
-
     try {
-        const { type, inputs = {}, projectContext, targetLanguage = 'English', mode = 'balanced' } = request.data || {};
-        const { topic, tone, format, audience, slideCount, ratio, style, negativePrompt } = inputs;
-        const startTime = Date.now();
+        const resultHTML = await createCreativeContent(inputs, projectContext, plan, executeLLM, type, advancedOptions);
 
-        console.log(`[generateCreativeContent] Starting: ${type}, Mode: ${mode}`);
-
-        // 2. Get OpenAI Key (for both Router and Arena)
-        const apiKey = await getSystemApiKey('openai');
-        if (!apiKey) throw new Error('OpenAI API key not configured');
-
-        const { OpenAI } = require('openai');
-        const openai = new OpenAI({ apiKey });
-
-        // Helper: Model Agnostic Execution
-        const executeLLM = async (messages, config) => {
-            const completion = await openai.chat.completions.create({
-                model: config.model || 'gpt-4o',
-                messages: messages,
-                temperature: config.temperature || 0.7
+        if (projectId) {
+            await admin.firestore().collection('creativeProjects').doc(projectId).update({
+                htmlContent: resultHTML,
+                status: 'completed',
+                completedAt: admin.firestore.FieldValue.serverTimestamp()
             });
-            return completion.choices[0].message.content;
+        }
+
+        return {
+            success: true,
+            type: 'html',
+            data: resultHTML,
+            projectId: projectId,
+            metadata: {
+                provider: 'agent:universal_creator',
+                contentType: type,
+                model: 'multi-step'
+            }
         };
+    } catch (error) {
+        console.error('[generateCreativeContent] ERROR:', error);
+        if (projectId) {
+            await admin.firestore().collection('creativeProjects').doc(projectId).update({
+                status: 'failed',
+                error: error.message
+            });
+        }
+        return { success: false, error: error.message };
+    }
+});
+// ========================================
 
-        // 3. Handle Image Generation - Route based on Global Routing Defaults
-        if (type === 'promo_images') {
-            console.log('[generateCreativeContent] Image gen requested. Routing...');
+try {
+    const { type, inputs = {}, projectContext, targetLanguage = 'English', mode = 'balanced' } = request.data || {};
+    const { topic, tone, format, audience, slideCount, ratio, style, negativePrompt } = inputs;
+    const startTime = Date.now();
 
-            // Check for text requirements to prioritize Ideogram
-            const hasTextRequirement = /logo|text|banner|title|headline|caption|font|typography/i.test(topic + ' ' + style);
+    console.log(`[generateCreativeContent] Starting: ${type}, Mode: ${mode}`);
 
-            // Get Global Routing Defaults for Image
-            const llmConfigDoc = await db.collection('systemSettings').doc('llmConfig').get();
-            const llmConfig = llmConfigDoc.exists ? llmConfigDoc.data() : {};
-            const imageConfig = llmConfig.defaultModels?.image || {};
-            const defaultImageModel = mode === 'boost' ? imageConfig.boost?.model : imageConfig.default?.model;
-            const defaultImageProvider = mode === 'boost' ? imageConfig.boost?.provider : imageConfig.default?.provider;
+    // 2. Get OpenAI Key (for both Router and Arena)
+    const apiKey = await getSystemApiKey('openai');
+    if (!apiKey) throw new Error('OpenAI API key not configured');
 
-            console.log(`[generateCreativeContent] Global Image Defaults: provider=${defaultImageProvider}, model=${defaultImageModel}`);
+    const { OpenAI } = require('openai');
+    const openai = new OpenAI({ apiKey });
 
-            // Get available providers
-            const providersDoc = await db.collection('systemSettings').doc('imageProviders').get();
-            const providers = providersDoc.exists ? providersDoc.data() : {};
+    // Helper: Model Agnostic Execution
+    const executeLLM = async (messages, config) => {
+        const completion = await openai.chat.completions.create({
+            model: config.model || 'gpt-4o',
+            messages: messages,
+            temperature: config.temperature || 0.7
+        });
+        return completion.choices[0].message.content;
+    };
 
-            // Priority: Explicit Input > Global Config > Ideogram (if text) > Flux (Performance) > DALL-E (Fallback)
-            let selectedProvider = inputs.provider || defaultImageProvider || 'dalle';
-            let selectedModel = inputs.model || defaultImageModel || 'dall-e-3';
+    // 3. Handle Image Generation - Route based on Global Routing Defaults
+    if (type === 'promo_images') {
+        console.log('[generateCreativeContent] Image gen requested. Routing...');
 
-            // Only apply smart routing fallbacks if NEITHER explicit NOR Global Routing Defaults are configured
-            if (!inputs.provider && !defaultImageProvider) {
-                if (hasTextRequirement && providers.ideogram?.apiKey && providers.ideogram?.enabled !== false) {
-                    selectedProvider = 'ideogram';
-                } else if (providers.flux?.apiKey && providers.flux?.enabled !== false) {
-                    selectedProvider = 'flux';
-                } else if (providers.ideogram?.apiKey && providers.ideogram?.enabled !== false) {
-                    // Even if no text, Ideogram is often better for "Promo" than DALL-E
-                    selectedProvider = 'ideogram';
-                }
+        // Check for text requirements to prioritize Ideogram
+        const hasTextRequirement = /logo|text|banner|title|headline|caption|font|typography/i.test(topic + ' ' + style);
+
+        // Get Global Routing Defaults for Image
+        const llmConfigDoc = await db.collection('systemSettings').doc('llmConfig').get();
+        const llmConfig = llmConfigDoc.exists ? llmConfigDoc.data() : {};
+        const imageConfig = llmConfig.defaultModels?.image || {};
+        const defaultImageModel = mode === 'boost' ? imageConfig.boost?.model : imageConfig.default?.model;
+        const defaultImageProvider = mode === 'boost' ? imageConfig.boost?.provider : imageConfig.default?.provider;
+
+        console.log(`[generateCreativeContent] Global Image Defaults: provider=${defaultImageProvider}, model=${defaultImageModel}`);
+
+        // Get available providers
+        const providersDoc = await db.collection('systemSettings').doc('imageProviders').get();
+        const providers = providersDoc.exists ? providersDoc.data() : {};
+
+        // Priority: Explicit Input > Global Config > Ideogram (if text) > Flux (Performance) > DALL-E (Fallback)
+        let selectedProvider = inputs.provider || defaultImageProvider || 'dalle';
+        let selectedModel = inputs.model || defaultImageModel || 'dall-e-3';
+
+        // Only apply smart routing fallbacks if NEITHER explicit NOR Global Routing Defaults are configured
+        if (!inputs.provider && !defaultImageProvider) {
+            if (hasTextRequirement && providers.ideogram?.apiKey && providers.ideogram?.enabled !== false) {
+                selectedProvider = 'ideogram';
+            } else if (providers.flux?.apiKey && providers.flux?.enabled !== false) {
+                selectedProvider = 'flux';
+            } else if (providers.ideogram?.apiKey && providers.ideogram?.enabled !== false) {
+                // Even if no text, Ideogram is often better for "Promo" than DALL-E
+                selectedProvider = 'ideogram';
             }
+        }
 
-            console.log(`[generateCreativeContent] Final Selected Provider: ${selectedProvider}, Model: ${selectedModel} (Text Req: ${hasTextRequirement})`);
+        console.log(`[generateCreativeContent] Final Selected Provider: ${selectedProvider}, Model: ${selectedModel} (Text Req: ${hasTextRequirement})`);
 
-            // Route image generation based on Global Routing Defaults
-            const imagePrompt = `${topic}. Style: ${style}. ${projectContext ? `Context: ${projectContext.substring(0, 300)}` : ''}`;
+        // Route image generation based on Global Routing Defaults
+        const imagePrompt = `${topic}. Style: ${style}. ${projectContext ? `Context: ${projectContext.substring(0, 300)}` : ''}`;
 
-            console.log(`[generateCreativeContent] Routing image to: ${selectedProvider}/${selectedModel}`);
+        console.log(`[generateCreativeContent] Routing image to: ${selectedProvider}/${selectedModel}`);
 
-            // Google Imagen (Gemini API)
-            if (selectedProvider === 'google' || selectedModel?.includes('imagen')) {
-                try {
-                    // Safety check: Ensure we don't use a text model for Imagen
-                    const isImagenModel = selectedModel?.includes('imagen') || selectedModel?.includes('nano-banana');
-                    const imagenModel = isImagenModel ? selectedModel : 'imagen-3.0-generate-001';
-
-                    console.log(`[generateCreativeContent] Using Google Imagen: ${imagenModel} (Original select: ${selectedModel})`);
-                    const imagenResult = await generateWithImagen(imagePrompt, '1024x1024', imagenModel);
-                    return {
-                        success: true,
-                        type: 'image',
-                        data: [imagenResult],
-                        metadata: { model: imagenModel, provider: 'google' }
-                    };
-                } catch (err) {
-                    console.error('Imagen failed:', err.message);
-                    // Continue to fallback
-                }
-            }
-
-            // Ideogram
-            if (selectedProvider === 'ideogram') {
-                try {
-                    const ideogramResult = await generateWithIdeogram(
-                        imagePrompt,
-                        await getImageApiKey('ideogram')
-                    );
-                    return {
-                        success: true,
-                        type: 'image',
-                        data: [ideogramResult],
-                        metadata: { model: 'v_2', provider: 'ideogram' }
-                    };
-                } catch (err) {
-                    console.error('Ideogram failed:', err.message);
-                }
-            }
-
-            // Replicate/Flux (Nano Banana)
-            if (selectedProvider === 'replicate' || selectedProvider === 'flux' || selectedModel?.includes('flux')) {
-                try {
-                    const bananaResult = await callNanobananana({
-                        prompt: imagePrompt,
-                        negative_prompt: negativePrompt || 'text, blurry, low quality',
-                        width: 1024,
-                        height: 1024,
-                        num_inference_steps: 30
-                    });
-                    if (bananaResult && bananaResult.length > 0) {
-                        return {
-                            success: true,
-                            type: 'image',
-                            data: bananaResult,
-                            metadata: { model: selectedModel || 'flux-dev', provider: 'replicate' }
-                        };
-                    }
-                } catch (err) {
-                    console.error('Flux/Replicate failed:', err.message);
-                }
-            }
-
-            // Ultimate fallback: Google Imagen (NO DALL-E - quality is poor and expensive)
-            console.warn('[generateCreativeContent] No configured provider worked, using Imagen...');
+        // Google Imagen (Gemini API)
+        if (selectedProvider === 'google' || selectedModel?.includes('imagen')) {
             try {
-                // Try Imagen 4.0 Fast first (best quality/speed ratio)
-                const imagenResult = await generateWithImagen(imagePrompt, '1024x1024', 'imagen-4.0-fast-generate-001');
+                // Safety check: Ensure we don't use a text model for Imagen
+                const isImagenModel = selectedModel?.includes('imagen') || selectedModel?.includes('nano-banana');
+                const imagenModel = isImagenModel ? selectedModel : 'imagen-3.0-generate-001';
+
+                console.log(`[generateCreativeContent] Using Google Imagen: ${imagenModel} (Original select: ${selectedModel})`);
+                const imagenResult = await generateWithImagen(imagePrompt, '1024x1024', imagenModel);
                 return {
                     success: true,
                     type: 'image',
                     data: [imagenResult],
-                    metadata: { model: 'imagen-4.0-fast-generate-001', provider: 'google' }
+                    metadata: { model: imagenModel, provider: 'google' }
                 };
-            } catch (imagenErr) {
-                console.error('Imagen 4.0 Fast failed, trying Imagen 3.0...', imagenErr.message);
-                try {
-                    // Fallback to Imagen 3.0
-                    const imagen3Result = await generateWithImagen(imagePrompt, '1024x1024', 'imagen-3.0-fast-generate-001');
+            } catch (err) {
+                console.error('Imagen failed:', err.message);
+                // Continue to fallback
+            }
+        }
+
+        // Ideogram
+        if (selectedProvider === 'ideogram') {
+            try {
+                const ideogramResult = await generateWithIdeogram(
+                    imagePrompt,
+                    await getImageApiKey('ideogram')
+                );
+                return {
+                    success: true,
+                    type: 'image',
+                    data: [ideogramResult],
+                    metadata: { model: 'v_2', provider: 'ideogram' }
+                };
+            } catch (err) {
+                console.error('Ideogram failed:', err.message);
+            }
+        }
+
+        // Replicate/Flux (Nano Banana)
+        if (selectedProvider === 'replicate' || selectedProvider === 'flux' || selectedModel?.includes('flux')) {
+            try {
+                const bananaResult = await callNanobananana({
+                    prompt: imagePrompt,
+                    negative_prompt: negativePrompt || 'text, blurry, low quality',
+                    width: 1024,
+                    height: 1024,
+                    num_inference_steps: 30
+                });
+                if (bananaResult && bananaResult.length > 0) {
                     return {
                         success: true,
                         type: 'image',
-                        data: [imagen3Result],
-                        metadata: { model: 'imagen-3.0-fast-generate-001', provider: 'google' }
+                        data: bananaResult,
+                        metadata: { model: selectedModel || 'flux-dev', provider: 'replicate' }
                     };
-                } catch (imagen3Err) {
-                    return { success: false, error: 'Image generation failed: ' + imagen3Err.message };
                 }
+            } catch (err) {
+                console.error('Flux/Replicate failed:', err.message);
             }
         }
 
-        // 4. ZYNK Core Routing (Text Generation)
-        // Plan the strategy
-        const plan = StrategyPlanner.plan({ mode, taskType: type });
-
-        // FORCE DISABLE ARENA for HTML-heavy types to prevent structure degradation and ensure DeepSeek-R1 raw output
-        if (['pitch_deck', 'one_pager', 'product_brochure'].includes(type) || plan.modelConfig.model === 'deepseek-reasoner') {
-            console.log(`[ZYNK Core] 🚨 Forcing Arena OFF for ${type} to preserve HTML structure & Chain of Thought`);
-            plan.useArena = false;
-        }
-
-        console.log(`[ZYNK Core] Strategy Planned: ${plan.mode} (Arena: ${plan.useArena})`);
-
-        let resultData = '';
-        let debugLogs = '';
-
-        // Formulate Base Prompt
-        let systemPrompt = `You are an expert creative content generator. Create content in ${targetLanguage}. Return ONLY valid HTML code inside a div. No markdown fences.`;
-        let userPrompt = `Context: ${projectContext}\nTopic: ${topic}\nTone: ${tone}\nTarget Audience: ${audience}\n`;
-
-        // Type-specific additions
-        let generatedImages = [];
-
-        if (type === 'product_brochure') {
-            // Extract user image customization preferences
-            const imageStyle = inputs.imageStyle || inputs.style || 'Modern & Clean';
-            const imageCountStr = inputs.imageCount || '2 images (Standard)';
-            const colorScheme = inputs.colorScheme || 'Auto (Match Brand)';
-            const customImagePrompt = inputs.customImagePrompt || '';
-
-            // Parse image count
-            let imageCount = 2;
-            if (imageCountStr.includes('3')) imageCount = 3;
-            if (imageCountStr.includes('4')) imageCount = 4;
-
-            // Map color scheme to style modifier
-            const colorModifiers = {
-                'Auto (Match Brand)': '',
-                'Blue & Professional': 'blue tones, professional corporate colors',
-                'Green & Nature': 'green and natural earth tones, eco-friendly colors',
-                'Orange & Energy': 'vibrant orange and warm energetic colors',
-                'Purple & Creative': 'purple and violet creative palette',
-                'Monochrome': 'black and white, grayscale, monochrome'
+        // Ultimate fallback: Google Imagen (NO DALL-E - quality is poor and expensive)
+        console.warn('[generateCreativeContent] No configured provider worked, using Imagen...');
+        try {
+            // Try Imagen 4.0 Fast first (best quality/speed ratio)
+            const imagenResult = await generateWithImagen(imagePrompt, '1024x1024', 'imagen-4.0-fast-generate-001');
+            return {
+                success: true,
+                type: 'image',
+                data: [imagenResult],
+                metadata: { model: 'imagen-4.0-fast-generate-001', provider: 'google' }
             };
-            const colorMod = colorModifiers[colorScheme] || '';
-
-            // Build dynamic image prompts based on user preferences
-            console.log(`[generateCreativeContent] 📸 Generating ${imageCount} brochure images with Nano Banana Pro...`);
-            console.log(`[generateCreativeContent] Style: ${imageStyle}, Color: ${colorScheme}, Custom: ${customImagePrompt ? 'Yes' : 'None'}`);
-
+        } catch (imagenErr) {
+            console.error('Imagen 4.0 Fast failed, trying Imagen 3.0...', imagenErr.message);
             try {
-                const basePrompts = [
-                    `Professional product hero image for: ${topic}. Style: ${imageStyle}. ${colorMod}. Premium quality, no text.`,
-                    `Abstract background visual for: ${topic}. Style: ${imageStyle}. ${colorMod}. Suitable for brochure, gradient style.`,
-                    `Detail/feature showcase image for: ${topic}. Style: ${imageStyle}. ${colorMod}. Clean composition.`,
-                    `Lifestyle/application scene for: ${topic}. Style: ${imageStyle}. ${colorMod}. Contextual usage.`
-                ];
-
-                const imagePrompts = basePrompts.slice(0, imageCount).map(prompt =>
-                    customImagePrompt ? `${prompt} ${customImagePrompt}` : prompt
-                );
-
-                for (const imgPrompt of imagePrompts) {
-                    try {
-                        const imageUrl = await generateWithNanoBananaPro(imgPrompt, '1024x1024');
-                        generatedImages.push(imageUrl);
-                        console.log(`[generateCreativeContent] ✅ Brochure image generated: ${imageUrl.substring(0, 50)}...`);
-                    } catch (imgError) {
-                        console.warn(`[generateCreativeContent] ⚠️ Image generation failed:`, imgError.message);
-                    }
-                }
-            } catch (error) {
-                console.warn('[generateCreativeContent] Image generation skipped:', error.message);
+                // Fallback to Imagen 3.0
+                const imagen3Result = await generateWithImagen(imagePrompt, '1024x1024', 'imagen-3.0-fast-generate-001');
+                return {
+                    success: true,
+                    type: 'image',
+                    data: [imagen3Result],
+                    metadata: { model: 'imagen-3.0-fast-generate-001', provider: 'google' }
+                };
+            } catch (imagen3Err) {
+                return { success: false, error: 'Image generation failed: ' + imagen3Err.message };
             }
+        }
+    }
 
-            const imageSection = generatedImages.length > 0
-                ? `\n\nGenerated Images for brochure (use these URLs in your HTML):\n${generatedImages.map((url, i) => `Image ${i + 1}: ${url}`).join('\n')}\n\n`
-                : '';
+    // 4. ZYNK Core Routing (Text Generation)
+    // Plan the strategy
+    const plan = StrategyPlanner.plan({ mode, taskType: type });
 
-            userPrompt += `Create a specialized Product Brochure in ${format} layout. Structure HTML for A4. Use Tailwind CSS. Sections: Cover, Problem, Solution, Key Features.${imageSection}Include <img> tags with the provided image URLs if available. Match the ${imageStyle} visual style and ${colorScheme} color theme.`;
-        } else if (type === 'one_pager') {
-            // Extract one-pager options
-            const onepagerFormat = inputs['onepager-format'] || inputs.format || 'Executive Summary';
-            const onepagerStyle = inputs['onepager-style'] || inputs.style || 'Modern & Clean';
-            const includeImage = inputs['onepager-include-image'] || 'Yes - Hero Image';
+    // FORCE DISABLE ARENA for HTML-heavy types to prevent structure degradation and ensure DeepSeek-R1 raw output
+    if (['pitch_deck', 'one_pager', 'product_brochure'].includes(type) || plan.modelConfig.model === 'deepseek-reasoner') {
+        console.log(`[ZYNK Core] 🚨 Forcing Arena OFF for ${type} to preserve HTML structure & Chain of Thought`);
+        plan.useArena = false;
+    }
 
-            // Generate AI image if requested
-            if (!includeImage.includes('No')) {
+    console.log(`[ZYNK Core] Strategy Planned: ${plan.mode} (Arena: ${plan.useArena})`);
+
+    let resultData = '';
+    let debugLogs = '';
+
+    // Formulate Base Prompt
+    let systemPrompt = `You are an expert creative content generator. Create content in ${targetLanguage}. Return ONLY valid HTML code inside a div. No markdown fences.`;
+    let userPrompt = `Context: ${projectContext}\nTopic: ${topic}\nTone: ${tone}\nTarget Audience: ${audience}\n`;
+
+    // Type-specific additions
+    let generatedImages = [];
+
+    if (type === 'product_brochure') {
+        // Extract user image customization preferences
+        const imageStyle = inputs.imageStyle || inputs.style || 'Modern & Clean';
+        const imageCountStr = inputs.imageCount || '2 images (Standard)';
+        const colorScheme = inputs.colorScheme || 'Auto (Match Brand)';
+        const customImagePrompt = inputs.customImagePrompt || '';
+
+        // Parse image count
+        let imageCount = 2;
+        if (imageCountStr.includes('3')) imageCount = 3;
+        if (imageCountStr.includes('4')) imageCount = 4;
+
+        // Map color scheme to style modifier
+        const colorModifiers = {
+            'Auto (Match Brand)': '',
+            'Blue & Professional': 'blue tones, professional corporate colors',
+            'Green & Nature': 'green and natural earth tones, eco-friendly colors',
+            'Orange & Energy': 'vibrant orange and warm energetic colors',
+            'Purple & Creative': 'purple and violet creative palette',
+            'Monochrome': 'black and white, grayscale, monochrome'
+        };
+        const colorMod = colorModifiers[colorScheme] || '';
+
+        // Build dynamic image prompts based on user preferences
+        console.log(`[generateCreativeContent] 📸 Generating ${imageCount} brochure images with Nano Banana Pro...`);
+        console.log(`[generateCreativeContent] Style: ${imageStyle}, Color: ${colorScheme}, Custom: ${customImagePrompt ? 'Yes' : 'None'}`);
+
+        try {
+            const basePrompts = [
+                `Professional product hero image for: ${topic}. Style: ${imageStyle}. ${colorMod}. Premium quality, no text.`,
+                `Abstract background visual for: ${topic}. Style: ${imageStyle}. ${colorMod}. Suitable for brochure, gradient style.`,
+                `Detail/feature showcase image for: ${topic}. Style: ${imageStyle}. ${colorMod}. Clean composition.`,
+                `Lifestyle/application scene for: ${topic}. Style: ${imageStyle}. ${colorMod}. Contextual usage.`
+            ];
+
+            const imagePrompts = basePrompts.slice(0, imageCount).map(prompt =>
+                customImagePrompt ? `${prompt} ${customImagePrompt}` : prompt
+            );
+
+            for (const imgPrompt of imagePrompts) {
                 try {
-                    console.log('[generateCreativeContent] 📸 Generating 1-Pager image with Nano Banana Pro...');
-                    const imageType = includeImage.includes('Hero') ? 'hero visual' : 'abstract background';
-                    const imagePrompt = `Professional ${imageType} for: ${topic}. Style: ${onepagerStyle}. Clean, modern, corporate.`;
-                    const imageUrl = await generateWithNanoBananaPro(imagePrompt, '1024x1024');
+                    const imageUrl = await generateWithNanoBananaPro(imgPrompt, '1024x1024');
                     generatedImages.push(imageUrl);
-                    console.log(`[generateCreativeContent] ✅ 1-Pager image generated`);
-                } catch (error) {
-                    console.warn('[generateCreativeContent] 1-Pager image generation skipped:', error.message);
+                    console.log(`[generateCreativeContent] ✅ Brochure image generated: ${imageUrl.substring(0, 50)}...`);
+                } catch (imgError) {
+                    console.warn(`[generateCreativeContent] ⚠️ Image generation failed:`, imgError.message);
                 }
             }
+        } catch (error) {
+            console.warn('[generateCreativeContent] Image generation skipped:', error.message);
+        }
 
-            const imageSection = generatedImages.length > 0
-                ? `\n\nGenerated Image (use this URL in your HTML): ${generatedImages[0]}\n\n`
-                : '';
+        const imageSection = generatedImages.length > 0
+            ? `\n\nGenerated Images for brochure (use these URLs in your HTML):\n${generatedImages.map((url, i) => `Image ${i + 1}: ${url}`).join('\n')}\n\n`
+            : '';
 
-            userPrompt += `Create a professional One-Pager document in ${onepagerFormat} format. Style: ${onepagerStyle}.
+        userPrompt += `Create a specialized Product Brochure in ${format} layout. Structure HTML for A4. Use Tailwind CSS. Sections: Cover, Problem, Solution, Key Features.${imageSection}Include <img> tags with the provided image URLs if available. Match the ${imageStyle} visual style and ${colorScheme} color theme.`;
+    } else if (type === 'one_pager') {
+        // Extract one-pager options
+        const onepagerFormat = inputs['onepager-format'] || inputs.format || 'Executive Summary';
+        const onepagerStyle = inputs['onepager-style'] || inputs.style || 'Modern & Clean';
+        const includeImage = inputs['onepager-include-image'] || 'Yes - Hero Image';
+
+        // Generate AI image if requested
+        if (!includeImage.includes('No')) {
+            try {
+                console.log('[generateCreativeContent] 📸 Generating 1-Pager image with Nano Banana Pro...');
+                const imageType = includeImage.includes('Hero') ? 'hero visual' : 'abstract background';
+                const imagePrompt = `Professional ${imageType} for: ${topic}. Style: ${onepagerStyle}. Clean, modern, corporate.`;
+                const imageUrl = await generateWithNanoBananaPro(imagePrompt, '1024x1024');
+                generatedImages.push(imageUrl);
+                console.log(`[generateCreativeContent] ✅ 1-Pager image generated`);
+            } catch (error) {
+                console.warn('[generateCreativeContent] 1-Pager image generation skipped:', error.message);
+            }
+        }
+
+        const imageSection = generatedImages.length > 0
+            ? `\n\nGenerated Image (use this URL in your HTML): ${generatedImages[0]}\n\n`
+            : '';
+
+        userPrompt += `Create a professional One-Pager document in ${onepagerFormat} format. Style: ${onepagerStyle}.
 Structure: Single A4 page, dense but readable.
 Sections based on format:
 - Executive Summary: Vision, Key Points, Call to Action
@@ -5070,69 +5064,69 @@ Sections based on format:
 - Product Overview: Features, Benefits, Use Cases
 - Company Profile: About, Team, Achievements
 ${imageSection}Include <img> tag with the image URL if provided. Use Tailwind CSS with modern gradients and typography.`;
-        } else if (type === 'pitch_deck') {
-            // Extract pitch deck options
-            const pitchTitle = inputs['pitch-title'] || inputs.title || topic;
-            const pitchOverview = inputs['pitch-topic'] || inputs.overview || '';
-            const slideCountStr = inputs['pitch-slides'] || '10 slides (Detailed)';
-            const pitchPurpose = inputs['pitch-purpose'] || 'Investor Pitch';
-            const pitchStyle = inputs['pitch-style'] || 'Modern Tech';
-            const targetAudience = inputs['pitch-audience'] || inputs.audience || 'Investors';
-            const includeImages = inputs['pitch-include-images'] || 'Yes - Cover + Section Headers';
+    } else if (type === 'pitch_deck') {
+        // Extract pitch deck options
+        const pitchTitle = inputs['pitch-title'] || inputs.title || topic;
+        const pitchOverview = inputs['pitch-topic'] || inputs.overview || '';
+        const slideCountStr = inputs['pitch-slides'] || '10 slides (Detailed)';
+        const pitchPurpose = inputs['pitch-purpose'] || 'Investor Pitch';
+        const pitchStyle = inputs['pitch-style'] || 'Modern Tech';
+        const targetAudience = inputs['pitch-audience'] || inputs.audience || 'Investors';
+        const includeImages = inputs['pitch-include-images'] || 'Yes - Cover + Section Headers';
 
-            // Parse slide count
-            let slideCount = 10;
-            if (slideCountStr.includes('5')) slideCount = 5;
-            if (slideCountStr.includes('8')) slideCount = 8;
-            if (slideCountStr.includes('12')) slideCount = 12;
+        // Parse slide count
+        let slideCount = 10;
+        if (slideCountStr.includes('5')) slideCount = 5;
+        if (slideCountStr.includes('8')) slideCount = 8;
+        if (slideCountStr.includes('12')) slideCount = 12;
 
-            // Map style to visual attributes
-            const styleConfig = {
-                'Modern Tech': { gradient: 'from-indigo-600 to-purple-600', accent: 'indigo', bg: 'slate-900' },
-                'Corporate Classic': { gradient: 'from-blue-700 to-blue-900', accent: 'blue', bg: 'gray-900' },
-                'Creative Bold': { gradient: 'from-pink-500 to-orange-500', accent: 'pink', bg: 'gray-900' },
-                'Minimalist': { gradient: 'from-gray-700 to-gray-900', accent: 'gray', bg: 'white' },
-                'Startup Friendly': { gradient: 'from-emerald-500 to-teal-600', accent: 'emerald', bg: 'slate-900' }
-            };
-            const style = styleConfig[pitchStyle] || styleConfig['Modern Tech'];
+        // Map style to visual attributes
+        const styleConfig = {
+            'Modern Tech': { gradient: 'from-indigo-600 to-purple-600', accent: 'indigo', bg: 'slate-900' },
+            'Corporate Classic': { gradient: 'from-blue-700 to-blue-900', accent: 'blue', bg: 'gray-900' },
+            'Creative Bold': { gradient: 'from-pink-500 to-orange-500', accent: 'pink', bg: 'gray-900' },
+            'Minimalist': { gradient: 'from-gray-700 to-gray-900', accent: 'gray', bg: 'white' },
+            'Startup Friendly': { gradient: 'from-emerald-500 to-teal-600', accent: 'emerald', bg: 'slate-900' }
+        };
+        const style = styleConfig[pitchStyle] || styleConfig['Modern Tech'];
 
-            // Generate AI images if requested
-            if (!includeImages.includes('No')) {
-                console.log(`[generateCreativeContent] 📸 Generating Pitch Deck images with Nano Banana Pro...`);
-                try {
-                    // Cover image
-                    const coverPrompt = `Professional pitch deck cover visual for: ${pitchTitle}. ${pitchPurpose} style. Modern, impactful, no text. Style: ${pitchStyle}.`;
-                    const coverImage = await generateWithNanoBananaPro(coverPrompt, '1024x1024');
-                    generatedImages.push({ type: 'cover', url: coverImage });
-                    console.log(`[generateCreativeContent] ✅ Cover image generated`);
+        // Generate AI images if requested
+        if (!includeImages.includes('No')) {
+            console.log(`[generateCreativeContent] 📸 Generating Pitch Deck images with Nano Banana Pro...`);
+            try {
+                // Cover image
+                const coverPrompt = `Professional pitch deck cover visual for: ${pitchTitle}. ${pitchPurpose} style. Modern, impactful, no text. Style: ${pitchStyle}.`;
+                const coverImage = await generateWithNanoBananaPro(coverPrompt, '1024x1024');
+                generatedImages.push({ type: 'cover', url: coverImage });
+                console.log(`[generateCreativeContent] ✅ Cover image generated`);
 
-                    // Section header images if full option selected
-                    if (includeImages.includes('Section Headers')) {
-                        const sectionPrompts = [
-                            `Abstract visual representing business problem/challenge. Dark, dramatic. Style: ${pitchStyle}.`,
-                            `Visual representing innovative solution. Bright, hopeful. Style: ${pitchStyle}.`,
-                            `Visual representing growth and market opportunity. Charts, upward trends. Style: ${pitchStyle}.`
-                        ];
-                        for (let i = 0; i < Math.min(3, sectionPrompts.length); i++) {
-                            try {
-                                const sectionImage = await generateWithNanoBananaPro(sectionPrompts[i], '1024x1024');
-                                generatedImages.push({ type: `section-${i + 1}`, url: sectionImage });
-                                console.log(`[generateCreativeContent] ✅ Section image ${i + 1} generated`);
-                            } catch (err) {
-                                console.warn(`[generateCreativeContent] Section image ${i + 1} skipped:`, err.message);
-                            }
+                // Section header images if full option selected
+                if (includeImages.includes('Section Headers')) {
+                    const sectionPrompts = [
+                        `Abstract visual representing business problem/challenge. Dark, dramatic. Style: ${pitchStyle}.`,
+                        `Visual representing innovative solution. Bright, hopeful. Style: ${pitchStyle}.`,
+                        `Visual representing growth and market opportunity. Charts, upward trends. Style: ${pitchStyle}.`
+                    ];
+                    for (let i = 0; i < Math.min(3, sectionPrompts.length); i++) {
+                        try {
+                            const sectionImage = await generateWithNanoBananaPro(sectionPrompts[i], '1024x1024');
+                            generatedImages.push({ type: `section-${i + 1}`, url: sectionImage });
+                            console.log(`[generateCreativeContent] ✅ Section image ${i + 1} generated`);
+                        } catch (err) {
+                            console.warn(`[generateCreativeContent] Section image ${i + 1} skipped:`, err.message);
                         }
                     }
-                } catch (error) {
-                    console.warn('[generateCreativeContent] Pitch deck image generation failed:', error.message);
                 }
+            } catch (error) {
+                console.warn('[generateCreativeContent] Pitch deck image generation failed:', error.message);
             }
+        }
 
-            const imageSection = generatedImages.length > 0
-                ? `\n\nGenerated Images for slides (use these URLs in your HTML):\n${generatedImages.map((img, i) => `${img.type || `Image ${i + 1}`}: ${img.url || img}`).join('\n')}\n\n`
-                : '';
+        const imageSection = generatedImages.length > 0
+            ? `\n\nGenerated Images for slides (use these URLs in your HTML):\n${generatedImages.map((img, i) => `${img.type || `Image ${i + 1}`}: ${img.url || img}`).join('\n')}\n\n`
+            : '';
 
-            userPrompt += `Create a PROFESSIONAL ${slideCount}-slide Pitch Deck presentation.
+        userPrompt += `Create a PROFESSIONAL ${slideCount}-slide Pitch Deck presentation.
 
 PRESENTATION DETAILS:
 - Title: "${pitchTitle}"
@@ -5178,44 +5172,44 @@ DESIGN REQUIREMENTS:
 - Add subtle animations: hover effects, transitions
 
 OUTPUT: Complete, print-ready HTML that looks like a real presentation deck.`;
-        } else if (type === 'email_template') {
-            userPrompt += `Create a professional Email Template for ${inputs.emailType}. Include Subject, Body, Signature.`;
-        } else if (type === 'press_release') {
-            userPrompt += `Create a formal Press Release for ${inputs.announcementType}. Format: FOR IMMEDIATE RELEASE, Dateline, Body, Quote, Boilerplate.`;
+    } else if (type === 'email_template') {
+        userPrompt += `Create a professional Email Template for ${inputs.emailType}. Include Subject, Body, Signature.`;
+    } else if (type === 'press_release') {
+        userPrompt += `Create a formal Press Release for ${inputs.announcementType}. Format: FOR IMMEDIATE RELEASE, Dateline, Body, Quote, Boilerplate.`;
+    }
+
+    if (plan.useArena) {
+        // === ADVERSARIAL MODE ===
+        const arena = new AdversarialLoop(executeLLM);
+        const arenaResult = await arena.run(
+            userPrompt, // Task
+            projectContext || "No context provided",
+            { rounds: plan.rounds, models: { pro: plan.modelConfig, balanced: plan.modelConfig } }
+        );
+
+        // The Arena returns pure text/markdown, we might need to wrap it in HTML if the prompt didn't enforce it perfectly.
+        // But 'The Judge' usually standardizes it.
+        resultData = arenaResult.finalOutput;
+        debugLogs = arenaResult.logs;
+
+        // CLEANING LOGIC: DeepSeek-R1 often wraps in ```html ... ``` or adds thinking blocks
+        // 1. Remove <think> blocks if present (DeepSeek specific)
+        resultData = resultData.replace(/<think>[\s\S]*?<\/think>/g, '');
+
+        // 2. Remove markdown fences
+        const markdownMatch = resultData.match(/```html([\s\S]*?)```/);
+        if (markdownMatch && markdownMatch[1]) {
+            console.log('[generateCreativeContent] 🧹 Stripped markdown fences from HTML');
+            resultData = markdownMatch[1].trim();
+        } else if (resultData.includes('```')) {
+            // Fallback for unlabeled blocks
+            resultData = resultData.replace(/```/g, '').trim();
         }
 
-        if (plan.useArena) {
-            // === ADVERSARIAL MODE ===
-            const arena = new AdversarialLoop(executeLLM);
-            const arenaResult = await arena.run(
-                userPrompt, // Task
-                projectContext || "No context provided",
-                { rounds: plan.rounds, models: { pro: plan.modelConfig, balanced: plan.modelConfig } }
-            );
-
-            // The Arena returns pure text/markdown, we might need to wrap it in HTML if the prompt didn't enforce it perfectly.
-            // But 'The Judge' usually standardizes it.
-            resultData = arenaResult.finalOutput;
-            debugLogs = arenaResult.logs;
-
-            // CLEANING LOGIC: DeepSeek-R1 often wraps in ```html ... ``` or adds thinking blocks
-            // 1. Remove <think> blocks if present (DeepSeek specific)
-            resultData = resultData.replace(/<think>[\s\S]*?<\/think>/g, '');
-
-            // 2. Remove markdown fences
-            const markdownMatch = resultData.match(/```html([\s\S]*?)```/);
-            if (markdownMatch && markdownMatch[1]) {
-                console.log('[generateCreativeContent] 🧹 Stripped markdown fences from HTML');
-                resultData = markdownMatch[1].trim();
-            } else if (resultData.includes('```')) {
-                // Fallback for unlabeled blocks
-                resultData = resultData.replace(/```/g, '').trim();
-            }
-
-            // 3. INJECT ZYNK WATERMARK (CSS Overlay)
-            if (type === 'pitch_deck' || type === 'product_brochure' || type === 'one_pager') {
-                console.log('[generateCreativeContent] 🏷️ Injecting ZYNK Watermark');
-                const watermarkHTML = `
+        // 3. INJECT ZYNK WATERMARK (CSS Overlay)
+        if (type === 'pitch_deck' || type === 'product_brochure' || type === 'one_pager') {
+            console.log('[generateCreativeContent] 🏷️ Injecting ZYNK Watermark');
+            const watermarkHTML = `
                  <style>
                     .zynk-watermark {
                         position: fixed;
@@ -5240,113 +5234,113 @@ OUTPUT: Complete, print-ready HTML that looks like a real presentation deck.`;
                  <div class="zynk-watermark">Powered by ZYNK</div>
                  `;
 
-                if (resultData.includes('</body>')) {
-                    resultData = resultData.replace('</body>', `${watermarkHTML}</body>`);
-                } else {
-                    resultData += watermarkHTML;
-                }
-            }
-
-            // 3. (Optional) Force Image Injection if missing
-            if (type === 'pitch_deck' && generatedImages.length > 0) {
-                // Check if any generated image URL is present in the HTML
-                const hasImages = generatedImages.some(img => {
-                    const url = typeof img === 'object' ? img.url : img;
-                    return resultData.includes(url);
-                });
-
-                if (!hasImages) {
-                    console.warn('[generateCreativeContent] ⚠️ No images found in HTML. Forcing injection...');
-                    // Inject Cover Image as background for the first slide/section
-                    const coverImg = generatedImages.find(img => img.type === 'cover') || generatedImages[0];
-                    const coverUrl = typeof coverImg === 'object' ? coverImg.url : coverImg;
-
-                    if (coverUrl) {
-                        // Attempt to find the first slide div and add background style
-                        // Assuming standard Tailwind classes or div markers. This is heuristic.
-                        // A safer bet: Prepend a style block or wrapper.
-                        // Let's replace the first substantial div with a background style? 
-                        // Or just prepend an img tag?
-                        // Simple approach: Add an img at top of body-like content
-                        // resultData = `<div class="w-full text-center p-4"><img src="${coverUrl}" class="max-w-md mx-auto rounded shadow-lg mb-8" alt="Cover Visual"></div>` + resultData;
-                    }
-                }
-            }
-        } else {
-            // === FAST PATH (Eco/Simple) ===
-            const completion = await openai.chat.completions.create({
-                model: plan.modelConfig.model,
-                messages: [
-                    { role: "system", content: systemPrompt },
-                    { role: "user", content: userPrompt }
-                ],
-                temperature: plan.modelConfig.temperature
-            });
-            resultData = completion.choices[0].message.content;
-            debugLogs = "Fast Path Execution (No Debate)";
-
-            // CLEANING LOGIC (Applied to Fast Path as well):
-            // 1. Remove <think> blocks
-            resultData = resultData.replace(/<think>[\s\S]*?<\/think>/g, '');
-
-            // 2. Remove markdown fences
-            const markdownMatch = resultData.match(/```html([\s\S]*?)```/);
-            if (markdownMatch && markdownMatch[1]) {
-                console.log('[generateCreativeContent] 🧹 Stripped markdown fences from HTML (Fast Path)');
-                resultData = markdownMatch[1].trim();
-            } else if (resultData.includes('```')) {
-                resultData = resultData.replace(/```/g, '').trim();
+            if (resultData.includes('</body>')) {
+                resultData = resultData.replace('</body>', `${watermarkHTML}</body>`);
+            } else {
+                resultData += watermarkHTML;
             }
         }
 
-        const endTime = Date.now();
-        const latencyMs = endTime - startTime;
+        // 3. (Optional) Force Image Injection if missing
+        if (type === 'pitch_deck' && generatedImages.length > 0) {
+            // Check if any generated image URL is present in the HTML
+            const hasImages = generatedImages.some(img => {
+                const url = typeof img === 'object' ? img.url : img;
+                return resultData.includes(url);
+            });
 
-        // 5. Log Execution (Async)
+            if (!hasImages) {
+                console.warn('[generateCreativeContent] ⚠️ No images found in HTML. Forcing injection...');
+                // Inject Cover Image as background for the first slide/section
+                const coverImg = generatedImages.find(img => img.type === 'cover') || generatedImages[0];
+                const coverUrl = typeof coverImg === 'object' ? coverImg.url : coverImg;
+
+                if (coverUrl) {
+                    // Attempt to find the first slide div and add background style
+                    // Assuming standard Tailwind classes or div markers. This is heuristic.
+                    // A safer bet: Prepend a style block or wrapper.
+                    // Let's replace the first substantial div with a background style? 
+                    // Or just prepend an img tag?
+                    // Simple approach: Add an img at top of body-like content
+                    // resultData = `<div class="w-full text-center p-4"><img src="${coverUrl}" class="max-w-md mx-auto rounded shadow-lg mb-8" alt="Cover Visual"></div>` + resultData;
+                }
+            }
+        }
+    } else {
+        // === FAST PATH (Eco/Simple) ===
+        const completion = await openai.chat.completions.create({
+            model: plan.modelConfig.model,
+            messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userPrompt }
+            ],
+            temperature: plan.modelConfig.temperature
+        });
+        resultData = completion.choices[0].message.content;
+        debugLogs = "Fast Path Execution (No Debate)";
+
+        // CLEANING LOGIC (Applied to Fast Path as well):
+        // 1. Remove <think> blocks
+        resultData = resultData.replace(/<think>[\s\S]*?<\/think>/g, '');
+
+        // 2. Remove markdown fences
+        const markdownMatch = resultData.match(/```html([\s\S]*?)```/);
+        if (markdownMatch && markdownMatch[1]) {
+            console.log('[generateCreativeContent] 🧹 Stripped markdown fences from HTML (Fast Path)');
+            resultData = markdownMatch[1].trim();
+        } else if (resultData.includes('```')) {
+            resultData = resultData.replace(/```/g, '').trim();
+        }
+    }
+
+    const endTime = Date.now();
+    const latencyMs = endTime - startTime;
+
+    // 5. Log Execution (Async)
+    await FeedbackLoop.logExecution({
+        userId: request.auth.uid,
+        taskType: type,
+        inputs: inputs,
+        mode: plan.mode,
+        modelConfig: plan.modelConfig,
+        output: resultData,
+        latencyMs: latencyMs,
+        status: 'success'
+    });
+
+    return {
+        success: true,
+        type: 'html',
+        content: resultData,
+        metadata: {
+            provider: plan.modelConfig.provider,
+            model: plan.modelConfig.model,
+            imageModel: generatedImages.length > 0 ? (generatedImages[0].metadata?.model || 'Nano Banana Pro') : null
+        },
+        meta: {
+            mode: plan.mode,
+            logs: debugLogs,
+            drafts: null
+        }
+    };
+
+} catch (error) {
+    console.error('[generateCreativeContent] Error:', error);
+
+    // Log Failure
+    try {
         await FeedbackLoop.logExecution({
-            userId: request.auth.uid,
+            userId: request.auth ? request.auth.uid : 'anonymous',
             taskType: type,
             inputs: inputs,
-            mode: plan.mode,
-            modelConfig: plan.modelConfig,
-            output: resultData,
-            latencyMs: latencyMs,
-            status: 'success'
+            mode: mode || 'balanced',
+            latencyMs: 0,
+            status: 'error: ' + error.message
         });
+    } catch (logErr) { console.error('Log failed', logErr); }
 
-        return {
-            success: true,
-            type: 'html',
-            content: resultData,
-            metadata: {
-                provider: plan.modelConfig.provider,
-                model: plan.modelConfig.model,
-                imageModel: generatedImages.length > 0 ? (generatedImages[0].metadata?.model || 'Nano Banana Pro') : null
-            },
-            meta: {
-                mode: plan.mode,
-                logs: debugLogs,
-                drafts: null
-            }
-        };
-
-    } catch (error) {
-        console.error('[generateCreativeContent] Error:', error);
-
-        // Log Failure
-        try {
-            await FeedbackLoop.logExecution({
-                userId: request.auth ? request.auth.uid : 'anonymous',
-                taskType: type,
-                inputs: inputs,
-                mode: mode || 'balanced',
-                latencyMs: 0,
-                status: 'error: ' + error.message
-            });
-        } catch (logErr) { console.error('Log failed', logErr); }
-
-        return { success: false, error: error.message };
-    }
+    return { success: false, error: error.message };
+}
 });
 
 // Helper for Nanobananana (Flux)
@@ -5928,3 +5922,51 @@ function generateMarketPulseData(projectData) {
         engagement: { score: 70 + Math.floor(Math.random() * 25), trend: 'up' }
     };
 }
+
+/**
+ * Refine a specific section of a creative project
+ */
+exports.refineCreativeContent = onCall({ timeoutSeconds: 300, memory: '1GiB' }, async (request) => {
+    if (!request.auth) return { success: false, error: 'Unauthenticated' };
+    const { projectId, sectionIndex, instruction, currentContent } = request.data;
+    if (!projectId) return { success: false, error: 'Missing ProjectID' };
+
+    console.log(`[refineCreativeContent] Refining section ${sectionIndex} of ${projectId}`);
+
+    try {
+        const systemPrompt = "You are a specialized content refiner. Your task is to update a specific HTML section based on user instructions while maintaining the same style and structure. Output ONLY the refined HTML snippet.";
+        const userPrompt = `Instruction: ${instruction}\n\nCurrent Content:\n${currentContent}\n\nRefined HTML:`;
+
+        // Use Gemini for speed/quality balance
+        const response = await callLLM('google', 'gemini-1.5-flash', [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+        ], 0.7);
+
+        const refinedHTML = response.content || response;
+
+        // Optionally update the main doc (this requires the whole HTML - skipping for now to keep it simple)
+        // For now just return to UI to update iframe
+        return { success: true, newHtml: refinedHTML };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+});
+
+/**
+ * Refresh/Swap an image in a creative project
+ */
+exports.refreshCreativeImage = onCall({ timeoutSeconds: 300, memory: '1GiB' }, async (request) => {
+    if (!request.auth) return { success: false, error: 'Unauthenticated' };
+    const { projectId, prompt, currentUrl } = request.data;
+
+    console.log(`[refreshCreativeImage] Refreshing image for ${projectId} with prompt: ${prompt}`);
+
+    try {
+        // Simple Vertex AI call
+        const imageResult = await generateWithVertexAI(prompt || "Modern professional technology abstract background");
+        return { success: true, imageUrl: imageResult.url };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+});
