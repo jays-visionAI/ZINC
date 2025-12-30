@@ -5004,19 +5004,7 @@ function simulateGenerationLogs(creativeType) {
     });
 }
 
-try {
-    const submitFeedbackFn = firebase.functions().httpsCallable('submitFeedback');
-    await submitFeedbackFn({
-        rating: rating, // 'good' or 'bad'
-        projectId: currentProjectId,
-        mode: currentUserPerformanceMode,
-        planType: currentCreativeType
-    });
-    console.log('Feedback submitted');
-} catch (error) {
-    console.error('Error submitting feedback:', error);
-}
-}
+
 
 
 async function cancelSchedule(scheduleId) {
