@@ -24,28 +24,10 @@ async function getVertexAccessToken() {
  * Upload Base64 Image to Firebase Storage
  */
 async function uploadBase64ToStorage(base64String, modelName) {
-    try {
-        const bucket = admin.storage().bucket();
-        const buffer = Buffer.from(base64String, 'base64');
-        const filename = `generated-images/${Date.now()}-${Math.random().toString(36).substring(7)}.png`;
-        const file = bucket.file(filename);
-
-        await file.save(buffer, {
-            metadata: {
-                contentType: 'image/png',
-                metadata: {
-                    generatedBy: 'ZYNK-AI',
-                    model: modelName
-                }
-            }
-        });
-
-        await file.makePublic();
-        return file.publicUrl();
-    } catch (error) {
-        console.error('Storage Upload Error:', error);
-        throw error;
-    }
+    // TEMPORARY FIX: Return Data URI directly to avoid Storage permission issues.
+    // This ensures images ALWAYS show up if generated.
+    console.log('[uploadBase64ToStorage] ⚠️ Returning Data URI directly (Bypassing Storage for reliability)');
+    return `data:image/png;base64,${base64String}`;
 }
 
 /**
