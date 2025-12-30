@@ -3867,7 +3867,7 @@ async function generateCreativeItem() {
 
     // 2. Prepare Context (Active Sources)
     const activeSources = sources.filter(s => s.isActive !== false);
-    const contextText = activeSources.map(s => `${s.title}: ${s.content ? s.content.substring(0, 500) : 'No content'}`).join('\n\n');
+    const contextText = activeSources.map(s => `${s.title}: ${s.content ? s.content.substring(0, 2000) : 'No content'}`).join('\n\n');
 
     const requestData = {
         type: currentCreativeType,
