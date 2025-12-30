@@ -12,7 +12,7 @@ console.log = (...args) => {
 };
 
 const functions = require('firebase-functions');
-const { createPitchDeck } = require('./agents/pitch_deck');
+const { createCreativeContent } = require('./agents/universal_creator');
 const { generateWithVertexAI } = require('./utils/vertexAI');
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const admin = require('firebase-admin');
@@ -4742,28 +4742,29 @@ exports.generateCreativeContent = onCall({ cors: true, timeoutSeconds: 540, memo
         return response.content || response;
     };
 
-    // === SPECIALIZED AGENT ROUTING ===
-    if (type === 'pitch_deck') {
+    // === UNIVERSAL CREATIVE AGENT ROUTING ===
+    const agentSupportedTypes = ['pitch_deck', 'product_brochure', 'one_pager'];
+    if (agentSupportedTypes.includes(type)) {
         try {
-            const resultHTML = await createPitchDeck(inputs, projectContext, plan, executeLLM);
+            // Pass 'type' to the universal agent so it knows which strategy to use
+            const resultHTML = await createCreativeContent(inputs, projectContext, plan, executeLLM, type);
             return {
                 success: true,
                 type: 'html',
                 data: resultHTML,
                 metadata: {
-                    provider: 'agent:pitch_deck',
+                    provider: 'agent:universal_creator',
+                    contentType: type,
                     model: 'multi-step',
                     imageModel: 'imagen-4.0-generate-001'
                 }
             };
         } catch (agentErr) {
-            console.error('[generateCreativeContent] Pitch Deck Agent failed:', agentErr);
-            // Fallback to legacy Monolith function below if agent crashes?
-            // Or just return error. Let's return error to debug agent.
-            return { success: false, error: `Pitch Deck Agent Failed: ${agentErr.message}` };
+            console.error(`[generateCreativeContent] Universal Agent (${type}) failed:`, agentErr);
+            return { success: false, error: `Agent Generation Failed: ${agentErr.message}` };
         }
     }
-    // =================================
+    // ========================================
 
     try {
         const { type, inputs = {}, projectContext, targetLanguage = 'English', mode = 'balanced' } = request.data || {};
