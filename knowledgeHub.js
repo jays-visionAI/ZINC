@@ -3536,30 +3536,30 @@ const CREATIVE_CONFIGS = {
                 type: 'visual-pick',
                 label: 'Visual Style',
                 options: [
-                    { value: 'Photorealistic', label: 'Realistic', icon: '📸', desc: 'True-to-life' },
-                    { value: 'Cinematic', label: 'Cinematic', icon: '🎬', desc: 'Movie look' },
-                    { value: '3D Render', label: '3D Render', icon: '🧊', desc: 'High-end CG' },
-                    { value: 'Isometric', label: 'Isometric', icon: '🗺️', desc: 'Top-down 3D' },
-                    { value: 'Vector Illustration', label: 'Vector', icon: '🎨', desc: 'Clean paths' },
-                    { value: 'Cyberpunk', label: 'Cyberpunk', icon: '🌃', desc: 'Neon & Dark' },
-                    { value: 'Synthwave', label: 'Synthwave', icon: '🌅', desc: '80s Retro' },
-                    { value: 'Minimalist', label: 'Minimal', icon: '⚪', desc: 'Clean & Simple' },
-                    { value: 'Abstract', label: 'Abstract', icon: '🌈', desc: 'Shapes & Color' },
-                    { value: 'Claymation', label: 'Clay', icon: '🧸', desc: '3D Toy look' },
-                    { value: 'Glassmorphism', label: 'Glass', icon: '🪟', desc: 'Frost & Blur' },
-                    { value: 'Pop Art', label: 'Pop Art', icon: '💥', desc: 'Comic style' },
-                    { value: 'Watercolor', label: 'Watercolor', icon: '🖌️', desc: 'Soft painting' },
-                    { value: 'Oil Painting', label: 'Oil Paint', icon: '🖼️', desc: 'Classic canvas' },
-                    { value: 'Sketch', label: 'Sketch', icon: '✏️', desc: 'Hand drawn' },
-                    { value: 'Anime', label: 'Anime', icon: '⛩️', desc: 'Japanese style' },
-                    { value: 'Pixel Art', label: 'Pixel', icon: '👾', desc: '8-bit retro' },
-                    { value: 'Futuristic', label: 'Futury', icon: '🚀', desc: 'Sci-fi tech' },
-                    { value: 'Retro 80s', label: 'Retro', icon: '📻', desc: 'Vintage vibe' },
-                    { value: 'Flat Design', label: 'Flat', icon: '📐', desc: 'Modern web' },
-                    { value: 'Paper Cutout', label: 'Paper', icon: '✂️', desc: 'Layered look' },
-                    { value: 'Corporate', label: 'Enterprise', icon: '🏢', desc: 'Pro business' },
-                    { value: 'Gothic', label: 'Dark', icon: '🦇', desc: 'Moody fantasy' },
-                    { value: 'Surrealism', label: 'Dreamy', icon: '👁️', desc: 'Mind-bending' }
+                    { value: 'Photorealistic', label: 'Realistic', icon: 'fa-camera-retro', desc: 'True-to-life' },
+                    { value: 'Cinematic', label: 'Cinematic', icon: 'fa-film', desc: 'Movie look' },
+                    { value: '3D Render', label: '3D Render', icon: 'fa-cube', desc: 'High-end CG' },
+                    { value: 'Isometric', label: 'Isometric', icon: 'fa-layer-group', desc: 'Top-down 3D' },
+                    { value: 'Vector Illustration', label: 'Vector', icon: 'fa-pen-nib', desc: 'Clean paths' },
+                    { value: 'Cyberpunk', label: 'Cyberpunk', icon: 'fa-bolt', desc: 'Neon & Dark' },
+                    { value: 'Synthwave', label: 'Synthwave', icon: 'fa-sun', desc: '80s Retro' },
+                    { value: 'Minimalist', label: 'Minimal', icon: 'fa-circle', desc: 'Clean & Simple' },
+                    { value: 'Abstract', label: 'Abstract', icon: 'fa-palette', desc: 'Shapes & Color' },
+                    { value: 'Claymation', label: 'Clay', icon: 'fa-shapes', desc: '3D Toy look' },
+                    { value: 'Glassmorphism', label: 'Glass', icon: 'fa-clone', desc: 'Frost & Blur' },
+                    { value: 'Pop Art', label: 'Pop Art', icon: 'fa-burst', desc: 'Comic style' },
+                    { value: 'Watercolor', label: 'Watercolor', icon: 'fa-paint-brush', desc: 'Soft painting' },
+                    { value: 'Oil Painting', label: 'Oil Paint', icon: 'fa-image', desc: 'Classic canvas' },
+                    { value: 'Sketch', label: 'Sketch', icon: 'fa-pencil-alt', desc: 'Hand drawn' },
+                    { value: 'Anime', label: 'Anime', icon: 'fa-mask', desc: 'Japanese style' },
+                    { value: 'Pixel Art', label: 'Pixel', icon: 'fa-th', desc: '8-bit retro' },
+                    { value: 'Futuristic', label: 'Futury', icon: 'fa-rocket', desc: 'Sci-fi tech' },
+                    { value: 'Retro 80s', label: 'Retro', icon: 'fa-broadcast-tower', desc: 'Vintage vibe' },
+                    { value: 'Flat Design', label: 'Flat', icon: 'fa-vector-square', desc: 'Modern web' },
+                    { value: 'Paper Cutout', label: 'Paper', icon: 'fa-cut', desc: 'Layered look' },
+                    { value: 'Corporate', label: 'Enterprise', icon: 'fa-briefcase', desc: 'Pro business' },
+                    { value: 'Gothic', label: 'Dark', icon: 'fa-ghost', desc: 'Moody fantasy' },
+                    { value: 'Surrealism', label: 'Dreamy', icon: 'fa-eye', desc: 'Mind-bending' }
                 ]
             }
         ],
@@ -3704,7 +3704,9 @@ function generateCreativeControls(controls) {
                 const gridOptions = ctrl.options.map((opt, idx) => `
                     <div class="visual-option group relative bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 cursor-pointer transition-all hover:bg-slate-700/50 hover:border-indigo-500/50 ${idx === 0 ? 'selected ring-2 ring-indigo-500 bg-indigo-500/10' : ''}" 
                          data-value="${opt.value}" onclick="selectVisualOption(this, '${ctrl.id}')">
-                        <div class="text-2xl mb-1 flex items-center justify-center">${opt.icon}</div>
+                        <div class="text-xl mb-1 flex items-center justify-center text-slate-400 group-hover:text-indigo-400 transition-colors">
+                            <i class="fas ${opt.icon}"></i>
+                        </div>
                         <div class="text-[10px] font-bold text-white text-center leading-tight">${opt.label}</div>
                         <div class="text-[8px] text-slate-500 text-center mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">${opt.desc}</div>
                         <div class="absolute top-1 right-1 opacity-0 check-mark">
