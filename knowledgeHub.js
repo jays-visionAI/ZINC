@@ -3703,19 +3703,21 @@ async function generateCreativeItem() {
 
     // Initialize Log Window
     renderLogWindow();
-    simulateGenerationLogs(config.name);
+    startProgressBar(); // NEW: Start progress bar
 
     try {
-        const generateFn = firebase.functions().httpsCallable('generateCreativeContent');
+        // Increase timeout to 10 minutes for complex generations
+        const generateFn = firebase.functions().httpsCallable('generateCreativeContent', { timeout: 600000 });
         const result = await generateFn({
             type: currentCreativeType,
             inputs: inputs,
-            advancedOptions: advancedOptions, // NEW: Pass advanced options to backend
+            advancedOptions: advancedOptions,
             projectContext: contextText,
             targetLanguage: 'English',
             mode: (typeof currentUserPerformanceMode !== 'undefined') ? currentUserPerformanceMode : 'balanced'
         });
 
+        stopProgressBar(100); // Complete progress bar
         console.log('[CreativeModal] Backend Response:', result.data);
 
         // Defensive: Check multiple possible response structures
@@ -3752,6 +3754,7 @@ async function generateCreativeItem() {
 
     } catch (error) {
         console.error('[CreativeModal] Generation error:', error);
+        stopProgressBar(0); // Show failed state
         document.getElementById('creative-loading').classList.add('hidden');
         document.getElementById('creative-placeholder').classList.remove('hidden');
         showNotification('Generation failed: ' + error.message, 'error');
@@ -5033,6 +5036,116 @@ async function confirmSchedule() {
     } catch (error) {
         console.error('Error scheduling content:', error);
         showNotification('Failed to schedule: ' + error.message, 'error');
+    }
+}
+
+// ============================================================
+// PROGRESS BAR UI
+// ============================================================
+let progressInterval = null;
+let currentProgress = 0;
+
+function startProgressBar() {
+    currentProgress = 0;
+
+    // Create progress bar if not exists
+    const modal = document.getElementById('creative-modal');
+    if (!modal) return;
+
+    let progressContainer = document.getElementById('generation-progress-container');
+    if (!progressContainer) {
+        const progressHtml = `
+            <div id="generation-progress-container" class="absolute bottom-32 left-4 right-4 bg-slate-900/90 backdrop-blur-md rounded-lg border border-slate-700 p-4 z-50">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm text-slate-300 font-medium">Generating...</span>
+                    <span id="progress-percentage" class="text-sm text-indigo-400 font-bold">0%</span>
+                </div>
+                <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                    <div id="progress-bar" class="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-500 ease-out" style="width: 0%"></div>
+                </div>
+                <div id="progress-step" class="mt-2 text-xs text-slate-500">Initializing...</div>
+            </div>
+        `;
+        modal.insertAdjacentHTML('beforeend', progressHtml);
+    }
+
+    document.getElementById('generation-progress-container').style.display = 'block';
+
+    // Simulate progress (0-90% over ~2 minutes, leaving 10% for completion)
+    const steps = [
+        { percent: 10, msg: 'Initializing agent...', duration: 2000 },
+        { percent: 20, msg: 'Reading Knowledge Hub context...', duration: 3000 },
+        { percent: 35, msg: 'Generating AI images with Vertex AI...', duration: 15000 },
+        { percent: 55, msg: 'Building HTML structure...', duration: 10000 },
+        { percent: 70, msg: 'Applying styling and animations...', duration: 30000 },
+        { percent: 85, msg: 'Finalizing document...', duration: 60000 },
+        { percent: 90, msg: 'Almost there...', duration: 30000 }
+    ];
+
+    let stepIndex = 0;
+
+    function runStep() {
+        if (stepIndex >= steps.length) return;
+
+        const step = steps[stepIndex];
+        animateProgress(currentProgress, step.percent, step.duration);
+        updateProgressStep(step.msg);
+
+        stepIndex++;
+        setTimeout(runStep, step.duration);
+    }
+
+    runStep();
+}
+
+function animateProgress(from, to, duration) {
+    const progressBar = document.getElementById('progress-bar');
+    const percentText = document.getElementById('progress-percentage');
+    if (!progressBar || !percentText) return;
+
+    const startTime = Date.now();
+    const increment = to - from;
+
+    function animate() {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const current = from + (increment * progress);
+
+        progressBar.style.width = `${current}%`;
+        percentText.textContent = `${Math.round(current)}%`;
+        currentProgress = current;
+
+        if (progress < 1) {
+            requestAnimationFrame(animate);
+        }
+    }
+
+    animate();
+}
+
+function updateProgressStep(message) {
+    const stepEl = document.getElementById('progress-step');
+    if (stepEl) stepEl.textContent = message;
+    addLog(message, 'info');
+}
+
+function stopProgressBar(finalPercent = 100) {
+    const progressBar = document.getElementById('progress-bar');
+    const percentText = document.getElementById('progress-percentage');
+    const stepEl = document.getElementById('progress-step');
+
+    if (progressBar) progressBar.style.width = `${finalPercent}%`;
+    if (percentText) percentText.textContent = `${finalPercent}%`;
+    if (stepEl) stepEl.textContent = finalPercent === 100 ? 'Complete!' : 'Failed';
+
+    addLog(finalPercent === 100 ? 'Generation complete!' : 'Generation failed', finalPercent === 100 ? 'success' : 'error');
+
+    // Hide after 2 seconds on success
+    if (finalPercent === 100) {
+        setTimeout(() => {
+            const container = document.getElementById('generation-progress-container');
+            if (container) container.style.display = 'none';
+        }, 2000);
     }
 }
 

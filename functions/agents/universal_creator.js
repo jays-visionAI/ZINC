@@ -35,9 +35,23 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
     if (type === 'pitch_deck') {
         strategy = {
             role: "Presentation Designer",
-            visualTask: `Identify 3 - 4 KEY visuals for a ${slideCount} - slide deck(e.g., Cover, Graph, Product).`,
-            htmlTask: `Create a ${slideCount} -slide Pitch Deck.Use full - screen sections(<section class="h-screen snap-center...">).`,
-            visualIds: [{ id: "COVER_IMAGE", desc: "Title slide background" }, { id: "VISUAL_1", desc: "Data chart" }, { id: "VISUAL_2", desc: "Product/Concept" }]
+            visualTask: `Identify 3-4 KEY visuals for a ${slideCount}-slide pitch deck (e.g., Cover Image, Data Chart, Product/Team Photo).`,
+            htmlTask: `Create EXACTLY ${slideCount} slides for a Pitch Deck. 
+            
+CRITICAL REQUIREMENTS:
+- You MUST create exactly ${slideCount} <section> elements
+- Each section is ONE slide with class="min-h-screen flex items-center"
+- Use snap-scroll layout: container with "snap-y snap-mandatory overflow-y-auto h-screen"
+- Slide structure example:
+  Slide 1: Title/Cover (with hero image)
+  Slide 2: Problem Statement
+  Slide 3: Solution Overview
+  Slide 4: Key Features/Benefits
+  Slide 5: Traction/Metrics (if applicable)
+  ...continue until exactly ${slideCount} slides
+
+DO NOT create more or fewer than ${slideCount} slides. Count them: 1, 2, 3... ${slideCount}.`,
+            visualIds: [{ id: "COVER_IMAGE", desc: "Title slide background" }, { id: "VISUAL_1", desc: "Data chart or metrics" }, { id: "VISUAL_2", desc: "Product/Team/Concept" }]
         };
     } else if (type === 'product_brochure') {
         strategy = {
