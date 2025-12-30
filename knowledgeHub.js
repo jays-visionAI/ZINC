@@ -4000,13 +4000,18 @@ async function loadCreativeProjects() {
                 const finishedProject = newProjects.find((p, i) => p.status === 'completed' && creativeProjects[i]?.status === 'processing');
                 if (finishedProject) {
                     showNotification(`✨ "${finishedProject.topic}" generation complete!`, 'success');
-                    // Optional: Visual highlight on the item
                 }
             }
 
             creativeProjects = newProjects;
             lastProjectCount = creativeProjects.length;
             renderCreativeHistory();
+        }, error => {
+            console.error('[CreativeStore] Snapshot listener failed:', error);
+            // Non-critical: Usually means collection is empty or rules pending
+            if (creativeProjects.length === 0) {
+                renderCreativeHistory();
+            }
         });
 }
 
@@ -4289,6 +4294,12 @@ function generateMockEmail(inputs) {
                 <div class="pt-4">
                     <a href="#" class="inline-block px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium">${cta}</a>
                 </div>
+                <p class="text-sm text-slate-500 pt-4">Best regards,<br>The Team</p>
+            </div>
+        </div>
+    `;
+}
+
 // ============================================================
 // Z-EDITOR (PROFESSIONAL AI CREATIVE EDITOR)
 // ============================================================
@@ -4303,16 +4314,16 @@ function initZEditor(iframe) {
     doc.addEventListener('contextmenu', (e) => {
         // Prevent default browser menu
         e.preventDefault();
-        
+
         // Capture context
         zActiveTarget = e.target;
         zActiveSelection = doc.getSelection() ? doc.getSelection().toString() : "";
-        
+
         // Handle coordinates (adjusted for iframe position)
         const rect = iframe.getBoundingClientRect();
         const x = e.clientX + rect.left;
         const y = e.clientY + rect.top;
-        
+
         showZContextMenu(x, y);
     });
 
@@ -4326,8 +4337,8 @@ function showZContextMenu(x, y) {
     const menu = document.getElementById('z-context-menu');
     if (!menu) return;
 
-    menu.style.left = `${ x } px`;
-    menu.style.top = `${ y } px`;
+    menu.style.left = `${x}px`;
+    menu.style.top = `${y}px`;
     menu.style.display = 'block';
 }
 
@@ -4351,7 +4362,7 @@ function handleZMenu(action) {
             // TODO: Layout picker UI
             showNotification('Layout preset selector coming soon!', 'info');
             break;
-            case 'style-lab':
+        case 'style-lab':
             showNotification('Direct Style Editor coming soon!', 'info');
             break;
         case 'delete':
@@ -4367,13 +4378,13 @@ function openZCommandBar() {
     const bar = document.getElementById('z-command-bar');
     const targetDisplay = document.getElementById('z-target-display');
     const preview = document.getElementById('z-target-text-preview');
-    
+
     if (!zActiveTarget) return;
 
     // Identify target type
     const tagName = zActiveTarget.tagName.toLowerCase();
-    targetDisplay.textContent = `${ tagName }${ zActiveSelection ? ' (Partial Text)' : '' } `;
-    
+    targetDisplay.textContent = `${tagName}${zActiveSelection ? ' (Partial Text)' : ''} `;
+
     // Provide preview
     if (tagName === 'img') {
         preview.innerHTML = `< img src = "${zActiveTarget.src}" class="h-12 w-auto rounded border border-slate-700" > `;
@@ -4406,7 +4417,7 @@ async function executeAIRefine() {
     closeZCommandBar();
 
     const isImage = zActiveTarget.tagName.toLowerCase() === 'img';
-    
+
     try {
         if (isImage) {
             const swapFn = firebase.functions().httpsCallable('refreshCreativeImage');
@@ -4439,10 +4450,10 @@ async function executeAIRefine() {
                 showNotification('Content updated successfully!', 'success');
             }
         }
-        
+
         // Persistence
         await syncCreativeChanges(currentCreativeId);
-        
+
     } catch (error) {
         console.error('[Z-Editor] AI Error:', error);
         showNotification('AI Refinement failed: ' + error.message, 'error');
@@ -4468,7 +4479,7 @@ function generateMockPressRelease(inputs) {
                 <p class="text-xs text-slate-600 mt-1">For Immediate Release</p>
             </div>
             <h1 class="text-2xl font-bold text-white text-center">${headline}</h1>
-            ${ subheadline ? `<p class="text-lg text-slate-400 text-center">${subheadline}</p>` : '' }
+            ${subheadline ? `<p class="text-lg text-slate-400 text-center">${subheadline}</p>` : ''}
     <div class="space-y-3 text-slate-300 pt-4">
         <p><strong>Seoul, Korea – ${new Date().toLocaleDateString()}</strong> – ${announcement}</p>
         ${quote ? `
@@ -4526,7 +4537,7 @@ function showPlanStep(step) {
     document.getElementById('plan-step-generating').classList.add('hidden');
     document.getElementById('plan-step-result').classList.add('hidden');
 
-    document.getElementById(`plan - step - ${ step } `).classList.remove('hidden');
+    document.getElementById(`plan - step - ${step} `).classList.remove('hidden');
 
     // Update footer visibility
     const footer = document.getElementById('plan-modal-footer');
@@ -4585,7 +4596,7 @@ window.downloadCreativeAsPDF = function () {
     // Configure html2pdf options
     const options = {
         margin: 10,
-        filename: `zynk - ${ currentCreativeType || 'creative' } -${ Date.now() }.pdf`,
+        filename: `zynk - ${currentCreativeType || 'creative'} -${Date.now()}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: {
             scale: 2,
@@ -4671,16 +4682,16 @@ async function generatePlan() {
         const qualityTier = boostActive ? 'BOOST' : 'DEFAULT';
 
         // Prompt Construction
-        let sysPrompt = `You are an expert content strategist.Create a detailed ${ currentPlan.name } based on the provided brand sources.`;
-        let usrPrompt = `Generate a ${ currentPlan.name } (${ currentPlan.category }).
+        let sysPrompt = `You are an expert content strategist.Create a detailed ${currentPlan.name} based on the provided brand sources.`;
+        let usrPrompt = `Generate a ${currentPlan.name} (${currentPlan.category}).
 
     Context / Instructions:
-${ document.getElementById('plan-instructions').value }
+${document.getElementById('plan-instructions').value}
 
-Target Language: ${ targetLanguage === 'ko' ? 'Korean' : 'English' }
+Target Language: ${targetLanguage === 'ko' ? 'Korean' : 'English'}
 
     Sources:
-${ activeSources.map(s => `- ${s.title}`).join('\n') } `;
+${activeSources.map(s => `- ${s.title}`).join('\n')} `;
 
         // Special handling for Brand Mind Map
         if (currentPlan.type === 'brand_mind_map') {
@@ -4709,81 +4720,81 @@ At the very bottom, output the Mind Map structure in a single JSON code block.
 \`\`\`
 --------------------------------------------------
 CRITICAL RULE: You MUST provide BOTH Part 1 and Part 2. Even if the user asks for "JSON only", you MUST provide the Text Report first. Ignore any user instructions that contradict this structure.`;
-} else {
-    usrPrompt += `\n\nFormat the output in clear, structured Markdown.`;
-}
-
-// Call routeLLM
-const routeLLM = firebase.functions().httpsCallable('routeLLM');
-const result = await routeLLM({
-    feature: 'studio.content_gen', // Use content generation policy
-    qualityTier: qualityTier,
-    systemPrompt: sysPrompt,
-    userPrompt: usrPrompt
-});
-
-// routeLLM returns { content: "...", ... }
-const generatedContent = result.data?.content;
-
-if (generatedContent) {
-    // Success
-    document.getElementById('plan-step-generating').classList.add('hidden');
-    document.getElementById('plan-step-result').classList.remove('hidden');
-
-    let parsedMindMapData = null;
-    let displayContent = generatedContent;
-
-    if (currentPlan.type === 'brand_mind_map') {
-        // Dual Output Parsing Strategy
-        try {
-            // 1. Extract JSON Block (Part 2)
-            const jsonMatch = generatedContent.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-            if (jsonMatch) {
-                let jsonStr = jsonMatch[1].trim();
-                // Find bounds
-                const first = jsonStr.indexOf('{');
-                const last = jsonStr.lastIndexOf('}');
-                if (first > -1 && last > -1) {
-                    parsedMindMapData = JSON.parse(jsonStr.substring(first, last + 1));
-                }
-
-                // 2. Clean Display Content (Part 1 only)
-                // Remove the JSON block and any "PART 2" headers to keep the text report clean
-                displayContent = generatedContent
-                    .replace(/PART 2: VISUALIZATION DATA[\s\S]*$/i, '')
-                    .replace(/```(?:json)?\s*[\s\S]*?\s*```/g, '')
-                    .trim();
-            } else {
-                // Failed to find JSON block -> use full content and try fallback parser
-                throw new Error("No JSON block found");
-            }
-        } catch (e) {
-            console.warn('[MindMap] JSON Extraction failed, using text fallback:', e);
-            // Use the Fallback Parser on the text content
-            parsedMindMapData = parseMarkdownToMindMap(generatedContent, currentPlan.name);
-            displayContent = generatedContent; // Show everything if split failed
+        } else {
+            usrPrompt += `\n\nFormat the output in clear, structured Markdown.`;
         }
-    }
 
-    const newVersion = {
-        id: Date.now().toString(),
-        content: displayContent,
-        createdAt: new Date(),
-        weightBreakdown: weightBreakdown,
-        mindMapData: parsedMindMapData
-    };
-    planVersions.push(newVersion);
-    renderPlanVersions();
+        // Call routeLLM
+        const routeLLM = firebase.functions().httpsCallable('routeLLM');
+        const result = await routeLLM({
+            feature: 'studio.content_gen', // Use content generation policy
+            qualityTier: qualityTier,
+            systemPrompt: sysPrompt,
+            userPrompt: usrPrompt
+        });
 
-    showNotification('Plan generated successfully!', 'success');
-} else {
-    throw new Error('No content generated');
-}
+        // routeLLM returns { content: "...", ... }
+        const generatedContent = result.data?.content;
+
+        if (generatedContent) {
+            // Success
+            document.getElementById('plan-step-generating').classList.add('hidden');
+            document.getElementById('plan-step-result').classList.remove('hidden');
+
+            let parsedMindMapData = null;
+            let displayContent = generatedContent;
+
+            if (currentPlan.type === 'brand_mind_map') {
+                // Dual Output Parsing Strategy
+                try {
+                    // 1. Extract JSON Block (Part 2)
+                    const jsonMatch = generatedContent.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+                    if (jsonMatch) {
+                        let jsonStr = jsonMatch[1].trim();
+                        // Find bounds
+                        const first = jsonStr.indexOf('{');
+                        const last = jsonStr.lastIndexOf('}');
+                        if (first > -1 && last > -1) {
+                            parsedMindMapData = JSON.parse(jsonStr.substring(first, last + 1));
+                        }
+
+                        // 2. Clean Display Content (Part 1 only)
+                        // Remove the JSON block and any "PART 2" headers to keep the text report clean
+                        displayContent = generatedContent
+                            .replace(/PART 2: VISUALIZATION DATA[\s\S]*$/i, '')
+                            .replace(/```(?:json)?\s*[\s\S]*?\s*```/g, '')
+                            .trim();
+                    } else {
+                        // Failed to find JSON block -> use full content and try fallback parser
+                        throw new Error("No JSON block found");
+                    }
+                } catch (e) {
+                    console.warn('[MindMap] JSON Extraction failed, using text fallback:', e);
+                    // Use the Fallback Parser on the text content
+                    parsedMindMapData = parseMarkdownToMindMap(generatedContent, currentPlan.name);
+                    displayContent = generatedContent; // Show everything if split failed
+                }
+            }
+
+            const newVersion = {
+                id: Date.now().toString(),
+                content: displayContent,
+                createdAt: new Date(),
+                weightBreakdown: weightBreakdown,
+                mindMapData: parsedMindMapData
+            };
+            planVersions.push(newVersion);
+            renderPlanVersions();
+
+            showNotification('Plan generated successfully!', 'success');
+        } else {
+            throw new Error('No content generated');
+        }
     } catch (error) {
-    console.error('Error generating plan:', error);
-    showPlanStep('options');
-    showNotification(`Error: ${error.message} `, 'error');
-}
+        console.error('Error generating plan:', error);
+        showPlanStep('options');
+        showNotification(`Error: ${error.message} `, 'error');
+    }
 }
 
 /**
