@@ -5399,7 +5399,7 @@ function generateMarketPulseData(projectData) {
 /**
  * Refine a specific section of a creative project
  */
-exports.refineCreativeContent = onCall({ timeoutSeconds: 300, memory: '1GiB' }, async (request) => {
+exports.refineCreativeContent = onCall({ cors: true, timeoutSeconds: 300, memory: '1GiB' }, async (request) => {
     if (!request.auth) return { success: false, error: 'Unauthenticated' };
     const { projectId, sectionIndex, instruction, currentContent } = request.data;
     if (!projectId) return { success: false, error: 'Missing ProjectID' };
@@ -5429,7 +5429,7 @@ exports.refineCreativeContent = onCall({ timeoutSeconds: 300, memory: '1GiB' }, 
 /**
  * Refresh/Swap an image in a creative project
  */
-exports.refreshCreativeImage = onCall({ timeoutSeconds: 300, memory: '1GiB' }, async (request) => {
+exports.refreshCreativeImage = onCall({ cors: true, timeoutSeconds: 300, memory: '1GiB' }, async (request) => {
     if (!request.auth) return { success: false, error: 'Unauthenticated' };
     const { projectId, prompt, currentUrl } = request.data;
 
