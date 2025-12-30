@@ -128,7 +128,15 @@ function initializeGoogleAPIs() {
                     await gapi.client.init({
                         apiKey: GOOGLE_API_KEY,
                     });
-                    await gapi.client.load('https://www.googleapis.com/discovery/v1/apis/drive/v3/rest');
+                    // Use the correct discovery URL or just empty load for newer GAPI versions
+                    // Failsafe: if discovery load fails, we try to proceed or use simple client loading
+                    try {
+                        await gapi.client.load('drive', 'v3');
+                        console.log('GAPI Drive v3 loaded via shortcut');
+                    } catch (e) {
+                        console.warn('GAPI shortcut load failed, trying discovery URL:', e);
+                        await gapi.client.load('https://www.googleapis.com/discovery/v1/apis/drive/v3/rest');
+                    }
                     gapiInited = true;
                     console.log('GAPI initialized successfully');
                     maybeEnableGoogleDrive();
