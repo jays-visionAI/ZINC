@@ -11,6 +11,11 @@ async function createPitchDeck(inputs, context, plan, executeLLM) {
     const visualPlanPrompt = `
     You are a Creative Director planning a pitch deck.
     Project: ${pitchTitle} (${pitchStyle} style)
+    
+    KNOWLEDGE BASE / CONTEXT (Use this to inform visuals):
+    """
+    ${context || 'No external context provided.'}
+    """
 
 Task: Identify 3 - 4 KEY visuals needed for this deck(e.g., Cover, Graph, Product Shot).
     Return JSON only:
@@ -79,6 +84,12 @@ Task: Identify 3 - 4 KEY visuals needed for this deck(e.g., Cover, Graph, Produc
 
     const taskPrompt = `
     Create a ${slideCount}-slide Pitch Deck for: "${pitchTitle}"
+    
+    CORE SOURCE MATERIAL (Use this for content):
+    """
+    ${context}
+    """
+    
     Overview: ${pitchOverview}
     
     Slides:
