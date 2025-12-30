@@ -3576,6 +3576,19 @@ function openCreativeModal(planType) {
     resultContainer.classList.add('hidden');
     resultContainer.innerHTML = ''; // FORCE CLEAR CONTENT
 
+    // Reset action buttons
+    document.querySelectorAll('.btn-creative-injected').forEach(b => b.remove());
+    const copyBtn = document.getElementById('btn-creative-copy');
+    if (copyBtn) {
+        copyBtn.classList.add('hidden');
+        copyBtn.style.display = 'none';
+    }
+    const downloadBtn = document.getElementById('btn-creative-download');
+    if (downloadBtn) {
+        downloadBtn.classList.add('hidden');
+        downloadBtn.style.display = 'none';
+    }
+
     const previewContent = document.getElementById('creative-preview-content');
     if (previewContent) previewContent.innerHTML = ''; // FORCE CLEAR PREVIEW
 
@@ -3768,6 +3781,12 @@ function closeCreativeModal() {
 
     document.getElementById('btn-creative-copy').classList.add('hidden');
     document.getElementById('btn-creative-download').classList.add('hidden');
+
+    // Hide Progress & Logs
+    const progressContainer = document.getElementById('generation-progress-container');
+    if (progressContainer) progressContainer.style.display = 'none';
+    const logContainer = document.getElementById('generation-log-container');
+    if (logContainer) logContainer.style.display = 'none';
 
     console.log('[CreativeModal] Closed and reset.');
 }
@@ -5472,7 +5491,7 @@ function startProgressBar() {
     let progressContainer = document.getElementById('generation-progress-container');
     if (!progressContainer) {
         const progressHtml = `
-            <div id="generation-progress-container" class="absolute bottom-32 left-4 right-4 bg-slate-900/90 backdrop-blur-md rounded-lg border border-slate-700 p-4 z-50">
+            <div id="generation-progress-container" class="absolute bottom-48 left-4 right-4 bg-slate-900/95 backdrop-blur-md rounded-lg border border-slate-700 p-4 z-50 shadow-2xl animate-fade-in-up">
                 <div class="flex items-center justify-between mb-2">
                     <span class="text-sm text-slate-300 font-medium">Generating...</span>
                     <span id="progress-percentage" class="text-sm text-indigo-400 font-bold">0%</span>
@@ -5578,7 +5597,7 @@ function renderLogWindow() {
     let logContainer = document.getElementById('generation-log-container');
     if (!logContainer) {
         const logHtml = `
-            <div id="generation-log-container" class="absolute bottom-16 left-4 right-4 bg-slate-950/95 backdrop-blur-md rounded-lg border border-slate-700 p-3 font-mono text-xs text-slate-400 max-h-32 overflow-y-auto z-50 shadow-xl">
+            <div id="generation-log-container" class="absolute bottom-4 left-4 right-4 bg-slate-950/98 backdrop-blur-md rounded-lg border border-slate-700 p-3 font-mono text-xs text-slate-400 max-h-40 overflow-y-auto z-50 shadow-2xl ring-1 ring-white/10">
                 <div class="flex items-center gap-2 mb-2 border-b border-slate-700 pb-1 sticky top-0 bg-slate-950/95">
                     <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
                     <span class="text-slate-400 text-[10px] uppercase tracking-wider font-semibold">Generation Log</span>
