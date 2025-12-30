@@ -3926,14 +3926,50 @@ async function generateCreativeItem() {
  */
 async function viewCreativeProject(docId) {
     const proj = creativeProjects.find(p => p.id === docId);
-    if (!proj || proj.status !== 'completed') return;
+    if (!proj) return;
 
-    currentCreativeType = proj.type;
-    currentCreativeData = { html: proj.htmlContent };
     currentCreativeId = docId;
+    currentCreativeType = proj.type;
     isEditMode = false;
 
     openCreativeModal(proj.type);
+
+    if (proj.status === 'processing') {
+        const placeholder = document.getElementById('creative-placeholder');
+        const loadingEl = document.getElementById('creative-loading');
+        const resultContainer = document.getElementById('creative-result-container');
+
+        placeholder.classList.add('hidden');
+        resultContainer.classList.add('hidden');
+        loadingEl.classList.remove('hidden');
+        loadingEl.style.display = 'flex';
+
+        // Show status in loading screen
+        const loadingText = loadingEl.querySelector('p');
+        if (loadingText) loadingText.textContent = `Generating "${proj.topic}"... This may take a minute. It's safe to stay here or continue working elsewhere.`;
+
+        // Re-start progress bar with resume context
+        startProgressBar(proj);
+        return;
+    }
+
+    if (proj.status === 'failed') {
+        const placeholder = document.getElementById('creative-placeholder');
+        const loadingEl = document.getElementById('creative-loading');
+        const resultContainer = document.getElementById('creative-result-container');
+
+        loadingEl.classList.add('hidden');
+        resultContainer.classList.add('hidden');
+        placeholder.classList.remove('hidden');
+
+        const title = placeholder.querySelector('h2');
+        if (title) title.textContent = "Generation Failed";
+        const desc = placeholder.querySelector('p');
+        if (desc) desc.textContent = `Error: ${proj.error || 'Unknown error occurred during generation.'}`;
+        return;
+    }
+
+    currentCreativeData = { html: proj.htmlContent };
 
     document.getElementById('creative-placeholder').classList.add('hidden');
     document.getElementById('creative-loading').classList.add('hidden');
@@ -3995,7 +4031,19 @@ async function loadCreativeProjects() {
         .onSnapshot(snapshot => {
             const newProjects = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-            // UX: Check if a project just finished in the background
+            // 1. Auto-refresh if current viewed project status changed (e.g., from processing to completed)
+            if (currentCreativeId) {
+                const updatedCurrent = newProjects.find(p => p.id === currentCreativeId);
+                const prevCurrent = creativeProjects.find(p => p.id === currentCreativeId);
+                if (updatedCurrent && (!prevCurrent || updatedCurrent.status !== prevCurrent.status)) {
+                    if (updatedCurrent.status === 'completed' || updatedCurrent.status === 'failed') {
+                        console.log('[CreativeStore] Current project finished, auto-refreshing view...');
+                        viewCreativeProject(currentCreativeId);
+                    }
+                }
+            }
+
+            // 2. UX: Notification for background completion
             if (lastProjectCount > 0 && newProjects.length === lastProjectCount) {
                 const finishedProject = newProjects.find((p, i) => p.status === 'completed' && creativeProjects[i]?.status === 'processing');
                 if (finishedProject) {
@@ -4008,10 +4056,7 @@ async function loadCreativeProjects() {
             renderCreativeHistory();
         }, error => {
             console.error('[CreativeStore] Snapshot listener failed:', error);
-            // Non-critical: Usually means collection is empty or rules pending
-            if (creativeProjects.length === 0) {
-                renderCreativeHistory();
-            }
+            if (creativeProjects.length === 0) renderCreativeHistory();
         });
 }
 
@@ -4030,21 +4075,23 @@ function renderCreativeHistory() {
     }
 
     listContainer.innerHTML = creativeProjects.map(proj => {
-        let statusColor = proj.status === 'processing' ? 'indigo' : (proj.status === 'completed' ? 'emerald' : 'rose');
+        let isProcessing = proj.status === 'processing';
+        let statusColor = isProcessing ? 'indigo' : (proj.status === 'completed' ? 'emerald' : 'rose');
         let icon = proj.type === 'pitch_deck' ? 'fa-presentation-screen' : (proj.type === 'product_brochure' ? 'fa-file-invoice' : 'fa-lightbulb');
+        let pulseClass = isProcessing ? 'animate-pulse' : '';
 
         return `
-            <div class="group relative p-3 bg-slate-800/40 hover:bg-slate-700/60 border border-slate-700/50 rounded-xl mb-3 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98] shadow-sm hover:shadow-indigo-500/10" 
+            <div class="group relative p-3 ${isProcessing ? 'bg-indigo-500/5' : 'bg-slate-800/40'} hover:bg-slate-700/60 border ${isProcessing ? 'border-indigo-500/30' : 'border-slate-700/50'} rounded-xl mb-3 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98] shadow-sm hover:shadow-indigo-500/10" 
                  onclick="viewCreativeProject('${proj.id}')">
                 <div class="flex justify-between items-start mb-2">
                     <div class="flex items-center gap-2">
-                        <div class="w-7 h-7 rounded-lg bg-${statusColor}-500/10 flex items-center justify-center">
+                        <div class="w-7 h-7 rounded-lg bg-${statusColor}-500/10 flex items-center justify-center ${pulseClass}">
                             <i class="fas ${icon} text-${statusColor}-400 text-[10px]"></i>
                         </div>
                         <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">${proj.configName || proj.type}</span>
                     </div>
                     <div class="flex items-center gap-2">
-                        <span class="text-[8px] font-bold text-${statusColor}-400 active-pulse">${proj.status}</span>
+                        <span class="text-[8px] font-bold text-${statusColor}-400 ${pulseClass}">${proj.status}</span>
                         <button onclick="event.stopPropagation(); deleteCreativeProject('${proj.id}')" 
                                 class="opacity-0 group-hover:opacity-100 p-1 hover:text-rose-400 text-slate-500 transition-all">
                             <i class="fas fa-trash-alt text-[10px]"></i>
@@ -5720,8 +5767,17 @@ async function confirmSchedule() {
 let progressInterval = null;
 let currentProgress = 0;
 
-function startProgressBar() {
+function startProgressBar(proj = null) {
     currentProgress = 0;
+
+    // Resume logic: If project exists and has been running, jump progress
+    if (proj && proj.createdAt) {
+        const startTime = proj.createdAt.toDate ? proj.createdAt.toDate().getTime() : proj.createdAt;
+        const elapsedSec = (Date.now() - startTime) / 1000;
+        if (elapsedSec > 5) {
+            currentProgress = Math.min(85, Math.floor(elapsedSec * 1.5)); // heuristic: 1.5% per second up to 85%
+        }
+    }
 
     // Create progress bar if not exists
     const modal = document.getElementById('creative-modal');
