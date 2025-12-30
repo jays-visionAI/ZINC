@@ -5071,7 +5071,9 @@ DESIGN REQUIREMENTS:
 - Each slide: Full viewport height section (min-h-screen)
 - Modern typography: text-4xl for headers, text-lg for body
 - Include SVG icons (use inline SVG or Unicode symbols)
-- Use <img> tags with provided image URLs for visuals
+- CRITICAL: Use the provided GENERATED IMAGE URLs in <img> tags or as background-image. Do not use placeholders.
+- If 'Cover' image provided, use it for Slide 1 background (cover-full or split layout).
+- Use 'Section' images for relevant slides (Problem, Solution, etc).
 - Professional spacing, alignment, visual hierarchy
 - Add subtle animations: hover effects, transitions
 
@@ -5096,6 +5098,45 @@ OUTPUT: Complete, print-ready HTML that looks like a real presentation deck.`;
             resultData = arenaResult.finalOutput;
             debugLogs = arenaResult.logs;
 
+            // CLEANING LOGIC: DeepSeek-R1 often wraps in ```html ... ``` or adds thinking blocks
+            // 1. Remove <think> blocks if present (DeepSeek specific)
+            resultData = resultData.replace(/<think>[\s\S]*?<\/think>/g, '');
+
+            // 2. Remove markdown fences
+            const markdownMatch = resultData.match(/```html([\s\S]*?)```/);
+            if (markdownMatch && markdownMatch[1]) {
+                console.log('[generateCreativeContent] 🧹 Stripped markdown fences from HTML');
+                resultData = markdownMatch[1].trim();
+            } else if (resultData.includes('```')) {
+                // Fallback for unlabeled blocks
+                resultData = resultData.replace(/```/g, '').trim();
+            }
+
+            // 3. (Optional) Force Image Injection if missing
+            if (type === 'pitch_deck' && generatedImages.length > 0) {
+                // Check if any generated image URL is present in the HTML
+                const hasImages = generatedImages.some(img => {
+                    const url = typeof img === 'object' ? img.url : img;
+                    return resultData.includes(url);
+                });
+
+                if (!hasImages) {
+                    console.warn('[generateCreativeContent] ⚠️ No images found in HTML. Forcing injection...');
+                    // Inject Cover Image as background for the first slide/section
+                    const coverImg = generatedImages.find(img => img.type === 'cover') || generatedImages[0];
+                    const coverUrl = typeof coverImg === 'object' ? coverImg.url : coverImg;
+
+                    if (coverUrl) {
+                        // Attempt to find the first slide div and add background style
+                        // Assuming standard Tailwind classes or div markers. This is heuristic.
+                        // A safer bet: Prepend a style block or wrapper.
+                        // Let's replace the first substantial div with a background style? 
+                        // Or just prepend an img tag?
+                        // Simple approach: Add an img at top of body-like content
+                        // resultData = `<div class="w-full text-center p-4"><img src="${coverUrl}" class="max-w-md mx-auto rounded shadow-lg mb-8" alt="Cover Visual"></div>` + resultData;
+                    }
+                }
+            }
         } else {
             // === FAST PATH (Eco/Simple) ===
             const completion = await openai.chat.completions.create({
