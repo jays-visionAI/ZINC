@@ -11,17 +11,21 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
     // Extract advanced customization options
     const {
         colorScheme = 'Indigo/Purple (Default)',
-        animationLevel = 'Medium',
-        iconStyle = 'Font Awesome',
+        contentTone = 'Professional',
+        imageStyle = 'Photorealistic',
+        iconStyle = 'Heroicons',
+        includeCharts = 'None',
         layoutDensity = 'Balanced',
         imageCount = '2',
         glassmorphism = true,
         floatingBlobs = true,
+        colorTone = 'Vibrant',
+        lighting = 'Studio',
         customPrompt = ''
     } = advancedOptions;
 
     console.log(`[UniversalCreator] 🚀 Starting generation for type: ${type} (${style})...`);
-    console.log(`[UniversalCreator] ⚙️ Advanced Options: colorScheme=${colorScheme}, animations=${animationLevel}, icons=${iconStyle}`);
+    console.log(`[UniversalCreator] ⚙️ Advanced Options: colorScheme=${colorScheme}, tone=${contentTone}, imageStyle=${imageStyle}, charts=${includeCharts}`);
     if (customPrompt) console.log(`[UniversalCreator] 💬 Custom Prompt: ${customPrompt.substring(0, 100)}...`);
 
     // === STRATEGY PATTERN: Define prompts based on type ===
@@ -36,22 +40,24 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
         strategy = {
             role: "Presentation Designer",
             visualTask: `Identify 3-4 KEY visuals for a ${slideCount}-slide pitch deck (e.g., Cover Image, Data Chart, Product/Team Photo).`,
-            htmlTask: `Create EXACTLY ${slideCount} slides for a Pitch Deck. 
+            htmlTask: `Create EXACTLY ${slideCount} slides for a Pitch Deck.
             
-CRITICAL REQUIREMENTS:
-- You MUST create exactly ${slideCount} <section> elements
-- Each section is ONE slide with class="min-h-screen flex items-center"
-- Use snap-scroll layout: container with "snap-y snap-mandatory overflow-y-auto h-screen"
-- Slide structure example:
-  Slide 1: Title/Cover (with hero image)
-  Slide 2: Problem Statement
-  Slide 3: Solution Overview
-  Slide 4: Key Features/Benefits
-  Slide 5: Traction/Metrics (if applicable)
-  ...continue until exactly ${slideCount} slides
+    🚨 STRICT RULE: You MUST output exactly ${slideCount} <section> elements. No more, no less.
+    
+    CRITICAL REQUIREMENTS:
+    - Each section is ONE slide with class="min-h-screen flex items-center snap-start"
+    - The body MUST have a dot-navigation container <nav class="fixed right-6 top-1/2 -translate-y-1/2 z-50 flex flex-col gap-3"> with ${slideCount} dots linking to #slide-1, #slide-2, etc.
+    - Each <section> MUST have an id="slide-N" (where N is 1 to ${slideCount}).
+    - Mandatory Slides (Sequential):
+      1. Title/Cover (id="slide-1")
+      2. Problem Statement (id="slide-2")
+      3. Solution (id="slide-3")
+      4. Features/Benefits (id="slide-4")
+      5. ...continue with Traction, Market, Team, Business Model, etc. 
+      ${slideCount}. Final CTA / Contact Us (id="slide-${slideCount}")
 
-DO NOT create more or fewer than ${slideCount} slides. Count them: 1, 2, 3... ${slideCount}.`,
-            visualIds: [{ id: "COVER_IMAGE", desc: "Title slide background" }, { id: "VISUAL_1", desc: "Data chart or metrics" }, { id: "VISUAL_2", desc: "Product/Team/Concept" }]
+    DO NOT bypass this count. If you fail to create exactly ${slideCount} sections, you have failed the task.`,
+            visualIds: [{ id: "COVER_IMAGE", desc: "Title slide background" }, { id: "VISUAL_1", desc: "Data chart" }, { id: "VISUAL_2", desc: "Product/Concept" }]
         };
     } else if (type === 'product_brochure') {
         strategy = {
@@ -70,38 +76,67 @@ DO NOT create more or fewer than ${slideCount} slides. Count them: 1, 2, 3... ${
     }
 
     // 1. VISUAL PLANNING
+    // Calculate total images to generate based on user preference or strategy defaults
+    let requestedImageCount = parseInt(imageCount) || strategy.visualIds.length;
+    if (type === 'pitch_deck') {
+        requestedImageCount = Math.min(parseInt(imageCount) * 2, 8) || Math.min(slideCount, 8);
+    }
+
     const visualPlanPrompt = `
-    You are a ${strategy.role}.
+    You are a ${strategy.role} and Visual Experience Director.
     Project Topic: ${topic}
+    Document Format: ${type}
     Style: ${style}
+    Image Style: ${imageStyle} (MANDATORY: Follow this art style strictly)
+    Target Audience: ${audience}
+    Preferred Color Tone: ${colorTone || 'Professional'}
+    Preferred Lighting: ${lighting || 'Cinematic'}
 
     KNOWLEDGE BASE / CONTEXT:
     """
     ${context || 'No specific context.'}
     """
 
-    Task: ${strategy.visualTask}
+    TASK:
+    ${strategy.visualTask}
+    
+    You need to plan EXACTLY ${requestedImageCount} high-quality visuals for this project in the style of "${imageStyle}".
+
+    REQUIREMENTS for each visual:
+    1. id: Unique identifier (e.g., HERO_BG, FEATURE_1, SLIDE_3_IMAGE)
+    2. desc: What this image represents in the document
+    3. prompt: A VERY DETAILED prompt for Vertex AI Imagen 4.0. 
+       - Style: ${imageStyle}. Do not deviate from this.
+       - Include: Subject description, lighting (${lighting}), color palette (${colorTone}), composition (e.g., wide shot, macro), and mood.
+       - Avoid text in images.
+       - Focus on high-end production quality.
 
     Return JSON only:
     {
         "visuals": [
-    {"id": "${strategy.visualIds[0].id}", "prompt": "Detailed description for Vertex AI..." },
-    // ... more visuals based on task
-    ]
+             {"id": "...", "desc": "...", "prompt": "..."}
+        ]
     }`;
 
     let visualPlan = { visuals: [] };
     try {
+        console.log(`[UniversalCreator] 🧠 Planning ${requestedImageCount} visuals in ${imageStyle} style...`);
         const planResult = await executeLLM("You are a JSON-speaking Design Director.", visualPlanPrompt);
         const jsonMatch = planResult.match(/\{[\s\S]*\}/);
-        if (jsonMatch) visualPlan = JSON.parse(jsonMatch[0]);
+        if (jsonMatch) {
+            visualPlan = JSON.parse(jsonMatch[0]);
+            visualPlan.visuals = visualPlan.visuals.slice(0, 10);
+        }
     } catch (e) {
-        console.warn('[UniversalCreator] Planning failed, using default plan.');
-        // Fallback using preset IDs from strategy
-        visualPlan.visuals = strategy.visualIds.map(v => ({
-            id: v.id,
-            prompt: `High quality ${v.desc} for ${topic}, ${style} style.`
-        }));
+        console.warn('[UniversalCreator] Planning failed, using default plan.', e.message);
+        visualPlan.visuals = [];
+        for (let i = 0; i < requestedImageCount; i++) {
+            const v = strategy.visualIds[i % strategy.visualIds.length];
+            visualPlan.visuals.push({
+                id: `${v.id}_${i}`,
+                prompt: `High quality ${v.desc} for ${topic} in ${imageStyle} style, ${colorTone || 'vibrant'} tones, ${lighting || 'natural'} lighting.`
+            });
+        }
     }
 
     // 2. GENERATE ASSETS
@@ -229,10 +264,12 @@ DO NOT create more or fewer than ${slideCount} slides. Count them: 1, 2, 3... ${
 
     PROJECT DETAILS:
     - Topic: ${topic}
+    - Document Format: ${type}
     - Target Audience: ${audience}
     - Style: ${style} (Premium, Executive-level quality)
+    - Tone of Voice: ${contentTone} (EXTREMELY IMPORTANT: Stick to this tone)
 
-    KNOWLEDGE BASE CONTENT:
+    KNOWLEDGE BASE CONTENT (EXTRACTED FROM UPLOADED DOCUMENTS):
     """
     ${context || 'Use general professional content.'}
     """
@@ -241,13 +278,8 @@ DO NOT create more or fewer than ${slideCount} slides. Count them: 1, 2, 3... ${
     🎨 COLOR SCHEME: ${colorScheme}
     → ${colorInstructions[colorScheme] || colorInstructions['Indigo/Purple (Default)']}
     
-    ✨ ANIMATION LEVEL: ${animationLevel}
-    → ${animationInstructions[animationLevel] || animationInstructions['Medium']}
-    
     🔷 ICON STYLE: ${iconStyle}
-    ${iconStyle === 'Font Awesome' ? '→ Use Font Awesome 6 icons (<i class="fas fa-...">)' : ''}
-    ${iconStyle === 'Heroicons' ? '→ Use Heroicons SVG icons' : ''}
-    ${iconStyle === 'No Icons' ? '→ Do not include icons' : ''}
+    → Use ${iconStyle} SVG icons (inline SVGs or reliable CDN icons).
     
     📐 LAYOUT DENSITY: ${layoutDensity}
     ${layoutDensity === 'Spacious' ? '→ Use generous padding (p-12, py-24, gap-12)' : ''}
@@ -256,6 +288,12 @@ DO NOT create more or fewer than ${slideCount} slides. Count them: 1, 2, 3... ${
     
     🪟 GLASSMORPHISM: ${glassmorphism ? 'YES - Use glass effect cards (bg-white/5 backdrop-blur)' : 'NO - Use solid cards'}
     🫧 FLOATING BLOBS: ${floatingBlobs ? 'YES - Include decorative gradient orbs' : 'NO - Skip decorative blobs'}
+
+    📊 DATA VISUALIZATION: ${includeCharts}
+    ${includeCharts === 'Bar Charts' ? '→ Create elegant pure CSS/Tailwind bar charts to visualize key metrics.' : ''}
+    ${includeCharts === 'Line Graphs' ? '→ Create stylized CSS line graph components for trends.' : ''}
+    ${includeCharts === 'Progress Rings' ? '→ Use circular progress SVGs for percentage-based data.' : ''}
+    ${includeCharts === 'Infographic Cards' ? '→ Use icon-heavy infographic blocks for data points.' : ''}
     
     ${customPrompt ? `
     💬 ADDITIONAL INSTRUCTIONS FROM USER:
@@ -266,20 +304,13 @@ DO NOT create more or fewer than ${slideCount} slides. Count them: 1, 2, 3... ${
     ` : ''}
 
     QUALITY REQUIREMENTS:
-    1. Create a STUNNING design that would win design awards
-    2. Follow the customization options above precisely
-    3. Create visual hierarchy with varied font sizes and weights
-    4. Footer with zynk-watermark class
+    1. EXTRAPOLATE: Expand on the Knowledge Base content. Turn bullet points into compelling professional copy in a ${contentTone} tone.
+    2. VISUAL HIERARCHY: Use modern design principles (gradients, whitespace, varying typography weights).
+    3. BRAND CONSISTENCY: Maintain ${colorScheme} throughout all elements.
+    4. IMAGE USAGE: Distribute the provided image tokens [${visualPlan.visuals.map(v => v.id).join(', ')}] across the document where they make the most sense. Use them in a way that matches the "${imageStyle}" style.
+    5. SLIDE STRUCTURE (if applicable): Ensure exactly ${slideCount} slides with distinct purposes.
     
-    SECTION STRUCTURE:
-    - Hero (full viewport, image background, big title)
-    - Key Benefits (3-4 cards with icons)
-    - Features Grid (detailed feature cards)
-    - Statistics/Metrics (big numbers with icons)
-    - Call to Action (gradient button, compelling copy)
-    - Footer (minimal, elegant)
-    
-    Make it look like a $50,000 custom website, not a template!
+    Make it look like a $50,000 custom digital product!
     `;
 
     console.log('[UniversalCreator] 🏗️ Assembling HTML...');

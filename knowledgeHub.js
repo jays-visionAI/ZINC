@@ -3448,7 +3448,7 @@ const CREATIVE_CONFIGS = {
         advancedControls: [
             { id: 'colorScheme', type: 'select', label: 'Color Scheme', icon: 'fa-palette', options: ['Indigo/Purple (Default)', 'Blue/Cyan', 'Green/Teal', 'Orange/Red', 'Monochrome', 'Custom Gradient'] },
             { id: 'animationLevel', type: 'select', label: 'Animation Level', icon: 'fa-wand-magic-sparkles', options: ['None', 'Subtle', 'Medium', 'Rich'] },
-            { id: 'iconStyle', type: 'select', label: 'Icon Style', icon: 'fa-icons', options: ['Font Awesome', 'Heroicons', 'Phosphor', 'No Icons'] },
+            { id: 'iconStyle', type: 'select', label: 'Icon Style', icon: 'fa-icons', options: ['Heroicons', 'Phosphor'] },
             { id: 'layoutDensity', type: 'select', label: 'Layout Density', icon: 'fa-table-cells', options: ['Spacious', 'Balanced', 'Compact'] },
             { id: 'imageCount', type: 'select', label: 'AI Images', icon: 'fa-images', options: ['1', '2', '3', '4', '5'] },
             { id: 'customPrompt', type: 'textarea', label: 'Custom Instructions', icon: 'fa-comment-dots', placeholder: 'Add any specific design instructions...\ne.g., "Use blue gradients, include a testimonial section, make CTA buttons larger"' }
@@ -3468,7 +3468,7 @@ const CREATIVE_CONFIGS = {
         advancedControls: [
             { id: 'colorScheme', type: 'select', label: 'Color Scheme', icon: 'fa-palette', options: ['Indigo/Purple (Default)', 'Blue/Cyan', 'Green/Teal', 'Orange/Red', 'Monochrome', 'Custom Gradient'] },
             { id: 'animationLevel', type: 'select', label: 'Animation Level', icon: 'fa-wand-magic-sparkles', options: ['None', 'Subtle', 'Medium', 'Rich'] },
-            { id: 'iconStyle', type: 'select', label: 'Icon Style', icon: 'fa-icons', options: ['Font Awesome', 'Heroicons', 'Phosphor', 'No Icons'] },
+            { id: 'iconStyle', type: 'select', label: 'Icon Style', icon: 'fa-icons', options: ['Heroicons', 'Phosphor'] },
             { id: 'layoutDensity', type: 'select', label: 'Layout Density', icon: 'fa-table-cells', options: ['Spacious', 'Balanced', 'Compact'] },
             { id: 'imageCount', type: 'select', label: 'AI Images', icon: 'fa-images', options: ['1', '2', '3'] },
             { id: 'glassmorphism', type: 'checkbox', label: 'Glassmorphism Cards', icon: 'fa-square' },
@@ -3490,12 +3490,13 @@ const CREATIVE_CONFIGS = {
         ],
         advancedControls: [
             { id: 'colorScheme', type: 'select', label: 'Color Scheme', icon: 'fa-palette', options: ['Indigo/Purple (Default)', 'Blue/Cyan', 'Green/Teal', 'Orange/Red', 'Monochrome', 'Custom Gradient'] },
-            { id: 'animationLevel', type: 'select', label: 'Animation Level', icon: 'fa-wand-magic-sparkles', options: ['None', 'Subtle', 'Medium', 'Rich'] },
-            { id: 'iconStyle', type: 'select', label: 'Icon Style', icon: 'fa-icons', options: ['Font Awesome', 'Heroicons', 'Phosphor', 'No Icons'] },
+            { id: 'contentTone', type: 'select', label: 'Content Tone', icon: 'fa-bullhorn', options: ['Professional', 'Persuasive', 'Technical', 'Creative', 'Academic'] },
+            { id: 'imageStyle', type: 'select', label: 'AI Image Style', icon: 'fa-paint-brush', options: ['Photorealistic', '3D Render', 'Minimalist Illustration', 'Cyberpunk Digital Art', 'Abstract'] },
+            { id: 'iconStyle', type: 'select', label: 'Icon Style', icon: 'fa-icons', options: ['Heroicons', 'Phosphor'] },
+            { id: 'includeCharts', type: 'select', label: 'Data Visualization', icon: 'fa-chart-pie', options: ['None', 'Bar Charts', 'Line Graphs', 'Progress Rings', 'Infographic Cards'] },
             { id: 'layoutDensity', type: 'select', label: 'Layout Density', icon: 'fa-table-cells', options: ['Spacious', 'Balanced', 'Compact'] },
             { id: 'imageCount', type: 'select', label: 'AI Images per Slide', icon: 'fa-images', options: ['1', '2', '3'] },
-            { id: 'slideTransition', type: 'select', label: 'Slide Transitions', icon: 'fa-shuffle', options: ['None', 'Fade', 'Slide', 'Zoom'] },
-            { id: 'includeCharts', type: 'checkbox', label: 'Include Data Charts', icon: 'fa-chart-bar' },
+            { id: 'slideTransition', type: 'select', label: 'Slide Transitions', icon: 'fa-shuffle', options: ['Fade', 'Slide', 'Zoom', 'None'] },
             { id: 'glassmorphism', type: 'checkbox', label: 'Glassmorphism Cards', icon: 'fa-square' },
             { id: 'customPrompt', type: 'textarea', label: 'Custom Instructions', icon: 'fa-comment-dots', placeholder: 'Add any specific design instructions...\ne.g., "Make the traction slide more impactful, use testimonial quotes"' }
         ]
@@ -3648,12 +3649,124 @@ function generateCreativeControls(controls) {
 }
 
 /**
- * Close creative modal
+ * Download the generated creative as PDF using html2pdf.js
+ */
+async function downloadCreativeAsPDF() {
+    const resultContainer = document.getElementById('creative-result-container');
+    const iframe = resultContainer.querySelector('iframe');
+
+    // Load html2pdf if not present
+    if (typeof html2pdf === 'undefined') {
+        showNotification('Loading PDF engine...', 'info');
+        await new Promise((resolve) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+            script.onload = resolve;
+            document.head.appendChild(script);
+        });
+    }
+
+    showNotification('Preparing PDF...', 'info');
+
+    try {
+        let elementToPdf;
+        const config = CREATIVE_CONFIGS[currentCreativeType];
+        const filename = `${config.name.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
+
+        if (iframe) {
+            // For iframe content
+            elementToPdf = iframe.contentDocument.body;
+        } else {
+            // For direct HTML content
+            elementToPdf = resultContainer.querySelector('.prose') || resultContainer;
+        }
+
+        const opt = {
+            margin: 10,
+            filename: filename,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true, logging: false },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        // If it's a pitch deck, landscape might be better
+        if (currentCreativeType === 'pitch_deck') {
+            opt.jsPDF.orientation = 'landscape';
+        }
+
+        await html2pdf().set(opt).from(elementToPdf).save();
+        showNotification('PDF Downloaded!', 'success');
+    } catch (error) {
+        console.error('PDF Error:', error);
+        showNotification('Failed to generate PDF: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Toggle Edit Mode for the generated content
+ */
+let isEditMode = false;
+function toggleEditMode() {
+    const resultContainer = document.getElementById('creative-result-container');
+    const iframe = resultContainer.querySelector('iframe');
+    const editBtn = document.getElementById('btn-creative-edit');
+
+    isEditMode = !isEditMode;
+
+    if (iframe) {
+        const doc = iframe.contentDocument;
+        if (isEditMode) {
+            doc.body.contentEditable = 'true';
+            doc.body.style.outline = '2px dashed #6366f1';
+            doc.body.style.padding = '10px';
+            editBtn.innerHTML = '<i class="fas fa-save mr-2"></i>Finish Editing';
+            editBtn.classList.replace('bg-slate-700', 'bg-emerald-600');
+            showNotification('Edit mode enabled. You can now type directly in the document.', 'info');
+        } else {
+            doc.body.contentEditable = 'false';
+            doc.body.style.outline = 'none';
+            doc.body.style.padding = '0';
+            editBtn.innerHTML = '<i class="fas fa-edit mr-2"></i>Edit Content';
+            editBtn.classList.replace('bg-emerald-600', 'bg-slate-700');
+            showNotification('Edits saved to view.', 'success');
+        }
+    } else {
+        const prose = resultContainer.querySelector('.prose');
+        if (prose) {
+            if (isEditMode) {
+                prose.contentEditable = 'true';
+                prose.classList.add('ring-2', 'ring-indigo-500', 'p-4');
+                editBtn.innerHTML = '<i class="fas fa-save mr-2"></i>Finish Editing';
+                editBtn.classList.replace('bg-slate-700', 'bg-emerald-600');
+            } else {
+                prose.contentEditable = 'false';
+                prose.classList.remove('ring-2', 'ring-indigo-500', 'p-4');
+                editBtn.innerHTML = '<i class="fas fa-edit mr-2"></i>Edit Content';
+                editBtn.classList.replace('bg-emerald-600', 'bg-slate-700');
+            }
+        }
+    }
+}
+
+/**
+ * Close creative modal and reset states
  */
 function closeCreativeModal() {
     document.getElementById('creative-modal').style.display = 'none';
     currentCreativeType = null;
     currentCreativeData = {};
+
+    // Reset Edit Mode
+    isEditMode = true; // Set opposite to trigger reset in toggleEditMode
+    toggleEditMode(); // This will set isEditMode to false and reset UI
+
+    const editBtn = document.getElementById('btn-creative-edit');
+    if (editBtn) editBtn.classList.add('hidden');
+
+    document.getElementById('btn-creative-copy').classList.add('hidden');
+    document.getElementById('btn-creative-download').classList.add('hidden');
+
+    console.log('[CreativeModal] Closed and reset.');
 }
 
 /**
@@ -3748,7 +3861,30 @@ async function generateCreativeItem() {
         // Show action buttons
         document.getElementById('btn-creative-copy').classList.remove('hidden');
         document.getElementById('btn-creative-copy').style.display = 'flex';
-        // Enable Download logic here if needed
+
+        const downloadBtn = document.getElementById('btn-creative-download');
+        downloadBtn.classList.remove('hidden');
+        downloadBtn.style.display = 'flex';
+        downloadBtn.innerHTML = '<i class="fas fa-file-pdf mr-2"></i>Download PDF';
+        downloadBtn.onclick = () => downloadCreativeAsPDF();
+
+        // Add Edit Toggle Button
+        let editBtn = document.getElementById('btn-creative-edit');
+        if (!editBtn) {
+            const btnContainer = document.querySelector('#creative-modal .flex.gap-3.justify-end');
+            if (btnContainer) {
+                const editBtnHtml = `
+                    <button id="btn-creative-edit" onclick="toggleEditMode()" 
+                        class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium flex items-center transition-all">
+                        <i class="fas fa-edit mr-2"></i>Edit Content
+                    </button>
+                `;
+                btnContainer.insertAdjacentHTML('afterbegin', editBtnHtml);
+            }
+        } else {
+            editBtn.classList.remove('hidden');
+            editBtn.style.display = 'flex';
+        }
 
         showNotification(`${config.name} generated successfully!`, 'success');
 
