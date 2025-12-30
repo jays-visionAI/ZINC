@@ -185,15 +185,30 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type) {
 
     // 6. AGGRESSIVE IMAGE REPAIR: Fix broken/empty img src attributes
     console.log('[UniversalCreator] 🔧 Repairing broken images...');
-    // Match img tags with empty src, relative paths, or no http
+
+    // Fix img tags with empty src, relative paths, or no http
     htmlResult = htmlResult.replace(/<img([^>]*)src=["'](?!http|data:)([^"']*)["']([^>]*)>/gi, (match, before, src, after) => {
         const randomImg = `https://source.unsplash.com/800x600/?${fallbackKeyword},abstract&sig=${Math.random()}`;
         return `<img${before}src="${randomImg}"${after}>`;
     });
-    // Also fix img tags with completely empty src
+
+    // Fix img tags with completely empty src
     htmlResult = htmlResult.replace(/<img([^>]*)src=["']["']([^>]*)>/gi, (match, before, after) => {
         const randomImg = `https://source.unsplash.com/800x600/?${fallbackKeyword},tech&sig=${Math.random()}`;
         return `<img${before}src="${randomImg}"${after}>`;
+    });
+
+    // Fix img tags WITHOUT src attribute at all (only has alt)
+    htmlResult = htmlResult.replace(/<img\s+alt=["']([^"']+)["']([^>]*)>/gi, (match, alt, rest) => {
+        const randomImg = `https://source.unsplash.com/800x600/?${fallbackKeyword},${encodeURIComponent(alt.split(' ')[0])}&sig=${Math.random()}`;
+        return `<img src="${randomImg}" alt="${alt}"${rest}>`;
+    });
+
+    // Replace [Text] markdown-style image placeholders with actual images
+    htmlResult = htmlResult.replace(/\[([A-Za-z0-9\s]+(?:Diagram|Image|Illustration|Photo|Chart|Graph|Icon|Visual|Shot|Picture))\]/gi, (match, text) => {
+        const keyword = encodeURIComponent(text.split(' ')[0] || 'chart');
+        const randomImg = `https://source.unsplash.com/800x500/?${keyword},abstract&sig=${Math.random()}`;
+        return `<img src="${randomImg}" alt="${text}" class="w-full max-w-md rounded-lg shadow-lg mx-auto my-4">`;
     });
 
     // 7. FORCE TAILWIND CSS: Inject CDN if not present
