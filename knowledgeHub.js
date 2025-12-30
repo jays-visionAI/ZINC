@@ -3622,7 +3622,10 @@ async function generateCreativeItem() {
             mode: (typeof currentUserPerformanceMode !== 'undefined') ? currentUserPerformanceMode : 'balanced'
         });
 
-        const htmlContent = result.data.data;
+        console.log('[CreativeModal] Backend Response:', result.data);
+
+        // Defensive: Check multiple possible response structures
+        const htmlContent = result.data?.data || result.data?.content || result.data?.html || 'No content generated.';
 
         // Show result
         document.getElementById('creative-loading').classList.add('hidden');
@@ -4943,26 +4946,30 @@ async function confirmSchedule() {
 // REAL-TIME LOG UI
 // ============================================================
 function renderLogWindow() {
-    const loadingContainer = document.getElementById('creative-loading');
-    if (!loadingContainer) return;
+    // Append to the modal's preview panel (parent of result container)
+    const resultContainer = document.getElementById('creative-result-container');
+    const previewPanel = resultContainer?.parentElement || document.getElementById('creative-loading')?.parentElement;
+
+    if (!previewPanel) return;
 
     // Create log container if not exists
     let logContainer = document.getElementById('generation-log-container');
     if (!logContainer) {
         const logHtml = `
-            <div id="generation-log-container" class="mt-6 w-full max-w-2xl bg-slate-950 rounded border border-slate-800 p-3 font-mono text-xs text-slate-400 h-32 overflow-y-auto">
-                <div class="flex items-center gap-2 mb-2 border-b border-slate-800 pb-1">
+            <div id="generation-log-container" class="mt-4 w-full bg-slate-950/80 backdrop-blur rounded-lg border border-slate-800 p-3 font-mono text-xs text-slate-400 max-h-40 overflow-y-auto">
+                <div class="flex items-center gap-2 mb-2 border-b border-slate-800 pb-1 sticky top-0 bg-slate-950">
                     <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                    <span class="text-slate-500">SYSTEM LOG</span>
+                    <span class="text-slate-500 text-[10px] uppercase tracking-wider">Generation Log</span>
                 </div>
-                <div id="generation-logs" class="space-y-1"></div>
+                <div id="generation-logs" class="space-y-0.5"></div>
             </div>
         `;
-        loadingContainer.insertAdjacentHTML('beforeend', logHtml);
+        previewPanel.insertAdjacentHTML('beforeend', logHtml);
     }
 
     // Reset logs
-    document.getElementById('generation-logs').innerHTML = '';
+    const logsEl = document.getElementById('generation-logs');
+    if (logsEl) logsEl.innerHTML = '';
 }
 
 function addLog(message, type = 'info') {
