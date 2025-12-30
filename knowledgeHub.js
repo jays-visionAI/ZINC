@@ -3566,8 +3566,38 @@ const CREATIVE_CONFIGS = {
         advancedControls: [
             { id: 'aspectRatio', type: 'select', label: 'Aspect Ratio', icon: 'fa-crop', options: ['16:9 (Landscape)', '1:1 (Square)', '9:16 (Portrait)', '4:3', '3:2'] },
             { id: 'imageCount', type: 'select', label: 'Number of Images', icon: 'fa-images', options: ['1', '2', '3', '4'] },
-            { id: 'colorTone', type: 'select', label: 'Color Tone', icon: 'fa-palette', options: ['Vibrant', 'Muted', 'Dark Mode', 'Light Mode', 'Warm', 'Cool'] },
-            { id: 'lighting', type: 'select', label: 'Lighting', icon: 'fa-lightbulb', options: ['Natural', 'Studio', 'Dramatic', 'Soft', 'Neon'] },
+            {
+                id: 'colorTone',
+                type: 'visual-pick',
+                label: 'Color Tone & Mood',
+                options: [
+                    { value: 'Vibrant', label: 'Vibrant', icon: 'fa-sun', desc: 'Saturated' },
+                    { value: 'Muted', label: 'Muted', icon: 'fa-cloud', desc: 'Soft & Dull' },
+                    { value: 'Warm', label: 'Warm', icon: 'fa-fire', desc: 'Red/Orange' },
+                    { value: 'Cool', label: 'Cool', icon: 'fa-snowflake', desc: 'Blue/Teal' },
+                    { value: 'Pastel', label: 'Pastel', icon: 'fa-candy-cane', desc: 'Soft Candy' },
+                    { value: 'Monochrome', label: 'Mono', icon: 'fa-adjust', desc: 'Black & White' },
+                    { value: 'Sepia', label: 'Sepia', icon: 'fa-history', desc: 'Vintage Brown' },
+                    { value: 'Neon', label: 'Neon', icon: 'fa-lightbulb', desc: 'Glow Lights' },
+                    { value: 'Ethereal', label: 'Ethereal', icon: 'fa-ghost', desc: 'Dreamy & Light' },
+                    { value: 'Dark Nord', label: 'Nord', icon: 'fa-moon', desc: 'Dark & Cold' },
+                    { value: 'Midnight', label: 'Midnight', icon: 'fa-star', desc: 'Deep Blues' },
+                    { value: 'Earth Tones', label: 'Earth', icon: 'fa-leaf', desc: 'Natural Brown' },
+                    { value: 'Royal Gold', label: 'Gold', icon: 'fa-crown', desc: 'Luxury Accents' },
+                    { value: 'High Contrast', label: 'Hi-Contrast', icon: 'fa-circle-half-stroke', desc: 'Sharp edges' },
+                    { value: 'Low Contrast', label: 'Lo-Contrast', icon: 'fa-cloud-sun', desc: 'Faded look' },
+                    { value: 'Sunset Glow', label: 'Sunset', icon: 'fa-mountain-sun', desc: 'Warm Gradient' },
+                    { value: 'Cyber Green', label: 'Cyber', icon: 'fa-microchip', desc: 'Matrix vibes' },
+                    { value: 'Retro 8-bit', label: 'Retro', icon: 'fa-gamepad', desc: 'Limited palette' },
+                    { value: 'Industrial', label: 'Industrial', icon: 'fa-city', desc: 'Gray & Cold' },
+                    { value: 'Luxury Dark', label: 'Luxury', icon: 'fa-gem', desc: 'Dark & Gold' },
+                    { value: 'Oceanic', label: 'Ocean', icon: 'fa-water', desc: 'Deep Sea' },
+                    { value: 'Desert Bloom', label: 'Desert', icon: 'fa-cactus', desc: 'Ochre & Sand' },
+                    { value: 'Forest Mist', label: 'Forest', icon: 'fa-tree', desc: 'Deep Greens' },
+                    { value: 'Cinematic Teal/Orange', label: 'Hollywood', icon: 'fa-video', desc: 'Classic Look' }
+                ]
+            },
+            { id: 'lighting', type: 'select', label: 'Lighting', icon: 'fa-bolt', options: ['Natural', 'Studio', 'Dramatic', 'Soft', 'Neon'] },
             { id: 'customPrompt', type: 'textarea', label: 'Additional Prompt', icon: 'fa-comment-dots', placeholder: 'Add more details for image generation...\ne.g., "4k, trending on artstation, octane render"' }
         ]
     }
