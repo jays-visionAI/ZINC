@@ -12,8 +12,8 @@ console.log = (...args) => {
 };
 
 const functions = require('firebase-functions');
-const { onSchedule } = require('firebase-functions/v2/scheduler');
-const { onRequest, onCall } = require('firebase-functions/v2/https');
+const { createPitchDeck } = require('./agents/pitch_deck');
+const { generateWithVertexAI } = require('./utils/vertexAI');
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const admin = require('firebase-admin');
 const corsMiddleware = require('cors')({ origin: true });
@@ -4799,6 +4799,46 @@ exports.generateCreativeContent = onCall({ cors: true, timeoutSeconds: 540, memo
     if (!request.auth) {
         return { success: false, error: 'Unauthenticated' };
     }
+
+    const { type, inputs, projectContext, plan = {} } = request.data;
+
+    // Define executeLLM helper for agents to use (Centralized LLM Caller)
+    const executeLLM = async (systemPrompt, userPrompt) => {
+        const response = await callLLM(
+            // Use high quality model for creative tasks
+            plan.modelConfig?.provider || 'anthropic',
+            plan.modelConfig?.model || 'claude-3-5-sonnet-20241022',
+            [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt }
+            ],
+            0.7
+        );
+        return response.content || response;
+    };
+
+    // === SPECIALIZED AGENT ROUTING ===
+    if (type === 'pitch_deck') {
+        try {
+            const resultHTML = await createPitchDeck(inputs, projectContext, plan, executeLLM);
+            return {
+                success: true,
+                type: 'html',
+                data: resultHTML,
+                metadata: {
+                    provider: 'agent:pitch_deck',
+                    model: 'multi-step',
+                    imageModel: 'imagen-4.0-generate-001'
+                }
+            };
+        } catch (agentErr) {
+            console.error('[generateCreativeContent] Pitch Deck Agent failed:', agentErr);
+            // Fallback to legacy Monolith function below if agent crashes?
+            // Or just return error. Let's return error to debug agent.
+            return { success: false, error: `Pitch Deck Agent Failed: ${agentErr.message}` };
+        }
+    }
+    // =================================
 
     try {
         const { type, inputs = {}, projectContext, targetLanguage = 'English', mode = 'balanced' } = request.data || {};
