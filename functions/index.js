@@ -5149,6 +5149,19 @@ OUTPUT: Complete, print-ready HTML that looks like a real presentation deck.`;
             });
             resultData = completion.choices[0].message.content;
             debugLogs = "Fast Path Execution (No Debate)";
+
+            // CLEANING LOGIC (Applied to Fast Path as well):
+            // 1. Remove <think> blocks
+            resultData = resultData.replace(/<think>[\s\S]*?<\/think>/g, '');
+
+            // 2. Remove markdown fences
+            const markdownMatch = resultData.match(/```html([\s\S]*?)```/);
+            if (markdownMatch && markdownMatch[1]) {
+                console.log('[generateCreativeContent] 🧹 Stripped markdown fences from HTML (Fast Path)');
+                resultData = markdownMatch[1].trim();
+            } else if (resultData.includes('```')) {
+                resultData = resultData.replace(/```/g, '').trim();
+            }
         }
 
         const endTime = Date.now();
