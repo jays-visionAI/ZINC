@@ -3435,27 +3435,45 @@ const CREATIVE_CONFIGS = {
     product_brochure: {
         name: 'Product Brochure',
         subtitle: 'Generate a high-quality PDF brochure with AI visuals',
-        buttonLabel: 'Brochure', // Updated label
+        buttonLabel: 'Brochure',
         credits: 20,
         controls: [
             { id: 'topic', type: 'text', label: 'Product Name', placeholder: 'e.g., ZYNK Pro' },
             { id: 'audience', type: 'text', label: 'Target Audience', placeholder: 'e.g., Enterprise CTOs' },
-            { id: 'style', type: 'select', label: 'Visual Style', options: ['Modern Tech', 'Corporate', 'Minimalist', 'Creative'] },
-            { id: 'specifications', type: 'textarea', label: 'Product Specs (Key-Value)', placeholder: 'e.g.,\nProcessor: M2 Chip\nBattery: 20 Hours\nWeight: 1.2kg' }, // New field
+            { id: 'style', type: 'select', label: 'Visual Style', options: ['Modern Tech', 'Corporate', 'Minimalist', 'Creative', 'Luxury', 'Futuristic'] },
+            { id: 'specifications', type: 'textarea', label: 'Product Specs (Key-Value)', placeholder: 'e.g.,\nProcessor: M2 Chip\nBattery: 20 Hours' },
             { id: 'usps', type: 'textarea', label: 'Unique Selling Points (USP)', placeholder: 'List 3 key differentiators...' },
             { id: 'cta', type: 'text', label: 'Call to Action', placeholder: 'e.g., Schedule a Demo' }
+        ],
+        advancedControls: [
+            { id: 'colorScheme', type: 'select', label: '🎨 Color Scheme', options: ['Indigo/Purple (Default)', 'Blue/Cyan', 'Green/Teal', 'Orange/Red', 'Monochrome', 'Custom Gradient'] },
+            { id: 'animationLevel', type: 'select', label: '✨ Animation Level', options: ['None', 'Subtle', 'Medium', 'Rich'] },
+            { id: 'iconStyle', type: 'select', label: '🔷 Icon Style', options: ['Font Awesome', 'Heroicons', 'Phosphor', 'No Icons'] },
+            { id: 'layoutDensity', type: 'select', label: '📐 Layout Density', options: ['Spacious', 'Balanced', 'Compact'] },
+            { id: 'imageCount', type: 'select', label: '🖼️ AI Images', options: ['1', '2', '3', '4', '5'] },
+            { id: 'customPrompt', type: 'textarea', label: '💬 Custom Instructions', placeholder: 'Add any specific design instructions...\ne.g., "Use blue gradients, include a testimonial section, make CTA buttons larger"' }
         ]
     },
     one_pager: {
         name: 'Executive One-Pager',
         subtitle: 'Generate a concise A4 summary for stakeholders',
-        buttonLabel: 'One-Pager', // Updated label
+        buttonLabel: 'One-Pager',
         credits: 15,
         controls: [
             { id: 'topic', type: 'text', label: 'Document Title', placeholder: 'e.g., Q3 Performance Review' },
             { id: 'executiveSummary', type: 'textarea', label: 'Executive Summary', placeholder: 'Brief overview of the main message...' },
-            { id: 'style', type: 'select', label: 'Layout Style', options: ['Corporate', 'Startup', 'Data-Heavy', 'Newsletter'] },
-            { id: 'contactInfo', type: 'text', label: 'Contact Info', placeholder: 'e.g., sales@zynk.ai | +82 10-1234-5678' }
+            { id: 'style', type: 'select', label: 'Layout Style', options: ['Corporate', 'Startup', 'Data-Heavy', 'Newsletter', 'Modern Tech', 'Luxury'] },
+            { id: 'contactInfo', type: 'text', label: 'Contact Info', placeholder: 'e.g., sales@zynk.ai' }
+        ],
+        advancedControls: [
+            { id: 'colorScheme', type: 'select', label: '🎨 Color Scheme', options: ['Indigo/Purple (Default)', 'Blue/Cyan', 'Green/Teal', 'Orange/Red', 'Monochrome', 'Custom Gradient'] },
+            { id: 'animationLevel', type: 'select', label: '✨ Animation Level', options: ['None', 'Subtle', 'Medium', 'Rich'] },
+            { id: 'iconStyle', type: 'select', label: '🔷 Icon Style', options: ['Font Awesome', 'Heroicons', 'Phosphor', 'No Icons'] },
+            { id: 'layoutDensity', type: 'select', label: '📐 Layout Density', options: ['Spacious', 'Balanced', 'Compact'] },
+            { id: 'imageCount', type: 'select', label: '🖼️ AI Images', options: ['1', '2', '3'] },
+            { id: 'glassmorphism', type: 'checkbox', label: '🪟 Glassmorphism Cards' },
+            { id: 'floatingBlobs', type: 'checkbox', label: '🫧 Floating Gradient Blobs' },
+            { id: 'customPrompt', type: 'textarea', label: '💬 Custom Instructions', placeholder: 'Add any specific design instructions...' }
         ]
     },
     pitch_deck: {
@@ -3467,18 +3485,36 @@ const CREATIVE_CONFIGS = {
             { id: 'topic', type: 'text', label: 'Deck Title', placeholder: 'e.g., Series A Investor Deck' },
             { id: 'pitchOverview', type: 'textarea', label: 'Pitch Overview / Problem', placeholder: 'Describe the problem and your solution...' },
             { id: 'audience', type: 'text', label: 'Target Audience', placeholder: 'e.g., VCs, Angel Investors' },
-            { id: 'slideCount', type: 'select', label: 'Slide Count', options: ['5', '8', '10', '12'] },
-            { id: 'style', type: 'select', label: 'Visual Style', options: ['Modern Tech', 'Creative Bold', 'Minimalist', 'Corporate'] }
+            { id: 'slideCount', type: 'select', label: 'Slide Count', options: ['5', '8', '10', '12', '15'] },
+            { id: 'style', type: 'select', label: 'Visual Style', options: ['Modern Tech', 'Creative Bold', 'Minimalist', 'Corporate', 'Luxury', 'Futuristic'] }
+        ],
+        advancedControls: [
+            { id: 'colorScheme', type: 'select', label: '🎨 Color Scheme', options: ['Indigo/Purple (Default)', 'Blue/Cyan', 'Green/Teal', 'Orange/Red', 'Monochrome', 'Custom Gradient'] },
+            { id: 'animationLevel', type: 'select', label: '✨ Animation Level', options: ['None', 'Subtle', 'Medium', 'Rich'] },
+            { id: 'iconStyle', type: 'select', label: '🔷 Icon Style', options: ['Font Awesome', 'Heroicons', 'Phosphor', 'No Icons'] },
+            { id: 'layoutDensity', type: 'select', label: '📐 Layout Density', options: ['Spacious', 'Balanced', 'Compact'] },
+            { id: 'imageCount', type: 'select', label: '🖼️ AI Images per Slide', options: ['1', '2', '3'] },
+            { id: 'slideTransition', type: 'select', label: '🔄 Slide Transitions', options: ['None', 'Fade', 'Slide', 'Zoom'] },
+            { id: 'includeCharts', type: 'checkbox', label: '📊 Include Data Charts' },
+            { id: 'glassmorphism', type: 'checkbox', label: '🪟 Glassmorphism Cards' },
+            { id: 'customPrompt', type: 'textarea', label: '💬 Custom Instructions', placeholder: 'Add any specific design instructions...\ne.g., "Make the traction slide more impactful, use testimonial quotes"' }
         ]
     },
     promo_images: {
         name: 'Promo Images',
-        subtitle: 'Generate promotional images',
+        subtitle: 'Generate promotional images with AI',
         buttonLabel: 'Images',
         credits: 5,
         controls: [
-            { id: 'topic', type: 'textarea', label: 'Image Concept', placeholder: 'Describe the image...' },
-            { id: 'style', type: 'select', label: 'Style', options: ['Photorealistic', '3D Render', 'Illustration', 'Cyberpunk'] }
+            { id: 'topic', type: 'textarea', label: 'Image Concept', placeholder: 'Describe the image in detail...' },
+            { id: 'style', type: 'select', label: 'Style', options: ['Photorealistic', '3D Render', 'Illustration', 'Cyberpunk', 'Minimalist', 'Abstract', 'Corporate'] }
+        ],
+        advancedControls: [
+            { id: 'aspectRatio', type: 'select', label: '📐 Aspect Ratio', options: ['16:9 (Landscape)', '1:1 (Square)', '9:16 (Portrait)', '4:3', '3:2'] },
+            { id: 'imageCount', type: 'select', label: '🖼️ Number of Images', options: ['1', '2', '3', '4'] },
+            { id: 'colorTone', type: 'select', label: '🎨 Color Tone', options: ['Vibrant', 'Muted', 'Dark Mode', 'Light Mode', 'Warm', 'Cool'] },
+            { id: 'lighting', type: 'select', label: '💡 Lighting', options: ['Natural', 'Studio', 'Dramatic', 'Soft', 'Neon'] },
+            { id: 'customPrompt', type: 'textarea', label: '💬 Additional Prompt', placeholder: 'Add more details for image generation...\ne.g., "4k, trending on artstation, octane render"' }
         ]
     }
 };
@@ -3502,9 +3538,31 @@ function openCreativeModal(planType) {
     document.getElementById('creative-cost').textContent = config.credits + ' cr';
     document.getElementById('btn-creative-generate-label').textContent = config.buttonLabel;
 
-    // Generate controls
+    // Generate basic controls
     const controlsContainer = document.getElementById('creative-controls-container');
-    controlsContainer.innerHTML = generateCreativeControls(config.controls);
+    let controlsHTML = generateCreativeControls(config.controls);
+
+    // Generate advanced controls section (collapsible)
+    if (config.advancedControls && config.advancedControls.length > 0) {
+        controlsHTML += `
+            <div class="mt-6 border-t border-slate-700 pt-4">
+                <button type="button" id="toggle-advanced-options" 
+                    class="flex items-center justify-between w-full text-left text-sm font-medium text-slate-300 hover:text-white transition-colors"
+                    onclick="toggleAdvancedOptions()">
+                    <span class="flex items-center gap-2">
+                        <i class="fas fa-sliders-h text-indigo-400"></i>
+                        Advanced Options
+                    </span>
+                    <i id="advanced-options-chevron" class="fas fa-chevron-down text-slate-500 transition-transform"></i>
+                </button>
+                <div id="advanced-options-panel" class="hidden mt-4 space-y-4 animate-fade-in">
+                    ${generateCreativeControls(config.advancedControls)}
+                </div>
+            </div>
+        `;
+    }
+
+    controlsContainer.innerHTML = controlsHTML;
 
     // Reset preview area & Clear previous results
     document.getElementById('creative-placeholder').classList.remove('hidden');
@@ -3520,9 +3578,29 @@ function openCreativeModal(planType) {
     document.getElementById('btn-creative-download').classList.add('hidden');
     document.getElementById('btn-creative-copy').classList.add('hidden');
 
+    // Remove old log container if exists
+    const oldLog = document.getElementById('generation-log-container');
+    if (oldLog) oldLog.remove();
+
     // Show modal
     document.getElementById('creative-modal').style.display = 'block';
     console.log('[CreativeModal] Opened for:', planType);
+}
+
+/**
+ * Toggle advanced options panel visibility
+ */
+function toggleAdvancedOptions() {
+    const panel = document.getElementById('advanced-options-panel');
+    const chevron = document.getElementById('advanced-options-chevron');
+
+    if (panel.classList.contains('hidden')) {
+        panel.classList.remove('hidden');
+        chevron.style.transform = 'rotate(180deg)';
+    } else {
+        panel.classList.add('hidden');
+        chevron.style.transform = 'rotate(0deg)';
+    }
 }
 
 /**
@@ -3583,7 +3661,7 @@ async function generateCreativeItem() {
     const config = CREATIVE_CONFIGS[currentCreativeType];
     if (!config) return;
 
-    // 1. Collect inputs
+    // 1. Collect basic inputs
     const inputs = {};
     config.controls.forEach(ctrl => {
         const el = document.getElementById(ctrl.id);
@@ -3592,13 +3670,24 @@ async function generateCreativeItem() {
         }
     });
 
-    // 2. Prepare Context (from global 'sources')
+    // 2. Collect advanced options (if any)
+    const advancedOptions = {};
+    if (config.advancedControls) {
+        config.advancedControls.forEach(ctrl => {
+            const el = document.getElementById(ctrl.id);
+            if (el) {
+                advancedOptions[ctrl.id] = ctrl.type === 'checkbox' ? el.checked : el.value;
+            }
+        });
+    }
+
+    // 3. Prepare Context (from global 'sources')
     const activeSources = sources.filter(s => s.isActive !== false);
     const contextText = activeSources.map(s => `${s.title}: ${s.content ? s.content.substring(0, 2000) : 'No content'}`).join('\n\n');
 
-    console.log('[CreativeModal] Generating:', currentCreativeType, inputs, 'Context Len:', contextText.length);
+    console.log('[CreativeModal] Generating:', currentCreativeType, { inputs, advancedOptions }, 'Context Len:', contextText.length);
 
-    // 3. UI Loading
+    // 4. UI Loading
     document.getElementById('creative-placeholder').classList.add('hidden');
     document.getElementById('creative-loading').classList.remove('hidden');
     document.getElementById('creative-loading').style.display = 'flex';
@@ -3617,6 +3706,7 @@ async function generateCreativeItem() {
         const result = await generateFn({
             type: currentCreativeType,
             inputs: inputs,
+            advancedOptions: advancedOptions, // NEW: Pass advanced options to backend
             projectContext: contextText,
             targetLanguage: 'English',
             mode: (typeof currentUserPerformanceMode !== 'undefined') ? currentUserPerformanceMode : 'balanced'

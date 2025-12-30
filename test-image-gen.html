@@ -4,19 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎨 Image Generation Test</title>
+    <title>Nano Banana (Imagen 3) Test</title>
     <style>
-        * {
-            box-sizing: border-box;
-        }
-
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 100%);
+            background-color: #121212;
             color: #fff;
-            min-height: 100vh;
-            margin: 0;
-            padding: 40px;
+            font-family: sans-serif;
+            padding: 20px;
         }
 
         .container {
@@ -24,271 +18,146 @@
             margin: 0 auto;
         }
 
-        h1 {
-            text-align: center;
-            margin-bottom: 30px;
-            background: linear-gradient(90deg, #8B5CF6, #EC4899);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .card {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 16px;
-            padding: 24px;
-            margin-bottom: 24px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        label {
-            display: block;
-            margin-bottom: 8px;
-            color: #888;
-            font-size: 14px;
-        }
-
-        textarea,
-        select,
-        input {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 8px;
-            background: rgba(0, 0, 0, 0.3);
-            color: #fff;
-            font-size: 14px;
-            margin-bottom: 16px;
-        }
-
         textarea {
-            min-height: 100px;
-            resize: vertical;
-        }
-
-        .row {
-            display: flex;
-            gap: 16px;
-        }
-
-        .row>div {
-            flex: 1;
+            width: 100%;
+            height: 100px;
+            padding: 10px;
+            margin: 10px 0;
+            background: #222;
+            color: #fff;
+            border: 1px solid #444;
         }
 
         button {
-            width: 100%;
-            padding: 16px;
-            font-size: 16px;
-            font-weight: 600;
+            padding: 10px 20px;
+            background: #16e0bd;
             border: none;
-            border-radius: 8px;
+            font-weight: bold;
             cursor: pointer;
-            transition: all 0.3s;
         }
 
-        .btn-primary {
-            background: linear-gradient(135deg, #8B5CF6, #6D28D9);
-            color: #fff;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(139, 92, 246, 0.4);
-        }
-
-        .btn-primary:disabled {
+        button:disabled {
             opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
         }
 
         #result {
-            background: rgba(0, 0, 0, 0.4);
-            border-radius: 8px;
-            padding: 16px;
-            min-height: 200px;
-            white-space: pre-wrap;
-            font-family: monospace;
-            font-size: 12px;
-        }
-
-        #result.success {
-            border: 2px solid #10B981;
-        }
-
-        #result.error {
-            border: 2px solid #EF4444;
-        }
-
-        #generatedImage {
-            max-width: 100%;
-            border-radius: 12px;
             margin-top: 20px;
-            display: none;
         }
 
-        .spinner {
-            border: 3px solid rgba(255, 255, 255, 0.1);
-            border-top: 3px solid #8B5CF6;
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            animation: spin 1s linear infinite;
-            display: inline-block;
-            margin-right: 10px;
+        img {
+            max-width: 100%;
+            border-radius: 8px;
+            margin-top: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
         }
 
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
+        .error {
+            color: #ff6b6b;
+            padding: 10px;
+            background: rgba(255, 107, 107, 0.1);
+            border-radius: 4px;
         }
     </style>
 </head>
 
 <body>
     <div class="container">
-        <h1>🎨 Nano Banana Image Generator</h1>
+        <h1>🍌 Nano Banana (Vertex AI) Test</h1>
+        <p>Enter a prompt to generate an image using Vertex AI (Imagen 3).</p>
 
-        <div class="card">
-            <label>Prompt</label>
-            <textarea id="prompt"
-                placeholder="Describe the image you want to generate...">A minimalist tech illustration showing an AI brain with neural network connections, modern flat design, purple and blue gradients</textarea>
+        <textarea id="prompt"
+            placeholder="E.g., A futuristic city with flying cars, neon lights, cyberpunk style"></textarea>
+        <button id="generateBtn" onclick="generateImage()">Generate Image</button>
 
-            <div class="row">
-                <div>
-                    <label>Provider</label>
-                    <select id="provider">
-                        <option value="nano-banana" selected>🍌 Nano Banana Pro (Default)</option>
-                        <option value="imagen">🖼️ Google Imagen 4</option>
-                        <option value="imagen-fast">⚡ Google Imagen 4 Fast</option>
-                        <option value="imagen-ultra">💎 Google Imagen 4 Ultra</option>
-                    </select>
-                </div>
-                <div>
-                    <label>Size</label>
-                    <select id="size">
-                        <option value="1024x1024" selected>1024x1024 (Square)</option>
-                        <option value="1792x1024">1792x1024 (Landscape)</option>
-                        <option value="1024x1792">1024x1792 (Portrait)</option>
-                    </select>
-                </div>
-            </div>
-
-            <button id="generateBtn" class="btn-primary" onclick="generateImage()">
-                🚀 Generate Image
-            </button>
-        </div>
-
-        <div class="card">
-            <h3 style="margin-top: 0;">Result</h3>
-            <div id="result">Click "Generate Image" to start...</div>
-            <img id="generatedImage" alt="Generated Image">
-        </div>
+        <div id="status" style="margin-top: 10px; color: #888;"></div>
+        <div id="result"></div>
     </div>
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-functions-compat.js"></script>
-    <script src="firebase-config.js"></script>
+    <!-- Firebase SDKs (Using v11.0.2 for Vertex AI support) -->
+    <script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-vertexai-compat.js"></script>
 
     <script>
-        const resultDiv = document.getElementById('result');
-        const imageEl = document.getElementById('generatedImage');
-        const btn = document.getElementById('generateBtn');
+        // 1. Firebase Configuration (From your firebase-config.js)
+        const firebaseConfig = {
+            apiKey: "AIzaSyDbX2wse6sPKvHTJvmjdZbOFYv_DQ0cIkw",
+            authDomain: "zinc-c790f.firebaseapp.com",
+            projectId: "zinc-c790f",
+            storageBucket: "zinc-c790f.firebasestorage.app",
+            messagingSenderId: "670347890116",
+            appId: "1:670347890116:web:40293006c53b83fd72a891",
+            measurementId: "G-2YFRT6T83B"
+        };
 
-        let currentUser = null;
-
-        // Check auth state on page load
-        window.addEventListener('load', () => {
-            if (typeof firebase !== 'undefined' && firebase.app) {
-                firebase.auth().onAuthStateChanged((user) => {
-                    if (user) {
-                        currentUser = user;
-                        btn.disabled = false;
-                        resultDiv.textContent = `✅ Logged in as: ${user.email}\n\nProvider: Nano Banana Pro (via Gemini API)\nModels: nano-banana-pro-preview, imagen-4.0-*\n\nReady to generate images!`;
-                        resultDiv.className = 'success';
-                    } else {
-                        currentUser = null;
-                        btn.disabled = true;
-                        resultDiv.textContent = '🔐 Please sign in first to use image generation.\n\nClick the button below to sign in with Google.';
-                        resultDiv.innerHTML += '\n\n<button onclick="signIn()" style="padding: 12px 24px; background: #4285f4; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">🔑 Sign in with Google</button>';
-                    }
-                });
-            } else {
-                resultDiv.textContent = '❌ Firebase not initialized. Check firebase-config.js';
-                resultDiv.className = 'error';
-            }
-        });
-
-        async function signIn() {
-            try {
-                const provider = new firebase.auth.GoogleAuthProvider();
-                await firebase.auth().signInWithPopup(provider);
-            } catch (error) {
-                console.error('Sign in error:', error);
-                resultDiv.textContent = `❌ Sign in failed: ${error.message}`;
-                resultDiv.className = 'error';
-            }
+        // 2. Initialize Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        
+        // 3. Initialize Vertex AI
+        // Note: 'vertexai' namespace is available because we loaded firebase-vertexai-compat.js
+        let vertexAI;
+        try {
+            vertexAI = firebase.vertexai.getVertexAI(app);
+            console.log("Vertex AI initialized:", vertexAI);
+            document.getElementById('status').innerText = "Ready to generate.";
+        } catch (e) {
+            console.error("Failed to init Vertex AI:", e);
+            document.getElementById('status').innerHTML = `<span class="error">Error initializing Vertex AI. Check console.</span>`;
         }
 
         async function generateImage() {
-            if (!currentUser) {
-                alert('Please sign in first');
-                return;
-            }
-
             const prompt = document.getElementById('prompt').value.trim();
-            const provider = document.getElementById('provider').value;
-            const size = document.getElementById('size').value;
-
-            if (!prompt) {
-                alert('Please enter a prompt');
-                return;
-            }
-
-            // Update UI
+            if (!prompt) return alert("Please enter a prompt");
+            
+            const btn = document.getElementById('generateBtn');
+            const status = document.getElementById('status');
+            const result = document.getElementById('result');
+            
             btn.disabled = true;
-            btn.innerHTML = '<span class="spinner"></span> Generating...';
-            resultDiv.className = '';
-            resultDiv.textContent = '⏳ Calling generateImage Cloud Function...\n\n';
-            imageEl.style.display = 'none';
-
-            const startTime = Date.now();
+            status.innerText = "Generating image... (this may take 10-20 seconds)";
+            result.innerHTML = "";
 
             try {
-                resultDiv.textContent += `Provider: ${provider}\nSize: ${size}\nPrompt: ${prompt}\n\n`;
-
-                const generateImageFn = firebase.functions().httpsCallable('generateImage');
-                const result = await generateImageFn({
-                    prompt: prompt + '. IMPORTANT: No text, letters, logos, or watermarks in the image.',
-                    provider,
-                    size
+                // 4. Get the Model (Imagen 3)
+                // Note: The specific model ID for 'Nano Banana' (Gemini 2.5 Flash Image) or Imagen 3
+                // might change. Standardizing on 'imagen-3.0-generate-001' for now.
+                const model = firebase.vertexai.getGenerativeModel(vertexAI, { 
+                    model: "imagen-3.0-generate-001" 
                 });
 
-                const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-
-                resultDiv.className = 'success';
-                resultDiv.textContent += `✅ SUCCESS! (${elapsed}s)\n\n`;
-                resultDiv.textContent += JSON.stringify(result.data, null, 2);
-
-                if (result.data.imageUrl) {
-                    imageEl.src = result.data.imageUrl;
-                    imageEl.style.display = 'block';
-                }
-
+                // 5. Generate Content
+                // Note: For Imagen, the SDK usage differs slightly from text-only models.
+                // Currently, the Firebase Vertex AI JS SDK is primarily for Gemini (text/multimodal).
+                // START EXPERIMENTAL: Using Gemini 1.5 Flash to act as a bridge or direct Imagen call if supported.
+                // IF SDK does not yet support direct `generateImages` (it's very new), we might need a workaround 
+                // or use a text model to describe it first.
+                //
+                // HOWEVER, assuming the user specifically wants the "Nano Banana" (Image capability),
+                // we will try the standard `generateContent` first to see if it handles image prompts 
+                // or if we need to call the specific image endpoint.
+                
+                // REVISION: The standard JS SDK `getGenerativeModel` connects to Gemini.
+                // Image generation (Imagen) usually usually requires a different call structure/model type
+                // or isn't fully in the JS Client SDK yet (often server-side only).
+                // BUT, "Gemini 2.5" implies it's a Gemini model that *can* generate images.
+                // Let's try prompting it.
+                
+                const resultResponse = await model.generateContent(prompt);
+                const response = await resultResponse.response;
+                const text = response.text();
+                
+                // If the model returns a base64 image or a link, we display it.
+                // If it refuses, we know we need the Server-Side implementation.
+                console.log("Response:", text);
+                result.innerHTML = `<p>Result: ${text}</p>`;
+                
             } catch (error) {
-                const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-                resultDiv.className = 'error';
-                resultDiv.textContent += `❌ ERROR (${elapsed}s)\n\n`;
-                resultDiv.textContent += `Code: ${error.code || 'unknown'}\n`;
-                resultDiv.textContent += `Message: ${error.message}\n`;
-                if (error.details) {
-                    resultDiv.textContent += `Details: ${JSON.stringify(error.details, null, 2)}`;
-                }
+                console.error("Generation Error:", error);
+                // If 404 Not Found -> Model name wrong or API not enabled.
+                // If 403 Permission Denied -> API Key restriction issue.
+                result.innerHTML = `<div class="error">Error: ${error.message}</div>`;
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '🚀 Generate Image';
+                status.innerText = "Done.";
             }
         }
     </script>

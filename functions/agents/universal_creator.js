@@ -5,9 +5,24 @@ const { generateWithVertexAI } = require('../utils/vertexAI');
  * Handles visual planning, asset generation, and HTML assembly for various content types.
  * Supported Types: 'pitch_deck', 'product_brochure', 'one_pager'
  */
-async function createCreativeContent(inputs, context, plan, executeLLM, type) {
+async function createCreativeContent(inputs, context, plan, executeLLM, type, advancedOptions = {}) {
     const { topic, style = 'Modern', audience, slideCount = 5 } = inputs;
+
+    // Extract advanced customization options
+    const {
+        colorScheme = 'Indigo/Purple (Default)',
+        animationLevel = 'Medium',
+        iconStyle = 'Font Awesome',
+        layoutDensity = 'Balanced',
+        imageCount = '2',
+        glassmorphism = true,
+        floatingBlobs = true,
+        customPrompt = ''
+    } = advancedOptions;
+
     console.log(`[UniversalCreator] 🚀 Starting generation for type: ${type} (${style})...`);
+    console.log(`[UniversalCreator] ⚙️ Advanced Options: colorScheme=${colorScheme}, animations=${animationLevel}, icons=${iconStyle}`);
+    if (customPrompt) console.log(`[UniversalCreator] 💬 Custom Prompt: ${customPrompt.substring(0, 100)}...`);
 
     // === STRATEGY PATTERN: Define prompts based on type ===
     let strategy = {
@@ -178,6 +193,23 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type) {
     Pure HTML only. No markdown. No explanations. Start with <!DOCTYPE html>.
     `;
 
+    // Build color scheme instruction based on user selection
+    const colorInstructions = {
+        'Indigo/Purple (Default)': 'Use indigo-500, purple-500 for primary accents.',
+        'Blue/Cyan': 'Use blue-500, cyan-400 for primary accents.',
+        'Green/Teal': 'Use emerald-500, teal-400 for primary accents.',
+        'Orange/Red': 'Use orange-500, red-400 for primary accents.',
+        'Monochrome': 'Use slate-500, gray-400 for primary accents (black/white theme).',
+        'Custom Gradient': 'Use a unique gradient combination that fits the brand.'
+    };
+
+    const animationInstructions = {
+        'None': 'Do not include any animations or hover effects.',
+        'Subtle': 'Include minimal hover effects (opacity changes only).',
+        'Medium': 'Include hover-lift effects and fade-in animations.',
+        'Rich': 'Include elaborate animations: hover-lift, fade-in, floating blobs, gradient shifts, and micro-interactions.'
+    };
+
     const taskPrompt = `
     ${strategy.htmlTask}
 
@@ -191,15 +223,39 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type) {
     ${context || 'Use general professional content.'}
     """
 
+    === CUSTOMIZATION (User Selected) ===
+    🎨 COLOR SCHEME: ${colorScheme}
+    → ${colorInstructions[colorScheme] || colorInstructions['Indigo/Purple (Default)']}
+    
+    ✨ ANIMATION LEVEL: ${animationLevel}
+    → ${animationInstructions[animationLevel] || animationInstructions['Medium']}
+    
+    🔷 ICON STYLE: ${iconStyle}
+    ${iconStyle === 'Font Awesome' ? '→ Use Font Awesome 6 icons (<i class="fas fa-...">)' : ''}
+    ${iconStyle === 'Heroicons' ? '→ Use Heroicons SVG icons' : ''}
+    ${iconStyle === 'No Icons' ? '→ Do not include icons' : ''}
+    
+    📐 LAYOUT DENSITY: ${layoutDensity}
+    ${layoutDensity === 'Spacious' ? '→ Use generous padding (p-12, py-24, gap-12)' : ''}
+    ${layoutDensity === 'Balanced' ? '→ Use standard padding (p-8, py-16, gap-8)' : ''}
+    ${layoutDensity === 'Compact' ? '→ Use minimal padding (p-4, py-8, gap-4)' : ''}
+    
+    🪟 GLASSMORPHISM: ${glassmorphism ? 'YES - Use glass effect cards (bg-white/5 backdrop-blur)' : 'NO - Use solid cards'}
+    🫧 FLOATING BLOBS: ${floatingBlobs ? 'YES - Include decorative gradient orbs' : 'NO - Skip decorative blobs'}
+    
+    ${customPrompt ? `
+    💬 ADDITIONAL INSTRUCTIONS FROM USER:
+    """
+    ${customPrompt}
+    """
+    (IMPORTANT: Follow these user instructions carefully!)
+    ` : ''}
+
     QUALITY REQUIREMENTS:
     1. Create a STUNNING design that would win design awards
-    2. Every section must have at least one icon
-    3. Use glassmorphism cards for all content blocks
-    4. Include animated hover effects on all interactive elements
-    5. Add gradient accents throughout (text, borders, backgrounds)
-    6. Create visual hierarchy with varied font sizes and weights
-    7. Include at least 3 decorative floating gradient blobs
-    8. Footer with zynk-watermark class and social icons
+    2. Follow the customization options above precisely
+    3. Create visual hierarchy with varied font sizes and weights
+    4. Footer with zynk-watermark class
     
     SECTION STRUCTURE:
     - Hero (full viewport, image background, big title)

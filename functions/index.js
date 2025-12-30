@@ -4725,7 +4725,9 @@ exports.generateCreativeContent = onCall({ cors: true, timeoutSeconds: 540, memo
         return { success: false, error: 'Unauthenticated' };
     }
 
-    const { type, inputs, projectContext, plan = {} } = request.data;
+    const { type, inputs, advancedOptions = {}, projectContext, plan = {} } = request.data;
+
+    console.log('[generateCreativeContent] Starting:', type, 'Advanced Options:', JSON.stringify(advancedOptions));
 
     // Define executeLLM helper for agents to use (Centralized LLM Caller)
     const executeLLM = async (systemPrompt, userPrompt) => {
@@ -4746,8 +4748,8 @@ exports.generateCreativeContent = onCall({ cors: true, timeoutSeconds: 540, memo
     const agentSupportedTypes = ['pitch_deck', 'product_brochure', 'one_pager'];
     if (agentSupportedTypes.includes(type)) {
         try {
-            // Pass 'type' to the universal agent so it knows which strategy to use
-            const resultHTML = await createCreativeContent(inputs, projectContext, plan, executeLLM, type);
+            // Pass 'type' and 'advancedOptions' to the universal agent so it knows which strategy to use
+            const resultHTML = await createCreativeContent(inputs, projectContext, plan, executeLLM, type, advancedOptions);
             return {
                 success: true,
                 type: 'html',
