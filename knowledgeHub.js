@@ -151,7 +151,8 @@ function initializeGoogleAPIs() {
                         setTimeout(initGAPI, delay);
                     } else {
                         console.error('GAPI initialization failed after ' + maxRetries + ' attempts');
-                        showNotification('Google API connection failed. Please refresh the page.', 'error');
+                        // Suppress UI notification for GAPI failure to avoid blocking other features
+                        console.warn('Google API connection failed. Drive features will be unavailable.');
                     }
                 }
             };
