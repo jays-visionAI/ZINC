@@ -4734,19 +4734,48 @@ exports.generateCreativeContent = onCall({ cors: true, timeoutSeconds: 540, memo
 
     console.log('[generateCreativeContent] Starting:', type, 'Advanced Options:', JSON.stringify(advancedOptions));
 
-    // Define executeLLM helper for agents to use (Centralized LLM Caller)
+    // Define executeLLM helper for agents to use (Centralized LLM Caller with Fallback)
     const executeLLM = async (systemPrompt, userPrompt) => {
-        const response = await callLLM(
-            // Use high quality model for creative tasks
-            plan.modelConfig?.provider || 'anthropic',
-            plan.modelConfig?.model || 'claude-3-5-sonnet-20241022',
-            [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: userPrompt }
-            ],
-            0.7
-        );
-        return response.content || response;
+        // Priority Order: DeepSeek → OpenAI → Google
+        const fallbackProviders = [
+            { provider: 'deepseek', model: 'deepseek-chat' },
+            { provider: 'openai', model: 'gpt-4o' },
+            { provider: 'google', model: 'gemini-2.0-flash-exp' }
+        ];
+
+        // Use plan config if provided, otherwise try fallback chain
+        const configuredProvider = plan.modelConfig?.provider;
+        const configuredModel = plan.modelConfig?.model;
+
+        if (configuredProvider && configuredModel) {
+            // If explicitly configured, try that first then fallback
+            fallbackProviders.unshift({ provider: configuredProvider, model: configuredModel });
+        }
+
+        let lastError = null;
+        for (const { provider, model } of fallbackProviders) {
+            try {
+                console.log(`[executeLLM] Trying ${provider}/${model}...`);
+                const response = await callLLM(
+                    provider,
+                    model,
+                    [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: userPrompt }
+                    ],
+                    0.7
+                );
+                console.log(`[executeLLM] ✅ Success with ${provider}/${model}`);
+                return response.content || response;
+            } catch (error) {
+                console.log(`[executeLLM] ❌ ${provider}/${model} failed: ${error.message}`);
+                lastError = error;
+                // Continue to next provider
+            }
+        }
+
+        // All providers failed
+        throw lastError || new Error('All LLM providers failed');
     };
 
     // === UNIVERSAL CREATIVE AGENT ROUTING ===
