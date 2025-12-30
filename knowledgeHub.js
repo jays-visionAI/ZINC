@@ -3446,12 +3446,12 @@ const CREATIVE_CONFIGS = {
             { id: 'cta', type: 'text', label: 'Call to Action', placeholder: 'e.g., Schedule a Demo' }
         ],
         advancedControls: [
-            { id: 'colorScheme', type: 'select', label: '🎨 Color Scheme', options: ['Indigo/Purple (Default)', 'Blue/Cyan', 'Green/Teal', 'Orange/Red', 'Monochrome', 'Custom Gradient'] },
-            { id: 'animationLevel', type: 'select', label: '✨ Animation Level', options: ['None', 'Subtle', 'Medium', 'Rich'] },
-            { id: 'iconStyle', type: 'select', label: '🔷 Icon Style', options: ['Font Awesome', 'Heroicons', 'Phosphor', 'No Icons'] },
-            { id: 'layoutDensity', type: 'select', label: '📐 Layout Density', options: ['Spacious', 'Balanced', 'Compact'] },
-            { id: 'imageCount', type: 'select', label: '🖼️ AI Images', options: ['1', '2', '3', '4', '5'] },
-            { id: 'customPrompt', type: 'textarea', label: '💬 Custom Instructions', placeholder: 'Add any specific design instructions...\ne.g., "Use blue gradients, include a testimonial section, make CTA buttons larger"' }
+            { id: 'colorScheme', type: 'select', label: 'Color Scheme', icon: 'fa-palette', options: ['Indigo/Purple (Default)', 'Blue/Cyan', 'Green/Teal', 'Orange/Red', 'Monochrome', 'Custom Gradient'] },
+            { id: 'animationLevel', type: 'select', label: 'Animation Level', icon: 'fa-wand-magic-sparkles', options: ['None', 'Subtle', 'Medium', 'Rich'] },
+            { id: 'iconStyle', type: 'select', label: 'Icon Style', icon: 'fa-icons', options: ['Font Awesome', 'Heroicons', 'Phosphor', 'No Icons'] },
+            { id: 'layoutDensity', type: 'select', label: 'Layout Density', icon: 'fa-table-cells', options: ['Spacious', 'Balanced', 'Compact'] },
+            { id: 'imageCount', type: 'select', label: 'AI Images', icon: 'fa-images', options: ['1', '2', '3', '4', '5'] },
+            { id: 'customPrompt', type: 'textarea', label: 'Custom Instructions', icon: 'fa-comment-dots', placeholder: 'Add any specific design instructions...\ne.g., "Use blue gradients, include a testimonial section, make CTA buttons larger"' }
         ]
     },
     one_pager: {
@@ -3466,14 +3466,14 @@ const CREATIVE_CONFIGS = {
             { id: 'contactInfo', type: 'text', label: 'Contact Info', placeholder: 'e.g., sales@zynk.ai' }
         ],
         advancedControls: [
-            { id: 'colorScheme', type: 'select', label: '🎨 Color Scheme', options: ['Indigo/Purple (Default)', 'Blue/Cyan', 'Green/Teal', 'Orange/Red', 'Monochrome', 'Custom Gradient'] },
-            { id: 'animationLevel', type: 'select', label: '✨ Animation Level', options: ['None', 'Subtle', 'Medium', 'Rich'] },
-            { id: 'iconStyle', type: 'select', label: '🔷 Icon Style', options: ['Font Awesome', 'Heroicons', 'Phosphor', 'No Icons'] },
-            { id: 'layoutDensity', type: 'select', label: '📐 Layout Density', options: ['Spacious', 'Balanced', 'Compact'] },
-            { id: 'imageCount', type: 'select', label: '🖼️ AI Images', options: ['1', '2', '3'] },
-            { id: 'glassmorphism', type: 'checkbox', label: '🪟 Glassmorphism Cards' },
-            { id: 'floatingBlobs', type: 'checkbox', label: '🫧 Floating Gradient Blobs' },
-            { id: 'customPrompt', type: 'textarea', label: '💬 Custom Instructions', placeholder: 'Add any specific design instructions...' }
+            { id: 'colorScheme', type: 'select', label: 'Color Scheme', icon: 'fa-palette', options: ['Indigo/Purple (Default)', 'Blue/Cyan', 'Green/Teal', 'Orange/Red', 'Monochrome', 'Custom Gradient'] },
+            { id: 'animationLevel', type: 'select', label: 'Animation Level', icon: 'fa-wand-magic-sparkles', options: ['None', 'Subtle', 'Medium', 'Rich'] },
+            { id: 'iconStyle', type: 'select', label: 'Icon Style', icon: 'fa-icons', options: ['Font Awesome', 'Heroicons', 'Phosphor', 'No Icons'] },
+            { id: 'layoutDensity', type: 'select', label: 'Layout Density', icon: 'fa-table-cells', options: ['Spacious', 'Balanced', 'Compact'] },
+            { id: 'imageCount', type: 'select', label: 'AI Images', icon: 'fa-images', options: ['1', '2', '3'] },
+            { id: 'glassmorphism', type: 'checkbox', label: 'Glassmorphism Cards', icon: 'fa-square' },
+            { id: 'floatingBlobs', type: 'checkbox', label: 'Floating Gradient Blobs', icon: 'fa-circle' },
+            { id: 'customPrompt', type: 'textarea', label: 'Custom Instructions', icon: 'fa-comment-dots', placeholder: 'Add any specific design instructions...' }
         ]
     },
     pitch_deck: {
@@ -3489,15 +3489,15 @@ const CREATIVE_CONFIGS = {
             { id: 'style', type: 'select', label: 'Visual Style', options: ['Modern Tech', 'Creative Bold', 'Minimalist', 'Corporate', 'Luxury', 'Futuristic'] }
         ],
         advancedControls: [
-            { id: 'colorScheme', type: 'select', label: '🎨 Color Scheme', options: ['Indigo/Purple (Default)', 'Blue/Cyan', 'Green/Teal', 'Orange/Red', 'Monochrome', 'Custom Gradient'] },
-            { id: 'animationLevel', type: 'select', label: '✨ Animation Level', options: ['None', 'Subtle', 'Medium', 'Rich'] },
-            { id: 'iconStyle', type: 'select', label: '🔷 Icon Style', options: ['Font Awesome', 'Heroicons', 'Phosphor', 'No Icons'] },
-            { id: 'layoutDensity', type: 'select', label: '📐 Layout Density', options: ['Spacious', 'Balanced', 'Compact'] },
-            { id: 'imageCount', type: 'select', label: '🖼️ AI Images per Slide', options: ['1', '2', '3'] },
-            { id: 'slideTransition', type: 'select', label: '🔄 Slide Transitions', options: ['None', 'Fade', 'Slide', 'Zoom'] },
-            { id: 'includeCharts', type: 'checkbox', label: '📊 Include Data Charts' },
-            { id: 'glassmorphism', type: 'checkbox', label: '🪟 Glassmorphism Cards' },
-            { id: 'customPrompt', type: 'textarea', label: '💬 Custom Instructions', placeholder: 'Add any specific design instructions...\ne.g., "Make the traction slide more impactful, use testimonial quotes"' }
+            { id: 'colorScheme', type: 'select', label: 'Color Scheme', icon: 'fa-palette', options: ['Indigo/Purple (Default)', 'Blue/Cyan', 'Green/Teal', 'Orange/Red', 'Monochrome', 'Custom Gradient'] },
+            { id: 'animationLevel', type: 'select', label: 'Animation Level', icon: 'fa-wand-magic-sparkles', options: ['None', 'Subtle', 'Medium', 'Rich'] },
+            { id: 'iconStyle', type: 'select', label: 'Icon Style', icon: 'fa-icons', options: ['Font Awesome', 'Heroicons', 'Phosphor', 'No Icons'] },
+            { id: 'layoutDensity', type: 'select', label: 'Layout Density', icon: 'fa-table-cells', options: ['Spacious', 'Balanced', 'Compact'] },
+            { id: 'imageCount', type: 'select', label: 'AI Images per Slide', icon: 'fa-images', options: ['1', '2', '3'] },
+            { id: 'slideTransition', type: 'select', label: 'Slide Transitions', icon: 'fa-shuffle', options: ['None', 'Fade', 'Slide', 'Zoom'] },
+            { id: 'includeCharts', type: 'checkbox', label: 'Include Data Charts', icon: 'fa-chart-bar' },
+            { id: 'glassmorphism', type: 'checkbox', label: 'Glassmorphism Cards', icon: 'fa-square' },
+            { id: 'customPrompt', type: 'textarea', label: 'Custom Instructions', icon: 'fa-comment-dots', placeholder: 'Add any specific design instructions...\ne.g., "Make the traction slide more impactful, use testimonial quotes"' }
         ]
     },
     promo_images: {
@@ -3510,11 +3510,11 @@ const CREATIVE_CONFIGS = {
             { id: 'style', type: 'select', label: 'Style', options: ['Photorealistic', '3D Render', 'Illustration', 'Cyberpunk', 'Minimalist', 'Abstract', 'Corporate'] }
         ],
         advancedControls: [
-            { id: 'aspectRatio', type: 'select', label: '📐 Aspect Ratio', options: ['16:9 (Landscape)', '1:1 (Square)', '9:16 (Portrait)', '4:3', '3:2'] },
-            { id: 'imageCount', type: 'select', label: '🖼️ Number of Images', options: ['1', '2', '3', '4'] },
-            { id: 'colorTone', type: 'select', label: '🎨 Color Tone', options: ['Vibrant', 'Muted', 'Dark Mode', 'Light Mode', 'Warm', 'Cool'] },
-            { id: 'lighting', type: 'select', label: '💡 Lighting', options: ['Natural', 'Studio', 'Dramatic', 'Soft', 'Neon'] },
-            { id: 'customPrompt', type: 'textarea', label: '💬 Additional Prompt', placeholder: 'Add more details for image generation...\ne.g., "4k, trending on artstation, octane render"' }
+            { id: 'aspectRatio', type: 'select', label: 'Aspect Ratio', icon: 'fa-crop', options: ['16:9 (Landscape)', '1:1 (Square)', '9:16 (Portrait)', '4:3', '3:2'] },
+            { id: 'imageCount', type: 'select', label: 'Number of Images', icon: 'fa-images', options: ['1', '2', '3', '4'] },
+            { id: 'colorTone', type: 'select', label: 'Color Tone', icon: 'fa-palette', options: ['Vibrant', 'Muted', 'Dark Mode', 'Light Mode', 'Warm', 'Cool'] },
+            { id: 'lighting', type: 'select', label: 'Lighting', icon: 'fa-lightbulb', options: ['Natural', 'Studio', 'Dramatic', 'Soft', 'Neon'] },
+            { id: 'customPrompt', type: 'textarea', label: 'Additional Prompt', icon: 'fa-comment-dots', placeholder: 'Add more details for image generation...\ne.g., "4k, trending on artstation, octane render"' }
         ]
     }
 };
@@ -3627,16 +3627,20 @@ function generateCreativeControls(controls) {
                 </select>`;
                 break;
             case 'checkbox':
+                const checkboxIcon = ctrl.icon ? `<i class="fas ${ctrl.icon} text-indigo-400 mr-2"></i>` : '';
                 inputHTML = `<label class="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" id="${ctrl.id}" class="w-4 h-4 rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500">
-                    <span class="text-sm text-slate-300">${ctrl.label}</span>
+                    <span class="text-sm text-slate-300">${checkboxIcon}${ctrl.label}</span>
                 </label>`;
                 return `<div class="space-y-1">${inputHTML}</div>`;
         }
 
+        // Render icon if present
+        const labelIcon = ctrl.icon ? `<i class="fas ${ctrl.icon} text-indigo-400 mr-2"></i>` : '';
+
         return `
             <div class="space-y-1">
-                <label class="block text-xs text-slate-400 font-medium">${ctrl.label}</label>
+                <label class="block text-xs text-slate-400 font-medium">${labelIcon}${ctrl.label}</label>
                 ${inputHTML}
             </div>
         `;

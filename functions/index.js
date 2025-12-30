@@ -12,21 +12,26 @@ console.log = (...args) => {
 };
 
 const functions = require('firebase-functions');
+const { onCall, onRequest } = require('firebase-functions/v2/https');
+const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { createCreativeContent } = require('./agents/universal_creator');
 const { generateWithVertexAI } = require('./utils/vertexAI');
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const admin = require('firebase-admin');
 const corsMiddleware = require('cors')({ origin: true });
 
+
 // Allowed origins for CORS - using true to allow all for now
 const ALLOWED_ORIGINS = true;
 
-// Initialize Admin SDK with explicit project config
-admin.initializeApp({
-    credential: admin.credential.applicationDefault(),
-    projectId: 'zinc-c790f',
-    storageBucket: 'zinc-c790f.firebasestorage.app'
-});
+// Initialize Admin SDK with explicit project config (only if not already initialized)
+if (!admin.apps.length) {
+    admin.initializeApp({
+        credential: admin.credential.applicationDefault(),
+        projectId: 'zinc-c790f',
+        storageBucket: 'zinc-c790f.firebasestorage.app'
+    });
+}
 
 const db = admin.firestore();
 
