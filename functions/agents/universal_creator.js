@@ -137,10 +137,29 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type) {
     // 4. TOKEN REPLACEMENT
     console.log('[UniversalCreator] 🔗 Injecting asset URLs...');
     Object.keys(assetMap).forEach(key => {
-        const regex = new RegExp(`{{ ${key}}}`, 'g');
+        const regex = new RegExp(`{{${key}}}`, 'g');
         htmlResult = htmlResult.replace(regex, assetMap[key]);
+        // Also try with spaces (LLM sometimes adds spaces)
+        const regexWithSpaces = new RegExp(`{{ ${key} }}`, 'g');
+        htmlResult = htmlResult.replace(regexWithSpaces, assetMap[key]);
     });
 
+    // 5. FALLBACK CLEANUP: Replace any remaining placeholder URLs LLM invented
+    console.log('[UniversalCreator] 🧹 Cleaning up stray placeholder URLs...');
+    const placeholderPatterns = [
+        /https?:\/\/via\.placeholder\.com[^\s"')]+/g,
+        /https?:\/\/picsum\.photos[^\s"')]+/g,
+        /https?:\/\/placehold\.[^\s"')]+/g,
+        /https?:\/\/placeholder\.[^\s"')]+/g,
+        /{{[A-Z_]+}}/g // Any remaining unreplaced tokens
+    ];
+
+    const fallbackKeyword = encodeURIComponent(topic.split(' ')[0] || 'technology');
+    placeholderPatterns.forEach(pattern => {
+        htmlResult = htmlResult.replace(pattern, `https://source.unsplash.com/1600x900/?${fallbackKeyword},business&sig=${Math.random()}`);
+    });
+
+    console.log('[UniversalCreator] ✅ HTML generation complete.');
     return htmlResult;
 }
 
