@@ -4520,7 +4520,7 @@ function generateMockPressRelease(inputs) {
     const quote = inputs['pr-quote'] || '';
 
     return `
-        < div class="space-y-4" >
+        <div class="space-y-4">
             <div class="text-center border-b border-slate-700 pb-4">
                 <p class="text-xs text-slate-500 uppercase tracking-wider">Press Release</p>
                 <p class="text-xs text-slate-600 mt-1">For Immediate Release</p>
@@ -4580,18 +4580,28 @@ function closePlanModal() {
  * Show specific step in plan modal
  */
 function showPlanStep(step) {
-    document.getElementById('plan-step-options').classList.add('hidden');
-    document.getElementById('plan-step-generating').classList.add('hidden');
-    document.getElementById('plan-step-result').classList.add('hidden');
+    console.log(`[PlanModal] Switching to step: ${step}`);
+    const steps = ['options', 'generating', 'result'];
+    steps.forEach(s => {
+        const el = document.getElementById(`plan-step-${s}`);
+        if (el) el.classList.add('hidden');
+        else console.warn(`[PlanModal] Element not found: plan-step-${s}`);
+    });
 
-    document.getElementById(`plan - step - ${step} `).classList.remove('hidden');
+    const target = document.getElementById(`plan-step-${step}`);
+    if (target) {
+        target.classList.remove('hidden');
+    } else {
+        console.error(`[PlanModal] Target step element not found: plan-step-${step}`);
+    }
 
     // Update footer visibility
     const footer = document.getElementById('plan-modal-footer');
-    if (step === 'generating') {
-        footer.classList.add('hidden');
+    if (footer) {
+        if (step === 'generating') footer.classList.add('hidden');
+        else footer.classList.remove('hidden');
     } else {
-        footer.classList.remove('hidden');
+        console.warn(`[PlanModal] Footer element not found: plan-modal-footer`);
     }
 }
 
@@ -4603,7 +4613,7 @@ function showPlanStep(step) {
 function renderCreativeImages(images) {
     const container = document.getElementById('creative-result-container');
     container.innerHTML = `
-        < div class="w-full h-full p-6 overflow-y-auto" >
+        <div class="w-full h-full p-6 overflow-y-auto">
             <div class="grid grid-cols-2 gap-4">
                 ${images.map((url, i) => `
                     <div class="aspect-square bg-slate-800 rounded-xl overflow-hidden relative group cursor-pointer hover:ring-2 ring-indigo-500">
@@ -4614,7 +4624,7 @@ function renderCreativeImages(images) {
                     </div>
                 `).join('')}
             </div>
-        </div >
+        </div>
         `;
 }
 
@@ -4680,7 +4690,7 @@ function renderCreativeResult(type, content) {
     }
 
     container.innerHTML = `
-        < div class="w-full h-full overflow-y-auto bg-white text-slate-800 rounded-lg" >
+        <div class="w-full h-full overflow-y-auto bg-white text-slate-800 rounded-lg">
             <div class="prose max-w-none p-6">
                 ${cleanContent}
             </div>

@@ -73,6 +73,22 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
             htmlTask: "Create a professional Executive One-Pager (A4 style layout). Dense information, clear hierarchy, sidebars.",
             visualIds: [{ id: "HEADER_BG", desc: "Header background" }, { id: "INFOGRAPHIC_1", desc: "Process/Stats diagram" }]
         };
+    } else if (type === 'promo_images') {
+        const count = parseInt(imageCount) || 1;
+        const vIds = [];
+        for (let i = 1; i <= count; i++) {
+            vIds.push({ id: `PROMO_IMG_${i}`, desc: `Promotional asset variation ${i}` });
+        }
+        strategy = {
+            role: "Advertising Art Director",
+            visualTask: `Identify ${count} distinct visual compositions for the promotional concept "${topic}". Each should vary in angle or focus but maintain consistent branding.`,
+            htmlTask: `Create a sleek, gallery-style showcase for ${count} promotional images. 
+            Include a sophisticated header, a minimalist grid to display the images, and a section for "Usage Guidelines" or "Campaign Details".
+            - Background: Deep slate or dark mode.
+            - Layout: Use a responsive grid (grid-cols-1 ${count > 1 ? 'md:grid-cols-2' : ''}) for the images.
+            - Details: Add a "Copy to Clipboard" or "Download Asset" button simulation for each image.`,
+            visualIds: vIds
+        };
     }
 
     // 1. VISUAL PLANNING

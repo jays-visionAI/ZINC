@@ -24,10 +24,34 @@ async function getVertexAccessToken() {
  * Upload Base64 Image to Firebase Storage
  */
 async function uploadBase64ToStorage(base64String, modelName) {
-    // TEMPORARY FIX: Return Data URI directly to avoid Storage permission issues.
-    // This ensures images ALWAYS show up if generated.
-    console.log('[uploadBase64ToStorage] ⚠️ Returning Data URI directly (Bypassing Storage for reliability)');
-    return `data:image/png;base64,${base64String}`;
+    try {
+        const bucket = admin.storage().bucket();
+        const filename = `creative_assets/${modelName}_${Date.now()}_${Math.random().toString(36).substring(7)}.png`;
+        const file = bucket.file(filename);
+
+        console.log(`[uploadBase64ToStorage] 📦 Uploading image to Storage: ${filename}...`);
+
+        const buffer = Buffer.from(base64String, 'base64');
+        await file.save(buffer, {
+            metadata: {
+                contentType: 'image/png',
+            }
+        });
+
+        // Make it public or get a signed URL
+        // For simplicity and immediate UI loading, we make it public (if the bucket allows)
+        // or use the standard firebasestorage.googleapis.com URL format
+        await file.makePublic();
+
+        const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filename}`;
+        console.log(`[uploadBase64ToStorage] ✅ Upload complete: ${publicUrl}`);
+        return publicUrl;
+    } catch (error) {
+        console.error('[uploadBase64ToStorage] ❌ Storage upload failed:', error);
+        // Fallback to data URI only if absolutely necessary, but warn about Firestore limits
+        console.warn('[uploadBase64ToStorage] Falling back to Data URI (Dangerous for Firestore 1MB limit)');
+        return `data:image/png;base64,${base64String}`;
+    }
 }
 
 /**
