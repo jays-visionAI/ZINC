@@ -95,61 +95,121 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type) {
     const assetInstructions = visualPlan.visuals.map(v => `- For ${v.id}: use exactly "{{${v.id}}}"`).join('\n');
 
     const systemPrompt = `
-    You are an Expert Frontend Developer & UI Designer specializing in premium, modern web design.
+    You are a WORLD-CLASS Frontend Developer & UI Designer creating award-winning, premium web designs.
     
-    CRITICAL REQUIREMENTS:
-    1. Start with <!DOCTYPE html> and include Tailwind CSS CDN in <head>:
-       <script src="https://cdn.tailwindcss.com"></script>
-       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    === MANDATORY INCLUDES ===
+    Always start with this exact <head> content:
+    \`\`\`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+        <style>
+            * { font-family: 'Inter', sans-serif; }
+            .glass { background: rgba(255,255,255,0.05); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); }
+            .gradient-text { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+            .hover-lift { transition: all 0.3s ease; }
+            .hover-lift:hover { transform: translateY(-8px); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
+            .animate-fade-in { animation: fadeIn 0.6s ease-out; }
+            @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+            .glow { box-shadow: 0 0 40px rgba(99, 102, 241, 0.3); }
+        </style>
+    </head>
+    \`\`\`
+
+    === DESIGN SYSTEM (MANDATORY) ===
     
-    2. DARK MODE DESIGN (MANDATORY):
-       - Body: bg-slate-900 text-white
-       - Cards: bg-slate-800/50 backdrop-blur border border-slate-700
-       - Headings: text-white, text-2xl/3xl font-bold
-       - Text: text-slate-300
-       - Accents: Use gradient (from-indigo-500 to-purple-600) for buttons/highlights
+    1. COLOR PALETTE:
+       - Background: bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950
+       - Cards: glass class (glassmorphism effect)
+       - Primary: indigo-500, purple-500
+       - Accent: emerald-400, cyan-400
+       - Text: white, slate-300, slate-400
     
-    3. LAYOUT:
-       - Use 'Inter' font-family for all text
-       - Add generous padding (p-8, p-12)
-       - Use modern shadows (shadow-xl, shadow-2xl)
-       - Sections: Add gradient overlays, rounded corners (rounded-2xl)
+    2. TYPOGRAPHY:
+       - Hero Title: text-5xl md:text-7xl font-extrabold gradient-text
+       - Section Titles: text-3xl md:text-4xl font-bold text-white
+       - Subtitles: text-xl text-slate-300
+       - Body: text-base text-slate-400 leading-relaxed
     
-    4. HERO HEADER (MANDATORY):
-       - Full-width header with background image using {{${strategy.visualIds[0].id}}}
-       - Use: style="background-image: url('{{${strategy.visualIds[0].id}}}')"
-       - Add dark overlay: bg-black/50 or bg-gradient-to-b from-black/70
-       - Large title with text-4xl or text-5xl font-bold
+    3. GLASSMORPHISM CARDS:
+       - Use: class="glass rounded-2xl p-8 hover-lift animate-fade-in"
+       - Add gradient borders: border-gradient-to-r from-indigo-500/50 to-purple-500/50
     
-    5. IMAGE USAGE (CRITICAL):
+    4. ICONS (Font Awesome 6):
+       - Use icons for EVERY feature/benefit: <i class="fas fa-check-circle text-emerald-400 mr-3"></i>
+       - Section headers: <i class="fas fa-rocket text-indigo-400"></i>
+       - Stats: <i class="fas fa-chart-line text-cyan-400"></i>
+       - Common icons: fa-shield, fa-bolt, fa-globe, fa-users, fa-cog, fa-star, fa-trophy
+    
+    5. HERO SECTION:
+       - Full viewport height: min-h-screen
+       - Background image: {{${strategy.visualIds[0].id}}} with dark overlay
+       - Gradient overlay: bg-gradient-to-b from-black/70 via-black/50 to-slate-900
+       - Center content with flex items-center justify-center
+       - Add floating decorative elements (absolute positioned gradient blobs)
+    
+    6. SECTION LAYOUTS:
+       - Use CSS Grid: grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8
+       - Alternating sections with subtle background variations
+       - Each section: py-20 px-6 md:px-12
+       - Add section dividers with gradient lines
+    
+    7. ANIMATIONS & INTERACTIVITY:
+       - All cards: hover-lift class
+       - Buttons: hover:scale-105 transition-all duration-300
+       - Stats: text-5xl font-bold gradient-text with counter effect styling
+    
+    8. DECORATIVE ELEMENTS:
+       - Add floating gradient orbs: absolute rounded-full blur-3xl bg-indigo-500/20
+       - Subtle grid patterns or dot patterns as backgrounds
+       - Gradient divider lines between sections
+
+    === IMAGE TOKENS ===
     ${assetInstructions}
-       - You MUST use at least one image token as background-image in the header.
-       - NEVER invent URLs like via.placeholder.com or picsum.photos. ONLY use the tokens above.
-    
-    6. OUTPUT: Pure HTML only. No markdown fences. No explanations.
+    - CRITICAL: Use {{${strategy.visualIds[0].id}}} as the hero background-image
+    - NEVER use placeholder URLs. ONLY use the tokens above.
+
+    === OUTPUT ===
+    Pure HTML only. No markdown. No explanations. Start with <!DOCTYPE html>.
     `;
 
     const taskPrompt = `
     ${strategy.htmlTask}
 
-    Topic: ${topic}
-    Audience: ${audience}
+    PROJECT DETAILS:
+    - Topic: ${topic}
+    - Target Audience: ${audience}
+    - Style: ${style} (Premium, Executive-level quality)
 
-    CORE CONTENT (Use this Source Material):
+    KNOWLEDGE BASE CONTENT:
     """
-    ${context || 'No context provided.'}
+    ${context || 'Use general professional content.'}
     """
 
-    DESIGN REQUIREMENTS:
-    - Create a visually STUNNING, premium design that would impress executives
-    - Use the dark mode color scheme (bg-slate-900 base)
-    - Add subtle gradient accents (indigo/purple/blue)
-    - Include smooth hover effects on interactive elements
-    - Use cards with glass-morphism effect (bg-white/10 backdrop-blur)
-    - Add icons from Font Awesome or Heroicons where appropriate
-    - Include a professional footer with the zynk-watermark class
+    QUALITY REQUIREMENTS:
+    1. Create a STUNNING design that would win design awards
+    2. Every section must have at least one icon
+    3. Use glassmorphism cards for all content blocks
+    4. Include animated hover effects on all interactive elements
+    5. Add gradient accents throughout (text, borders, backgrounds)
+    6. Create visual hierarchy with varied font sizes and weights
+    7. Include at least 3 decorative floating gradient blobs
+    8. Footer with zynk-watermark class and social icons
     
-    MANDATORY: Use {{${strategy.visualIds[0].id}}} as background-image in the hero/header section.
+    SECTION STRUCTURE:
+    - Hero (full viewport, image background, big title)
+    - Key Benefits (3-4 cards with icons)
+    - Features Grid (detailed feature cards)
+    - Statistics/Metrics (big numbers with icons)
+    - Call to Action (gradient button, compelling copy)
+    - Footer (minimal, elegant)
+    
+    Make it look like a $50,000 custom website, not a template!
     `;
 
     console.log('[UniversalCreator] 🏗️ Assembling HTML...');
