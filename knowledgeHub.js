@@ -33,6 +33,7 @@ let currentPlanCategory = 'knowledge'; // Default
 let cachedSavedPlans = []; // Store fetched plans for client-side filtering
 let creativeProjectsUnsubscribe = null; // Unsubscribe listener for creative projects
 let creativeProjects = []; // List of creative generation projects
+let currentCreativeId = null; // Currently viewed project ID
 
 // Chat Configuration
 let chatConfig = {
@@ -3686,31 +3687,49 @@ async function downloadCreativeAsPDF() {
 
     try {
         let elementToPdf;
-        const config = CREATIVE_CONFIGS[currentCreativeType];
+        const config = CREATIVE_CONFIGS[currentCreativeType] || { name: 'ZINC_Creative' };
         const filename = `${config.name.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
 
         if (iframe) {
-            // For iframe content
-            elementToPdf = iframe.contentDocument.body;
+            // For iframe content: clone the body content into a temp div in the main doc
+            // This ensures styles and layout are captured correctly by html2pdf
+            const tempDiv = document.createElement('div');
+            tempDiv.style.position = 'absolute';
+            tempDiv.style.left = '-9999px';
+            tempDiv.style.width = '800px'; // Standard A4-ish width
+            tempDiv.innerHTML = iframe.contentDocument.body.innerHTML;
+            document.body.appendChild(tempDiv);
+            elementToPdf = tempDiv;
+
+            // Wait a bit for any images or layouts to settle
+            await new Promise(r => setTimeout(r, 500));
         } else {
-            // For direct HTML content
             elementToPdf = resultContainer.querySelector('.prose') || resultContainer;
         }
 
         const opt = {
-            margin: 10,
+            margin: [10, 10],
             filename: filename,
             image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true, logging: false },
+            html2canvas: {
+                scale: 2,
+                useCORS: true,
+                logging: false
+            },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
 
-        // If it's a pitch deck, landscape might be better
         if (currentCreativeType === 'pitch_deck') {
             opt.jsPDF.orientation = 'landscape';
         }
 
         await html2pdf().set(opt).from(elementToPdf).save();
+
+        // Cleanup temp div
+        if (iframe && elementToPdf && elementToPdf.parentNode) {
+            elementToPdf.parentNode.removeChild(elementToPdf);
+        }
+
         showNotification('PDF Downloaded!', 'success');
     } catch (error) {
         console.error('PDF Error:', error);
@@ -3726,6 +3745,7 @@ function toggleEditMode() {
     const resultContainer = document.getElementById('creative-result-container');
     const iframe = resultContainer.querySelector('iframe');
     const editBtn = document.getElementById('btn-creative-edit');
+    if (!editBtn) return;
 
     isEditMode = !isEditMode;
 
@@ -3733,17 +3753,23 @@ function toggleEditMode() {
         const doc = iframe.contentDocument;
         if (isEditMode) {
             doc.body.contentEditable = 'true';
+            doc.body.focus();
             doc.body.style.outline = '2px dashed #6366f1';
             doc.body.style.padding = '10px';
             editBtn.innerHTML = '<i class="fas fa-save mr-2"></i>Finish Editing';
-            editBtn.classList.replace('bg-slate-700', 'bg-emerald-600');
+            editBtn.classList.remove('text-indigo-400', 'bg-indigo-500/10', 'border-indigo-500/20');
+            editBtn.classList.add('text-emerald-400', 'bg-emerald-500/10', 'border-emerald-500/20');
             showNotification('Edit mode enabled. You can now type directly in the document.', 'info');
         } else {
             doc.body.contentEditable = 'false';
             doc.body.style.outline = 'none';
             doc.body.style.padding = '0';
             editBtn.innerHTML = '<i class="fas fa-edit mr-2"></i>Edit Content';
-            editBtn.classList.replace('bg-emerald-600', 'bg-slate-700');
+            editBtn.classList.remove('text-emerald-400', 'bg-emerald-500/10', 'border-emerald-500/20');
+            editBtn.classList.add('text-indigo-400', 'bg-indigo-500/10', 'border-indigo-500/20');
+
+            // Sync changes to Firestore
+            syncCreativeChanges(currentCreativeId);
             showNotification('Edits saved to view.', 'success');
         }
     } else {
@@ -3751,14 +3777,18 @@ function toggleEditMode() {
         if (prose) {
             if (isEditMode) {
                 prose.contentEditable = 'true';
+                prose.focus();
                 prose.classList.add('ring-2', 'ring-indigo-500', 'p-4');
                 editBtn.innerHTML = '<i class="fas fa-save mr-2"></i>Finish Editing';
-                editBtn.classList.replace('bg-slate-700', 'bg-emerald-600');
+                editBtn.classList.remove('text-indigo-400', 'bg-indigo-500/10', 'border-indigo-500/20');
+                editBtn.classList.add('text-emerald-400', 'bg-emerald-500/10', 'border-emerald-500/20');
             } else {
                 prose.contentEditable = 'false';
                 prose.classList.remove('ring-2', 'ring-indigo-500', 'p-4');
                 editBtn.innerHTML = '<i class="fas fa-edit mr-2"></i>Edit Content';
-                editBtn.classList.replace('bg-emerald-600', 'bg-slate-700');
+                editBtn.classList.remove('text-emerald-400', 'bg-emerald-500/10', 'border-emerald-500/20');
+                editBtn.classList.add('text-indigo-400', 'bg-indigo-500/10', 'border-indigo-500/20');
+                syncCreativeChanges(currentCreativeId);
             }
         }
     }
@@ -3892,6 +3922,8 @@ async function viewCreativeProject(docId) {
 
     currentCreativeType = proj.type;
     currentCreativeData = { html: proj.htmlContent };
+    currentCreativeId = docId;
+    isEditMode = false;
 
     openCreativeModal(proj.type);
 
@@ -4014,31 +4046,49 @@ function renderCreativeHistory() {
 }
 
 function injectActionButtonsToHeader() {
-    let actionsContainer = document.querySelector('#creative-modal .flex.gap-3.justify-end');
+    // Target the toolbar on the right side
+    let actionsContainer = document.querySelector('#creative-preview-toolbar .flex.items-center.gap-2:last-child');
+    if (!actionsContainer) {
+        console.warn('[Creative] Actions container not found in toolbar');
+        // Fallback to header
+        actionsContainer = document.querySelector('#creative-modal .flex.items-center.gap-3:last-child');
+    }
     if (!actionsContainer) return;
 
-    // Clear and inject
+    // Remove any previously injected buttons to avoid duplicates
     actionsContainer.querySelectorAll('.btn-creative-injected').forEach(b => b.remove());
 
+    // Create Edit Button
     const editBtn = document.createElement('button');
     editBtn.id = 'btn-creative-edit';
-    editBtn.className = 'btn-creative-injected px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium flex items-center transition-all';
-    editBtn.innerHTML = '<i class="fas fa-edit mr-2 text-indigo-400"></i>Edit Content';
+    editBtn.className = 'btn-creative-injected px-3 py-1.5 text-xs text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 rounded hover:bg-indigo-500/20 flex items-center gap-1.5 transition-all';
+    editBtn.innerHTML = '<i class="fas fa-edit"></i> Edit Content';
     editBtn.onclick = () => toggleEditMode();
 
-    const downloadBtn = document.getElementById('btn-creative-download');
-    if (downloadBtn) {
-        downloadBtn.id = 'btn-creative-download';
-        downloadBtn.className = 'btn-creative-injected px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium flex items-center transition-all';
-        downloadBtn.classList.remove('hidden');
-        downloadBtn.style.display = 'flex';
-        downloadBtn.innerHTML = '<i class="fas fa-file-pdf mr-2"></i>Download PDF';
-        downloadBtn.onclick = () => downloadCreativeAsPDF();
+    // Setup PDF Download Button (Already in HTML, just show and fix it)
+    const pdfBtn = document.getElementById('btn-creative-download-pdf');
+    if (pdfBtn) {
+        pdfBtn.classList.remove('hidden');
+        pdfBtn.style.display = 'flex';
+        pdfBtn.onclick = () => downloadCreativeAsPDF();
     }
 
+    // Hide the legacy download btn if redundant
+    const legacyDownloadBtn = document.getElementById('btn-creative-download');
+    if (legacyDownloadBtn) {
+        legacyDownloadBtn.classList.add('hidden');
+        legacyDownloadBtn.style.display = 'none';
+    }
+
+    // Prepend Edit to the container
     actionsContainer.prepend(editBtn);
-    document.getElementById('btn-creative-copy').classList.remove('hidden');
-    document.getElementById('btn-creative-copy').style.display = 'flex';
+
+    // Show Copy button
+    const copyBtn = document.getElementById('btn-creative-copy');
+    if (copyBtn) {
+        copyBtn.classList.remove('hidden');
+        copyBtn.style.display = 'flex';
+    }
 }
 
 /**
@@ -4100,22 +4150,32 @@ function setupDetailedEditing(iframe, docId) {
  * Sync updated HTML from iframe back to Firestore
  */
 async function syncCreativeChanges(docId) {
+    const targetId = docId || currentCreativeId;
+    if (!targetId) return;
+
     const iframe = document.getElementById('creative-result-iframe');
-    if (!iframe || !iframe.contentDocument) return;
+    const resultContainer = document.getElementById('creative-result-container');
 
-    // Clone and clean for storage (remove UI buttons before saving)
-    const docClone = iframe.contentDocument.documentElement.cloneNode(true);
-    docClone.querySelectorAll('.refine-btn, .img-overlay').forEach(el => el.remove());
+    let updatedHtml = '';
 
-    // Get clean body content
-    const updatedHtml = docClone.querySelector('body').innerHTML.trim();
+    if (iframe && iframe.contentDocument) {
+        // Clone and clean for storage (remove UI buttons before saving)
+        const docClone = iframe.contentDocument.documentElement.cloneNode(true);
+        docClone.querySelectorAll('.refine-btn, .img-overlay').forEach(el => el.remove());
+        updatedHtml = docClone.querySelector('body').innerHTML.trim();
+    } else if (resultContainer) {
+        const prose = resultContainer.querySelector('.prose');
+        if (prose) updatedHtml = prose.innerHTML.trim();
+    }
+
+    if (!updatedHtml) return;
 
     try {
-        await db.collection('creativeProjects').doc(docId).update({
+        await db.collection('creativeProjects').doc(targetId).update({
             htmlContent: updatedHtml,
             lastModified: firebase.firestore.FieldValue.serverTimestamp()
         });
-        console.log('[Creative] Changes synced to Cloud.');
+        console.log('[Creative] Changes synced to Cloud for:', targetId);
     } catch (e) {
         console.error('Failed to sync changes:', e);
     }
