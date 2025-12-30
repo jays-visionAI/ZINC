@@ -3531,7 +3531,37 @@ const CREATIVE_CONFIGS = {
         credits: 5,
         controls: [
             { id: 'topic', type: 'textarea', label: 'Image Concept', placeholder: 'Describe the image in detail...' },
-            { id: 'style', type: 'select', label: 'Style', options: ['Photorealistic', '3D Render', 'Illustration', 'Cyberpunk', 'Minimalist', 'Abstract', 'Corporate'] }
+            {
+                id: 'style',
+                type: 'visual-pick',
+                label: 'Visual Style',
+                options: [
+                    { value: 'Photorealistic', label: 'Realistic', icon: '📸', desc: 'True-to-life' },
+                    { value: 'Cinematic', label: 'Cinematic', icon: '🎬', desc: 'Movie look' },
+                    { value: '3D Render', label: '3D Render', icon: '🧊', desc: 'High-end CG' },
+                    { value: 'Isometric', label: 'Isometric', icon: '🗺️', desc: 'Top-down 3D' },
+                    { value: 'Vector Illustration', label: 'Vector', icon: '🎨', desc: 'Clean paths' },
+                    { value: 'Cyberpunk', label: 'Cyberpunk', icon: '🌃', desc: 'Neon & Dark' },
+                    { value: 'Synthwave', label: 'Synthwave', icon: '🌅', desc: '80s Retro' },
+                    { value: 'Minimalist', label: 'Minimal', icon: '⚪', desc: 'Clean & Simple' },
+                    { value: 'Abstract', label: 'Abstract', icon: '🌈', desc: 'Shapes & Color' },
+                    { value: 'Claymation', label: 'Clay', icon: '🧸', desc: '3D Toy look' },
+                    { value: 'Glassmorphism', label: 'Glass', icon: '🪟', desc: 'Frost & Blur' },
+                    { value: 'Pop Art', label: 'Pop Art', icon: '💥', desc: 'Comic style' },
+                    { value: 'Watercolor', label: 'Watercolor', icon: '🖌️', desc: 'Soft painting' },
+                    { value: 'Oil Painting', label: 'Oil Paint', icon: '🖼️', desc: 'Classic canvas' },
+                    { value: 'Sketch', label: 'Sketch', icon: '✏️', desc: 'Hand drawn' },
+                    { value: 'Anime', label: 'Anime', icon: '⛩️', desc: 'Japanese style' },
+                    { value: 'Pixel Art', label: 'Pixel', icon: '👾', desc: '8-bit retro' },
+                    { value: 'Futuristic', label: 'Futury', icon: '🚀', desc: 'Sci-fi tech' },
+                    { value: 'Retro 80s', label: 'Retro', icon: '📻', desc: 'Vintage vibe' },
+                    { value: 'Flat Design', label: 'Flat', icon: '📐', desc: 'Modern web' },
+                    { value: 'Paper Cutout', label: 'Paper', icon: '✂️', desc: 'Layered look' },
+                    { value: 'Corporate', label: 'Enterprise', icon: '🏢', desc: 'Pro business' },
+                    { value: 'Gothic', label: 'Dark', icon: '🦇', desc: 'Moody fantasy' },
+                    { value: 'Surrealism', label: 'Dreamy', icon: '👁️', desc: 'Mind-bending' }
+                ]
+            }
         ],
         advancedControls: [
             { id: 'aspectRatio', type: 'select', label: 'Aspect Ratio', icon: 'fa-crop', options: ['16:9 (Landscape)', '1:1 (Square)', '9:16 (Portrait)', '4:3', '3:2'] },
@@ -3670,6 +3700,25 @@ function generateCreativeControls(controls) {
                     <span class="text-sm text-slate-300">${checkboxIcon}${ctrl.label}</span>
                 </label>`;
                 return `<div class="space-y-1">${inputHTML}</div>`;
+            case 'visual-pick':
+                const gridOptions = ctrl.options.map((opt, idx) => `
+                    <div class="visual-option group relative bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 cursor-pointer transition-all hover:bg-slate-700/50 hover:border-indigo-500/50 ${idx === 0 ? 'selected ring-2 ring-indigo-500 bg-indigo-500/10' : ''}" 
+                         data-value="${opt.value}" onclick="selectVisualOption(this, '${ctrl.id}')">
+                        <div class="text-2xl mb-1 flex items-center justify-center">${opt.icon}</div>
+                        <div class="text-[10px] font-bold text-white text-center leading-tight">${opt.label}</div>
+                        <div class="text-[8px] text-slate-500 text-center mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">${opt.desc}</div>
+                        <div class="absolute top-1 right-1 opacity-0 check-mark">
+                           <i class="fas fa-check-circle text-indigo-400 text-[10px]"></i>
+                        </div>
+                    </div>
+                `).join('');
+                inputHTML = `
+                    <div class="grid grid-cols-3 gap-2 mt-1 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
+                        ${gridOptions}
+                    </div>
+                    <input type="hidden" id="${ctrl.id}" value="${ctrl.options[0].value}">
+                `;
+                break;
         }
 
         // Render icon if present
@@ -3911,7 +3960,7 @@ async function generateCreativeItem() {
         });
 
         stopProgressBar(100);
-        const html = result.data?.data || result.data?.html || result.data?.content;
+        const html = result.data?.data || result.data?.html || result.data?.content || '';
 
         // Final update
         await db.collection('creativeProjects').doc(projectId).update({
@@ -5460,6 +5509,25 @@ function switchAssetTab(tab) {
         plansBtn.classList.add('opacity-50');
         studioContainer.classList.remove('hidden');
         plansContainer.classList.add('hidden');
+    }
+}
+
+function selectVisualOption(el, inputId) {
+    const parent = el.parentElement;
+    // Unselect others
+    parent.querySelectorAll('.visual-option').forEach(opt => {
+        opt.classList.remove('selected', 'ring-2', 'ring-indigo-500', 'bg-indigo-500/10');
+        opt.querySelector('.check-mark')?.classList.add('opacity-0');
+    });
+    // Select current
+    el.classList.add('selected', 'ring-2', 'ring-indigo-500', 'bg-indigo-500/10');
+    el.querySelector('.check-mark')?.classList.remove('opacity-0');
+
+    // Update hidden input
+    const input = document.getElementById(inputId);
+    if (input) {
+        input.value = el.dataset.value;
+        console.log(`[UI] Visual Style selected: ${input.value}`);
     }
 }
 

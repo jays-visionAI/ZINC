@@ -330,7 +330,30 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
     `;
 
     console.log('[UniversalCreator] 🏗️ Assembling HTML...');
-    let htmlResult = await executeLLM(systemPrompt, taskPrompt);
+    let htmlResult;
+    try {
+        htmlResult = await executeLLM(systemPrompt, taskPrompt);
+    } catch (e) {
+        console.error('[UniversalCreator] HTML Assembly failed:', e.message);
+        htmlResult = `
+            <!DOCTYPE html>
+            <html lang="en">
+            <head><script src="https://cdn.tailwindcss.com"></script></head>
+            <body class="bg-slate-900 text-white p-10 font-sans">
+                <div class="max-w-4xl mx-auto glass rounded-2xl p-10 text-center">
+                    <h1 class="text-4xl font-bold mb-4">Content Generated</h1>
+                    <p class="text-slate-400 mb-8">We successfully planned your visuals, but the final assembly had issues. You can still see your planned assets below.</p>
+                    <div class="grid grid-cols-2 gap-4">
+                        ${visualPlan.visuals.map(v => `<div class="bg-slate-800 p-4 rounded-xl"><img src="{{${v.id}}}" class="rounded-lg mb-2"><p class="text-xs text-slate-500">${v.desc}</p></div>`).join('')}
+                    </div>
+                </div>
+            </body>
+            </html>
+        `;
+    }
+
+    // Ensure htmlResult is a string
+    htmlResult = String(htmlResult || '');
 
     // Clean Markdown
     htmlResult = htmlResult.replace(/```html/g, '').replace(/```/g, '').trim();
@@ -338,11 +361,12 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
     // 4. TOKEN REPLACEMENT
     console.log('[UniversalCreator] 🔗 Injecting asset URLs...');
     Object.keys(assetMap).forEach(key => {
+        const urlValue = String(assetMap[key] || '');
         const regex = new RegExp(`{{${key}}}`, 'g');
-        htmlResult = htmlResult.replace(regex, assetMap[key]);
+        htmlResult = htmlResult.replace(regex, urlValue);
         // Also try with spaces (LLM sometimes adds spaces)
         const regexWithSpaces = new RegExp(`{{ ${key} }}`, 'g');
-        htmlResult = htmlResult.replace(regexWithSpaces, assetMap[key]);
+        htmlResult = htmlResult.replace(regexWithSpaces, urlValue);
     });
 
     // 5. FALLBACK CLEANUP: Replace any remaining placeholder URLs LLM invented
@@ -405,7 +429,7 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
     }
 
     console.log('[UniversalCreator] ✅ HTML generation complete.');
-    return htmlResult;
+    return htmlResult || '';
 }
 
 module.exports = { createCreativeContent };

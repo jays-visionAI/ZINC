@@ -4738,37 +4738,59 @@ exports.generateCreativeContent = onCall({ cors: true, timeoutSeconds: 540, memo
     const executeLLM = async (systemPrompt, userPrompt) => {
         const fallbackProviders = [
             { provider: 'deepseek', model: 'deepseek-chat' },
-            { provider: 'openai', model: 'gpt-4o' },
-            { provider: 'google', model: 'gemini-2.0-flash-exp' }
+            { provider: 'google', model: 'gemini-2.0-flash-exp' },
+            { provider: 'openai', model: 'gpt-4o' }
         ];
 
         const configuredProvider = plan.modelConfig?.provider;
         const configuredModel = plan.modelConfig?.model;
-        if (configuredProvider && configuredModel) {
+        if (configuredProvider && configuredModel && configuredProvider !== 'openai') {
             fallbackProviders.unshift({ provider: configuredProvider, model: configuredModel });
         }
 
         let lastError = null;
         for (const { provider, model } of fallbackProviders) {
             try {
-                const response = await callLLM(provider, model, [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }], 0.7);
-                return response.content || response;
+                console.log(`[executeLLM] Attempting: ${provider}/${model}`);
+                const response = await callLLM(provider, model, [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userPrompt }
+                ], 0.7);
+
+                const content = response.content || (typeof response === 'string' ? response : null);
+                if (content) {
+                    console.log(`[executeLLM] ✅ Success with ${provider}/${model}`);
+                    return content;
+                }
+                console.warn(`[executeLLM] ⚠️ Empty response from ${provider}/${model}`);
             } catch (error) {
-                console.log(`[executeLLM] ${provider}/${model} failed: ${error.message}`);
+                console.warn(`[executeLLM] ❌ ${provider}/${model} failed: ${error.message}`);
                 lastError = error;
             }
         }
-        throw lastError || new Error('All LLM providers failed');
+        throw lastError || new Error('All LLM providers failed to generate content');
     };
 
     try {
+        console.log(`[generateCreativeContent] 🏗️ Calling creator for: ${type}`);
         const resultHTML = await createCreativeContent(inputs, projectContext, plan, executeLLM, type, advancedOptions);
 
+        if (!resultHTML) {
+            console.error('[generateCreativeContent] ❌ Creator returned empty result');
+            throw new Error('Creative content generation returned an empty result.');
+        }
+
+        console.log(`[generateCreativeContent] ✅ Created ${resultHTML.length} characters of HTML`);
+
         if (projectId) {
+            console.log(`[generateCreativeContent] 💾 Updating Firestore for project: ${projectId}`);
             await admin.firestore().collection('creativeProjects').doc(projectId).update({
-                htmlContent: resultHTML,
+                htmlContent: resultHTML || '', // Safe fallback to string
                 status: 'completed',
                 completedAt: admin.firestore.FieldValue.serverTimestamp()
+            }).catch(e => {
+                console.error('[generateCreativeContent] Firestore Update ERROR:', e);
+                throw e;
             });
         }
 
