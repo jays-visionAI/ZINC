@@ -5204,10 +5204,15 @@ OUTPUT: Complete, print-ready HTML that looks like a real presentation deck.`;
             success: true,
             type: 'html',
             content: resultData,
+            metadata: {
+                provider: plan.modelConfig.provider,
+                model: plan.modelConfig.model,
+                imageModel: generatedImages.length > 0 ? (generatedImages[0].metadata?.model || 'Nano Banana Pro') : null
+            },
             meta: {
                 mode: plan.mode,
                 logs: debugLogs,
-                drafts: null // Drafts from Arena are captured in debugLogs if needed
+                drafts: null
             }
         };
 

@@ -3936,7 +3936,11 @@ async function generateCreativeItem() {
             // but for now, we assume 'currentCreativeData' is populated. Metadata needs to be stored in a closure or global var.
             // Let's check window.lastGenerationMetadata which we will set in the try block.
             if (window.lastGenerationMetadata && window.lastGenerationMetadata.model) {
-                showNotification(`Generated using ${window.lastGenerationMetadata.provider || 'AI'} ${window.lastGenerationMetadata.model}`, 'success');
+                let msg = `Generated using ${window.lastGenerationMetadata.provider || 'AI'} ${window.lastGenerationMetadata.model}`;
+                if (window.lastGenerationMetadata.imageModel) {
+                    msg += ` & ${window.lastGenerationMetadata.imageModel}`;
+                }
+                showNotification(msg, 'success');
             }
 
             // Setup Download Button
