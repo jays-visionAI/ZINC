@@ -5210,6 +5210,41 @@ OUTPUT: Complete, print-ready HTML that looks like a real presentation deck.`;
                 resultData = resultData.replace(/```/g, '').trim();
             }
 
+            // 3. INJECT ZYNK WATERMARK (CSS Overlay)
+            if (type === 'pitch_deck' || type === 'product_brochure' || type === 'one_pager') {
+                console.log('[generateCreativeContent] 🏷️ Injecting ZYNK Watermark');
+                const watermarkHTML = `
+                 <style>
+                    .zynk-watermark {
+                        position: fixed;
+                        bottom: 20px;
+                        right: 20px;
+                        z-index: 9999;
+                        font-family: 'Inter', sans-serif;
+                        color: rgba(255, 255, 255, 0.4);
+                        font-size: 11px;
+                        font-weight: 600;
+                        pointer-events: none;
+                        background: rgba(0, 0, 0, 0.3);
+                        padding: 6px 12px;
+                        border-radius: 20px;
+                        backdrop-filter: blur(4px);
+                        border: 1px solid rgba(255, 255, 255, 0.1);
+                        text-transform: uppercase;
+                        letter-spacing: 1.5px;
+                        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                    }
+                 </style>
+                 <div class="zynk-watermark">Powered by ZYNK</div>
+                 `;
+
+                if (resultData.includes('</body>')) {
+                    resultData = resultData.replace('</body>', `${watermarkHTML}</body>`);
+                } else {
+                    resultData += watermarkHTML;
+                }
+            }
+
             // 3. (Optional) Force Image Injection if missing
             if (type === 'pitch_deck' && generatedImages.length > 0) {
                 // Check if any generated image URL is present in the HTML
