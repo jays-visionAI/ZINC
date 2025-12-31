@@ -76,11 +76,71 @@
             </div>
 
             <div class="admin-form-group">
-                <label class="admin-form-label">Content (Markdown)</label>
-                <textarea id="doc-content" class="admin-form-input" rows="15"
-                    placeholder="# Document Title&#10;&#10;Write your documentation in Markdown format..."></textarea>
-                <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 4px;">
-                    Supports Markdown formatting. Preview available after saving.
+                <label class="admin-form-label">Content (Smart Editor)</label>
+
+                <!-- Tiptap Toolbar -->
+                <div id="editor-toolbar" class="editor-toolbar">
+                    <div class="toolbar-group">
+                        <select id="font-family" class="toolbar-select">
+                            <option value="Inter">Inter (System)</option>
+                            <option value="Roboto">Roboto</option>
+                            <option value="Merriweather">Merriweather (Serif)</option>
+                            <option value="JetBrains Mono">JetBrains Mono</option>
+                        </select>
+                    </div>
+
+                    <div class="toolbar-divider"></div>
+
+                    <div class="toolbar-group">
+                        <button type="button" class="toolbar-btn" id="btn-bold" title="Bold"><strong>B</strong></button>
+                        <button type="button" class="toolbar-btn" id="btn-italic" title="Italic"><em>I</em></button>
+                        <button type="button" class="toolbar-btn" id="btn-underline" title="Underline"><u>U</u></button>
+                    </div>
+
+                    <div class="toolbar-divider"></div>
+
+                    <div class="toolbar-group fontSize-control">
+                        <button type="button" class="toolbar-btn" id="btn-font-size-minus">-</button>
+                        <input type="text" id="font-size-input" class="toolbar-input" value="16px">
+                        <button type="button" class="toolbar-btn" id="btn-font-size-plus">+</button>
+                    </div>
+
+                    <div class="toolbar-divider"></div>
+
+                    <div class="toolbar-group">
+                        <button type="button" class="toolbar-btn" id="btn-align-left" title="Align Left"><i
+                                class="fas fa-align-left"></i></button>
+                        <button type="button" class="toolbar-btn" id="btn-align-center" title="Align Center"><i
+                                class="fas fa-align-center"></i></button>
+                        <button type="button" class="toolbar-btn" id="btn-align-right" title="Align Right"><i
+                                class="fas fa-align-right"></i></button>
+                    </div>
+
+                    <div class="toolbar-divider"></div>
+
+                    <div class="toolbar-group">
+                        <button type="button" class="toolbar-btn" id="btn-attachment" title="Attach File">
+                            <i class="fas fa-paperclip"></i>
+                        </button>
+                        <input type="file" id="editor-file-input" style="display: none;">
+                    </div>
+                </div>
+
+                <!-- Editor Container with Comment Sidebar -->
+                <div class="editor-layout">
+                    <div id="editor-container" class="smart-editor-content"></div>
+
+                    <!-- Comment Sidebar -->
+                    <div id="comment-sidebar" class="comment-sidebar">
+                        <div class="sidebar-header">Comments</div>
+                        <div id="comments-list" class="comments-list">
+                            <p class="no-comments">Select text to add a comment</p>
+                        </div>
+                    </div>
+                </div>
+
+                <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 8px;">
+                    Smart Editor: Supports rich formatting, file attachments, and collaborative comments.
                 </p>
             </div>
         </div>

@@ -250,8 +250,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         // Try to load new script with cache busting
         const script = document.createElement("script");
+        if (fetchPage === 'documents') {
+            script.type = "module";
+        }
         script.src = `admin-${fetchPage}.js?v=${Date.now()}`;
-        script.dataset.page = fetchPage;
         script.onload = () => {
             console.log(`Script loaded for ${page}`);
             if (callback) callback();
