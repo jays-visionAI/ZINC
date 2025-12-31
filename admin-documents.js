@@ -1,4 +1,4 @@
-// admin-documents.js - Smart Editor Version with Tiptap (Fixed)
+// admin-documents.js - Smart Editor Version with Tiptap (Added Table Support)
 import { Editor } from 'https://esm.sh/@tiptap/core';
 import { StarterKit } from 'https://esm.sh/@tiptap/starter-kit';
 import { TextStyle } from 'https://esm.sh/@tiptap/extension-text-style';
@@ -7,6 +7,11 @@ import { TextAlign } from 'https://esm.sh/@tiptap/extension-text-align';
 import { Underline } from 'https://esm.sh/@tiptap/extension-underline';
 import { Link } from 'https://esm.sh/@tiptap/extension-link';
 import { Image } from 'https://esm.sh/@tiptap/extension-image';
+// Table Extensions
+import { Table } from 'https://esm.sh/@tiptap/extension-table';
+import { TableRow } from 'https://esm.sh/@tiptap/extension-table-row';
+import { TableCell } from 'https://esm.sh/@tiptap/extension-table-cell';
+import { TableHeader } from 'https://esm.sh/@tiptap/extension-table-header';
 
 let editor = null;
 let allDocuments = [];
@@ -15,9 +20,8 @@ let documentToDelete = null;
 const projectId = "default_project";
 
 window.initDocuments = function (user) {
-    console.log("Initializing Smart Documents Page...");
+    console.log("Initializing Smart Documents Page with Table support...");
 
-    // Initialize Tiptap Editor (Ensure clean start)
     if (editor) {
         editor.destroy();
     }
@@ -34,17 +38,22 @@ window.initDocuments = function (user) {
             TextAlign.configure({
                 types: ['heading', 'paragraph'],
             }),
+            // Table Support Enabled
+            Table.configure({
+                resizable: true,
+            }),
+            TableRow,
+            TableHeader,
+            TableCell,
         ],
         content: '',
         onUpdate({ editor }) {
-            // Can be used for auto-saving
+            // Updated
         }
     });
 
-    // Initialize Toolbar Event Listeners
     initToolbar();
 
-    // Attach Main Actions
     const createBtn = document.getElementById('create-doc-btn');
     if (createBtn) createBtn.onclick = () => window.openDocumentModal();
 
@@ -84,7 +93,6 @@ function initToolbar() {
     bindBtn('btn-align-center', () => editor.chain().focus().setTextAlign('center').run());
     bindBtn('btn-align-right', () => editor.chain().focus().setTextAlign('right').run());
 
-    // File Attachment
     const fileInput = document.getElementById('editor-file-input');
     bindBtn('btn-attachment', () => fileInput.click());
     if (fileInput) {
@@ -224,10 +232,9 @@ window.filterDocuments = () => {
     window.renderDocuments(filtered);
 };
 
-window.viewDocumentHistory = () => alert("History feature coming soon with Smart Editor");
+window.viewDocumentHistory = () => alert("History feature available soon");
 window.closeHistoryModal = () => document.getElementById('history-modal').style.display = 'none';
 
-// Re-implementing delete logic to match previous behavior
 window.deleteDocument = () => {
     const id = document.getElementById('doc-edit-id').value;
     if (!id) return;
@@ -249,9 +256,3 @@ window.confirmDelete = async () => {
         loadDocuments();
     } catch (e) { alert(e.message); }
 };
-
-function formatDate(ts) {
-    if (!ts) return '-';
-    const date = ts.toDate ? ts.toDate() : new Date(ts);
-    return date.toLocaleDateString();
-}
