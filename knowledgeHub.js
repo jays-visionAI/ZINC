@@ -3813,16 +3813,20 @@ async function downloadCreativeAsPDF(options = {}) {
         tempContainer.style.top = '0';
 
         // Determine capture width based on orientation and type
-        let captureWidth = 1200; // Standard reference width
+        let captureWidth = 1200; // Reference width
         let pdfFormat = 'a4';
         let pdfOrientation = 'portrait';
+
+        // Fix: Use correct key name 'product_brochure'
+        const isFlexibleHeight = (currentCreativeType === 'promo_images' || currentCreativeType === 'one_pager' || currentCreativeType === 'product_brochure');
 
         if (currentCreativeType === 'pitch_deck') {
             pdfOrientation = 'landscape';
             pdfFormat = [297, 167]; // Professional 16:9 Presentation Format (mm)
-        } else if (currentCreativeType === 'promo_images' || currentCreativeType === 'one_pager' || currentCreativeType === 'brochure') {
-            // For these types, we want the PDF to match the actual content height exactly
-            captureWidth = (currentCreativeType === 'promo_images') ? 1000 : 900;
+            captureWidth = 1280; // Match high-res desktop ref
+        } else if (isFlexibleHeight) {
+            // Match the A4 Portrait scaling if possible
+            captureWidth = 800; // ~A4 width at decent resolution
         }
 
         tempContainer.style.width = captureWidth + 'px';
@@ -3830,19 +3834,32 @@ async function downloadCreativeAsPDF(options = {}) {
         // Deep clone iframe content
         const contentClone = iframe.contentDocument.documentElement.cloneNode(true);
 
+        // EXTRA: REMOVE UI ELEMENTS (Refine buttons, overlays, etc.)
+        contentClone.querySelectorAll('.refine-btn, .img-overlay, .editor-status-badge').forEach(el => el.remove());
+
+        // Remove scrollbars and ensure clean background for body
+        const bodyClone = contentClone.querySelector('body');
+        if (bodyClone) {
+            bodyClone.style.overflow = 'hidden';
+            bodyClone.style.width = captureWidth + 'px';
+            bodyClone.style.height = 'auto';
+        }
+
         // Add PDF-specific fixes to the clone
         const styleFix = document.createElement('style');
         styleFix.innerHTML = `
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             .z-gradient-text { background-clip: text; -webkit-background-clip: text; }
-            body { background-color: #000 !important; } 
+            body { margin: 0 !important; padding: 0 !important; overflow: hidden !important; }
+            section { page-break-after: always !important; break-after: page !important; }
+            .no-print { display: none !important; }
         `;
         contentClone.querySelector('head').appendChild(styleFix);
 
         // Create an internal iframe for the export to ensure exact CSS isolation
         const exportIframe = document.createElement('iframe');
         exportIframe.style.width = captureWidth + 'px';
-        exportIframe.style.height = 'auto';
+        exportIframe.style.height = '5000px'; // High enough to render all
         exportIframe.style.visibility = 'hidden';
 
         tempContainer.appendChild(exportIframe);
@@ -3868,27 +3885,28 @@ async function downloadCreativeAsPDF(options = {}) {
         });
 
         // 3. Wait for Tailwind/Styles
-        await new Promise(r => setTimeout(r, 1500));
+        await new Promise(r => setTimeout(r, 1000));
         await Promise.all(imgPromises);
 
         // EXTRA: Measure height for flexible formats
-        if (currentCreativeType === 'promo_images' || currentCreativeType === 'one_pager' || currentCreativeType === 'brochure') {
+        if (isFlexibleHeight) {
             const body = exportIframe.contentDocument.body;
-            const contentHeight = body.scrollHeight;
+            // Use offsetHeight if scrollHeight is bloated
+            const contentHeight = Math.max(body.scrollHeight, body.offsetHeight);
 
             // Calculate mm based on captureWidth being approx 210mm (A4 width)
             const mmPerPx = 210 / captureWidth;
             pdfFormat = [210, contentHeight * mmPerPx];
-            pdfOrientation = (contentHeight < captureWidth) ? 'landscape' : 'portrait';
+            pdfOrientation = (contentHeight * mmPerPx < 210) ? 'landscape' : 'portrait';
         }
 
         const isPrint = options && options.isPrint;
         const opt = {
             margin: [0, 0],
             filename: filename,
-            image: { type: 'jpeg', quality: isPrint ? 1.0 : 0.98 },
+            image: { type: 'jpeg', quality: 1.0 },
             html2canvas: {
-                scale: isPrint ? 4 : 2.5, // Ultra-high for print, balanced for digital
+                scale: isPrint ? 3 : 2, // High resolution
                 useCORS: true,
                 letterRendering: true,
                 allowTaint: false,
@@ -3896,7 +3914,7 @@ async function downloadCreativeAsPDF(options = {}) {
                 windowWidth: captureWidth,
                 scrollX: 0,
                 scrollY: 0,
-                backgroundColor: '#000000',
+                backgroundColor: null, // Allow CSS background
                 logging: false
             },
             jsPDF: { unit: 'mm', format: pdfFormat, orientation: pdfOrientation, compress: true }
