@@ -3975,6 +3975,7 @@ input:checked+.slider:before {
         padding: 16px;
     }
 }
+
 /* ============================================
    SMART EDITOR (TIPTAP) STYLES
    ============================================ */
@@ -4062,29 +4063,36 @@ input:checked+.slider:before {
 
 .editor-layout {
     display: flex;
+    flex-direction: column;
+    /* Stack vertically */
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-top: none;
     border-radius: 0 0 8px 8px;
-    min-height: 400px;
+    min-height: 500px;
     background: #0f0f1a;
 }
 
 .smart-editor-content {
-    flex: 1;
-    padding: 24px;
+    width: 100%;
+    /* Full width */
+    padding: 32px;
     outline: none;
-    max-height: 60vh;
+    min-height: 400px;
+    max-height: 70vh;
     overflow-y: auto;
-    line-height: 1.6;
+    line-height: 1.7;
     color: rgba(255, 255, 255, 0.9);
 }
 
 .comment-sidebar {
-    width: 250px;
-    border-left: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(0, 0, 0, 0.1);
+    width: 100%;
+    /* Full width at bottom */
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.2);
     display: flex;
     flex-direction: column;
+    max-height: 200px;
 }
 
 .sidebar-header {
@@ -4110,12 +4118,36 @@ input:checked+.slider:before {
 }
 
 /* Tiptap Specific Content Styling */
-.ProseMirror p { margin-bottom: 1em; }
-.ProseMirror h1 { color: var(--color-cyan); margin: 1.5em 0 0.5em; }
-.ProseMirror h2 { color: var(--color-cyan); margin: 1.2em 0 0.5em; }
-.ProseMirror ul, .ProseMirror ol { padding-left: 1.5em; margin-bottom: 1em; }
-.ProseMirror blockquote { border-left: 3px solid var(--color-cyan); padding-left: 1rem; color: rgba(255,255,255,0.6); }
-.ProseMirror img { max-width: 100%; border-radius: 8px; }
+.ProseMirror p {
+    margin-bottom: 1em;
+}
+
+.ProseMirror h1 {
+    color: var(--color-cyan);
+    margin: 1.5em 0 0.5em;
+}
+
+.ProseMirror h2 {
+    color: var(--color-cyan);
+    margin: 1.2em 0 0.5em;
+}
+
+.ProseMirror ul,
+.ProseMirror ol {
+    padding-left: 1.5em;
+    margin-bottom: 1em;
+}
+
+.ProseMirror blockquote {
+    border-left: 3px solid var(--color-cyan);
+    padding-left: 1rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.ProseMirror img {
+    max-width: 100%;
+    border-radius: 8px;
+}
 
 /* Mark for Comments */
 .comment-mark {
@@ -4155,7 +4187,8 @@ input:checked+.slider:before {
     margin-bottom: 1.5rem;
 }
 
-.ProseMirror td, .ProseMirror th {
+.ProseMirror td,
+.ProseMirror th {
     min-width: 1em;
     border: 1px solid rgba(255, 255, 255, 0.1);
     padding: 10px 12px;
@@ -4177,7 +4210,10 @@ input:checked+.slider:before {
     z-index: 2;
     position: absolute;
     content: "";
-    left: 0; right: 0; top: 0; bottom: 0;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
     background: rgba(34, 246, 200, 0.1);
     pointer-events: none;
 }
