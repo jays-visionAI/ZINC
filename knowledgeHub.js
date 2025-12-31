@@ -3807,15 +3807,32 @@ async function downloadCreativeAsPDF() {
         tempContainer.style.top = '0';
 
         // Determine capture width based on orientation and type
-        let captureWidth = 1123; // Default A4 Landscape width in pixels at 96dpi
-        if (currentCreativeType !== 'pitch_deck') {
-            captureWidth = 794; // A4 Portrait
+        let captureWidth = 1280; // Standard HD Desktop width for better layout fidelity
+        let pdfFormat = 'a4';
+        let pdfOrientation = 'portrait';
+
+        if (currentCreativeType === 'pitch_deck') {
+            pdfOrientation = 'landscape';
+            pdfFormat = [297, 167]; // Professional 16:9 Presentation Format (mm)
+        } else if (currentCreativeType === 'one_pager' || currentCreativeType === 'brochure') {
+            captureWidth = 900; // Optimal width for A4 vertical readability
+            pdfFormat = 'a4';
+            pdfOrientation = 'portrait';
         }
 
         tempContainer.style.width = captureWidth + 'px';
 
         // Deep clone iframe content
         const contentClone = iframe.contentDocument.documentElement.cloneNode(true);
+
+        // Add PDF-specific fixes to the clone
+        const styleFix = document.createElement('style');
+        styleFix.innerHTML = `
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            .z-gradient-text { background-clip: text; -webkit-background-clip: text; }
+            body { background-color: #000 !important; } 
+        `;
+        contentClone.querySelector('head').appendChild(styleFix);
 
         // Create an internal iframe for the export to ensure exact CSS isolation
         const exportIframe = document.createElement('iframe');
@@ -3830,26 +3847,43 @@ async function downloadCreativeAsPDF() {
         exportIframe.contentDocument.write(contentClone.outerHTML);
         exportIframe.contentDocument.close();
 
-        // Wait for styles and fonts to load in the clone
-        await new Promise(r => setTimeout(r, 1000));
+        // 1. Wait for Fonts
+        if (exportIframe.contentWindow.document.fonts) {
+            await exportIframe.contentWindow.document.fonts.ready;
+        }
+
+        // 2. Wait for all Images
+        const images = exportIframe.contentDocument.querySelectorAll('img');
+        const imgPromises = Array.from(images).map(img => {
+            if (img.complete) return Promise.resolve();
+            return new Promise(resolve => {
+                img.onload = resolve;
+                img.onerror = resolve; // Continue even if one fails
+            });
+        });
+
+        // 3. Wait for Tailwind/Styles
+        await new Promise(r => setTimeout(r, 1500));
+        await Promise.all(imgPromises);
 
         const opt = {
-            margin: [0, 0], // Edge to edge for premium look
+            margin: [0, 0],
             filename: filename,
-            image: { type: 'jpeg', quality: 1.0 },
+            image: { type: 'jpeg', quality: 0.98 },
             html2canvas: {
-                scale: 2,
+                scale: 3, // Higher fidelity (approx 300 DPI equivalent)
                 useCORS: true,
                 letterRendering: true,
+                allowTaint: false,
                 width: captureWidth,
-                windowWidth: captureWidth
+                windowWidth: captureWidth,
+                scrollX: 0,
+                scrollY: 0,
+                backgroundColor: '#000000',
+                logging: false
             },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            jsPDF: { unit: 'mm', format: pdfFormat, orientation: pdfOrientation, compress: true }
         };
-
-        if (currentCreativeType === 'pitch_deck') {
-            opt.jsPDF.orientation = 'landscape';
-        }
 
         // Target the iframe body
         await html2pdf().set(opt).from(exportIframe.contentDocument.body).save();
