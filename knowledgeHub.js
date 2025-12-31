@@ -3778,7 +3778,7 @@ function generateCreativeControls(controls) {
 /**
  * Download the generated creative as PDF using html2pdf.js
  */
-async function downloadCreativeAsPDF() {
+async function downloadCreativeAsPDF(options = {}) {
     const resultContainer = document.getElementById('creative-result-container');
     const iframe = resultContainer.querySelector('iframe');
     if (!iframe) return;
@@ -3807,17 +3807,16 @@ async function downloadCreativeAsPDF() {
         tempContainer.style.top = '0';
 
         // Determine capture width based on orientation and type
-        let captureWidth = 1280; // Standard HD Desktop width for better layout fidelity
+        let captureWidth = 1200; // Standard reference width
         let pdfFormat = 'a4';
         let pdfOrientation = 'portrait';
 
         if (currentCreativeType === 'pitch_deck') {
             pdfOrientation = 'landscape';
             pdfFormat = [297, 167]; // Professional 16:9 Presentation Format (mm)
-        } else if (currentCreativeType === 'one_pager' || currentCreativeType === 'brochure') {
-            captureWidth = 900; // Optimal width for A4 vertical readability
-            pdfFormat = 'a4';
-            pdfOrientation = 'portrait';
+        } else if (currentCreativeType === 'promo_images' || currentCreativeType === 'one_pager' || currentCreativeType === 'brochure') {
+            // For these types, we want the PDF to match the actual content height exactly
+            captureWidth = (currentCreativeType === 'promo_images') ? 1000 : 900;
         }
 
         tempContainer.style.width = captureWidth + 'px';
@@ -3866,12 +3865,24 @@ async function downloadCreativeAsPDF() {
         await new Promise(r => setTimeout(r, 1500));
         await Promise.all(imgPromises);
 
+        // EXTRA: Measure height for flexible formats
+        if (currentCreativeType === 'promo_images' || currentCreativeType === 'one_pager' || currentCreativeType === 'brochure') {
+            const body = exportIframe.contentDocument.body;
+            const contentHeight = body.scrollHeight;
+
+            // Calculate mm based on captureWidth being approx 210mm (A4 width)
+            const mmPerPx = 210 / captureWidth;
+            pdfFormat = [210, contentHeight * mmPerPx];
+            pdfOrientation = (contentHeight < captureWidth) ? 'landscape' : 'portrait';
+        }
+
+        const isPrint = options && options.isPrint;
         const opt = {
             margin: [0, 0],
             filename: filename,
-            image: { type: 'jpeg', quality: 0.98 },
+            image: { type: 'jpeg', quality: isPrint ? 1.0 : 0.98 },
             html2canvas: {
-                scale: 3, // Higher fidelity (approx 300 DPI equivalent)
+                scale: isPrint ? 4 : 2.5, // Ultra-high for print, balanced for digital
                 useCORS: true,
                 letterRendering: true,
                 allowTaint: false,
@@ -4312,7 +4323,14 @@ function injectActionButtonsToHeader() {
     if (pdfBtn) {
         pdfBtn.classList.remove('hidden');
         pdfBtn.style.display = 'flex';
-        pdfBtn.onclick = () => downloadCreativeAsPDF();
+        pdfBtn.onclick = () => downloadCreativeAsPDF({ isPrint: false });
+    }
+
+    const printBtn = document.getElementById('btn-creative-download-print');
+    if (printBtn) {
+        printBtn.classList.remove('hidden');
+        printBtn.style.display = 'flex';
+        printBtn.onclick = () => downloadCreativeAsPDF({ isPrint: true });
     }
 
     // Hide the legacy download btn if redundant
