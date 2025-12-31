@@ -221,245 +221,169 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
     // 3. HTML ASSEMBLY
     const assetInstructions = visualPlan.visuals.map(v => `- For ${v.id}: use exactly "{{${v.id}}}"`).join('\n');
 
-    // --- PROMPT BRANCHING: WEB vs PRESS RELEASE ---
+    // --- DESIGN ARCHETYPE SYSTEM ---
+    const archetypes = {
+        'visionary': {
+            name: 'Visionary (Neo-Tech)',
+            style: `
+                body { background: radial-gradient(circle at top right, #1e1b4b, #0f172a); color: #f8fafc; }
+                .glass { background: rgba(255,255,255,0.03); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
+                .accent-text { background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+                .card-hover:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(0,0,0,0.4); border-color: rgba(129, 140, 248, 0.4); }
+            `,
+            systemRules: "Style: Dark, futuristic, high-end tech. Features: Gradients, glassmorphism, subtle glows. Background: bg-slate-950."
+        },
+        'executive': {
+            name: 'Executive (Corporate)',
+            style: `
+                body { background-color: #fcfcfc; color: #1e293b; }
+                .glass { background: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+                .accent-text { color: #1e40af; }
+                .card-hover:hover { border-color: #3b82f6; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+            `,
+            systemRules: "Style: Clean, corporate, trustworthy. Features: White backgrounds, solid cards, deep navy/blue accents. Typography: Sharp Sans-serif."
+        },
+        'disruptor': {
+            name: 'Disruptor (Bold)',
+            style: `
+                body { background-color: #000000; color: #ffffff; }
+                .glass { background: #111; border: 2px solid #fff; }
+                .accent-text { color: #facc15; text-transform: uppercase; font-weight: 900; }
+                .card-hover:hover { background: #facc15; color: #000; border-color: #000; }
+            `,
+            systemRules: "Style: Brutalist, high-contrast, energetic. Features: Black & White with one bright accent color (Yellow/Neon). Solid heavy borders."
+        },
+        'minimalist': {
+            name: 'Minimalist (Artistic)',
+            style: `
+                body { background-color: #f5f5f5; color: #262626; }
+                .glass { background: transparent; border: 1px solid #d4d4d4; }
+                .accent-text { color: #000; font-weight: 300; letter-spacing: 0.1em; }
+                .card-hover:hover { border-color: #000; }
+            `,
+            systemRules: "Style: High-whitespace, thin lines, minimalist. Features: Greyscale, no gradients, very simple borders. Background: bg-stone-50."
+        },
+        'journalistic': {
+            name: 'Journalistic (Press Release)',
+            style: `
+                body { font-family: 'EB Garamond', serif; background-color: #fff; color: #111827; }
+                .pr-container { max-width: 820px; margin: 0 auto; padding: 80px 50px; }
+                .dateline { font-weight: 800; text-transform: uppercase; margin-right: 6px; font-family: 'Inter', sans-serif; font-size: 0.85rem; }
+                .quote-box { border-left: 3px solid #111827; padding-left: 24px; font-style: italic; margin: 40px 0; color: #374151; font-size: 1.25rem; }
+                .boilerplate { background: #f8fafc; padding: 30px; border: 1px solid #e2e8f0; margin-top: 50px; }
+                h1, h2, .label-font { font-family: 'Inter', sans-serif; letter-spacing: -0.02em; }
+                p { margin-bottom: 1.6rem; line-height: 1.85; font-size: 1.18rem; }
+            `,
+            systemRules: "Style: Traditional newspaper/media announcement. Features: Strictly WHITE background, Serif fonts. Vertical text flow. NO sections, NO slides, NO landing-page buttons."
+        }
+    };
+
+    // --- ARCHETYPE SELECTION ---
+    let selectedArchetype;
+    if (type === 'press_release') {
+        selectedArchetype = archetypes['journalistic'];
+    } else {
+        // Pick a diverse archetype for other types
+        const options = ['visionary', 'executive', 'disruptor', 'minimalist'];
+        const randomKey = options[Math.floor(Math.random() * options.length)];
+        selectedArchetype = archetypes[randomKey];
+    }
+    console.log(`[UniversalCreator] 🎨 Applied Archetype: ${selectedArchetype.name}`);
+
+    // --- PROMPT BRANCHING ---
     let finalSystemPrompt;
     let finalTaskPrompt;
 
     if (type === 'press_release') {
-        const logoPlaceholder = `<div class="mb-10 text-center border-b pb-8"><div class="text-3xl font-black tracking-tight text-slate-800 uppercase">[COMPANY LOGO]</div></div>`;
-
         finalSystemPrompt = `
-    You are a SEASONED PRESS RELEASE WRITER and CORPORATE COMMUNICATIONS EXPERT.
-    Your goal is to create a professional, distribution-ready media announcement following AP (Associated Press) standards.
+    You are a TOP-TIER PRESS RELEASE WRITER (PR Strategist).
+    Your goal is to create a professional MEDIA ANNOUNCEMENT that looks like a formal document, NOT a website.
     
-    === MANDATORY PR FORMATTING ===
-    1. STYLE: Journalistic, authoritative, objective, and print-ready.
-    2. THEME: Clean WHITE background. Professional black/gray text.
-    3. TYPOGRAPHY: Use a mix of Serif (for content) and Sans-serif (for headlines).
+    === MANDATORY JOURNALISTIC RULES ===
+    1. THEME: Strictly White background. NO gradients. NO dark mode.
+    2. TYPOGRAPHY: Serif body font (EB Garamond) for the article.
+    3. NO LANDING PAGE ELEMENTS: Do not use hero sections, call-to-action buttons, icons, or floating blobs.
     4. STRUCTURE:
-       - Top: "FOR IMMEDIATE RELEASE" in bold uppercase.
-       - Dateline: [CITY, State] — [Current Date] — (Lead paragraph starts here).
-       - Inverted Pyramid: Critical info first, followed by details.
-       - Quotes: Professional quotes from executives.
-       - Boilerplate: "About [Company Name]" section at the end.
-       - Media Contact: Clear contact info.
-       - End Mark: Use '###' centered at the very bottom.
-
-    === MANDATORY INCLUDES ===
-    Always start with this EXACT <head> content:
+       - Top Left: "FOR IMMEDIATE RELEASE" (Bold)
+       - Header: Balanced headline & sub-headline.
+       - Dateline: [CITY, State] — [Current Date] — (Article starts here).
+       - Context: 5-7 paragraphs of high-quality journalistic prose.
+       - Quote: One prominent quote block.
+       - Boilerplate: "About [Company]" section.
+       - Media Contact: Practical contact info at bottom.
+       - End Mark: Center "###" at the very end.
+    
+    === MANDATORY HEAD ===
     \`\`\`
     <!DOCTYPE html>
     <html lang="en">
     <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
         <script src="https://cdn.tailwindcss.com"></script>
-        <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-        <style>
-            body { font-family: 'EB Garamond', serif; background-color: #ffffff; color: #1a1a1a; }
-            h1, h2, h3, .sans-font { font-family: 'Inter', sans-serif; }
-            .pr-container { max-width: 800px; margin: 0 auto; padding: 60px 40px; background: #fff; }
-            .pr-divider { height: 1px; background: #e5e7eb; margin: 40px 0; }
-            .dateline { font-weight: 700; text-transform: uppercase; margin-right: 8px; font-family: 'Inter', sans-serif; font-size: 0.9rem; }
-            .boilerplate { background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-radius: 4px; }
-            .media-contact { margin-top: 40px; font-size: 0.95rem; line-height: 1.6; }
-            p { margin-bottom: 1.5rem; line-height: 1.8; font-size: 1.15rem; }
-            .quote-box { border-left: 4px solid #4f46e5; padding-left: 24px; font-style: italic; margin: 30px 0; color: #374151; }
-        </style>
+        <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+        <style>${selectedArchetype.style}</style>
     </head>
     \`\`\`
-    
-    === DESIGN RULES (PRESS RELEASE ONLY) ===
-    - Background: bg-white (NO gradients, NO dark mode).
-    - Images: Insert generated visual tokens [${visualPlan.visuals.map(v => v.id).join(', ')}] as standard <img> tags with captions.
-    - NO Glassmorphism, NO floating blobs, NO presentation sections.
-    - Professional, linear article layout only.
     `;
 
         finalTaskPrompt = `
-    ${strategy.htmlTask}
+    ${strategy.htmlTask} (REFINED: Output as a linear article, not a sectional landing page).
 
-    PROJECT DETAILS:
-    - Topic: ${topic}
-    - News Category: ${newsType}
-    - Audience: ${audience}
-    - Tone: ${contentTone}
-    
-    KNOWLEDGE BASE CONTENT:
+    PROJECT: ${topic}
+    CATEGORY: ${newsType}
+    CONTEXT:
     """
-    ${context || 'Use general professional content.'}
+    ${context || 'Professional news.'}
     """
 
-    === PR SPECIFIC INSTRUCTIONS ===
-    - Header: Include "${logoPlaceholder}" at the top.
-    - Immediate Release: Start with "FOR IMMEDIATE RELEASE" in the header.
-    - Headline: Create a powerful, news-worthy headline and a descriptive sub-headline.
+    === PR REQUIREMENTS ===
     - Dateline: Start the first paragraph with "[LOCATION] — [DATE] — ".
-    - Body Copy: Write 4-6 detailed paragraphs expanding on the knowledge hub content.
-    - Quote: Include a professional quote from a key spokesperson.
-    - Visuals: Spread the visual tokens {{PR_HERO}}, {{PR_DETAIL_1}}, etc. within the story body.
-    - Boilerplate: Write a professional "About" section based on the context.
-    - End Mark: Center "###" at the very end of the document.
+    - Visuals: Use {{PR_HERO}}, {{PR_DETAIL_1}} as standard <img> tags with figure captions.
+    - Boilerplate: Generate a professional "About" section based on the context.
+    - End Mark: Center "###" at the end.
     
-    ${customPrompt ? `💬 USER REQUEST: ${customPrompt}` : ''}
-    
-    Return pure HTML starting with <!DOCTYPE html>.
+    Return ONLY pure HTML starting with <!DOCTYPE html>.
     `;
     } else {
-        // --- ORIGINAL LANDING PAGE STYLE (For Pitch Deck, Brochure, One Pager) ---
+        // WEB APP / PRESENTATION STYLE
         finalSystemPrompt = `
-    You are a WORLD-CLASS Frontend Developer & UI Designer creating award-winning, premium web designs.
+    You are a WORLD-CLASS UI/UX Designer.
+    Apply the DESIGN ARCHETYPE: ${selectedArchetype.name}
+    Rules: ${selectedArchetype.systemRules}
     
-    === MANDATORY INCLUDES ===
-    Always start with this exact <head> content:
+    === MANDATORY HEAD ===
     \`\`\`
     <!DOCTYPE html>
     <html lang="en">
     <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
         <style>
             * { font-family: 'Inter', sans-serif; }
-            .glass { background: rgba(255,255,255,0.05); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); }
-            .gradient-text { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-            .hover-lift { transition: all 0.3s ease; }
-            .hover-lift:hover { transform: translateY(-8px); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
+            ${selectedArchetype.style}
             .animate-fade-in { animation: fadeIn 0.6s ease-out; }
             @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-            .glow { box-shadow: 0 0 40px rgba(99, 102, 241, 0.3); }
         </style>
     </head>
     \`\`\`
-
-    === DESIGN SYSTEM (MANDATORY) ===
-    
-    1. COLOR PALETTE:
-       - Background: bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950
-       - Cards: glass class (glassmorphism effect)
-       - Primary: indigo-500, purple-500
-       - Accent: emerald-400, cyan-400
-       - Text: white, slate-300, slate-400
-    
-    2. TYPOGRAPHY:
-       - Hero Title: text-5xl md:text-7xl font-extrabold gradient-text
-       - Section Titles: text-3xl md:text-4xl font-bold text-white
-       - Subtitles: text-xl text-slate-300
-       - Body: text-base text-slate-400 leading-relaxed
-    
-    3. GLASSMORPHISM CARDS:
-       - Use: class="glass rounded-2xl p-8 hover-lift animate-fade-in"
-       - Add gradient borders: border-gradient-to-r from-indigo-500/50 to-purple-500/50
-    
-    4. ICONS (Font Awesome 6):
-       - Use icons for EVERY feature/benefit: <i class="fas fa-check-circle text-emerald-400 mr-3"></i>
-       - Section headers: <i class="fas fa-rocket text-indigo-400"></i>
-       - Stats: <i class="fas fa-chart-line text-cyan-400"></i>
-       - Common icons: fa-shield, fa-bolt, fa-globe, fa-users, fa-cog, fa-star, fa-trophy
-    
-    5. HERO SECTION:
-       - Full viewport height: min-h-screen
-       - Background image: {{${strategy.visualIds[0].id}}} with dark overlay
-       - Gradient overlay: bg-gradient-to-b from-black/70 via-black/50 to-slate-900
-       - Center content with flex items-center justify-center
-       - Add floating decorative elements (absolute positioned gradient blobs)
-    
-    6. SECTION LAYOUTS:
-       - Use CSS Grid: grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8
-       - Alternating sections with subtle background variations
-       - Each section: py-20 px-6 md:px-12
-       - Add section dividers with gradient lines
-    
-    7. ANIMATIONS & INTERACTIVITY:
-       - All cards: hover-lift class
-       - Buttons: hover:scale-105 transition-all duration-300
-       - Stats: text-5xl font-bold gradient-text with counter effect styling
-    
-    8. DECORATIVE ELEMENTS:
-       - Add floating gradient orbs: absolute rounded-full blur-3xl bg-indigo-500/20
-       - Subtle grid patterns or dot patterns as backgrounds
-       - Gradient divider lines between sections
-
-    === IMAGE TOKENS ===
-    ${assetInstructions}
-    - CRITICAL: Use {{${strategy.visualIds[0].id}}} as the hero background-image
-    - NEVER use placeholder URLs. ONLY use the tokens above.
-
-    === OUTPUT ===
-    Pure HTML only. No markdown. No explanations. Start with <!DOCTYPE html>.
     `;
-
-        // Build color scheme instruction based on user selection
-        const colorInstructions = {
-            'Indigo/Purple (Default)': 'Use indigo-500, purple-500 for primary accents.',
-            'Blue/Cyan': 'Use blue-500, cyan-400 for primary accents.',
-            'Green/Teal': 'Use emerald-500, teal-400 for primary accents.',
-            'Orange/Red': 'Use orange-500, red-400 for primary accents.',
-            'Monochrome': 'Use slate-500, gray-400 for primary accents (black/white theme).',
-            'Custom Gradient': 'Use a unique gradient combination that fits the brand.'
-        };
-
-        const animationInstructions = {
-            'None': 'Do not include any animations or hover effects.',
-            'Subtle': 'Include minimal hover effects (opacity changes only).',
-            'Medium': 'Include hover-lift effects and fade-in animations.',
-            'Rich': 'Include elaborate animations: hover-lift, fade-in, floating blobs, gradient shifts, and micro-interactions.'
-        };
 
         finalTaskPrompt = `
     ${strategy.htmlTask}
-
-    PROJECT DETAILS:
-    - Topic: ${topic}
-    - Document Format: ${type}
-    - Target Audience: ${audience}
-    - Style: ${style} (Premium, Executive-level quality)
-    - Tone of Voice: ${contentTone} (EXTREMELY IMPORTANT: Stick to this tone)
-
-    KNOWLEDGE BASE CONTENT (EXTRACTED FROM UPLOADED DOCUMENTS):
-    """
-    ${context || 'Use general professional content.'}
-    """
-
-    === CUSTOMIZATION (User Selected) ===
-    🎨 COLOR SCHEME: ${colorScheme}
-    → ${colorInstructions[colorScheme] || colorInstructions['Indigo/Purple (Default)']}
+    TOPIC: ${topic}
+    STYLE: ${style} (Archetype: ${selectedArchetype.name})
+    IMAGE TOKENS: [${visualPlan.visuals.map(v => v.id).join(', ')}]
     
-    🔷 ICON STYLE: ${iconStyle}
-    → Use ${iconStyle} SVG icons (inline SVGs or reliable CDN icons).
+    === DESIGN REQUIREMENTS ===
+    1. EXTRAPOLATE the content from the knowledge base into premium copy.
+    2. USE the image tokens {{...}} across the document.
+    3. Ensure high visual hierarchy and premium spacing.
     
-    📐 LAYOUT DENSITY: ${layoutDensity}
-    ${layoutDensity === 'Spacious' ? '→ Use generous padding (p-12, py-24, gap-12)' : ''}
-    ${layoutDensity === 'Balanced' ? '→ Use standard padding (p-8, py-16, gap-8)' : ''}
-    ${layoutDensity === 'Compact' ? '→ Use minimal padding (p-4, py-8, gap-4)' : ''}
+    ${customPrompt ? `💬 USER REQUEST: ${customPrompt}` : ''}
     
-    🪟 GLASSMORPHISM: ${glassmorphism ? 'YES - Use glass effect cards (bg-white/5 backdrop-blur)' : 'NO - Use solid cards'}
-    🫧 FLOATING BLOBS: ${floatingBlobs ? 'YES - Include decorative gradient orbs' : 'NO - Skip decorative blobs'}
-
-    📊 DATA VISUALIZATION: ${includeCharts}
-    ${includeCharts === 'Bar Charts' ? '→ Create elegant pure CSS/Tailwind bar charts to visualize key metrics.' : ''}
-    ${includeCharts === 'Line Graphs' ? '→ Create stylized CSS line graph components for trends.' : ''}
-    ${includeCharts === 'Progress Rings' ? '→ Use circular progress SVGs for percentage-based data.' : ''}
-    ${includeCharts === 'Infographic Cards' ? '→ Use icon-heavy infographic blocks for data points.' : ''}
-    
-    ${customPrompt ? `
-    💬 ADDITIONAL INSTRUCTIONS FROM USER:
-    """
-    ${customPrompt}
-    """
-    (IMPORTANT: Follow these user instructions carefully!)
-    ` : ''}
-
-    QUALITY REQUIREMENTS:
-    1. EXTRAPOLATE: Expand on the Knowledge Base content. Turn bullet points into compelling professional copy in a ${contentTone} tone.
-    2. VISUAL HIERARCHY: Use modern design principles (gradients, whitespace, varying typography weights).
-    3. BRAND CONSISTENCY: Maintain ${colorScheme} throughout all elements.
-    4. IMAGE USAGE: Distribute the provided image tokens [${visualPlan.visuals.map(v => v.id).join(', ')}] across the document where they make the most sense. Use them in a way that matches the "${imageStyle}" style.
-    5. SLIDE STRUCTURE (if applicable): Ensure exactly ${slideCount} slides with distinct purposes.
-    
-    Make it look like a $50,000 custom digital product!
+    Return pure HTML starting with <!DOCTYPE html>.
     `;
     }
 
