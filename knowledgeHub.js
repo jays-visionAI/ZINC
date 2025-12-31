@@ -10,7 +10,7 @@
 const GOOGLE_CLIENT_ID = window.ENV_CONFIG?.GOOGLE_CLIENT_ID || '';
 const GOOGLE_API_KEY = window.ENV_CONFIG?.GOOGLE_API_KEY || '';
 // const GOOGLE_DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'];
-const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly';
+const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/drive.file';
 
 // ============================================================
 // STATE
@@ -2818,7 +2818,13 @@ async function cleanupOldBrandSummaries() {
                     notesToDelete.push(doc.ref);
                 }
             });
-            await batch.commit();
+
+            if (notesToDelete.length > 0) {
+                const batch = firebase.firestore().batch();
+                notesToDelete.forEach(ref => batch.delete(ref));
+                await batch.commit();
+                console.log(`[KnowledgeHub] Cleaned up ${notesToDelete.length} old summaries`);
+            }
         }
     } catch (e) {
         console.error('Cleanup error:', e);

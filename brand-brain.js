@@ -8,7 +8,7 @@
 const GOOGLE_CLIENT_ID = window.ENV_CONFIG?.GOOGLE_CLIENT_ID || '';
 const GOOGLE_API_KEY = window.ENV_CONFIG?.GOOGLE_API_KEY || '';
 // const GOOGLE_DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'];
-const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly';
+const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/drive.file';
 
 // State
 let currentProjectId = null;

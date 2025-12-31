@@ -493,7 +493,7 @@ exports.routeLLM = functions.https.onCall(async (data, context) => {
                 // User requested to prioritize Gemini/Banana ecosystem.
 
                 const fallbackProvider = 'google';
-                const fallbackModel = (qualityTier === 'BOOST') ? 'gemini-3.0-pro-preview' : 'gemini-2.0-flash-exp';
+                const fallbackModel = (qualityTier === 'BOOST') ? 'gemini-1.5-pro' : 'gemini-2.0-flash-exp';
 
                 // Retry Generation
                 let fallbackTemp = temperature;
@@ -625,7 +625,7 @@ async function callLLM(provider, model, messages, temperature = 0.7) {
         case 'banana':      // Nano Banana
         case 'nano':        // Nano
         case 'nano-banana': // explicit
-            return await callGeminiInternal(apiKey, model || 'gemini-3.0-pro-preview', messages, temperature);
+            return await callGeminiInternal(apiKey, model || 'gemini-1.5-flash', messages, temperature);
 
         case 'anthropic':
         case 'claude':
@@ -694,7 +694,7 @@ async function callGeminiInternal(apiKey, model, messages, temperature) {
 
     // Special handling for models that enforce default temperature (e.g. Gemini 3.0 Preview, Thinking models)
     // Error observed: "temperature does not support 0.7 with this model. Only the default (1) value is supported."
-    const isRestrictedModel = model.includes('gemini-3') || model.includes('thinking');
+    const isRestrictedModel = model.includes('thinking');
     if (!isRestrictedModel && temperature != null) {
         config.temperature = temperature;
     }
