@@ -3834,78 +3834,83 @@ exports.getUserCredits = onCall(
 /**
  * Deduct credits for an operation
  */
-exports.deductCredits = functions.https.onCall(async (data, context) => {
-    if (!context.auth) {
-        throw new functions.https.HttpsError('unauthenticated', 'Must be logged in');
-    }
-
-    const { operation, amount } = data;
-    const userId = context.auth.uid;
-
-    // Calculate cost
-    const cost = amount || CREDIT_COSTS[operation] || 1;
-
-    try {
-        const userRef = db.collection('users').doc(userId);
-        const userDoc = await userRef.get();
-
-        if (!userDoc.exists) {
-            throw new Error('User not found');
+exports.deductCredits = onCall(
+    {
+        cors: ALLOWED_ORIGINS,
+        region: 'us-central1'
+    },
+    async (request) => {
+        if (!request.auth) {
+            throw new functions.https.HttpsError('unauthenticated', 'Must be logged in');
         }
 
-        const userData = userDoc.data();
-        const plan = userData.plan || 'free';
-        const planDetails = PLAN_TIERS[plan];
+        const { operation, amount } = request.data;
+        const userId = request.auth.uid;
 
-        // Check credits
-        if ((userData.credits || 0) < cost) {
+        // Calculate cost
+        const cost = amount || CREDIT_COSTS[operation] || 1;
+
+        try {
+            const userRef = db.collection('users').doc(userId);
+            const userDoc = await userRef.get();
+
+            if (!userDoc.exists) {
+                throw new Error('User not found');
+            }
+
+            const userData = userDoc.data();
+            const plan = userData.plan || 'free';
+            const planDetails = PLAN_TIERS[plan];
+
+            // Check credits
+            if ((userData.credits || 0) < cost) {
+                return {
+                    success: false,
+                    error: 'insufficient_credits',
+                    message: 'Not enough credits',
+                    required: cost,
+                    available: userData.credits || 0
+                };
+            }
+
+            // Check daily limit
+            const creditsUsedToday = userData.creditsUsedToday || 0;
+            if (creditsUsedToday + cost > planDetails.dailyLimit) {
+                return {
+                    success: false,
+                    error: 'daily_limit_exceeded',
+                    message: 'Daily credit limit reached',
+                    dailyLimit: planDetails.dailyLimit,
+                    usedToday: creditsUsedToday
+                };
+            }
+
+            // Deduct credits
+            await userRef.update({
+                credits: admin.firestore.FieldValue.increment(-cost),
+                creditsUsedToday: admin.firestore.FieldValue.increment(cost),
+                creditsUsedThisMonth: admin.firestore.FieldValue.increment(cost)
+            });
+
+            // Log usage
+            await db.collection('users').doc(userId).collection('creditHistory').add({
+                operation,
+                cost,
+                timestamp: admin.firestore.FieldValue.serverTimestamp(),
+                remainingCredits: (userData.credits || 0) - cost
+            });
+
             return {
-                success: false,
-                error: 'insufficient_credits',
-                message: 'Not enough credits',
-                required: cost,
-                available: userData.credits || 0
+                success: true,
+                deducted: cost,
+                remaining: (userData.credits || 0) - cost
             };
+
+        } catch (error) {
+            console.error('[deductCredits] Error:', error);
+            throw new functions.https.HttpsError('internal', error.message);
         }
-
-        // Check daily limit
-        const creditsUsedToday = userData.creditsUsedToday || 0;
-        if (creditsUsedToday + cost > planDetails.dailyLimit) {
-            return {
-                success: false,
-                error: 'daily_limit_exceeded',
-                message: 'Daily credit limit reached',
-                dailyLimit: planDetails.dailyLimit,
-                usedToday: creditsUsedToday
-            };
-        }
-
-        // Deduct credits
-        await userRef.update({
-            credits: admin.firestore.FieldValue.increment(-cost),
-            creditsUsedToday: admin.firestore.FieldValue.increment(cost),
-            creditsUsedThisMonth: admin.firestore.FieldValue.increment(cost)
-        });
-
-        // Log usage
-        await db.collection('users').doc(userId).collection('creditHistory').add({
-            operation,
-            cost,
-            timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            remainingCredits: (userData.credits || 0) - cost
-        });
-
-        return {
-            success: true,
-            deducted: cost,
-            remaining: (userData.credits || 0) - cost
-        };
-
-    } catch (error) {
-        console.error('[deductCredits] Error:', error);
-        throw new functions.https.HttpsError('internal', error.message);
-    }
-});
+    });
 
 /**
  * Check if user has feature access
@@ -4724,7 +4729,7 @@ ${planType === 'brand_mind_map'
     }
 });
 
-exports.generateCreativeContent = onCall({ cors: true, timeoutSeconds: 540, memory: '2GiB' }, async (request) => {
+exports.generateCreativeContent = onCall({ cors: ALLOWED_ORIGINS, region: 'us-central1', timeoutSeconds: 540, memory: '2GiB' }, async (request) => {
     // 1. Auth Check - moved inside try to ensure valid logging if needed, but keeping simple return for now
     if (!request.auth) {
         return { success: false, error: 'Unauthenticated' };
@@ -5399,7 +5404,7 @@ function generateMarketPulseData(projectData) {
 /**
  * Refine a specific section of a creative project
  */
-exports.refineCreativeContent = onCall({ cors: true, timeoutSeconds: 300, memory: '1GiB' }, async (request) => {
+exports.refineCreativeContent = onCall({ cors: ALLOWED_ORIGINS, region: 'us-central1', timeoutSeconds: 300, memory: '1GiB' }, async (request) => {
     if (!request.auth) return { success: false, error: 'Unauthenticated' };
     const { projectId, sectionIndex, instruction, currentContent } = request.data;
     if (!projectId) return { success: false, error: 'Missing ProjectID' };
@@ -5429,7 +5434,7 @@ exports.refineCreativeContent = onCall({ cors: true, timeoutSeconds: 300, memory
 /**
  * Refresh/Swap an image in a creative project
  */
-exports.refreshCreativeImage = onCall({ cors: true, timeoutSeconds: 300, memory: '1GiB' }, async (request) => {
+exports.refreshCreativeImage = onCall({ cors: ALLOWED_ORIGINS, region: 'us-central1', timeoutSeconds: 300, memory: '1GiB' }, async (request) => {
     if (!request.auth) return { success: false, error: 'Unauthenticated' };
     const { projectId, prompt, currentUrl } = request.data;
 

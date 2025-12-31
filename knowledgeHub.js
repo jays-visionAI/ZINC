@@ -1408,7 +1408,7 @@ async function regenerateSourceSummary(sourceId) {
         }
 
         // Call AI via routeLLM (PRD 11.6 Router)
-        const routeLLM = firebase.functions().httpsCallable('routeLLM');
+        const routeLLM = firebase.app().functions('us-central1').httpsCallable('routeLLM');
 
         const result = await routeLLM({
             feature: 'brandbrain.analysis', // Maps to Gemini 3.0 Pro (Boost) or Gemini 2.0 Flash (Default)
@@ -1639,7 +1639,7 @@ async function handlePlanClick(planType) {
 
     try {
         // Call Cloud Function
-        const generateContentPlan = firebase.functions().httpsCallable('generateContentPlan');
+        const generateContentPlan = firebase.app().functions('us-central1').httpsCallable('generateContentPlan');
         const result = await generateContentPlan({
             projectId: currentProjectId,
             planType: planType
@@ -2344,7 +2344,7 @@ async function sendChatMessage() {
 
     try {
         // Call Cloud Function with target language for translation
-        const askKnowledgeHub = firebase.functions().httpsCallable('askKnowledgeHub');
+        const askKnowledgeHub = firebase.app().functions('us-central1').httpsCallable('askKnowledgeHub');
         const result = await askKnowledgeHub({
             projectId: currentProjectId,
             question: message,
@@ -2724,7 +2724,7 @@ Sources Content:
 ${activeSources.map(s => `--- Source: ${s.title} ---\n${s.summary || s.content?.substring(0, 5000) || ''}`).join('\n\n')}`;
 
         // Call LLM Router Cloud Function
-        const routeLLM = firebase.functions().httpsCallable('routeLLM');
+        const routeLLM = firebase.app().functions('us-central1').httpsCallable('routeLLM');
         const result = await routeLLM({
             feature: 'studio.content_gen', // Using generic content gen feature policy
             qualityTier: qualityTier,
@@ -3545,9 +3545,9 @@ const CREATIVE_CONFIGS = {
                     { value: 'Synthwave', label: 'Synthwave', icon: 'fa-sun', desc: '80s Retro' },
                     { value: 'Minimalist', label: 'Minimal', icon: 'fa-circle', desc: 'Clean & Simple' },
                     { value: 'Abstract', label: 'Abstract', icon: 'fa-palette', desc: 'Shapes & Color' },
-                    { value: 'Claymation', label: 'Clay', icon: 'fa-shapes', desc: '3D Toy look' },
+                    { value: 'Claymation', label: 'Clay Art', icon: 'fa-shapes', desc: '3D Toy look' },
                     { value: 'Glassmorphism', label: 'Glass', icon: 'fa-clone', desc: 'Frost & Blur' },
-                    { value: 'Pop Art', label: 'Pop Art', icon: 'fa-burst', desc: 'Comic style' },
+                    { value: 'Pop Art', label: 'Pop-Art', icon: 'fa-burst', desc: 'Comic style' },
                     { value: 'Watercolor', label: 'Watercolor', icon: 'fa-paint-brush', desc: 'Soft painting' },
                     { value: 'Oil Painting', label: 'Oil Paint', icon: 'fa-image', desc: 'Classic canvas' },
                     { value: 'Sketch', label: 'Sketch', icon: 'fa-pencil-alt', desc: 'Hand drawn' },
@@ -3734,11 +3734,11 @@ function generateCreativeControls(controls) {
                 const gridOptions = ctrl.options.map((opt, idx) => `
                     <div class="visual-option group relative bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 cursor-pointer transition-all hover:bg-slate-700/50 hover:border-indigo-500/50 ${idx === 0 ? 'selected ring-2 ring-indigo-500 bg-indigo-500/10' : ''}" 
                          data-value="${opt.value}" onclick="selectVisualOption(this, '${ctrl.id}')">
-                        <div class="text-xl mb-1 flex items-center justify-center text-slate-400 group-hover:text-indigo-400 transition-colors">
+                        <div class="text-xl mb-1.5 flex items-center justify-center text-slate-400 group-hover:text-indigo-400 transition-colors">
                             <i class="fas ${opt.icon}"></i>
                         </div>
-                        <div class="text-[10px] font-bold text-white text-center leading-tight">${opt.label}</div>
-                        <div class="text-[8px] text-slate-500 text-center mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">${opt.desc}</div>
+                        <div class="text-[10px] font-bold text-white text-center leading-normal mb-1">${opt.label}</div>
+                        <div class="text-[8px] text-slate-500 text-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-1 group-hover:translate-y-0">${opt.desc}</div>
                         <div class="absolute top-1 right-1 opacity-0 check-mark">
                            <i class="fas fa-check-circle text-indigo-400 text-[10px]"></i>
                         </div>
@@ -3981,7 +3981,7 @@ async function generateCreativeItem() {
     addLog(`Workspace created: ${projectId}`, 'info');
 
     try {
-        const generateFn = firebase.functions().httpsCallable('generateCreativeContent', { timeout: 600000 });
+        const generateFn = firebase.app().functions('us-central1').httpsCallable('generateCreativeContent', { timeout: 600000 });
         const result = await generateFn({
             projectId: projectId,
             type: currentCreativeType,
@@ -4348,7 +4348,7 @@ async function refineCreativeSection(docId, sectionIdx, sectionEl) {
     sectionEl.classList.add('opacity-40', 'transition-opacity', 'duration-500');
 
     try {
-        const refineFn = firebase.functions().httpsCallable('refineCreativeContent');
+        const refineFn = firebase.app().functions('us-central1').httpsCallable('refineCreativeContent');
         const result = await refineFn({
             projectId: docId,
             sectionIndex: sectionIdx,
@@ -4385,7 +4385,7 @@ async function swapCreativeImage(docId, imgEl) {
     imgEl.classList.add('animate-pulse', 'brightness-50');
 
     try {
-        const swapFn = firebase.functions().httpsCallable('refreshCreativeImage');
+        const swapFn = firebase.app().functions('us-central1').httpsCallable('refreshCreativeImage');
         const result = await swapFn({
             projectId: docId,
             prompt: promptText,
@@ -4559,7 +4559,7 @@ async function executeAIRefine() {
 
     try {
         if (isImage) {
-            const swapFn = firebase.functions().httpsCallable('refreshCreativeImage');
+            const swapFn = firebase.app().functions('us-central1').httpsCallable('refreshCreativeImage');
             const result = await swapFn({
                 projectId: currentCreativeId,
                 prompt: instruction,
@@ -4570,7 +4570,7 @@ async function executeAIRefine() {
                 showNotification('Image refined by AI!', 'success');
             }
         } else {
-            const refineFn = firebase.functions().httpsCallable('refineCreativeContent');
+            const refineFn = firebase.app().functions('us-central1').httpsCallable('refineCreativeContent');
             const result = await refineFn({
                 projectId: currentCreativeId,
                 instruction: instruction,
@@ -4874,7 +4874,7 @@ CRITICAL RULE: You MUST provide BOTH Part 1 and Part 2. Even if the user asks fo
         }
 
         // Call routeLLM
-        const routeLLM = firebase.functions().httpsCallable('routeLLM');
+        const routeLLM = firebase.app().functions('us-central1').httpsCallable('routeLLM');
         const result = await routeLLM({
             feature: 'studio.content_gen', // Use content generation policy
             qualityTier: qualityTier,
@@ -5742,7 +5742,7 @@ async function generateImage() {
         console.log(`[generateImage] Prompt: ${enhancedPrompt.substring(0, 100)}...`);
 
         // Call Cloud Function
-        const generateImageFn = firebase.functions().httpsCallable('generateImage');
+        const generateImageFn = firebase.app().functions('us-central1').httpsCallable('generateImage');
         const result = await generateImageFn({
             prompt: enhancedPrompt,
             provider: provider,
@@ -6149,7 +6149,7 @@ let userCredits = {
 
 async function loadUserCredits() {
     try {
-        const getUserCredits = firebase.functions().httpsCallable('getUserCredits');
+        const getUserCredits = firebase.app().functions('us-central1').httpsCallable('getUserCredits');
         const result = await getUserCredits({});
 
         if (result.data.success) {
@@ -6230,7 +6230,7 @@ async function checkAndDeductCredits(operation, customCost = null) {
     }
 
     try {
-        const deductCredits = firebase.functions().httpsCallable('deductCredits');
+        const deductCredits = firebase.app().functions('us-central1').httpsCallable('deductCredits');
         const result = await deductCredits({ operation, amount: cost });
 
         if (result.data.success) {
