@@ -5436,15 +5436,23 @@ exports.refineCreativeContent = onCall({ cors: ALLOWED_ORIGINS, region: 'us-cent
  */
 exports.refreshCreativeImage = onCall({ cors: ALLOWED_ORIGINS, region: 'us-central1', timeoutSeconds: 300, memory: '1GiB' }, async (request) => {
     if (!request.auth) return { success: false, error: 'Unauthenticated' };
-    const { projectId, prompt, currentUrl } = request.data;
+    const { projectId, prompt, currentUrl, aspectRatio } = request.data;
 
     console.log(`[refreshCreativeImage] Refreshing image for ${projectId} with prompt: ${prompt}`);
+    if (aspectRatio) console.log(`[refreshCreativeImage] Specifying aspect ratio: ${aspectRatio}`);
 
     try {
-        // Simple Vertex AI call
-        const imageResult = await generateWithVertexAI(prompt || "Modern professional technology abstract background");
-        return { success: true, imageUrl: imageResult.url };
+        // Simple Vertex AI call - pass options if available
+        const imageResult = await generateWithVertexAI(
+            prompt || "Modern professional technology abstract background",
+            'imagen-4.0-generate-001',
+            { aspectRatio: aspectRatio || '16:9' }
+        );
+
+        // imageResult is the public URL string
+        return { success: true, imageUrl: imageResult };
     } catch (e) {
+        console.error('[refreshCreativeImage] Error:', e);
         return { success: false, error: e.message };
     }
 });

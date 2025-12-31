@@ -58,11 +58,12 @@ async function uploadBase64ToStorage(base64String, modelName) {
  * Generate Image using Vertex AI (REST API)
  * Supports: imagen-3.0-generate-001, imagen-4.0-generate-001 (Preview)
  */
-async function generateWithVertexAI(prompt, modelId = 'imagen-3.0-generate-001') {
+async function generateWithVertexAI(prompt, modelId = 'imagen-3.0-generate-001', options = {}) {
     const projectId = process.env.GCLOUD_PROJECT || admin.instanceId().app.options.projectId || 'zinc-c790f';
     const location = 'us-central1';
 
     console.log(`[generateWithVertexAI] 🚀 Calling Vertex AI: ${modelId} for project ${projectId}`);
+    console.log(`[generateWithVertexAI] ⚙️ Parameters: aspectRatio=${options.aspectRatio || '16:9'}`);
 
     try {
         const accessToken = await getVertexAccessToken();
@@ -75,7 +76,7 @@ async function generateWithVertexAI(prompt, modelId = 'imagen-3.0-generate-001')
             ],
             parameters: {
                 sampleCount: 1,
-                aspectRatio: "16:9",
+                aspectRatio: options.aspectRatio || "16:9",
                 addWatermark: false // We handle watermark via CSS
             }
         };

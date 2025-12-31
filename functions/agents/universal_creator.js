@@ -21,11 +21,20 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
         floatingBlobs = true,
         colorTone = 'Vibrant',
         lighting = 'Studio',
+        aspectRatio = '16:9',
         customPrompt = ''
     } = advancedOptions;
 
+    // Helper to clean aspect ratio string (e.g., "1:1 (Square)" -> "1:1")
+    const cleanAspectRatio = (ratio) => {
+        if (!ratio) return '16:9';
+        const match = ratio.match(/(\d+:\d+)/);
+        return match ? match[1] : '16:9';
+    };
+    const targetRatio = cleanAspectRatio(aspectRatio);
+
     console.log(`[UniversalCreator] 🚀 Starting generation for type: ${type} (${style})...`);
-    console.log(`[UniversalCreator] ⚙️ Advanced Options: colorScheme=${colorScheme}, tone=${contentTone}, imageStyle=${imageStyle}, charts=${includeCharts}`);
+    console.log(`[UniversalCreator] ⚙️ Advanced Options: ratio=${targetRatio}, imageStyle=${imageStyle}, count=${imageCount}`);
     if (customPrompt) console.log(`[UniversalCreator] 💬 Custom Prompt: ${customPrompt.substring(0, 100)}...`);
 
     // === STRATEGY PATTERN: Define prompts based on type ===
@@ -156,13 +165,15 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
     }
 
     // 2. GENERATE ASSETS
-    console.log(`[UniversalCreator] 🎨 Generating ${visualPlan.visuals.length} assets...`);
+    console.log(`[UniversalCreator] 🎨 Generating ${visualPlan.visuals.length} assets at ${targetRatio}...`);
     const assetMap = {};
 
     await Promise.all(visualPlan.visuals.map(async (visual) => {
         try {
             const prompt = `${visual.prompt}, ${style} style, professional, 4k, clean, high resolution`;
-            const imageUrl = await generateWithVertexAI(prompt, 'imagen-4.0-generate-001');
+            const imageUrl = await generateWithVertexAI(prompt, 'imagen-4.0-generate-001', {
+                aspectRatio: targetRatio
+            });
             assetMap[visual.id] = imageUrl;
         } catch (err) {
             console.warn(`[UniversalCreator] Image gen failed for ${visual.id}, using fallback.`);
