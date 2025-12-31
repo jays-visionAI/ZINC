@@ -4374,7 +4374,8 @@ function setupDetailedEditing(iframe, docId) {
 
     // 1. Image Swap Overlays
     doc.querySelectorAll('img').forEach(img => {
-        if (img.closest('.img-container')) return;
+        if (img.classList.contains('zynk-managed-img') || img.closest('.img-container')) return;
+        img.classList.add('zynk-managed-img');
 
         const wrapper = doc.createElement('div');
         wrapper.className = 'relative inline-block img-container w-full h-full';
@@ -4393,6 +4394,8 @@ function setupDetailedEditing(iframe, docId) {
 
     // 2. Section Refinement
     doc.querySelectorAll('section').forEach((section, idx) => {
+        if (section.querySelector('.refine-btn')) return; // IDEMPOTENT Check
+
         section.classList.add('relative', 'group');
 
         const refineBtn = doc.createElement('button');
@@ -4452,17 +4455,24 @@ async function refineCreativeSection(docId, sectionIdx, sectionEl) {
     showNotification('AI is thinking...', 'info');
     sectionEl.classList.add('opacity-40', 'transition-opacity', 'duration-500');
 
+    // CLEAN CONTENT FOR AI: Clone and remove UI buttons
+    const sectionClone = sectionEl.cloneNode(true);
+    sectionClone.querySelectorAll('.refine-btn, .img-overlay').forEach(el => el.remove());
+    const cleanHTML = sectionClone.innerHTML;
+
     try {
         const refineFn = firebase.app().functions('us-central1').httpsCallable('refineCreativeContent');
         const result = await refineFn({
             projectId: docId,
             sectionIndex: sectionIdx,
             instruction: instruction,
-            currentContent: sectionEl.innerHTML
+            currentContent: cleanHTML
         });
 
         if (result.data && result.data.newHtml) {
-            sectionEl.innerHTML = result.data.newHtml;
+            // STRIP markdown blocks if any
+            let rawHtml = result.data.newHtml.replace(/```html|```/gi, '').trim();
+            sectionEl.innerHTML = rawHtml;
             showNotification('Section updated successfully!', 'success');
 
             // Re-setup the refine button for the new content

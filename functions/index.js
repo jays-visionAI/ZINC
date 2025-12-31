@@ -5412,8 +5412,8 @@ exports.refineCreativeContent = onCall({ cors: ALLOWED_ORIGINS, region: 'us-cent
     console.log(`[refineCreativeContent] Refining section ${sectionIndex} of ${projectId}`);
 
     try {
-        const systemPrompt = "You are a specialized content refiner. Your task is to update a specific HTML section based on user instructions while maintaining the same style and structure. Output ONLY the refined HTML snippet.";
-        const userPrompt = `Instruction: ${instruction}\n\nCurrent Content:\n${currentContent}\n\nRefined HTML:`;
+        const systemPrompt = "You are a specialized content refiner for high-end web designs. Your task is to update a specific HTML section based on user instructions. You MUST keep the same Tailwind CSS classes and design aesthetic. Output ONLY the refined INNER HTML content. Do NOT include <html>, <head>, or <body> tags. Do NOT use markdown code blocks.";
+        const userPrompt = `Instruction: ${instruction}\n\nCurrent Section Content:\n${currentContent}\n\nTask: Return only the updated HTML snippet that fulfills the instruction while preserving the original layout and styling.`;
 
         // Use Gemini for speed/quality balance
         const response = await callLLM('google', 'gemini-1.5-flash', [
@@ -5421,12 +5421,14 @@ exports.refineCreativeContent = onCall({ cors: ALLOWED_ORIGINS, region: 'us-cent
             { role: 'user', content: userPrompt }
         ], 0.7);
 
-        const refinedHTML = response.content || response;
+        let refinedHTML = response.content || response;
 
-        // Optionally update the main doc (this requires the whole HTML - skipping for now to keep it simple)
-        // For now just return to UI to update iframe
+        // Final cleaning on server side as well
+        refinedHTML = refinedHTML.replace(/```html|```/gi, '').trim();
+
         return { success: true, newHtml: refinedHTML };
     } catch (e) {
+        console.error('[refineCreativeContent] Error:', e);
         return { success: false, error: e.message };
     }
 });
