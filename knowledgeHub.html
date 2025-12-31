@@ -424,14 +424,38 @@
                     class="bg-transparent text-xs font-medium text-slate-300 focus:outline-none cursor-pointer">
                     <option value="ko" class="bg-slate-800">🇰🇷 한국어</option>
                     <option value="en" class="bg-slate-800">🇺🇸 English</option>
-                    <option value="ja" class="bg-slate-800">🇯🇵 日本語</option>
                     <option value="zh" class="bg-slate-800">🇨🇳 中文</option>
+                    <option value="hi" class="bg-slate-800">🇮🇳 हिन्दी</option>
                     <option value="es" class="bg-slate-800">🇪🇸 Español</option>
+                    <option value="fr" class="bg-slate-800">🇫🇷 Français</option>
+                    <option value="ar" class="bg-slate-800">🇸🇦 العربية</option>
+                    <option value="bn" class="bg-slate-800">🇧🇩 বাংলা</option>
+                    <option value="ru" class="bg-slate-800">🇷🇺 Русский</option>
+                    <option value="pt" class="bg-slate-800">🇵🇹 Português</option>
+                    <option value="ur" class="bg-slate-800">🇵🇰 اردو</option>
+                    <option value="id" class="bg-slate-800">🇮🇩 Indonesia</option>
+                    <option value="de" class="bg-slate-800">🇩🇪 Deutsch</option>
+                    <option value="ja" class="bg-slate-800">🇯🇵 日本語</option>
+                    <option value="vi" class="bg-slate-800">🇻🇳 Tiếng Việt</option>
+                    <option value="tr" class="bg-slate-800">🇹🇷 Türkçe</option>
+                    <option value="it" class="bg-slate-800">🇮🇹 Italiano</option>
+                    <option value="th" class="bg-slate-800">🇹🇭 ไทย</option>
+                    <option value="tl" class="bg-slate-800">🇵🇭 Tagalog</option>
+                    <option value="mr" class="bg-slate-800">🇮🇳 मराठी</option>
+                    <option value="te" class="bg-slate-800">🇮🇳 తెలుగు</option>
+                    <option value="ta" class="bg-slate-800">🇮🇳 தமிழ்</option>
                 </select>
             </div>
             <span id="credit-display"
-                class="text-xs text-slate-400 bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700">
-                🪙 <span id="credit-count">--</span> credits
+                class="flex items-center gap-1.5 text-xs text-slate-400 bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    class="text-amber-400">
+                    <circle cx="12" cy="12" r="8" />
+                    <line x1="12" y1="8" x2="12" y2="16" />
+                    <line x1="8" y1="12" x2="16" y2="12" />
+                </svg>
+                <span id="credit-count">--</span> credits
             </span>
             <button id="btn-refresh"
                 class="p-2 rounded-lg hover:bg-slate-800 transition-colors text-slate-400 hover:text-white"
@@ -517,6 +541,9 @@
                     data-filter="drive">Drive</button>
                 <button
                     class="source-filter flex-1 py-1.5 text-[11px] font-medium rounded-lg text-slate-400 hover:bg-slate-800"
+                    data-filter="uploads">Uploads</button>
+                <button
+                    class="source-filter flex-1 py-1.5 text-[11px] font-medium rounded-lg text-slate-400 hover:bg-slate-800"
                     data-filter="links">Links</button>
                 <button
                     class="source-filter flex-1 py-1.5 text-[11px] font-medium rounded-lg text-slate-400 hover:bg-slate-800"
@@ -568,15 +595,49 @@
             class="flex-1 flex flex-col bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl w-full h-full">
             <!-- Chat Header -->
             <div class="p-4 border-b border-slate-800 flex items-center justify-between">
-                <div>
-                    <h2 class="text-lg font-bold text-white flex items-center gap-2">
-                        <span class="text-2xl">🤖</span>
-                        <span id="project-name-display">Brand Intelligence</span>
-                    </h2>
-                    <p class="text-xs text-slate-500 mt-0.5">Based on <span id="active-sources-count">0</span> active
-                        sources</p>
+                <div class="flex flex-col">
+                    <div class="flex items-center gap-3">
+                        <span
+                            class="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="M12 8V4H8" />
+                                <rect width="16" height="12" x="4" y="8" rx="2" />
+                                <path d="M2 14h2" />
+                                <path d="M20 14h2" />
+                                <path d="M15 13v2" />
+                                <path d="M9 13v2" />
+                            </svg>
+                        </span>
+                        <div>
+                            <h2 class="text-lg font-bold text-white leading-tight" id="project-name-display">Brand
+                                Intelligence</h2>
+                            <p class="text-[10px] text-slate-500">Based on <span id="active-sources-count">0</span>
+                                active sources</p>
+                        </div>
+                    </div>
                 </div>
                 <div class="flex items-center gap-2">
+                    <!-- Expert Persona Selector -->
+                    <div class="relative group">
+                        <select id="chat-expert-persona"
+                            class="appearance-none bg-slate-800/50 border border-slate-700 text-[10px] font-medium text-slate-300 rounded-lg px-3 py-1.5 pr-8 focus:outline-none focus:border-indigo-500 cursor-pointer transition-all hover:bg-slate-800">
+                            <option value="general">🔍 General Intelligence</option>
+                            <option value="marketing">🎯 Marketing Leader</option>
+                            <option value="strategy">📈 Strategic Consultant</option>
+                            <option value="legal">⚖️ Legal Advisor</option>
+                            <option value="finance">💰 Financial Analyst</option>
+                        </select>
+                        <div
+                            class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="m6 9 6 6 6-6" />
+                            </svg>
+                        </div>
+                    </div>
                     <button id="btn-regenerate-summary" disabled
                         class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-medium hover:bg-indigo-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
@@ -591,7 +652,17 @@
                     <!-- Boost Toggle for Main Summary -->
                     <button id="btn-boost-main-summary" onclick="toggleBoost('main-summary')"
                         class="px-3 py-1.5 text-xs bg-slate-800/50 hover:bg-slate-700 text-slate-300 rounded-lg transition-all flex items-center gap-2 border border-slate-700/50">
-                        <span id="boost-icon-main-summary" class="grayscale">🚀</span>
+                        <span id="boost-icon-main-summary" class="grayscale">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="M4.5 16.5c-1.5 1.26-2 2.6-2 3.5 0 1 1 1.5 1.5 1.5.9 0 2.24-.5 3.5-2" />
+                                <path d="M15 15l-1.5-1.5L12 15l-3-3 1.5-1.5-1.5-1.5" />
+                                <path d="M9 18l3-3 3 3" />
+                                <path d="M12 9l-3-3-3 3" />
+                                <path d="m21 3-9 9" />
+                            </svg>
+                        </span>
                         Boost
                     </button>
                     <input type="hidden" id="main-summary-boost-active" value="false">
@@ -886,8 +957,8 @@
                 <div class="flex gap-2">
                     <button
                         class="add-source-tab active flex-1 py-2.5 text-sm font-medium rounded-xl bg-indigo-600 text-white"
-                        data-type="drive">
-                        📂 Google Drive
+                        data-type="upload">
+                        ⬆️ Upload
                     </button>
                     <button
                         class="add-source-tab flex-1 py-2.5 text-sm font-medium rounded-xl bg-slate-800 text-slate-400 hover:bg-slate-700"
@@ -896,13 +967,63 @@
                     </button>
                     <button
                         class="add-source-tab flex-1 py-2.5 text-sm font-medium rounded-xl bg-slate-800 text-slate-400 hover:bg-slate-700"
+                        data-type="drive">
+                        📂 Google Drive
+                    </button>
+                    <button
+                        class="add-source-tab flex-1 py-2.5 text-sm font-medium rounded-xl bg-slate-800 text-slate-400 hover:bg-slate-700"
                         data-type="note">
                         📝 Note
                     </button>
                 </div>
 
+                <!-- Upload Tab Content -->
+                <div id="add-source-upload" class="add-source-content space-y-4">
+                    <p class="text-xs text-slate-400">Upload PDF documents or brand images (JPG, PNG) for analysis.</p>
+                    <div id="source-upload-dropzone"
+                        class="border-2 border-dashed border-slate-700 rounded-xl py-10 flex flex-col items-center justify-center cursor-pointer hover:border-indigo-500 hover:bg-indigo-500/5 transition-all">
+                        <div
+                            class="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 mb-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                <polyline points="17 8 12 3 7 8" />
+                                <line x1="12" y1="3" x2="12" y2="15" />
+                            </svg>
+                        </div>
+                        <p class="text-sm text-white font-medium">Click to upload or drag & drop</p>
+                        <p class="text-[10px] text-slate-500 mt-1">PDF, JPG, PNG (Max 10MB)</p>
+                        <input type="file" id="source-file-input" class="hidden" accept=".pdf,.jpg,.jpeg,.png">
+                    </div>
+                    <div id="selected-file-name"
+                        class="hidden flex items-center justify-between p-3 bg-slate-800 rounded-lg border border-slate-700">
+                        <div class="flex items-center gap-2">
+                            <span class="text-emerald-400">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                                    <polyline points="14 2 14 8 20 8" />
+                                </svg>
+                            </span>
+                            <span class="text-xs text-white" id="file-name-text">filename.pdf</span>
+                        </div>
+                        <button id="btn-clear-file" class="text-slate-500 hover:text-red-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    </div>
+                    <button id="btn-upload-source" disabled
+                        class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                        Add to Knowledge Hub
+                    </button>
+                </div>
+
                 <!-- Drive Content -->
-                <div id="add-source-drive" class="add-source-content">
+                <div id="add-source-drive" class="add-source-content hidden">
                     <div class="bg-slate-800/50 border border-dashed border-slate-600 rounded-xl p-8 text-center">
                         <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-blue-500/20 flex items-center justify-center">
                             <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"
@@ -966,7 +1087,16 @@
         class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm">
         <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl mx-4 shadow-2xl">
             <div class="flex items-center justify-between p-5 border-b border-slate-700">
-                <h3 class="text-lg font-semibold text-white">🎨 Generate Promotional Images</h3>
+                <h3 class="text-lg font-semibold text-white flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        class="text-indigo-400">
+                        <path d="m12 19 7-7 3 3-7 7-3-3Z" />
+                        <path d="m18 13-1.5-7.5L2 2l3.5 14.5L13 18l5-5Z" />
+                        <path d="m2 2 20 20" />
+                    </svg>
+                    Generate Promotional Images
+                </h3>
                 <button id="btn-close-image-modal"
                     class="p-1 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
@@ -1019,10 +1149,10 @@
                         <label class="block text-sm font-medium text-slate-300 mb-2">AI Provider</label>
                         <select id="image-provider"
                             class="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                            <option value="flux">🚀 Flux Pro ($0.003)</option>
-                            <option value="stability">🎨 Stability AI ($0.003)</option>
-                            <option value="dalle">🖼️ DALL-E 3 ($0.04)</option>
-                            <option value="ideogram">✨ Ideogram ($0.05) - Best for text</option>
+                            <option value="flux">Flux Pro ($0.003)</option>
+                            <option value="stability">Stability AI ($0.003)</option>
+                            <option value="dalle">DALL-E 3 ($0.04)</option>
+                            <option value="ideogram">Ideogram ($0.05) - Best for text</option>
                         </select>
                     </div>
                     <div>
@@ -1075,9 +1205,24 @@
                         class="px-4 py-2 text-sm text-slate-400 hover:text-white">
                         Cancel
                     </button>
+                    <button
+                        class="source-filter text-xs text-slate-400 hover:text-white pb-1 border-b-2 border-transparent"
+                        data-filter="uploads">Uploads</button>
+                    <button
+                        class="source-filter text-xs text-slate-400 hover:text-white pb-1 border-b-2 border-transparent"
+                        data-filter="drive">Drive</button>
                     <button id="btn-generate-image"
                         class="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl text-sm font-medium">
-                        ✨ Generate Image
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path
+                                d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
+                            <path d="M5 3v4" />
+                            <path d="M19 17v4" />
+                            <path d="M3 5h4" />
+                            <path d="M17 19h4" />
+                        </svg>
+                        Generate Image
                     </button>
                 </div>
             </div>
@@ -1518,7 +1663,15 @@
                         <!-- Source Summary -->
                         <div class="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
                             <div class="flex items-center gap-2 text-sm text-slate-300 mb-2">
-                                <span>📚</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" class="text-indigo-400">
+                                    <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" />
+                                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" />
+                                    <path d="M12 6h4" />
+                                    <path d="M12 10h4" />
+                                    <path d="M12 14h4" />
+                                </svg>
                                 <span>Sources to be used:</span>
                             </div>
                             <p id="plan-sources-summary" class="text-xs text-slate-500">Loading...</p>
@@ -1607,7 +1760,17 @@
                         <!-- Boost Toggle for Plan -->
                         <button id="btn-boost-plan" onclick="toggleBoost('plan')"
                             class="px-3 py-2 text-sm bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-all flex items-center gap-2 border border-slate-700">
-                            <span id="boost-icon-plan" class="grayscale">🚀</span>
+                            <span id="boost-icon-plan" class="grayscale">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <path d="M4.5 16.5c-1.5 1.26-2 2.6-2 3.5 0 1 1 1.5 1.5 1.5.9 0 2.24-.5 3.5-2" />
+                                    <path d="M15 15l-1.5-1.5L12 15l-3-3 1.5-1.5-1.5-1.5" />
+                                    <path d="M9 18l3-3 3 3" />
+                                    <path d="M12 9l-3-3-3 3" />
+                                    <path d="m21 3-9 9" />
+                                </svg>
+                            </span>
                             Boost
                         </button>
                         <input type="hidden" id="plan-boost-active" value="false">
@@ -1892,19 +2055,46 @@
                     <!-- Mode Selector -->
                     <div class="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700">
                         <button
-                            class="mode-btn px-3 py-1.5 text-xs font-medium rounded-md transition-all text-emerald-400 bg-emerald-500/10 border border-emerald-500/20"
+                            class="mode-btn px-3 py-1.5 text-xs font-medium rounded-md transition-all text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-1.5"
                             data-mode="eco" onclick="setPerformanceMode('eco')">
-                            ⚡️ Eco
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                                fill="currentColor" class="text-emerald-400">
+                                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                            </svg>
+                            Eco
                         </button>
                         <button
-                            class="mode-btn px-3 py-1.5 text-xs font-medium rounded-md transition-all text-slate-400 hover:text-white"
+                            class="mode-btn px-3 py-1.5 text-xs font-medium rounded-md transition-all text-slate-400 hover:text-white flex items-center gap-1.5"
                             data-mode="balanced" onclick="setPerformanceMode('balanced')">
-                            ⚖️ Balanced
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" class="text-slate-400">
+                                <path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
+                                <path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
+                                <path d="M7 21h10" />
+                                <path d="M12 3v18" />
+                                <path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2" />
+                            </svg>
+                            Balanced
                         </button>
                         <button
-                            class="mode-btn px-3 py-1.5 text-xs font-medium rounded-md transition-all text-slate-400 hover:text-white"
+                            class="mode-btn px-3 py-1.5 text-xs font-medium rounded-md transition-all text-slate-400 hover:text-white flex items-center gap-1.5"
                             data-mode="pro" onclick="setPerformanceMode('pro')">
-                            🚀 Pro
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" class="text-slate-400">
+                                <path d="M4.5 16.5c-1.5 1.26-2 2.6-2 3.5 0 1 1 1.5 1.5 1.5.9 0 2.24-.5 3.5-2" />
+                                <path d="M15 15l-1.5-1.5L12 15l-3-3 1.5-1.5-1.5-1.5" />
+                                <path d="M9 18l3-3 3 3" />
+                                <path d="M12 9l-3-3-3 3" />
+                                <path d="m21 3-9 9" />
+                                <path d="m15.5 10.5 3-3" />
+                                <path d="M22 2l-3 3" />
+                                <path d="M19 5l3-3" />
+                                <path d="M17 7l3-3" />
+                                <path d="M20 4l-3 3" />
+                            </svg>
+                            Pro
                         </button>
                     </div>
 
@@ -1985,19 +2175,24 @@
                     class="absolute bottom-4 left-6 flex items-center gap-6 bg-slate-800/80 px-4 py-2 rounded-lg border border-slate-700/50">
                     <div class="flex items-center gap-2">
                         <span class="w-3 h-3 rounded-full bg-purple-500"></span>
-                        <span class="text-xs text-slate-400">⭐⭐⭐ Primary</span>
+                        <span
+                            class="text-[10px] uppercase font-bold text-slate-400 tracking-widest px-2 py-0.5 rounded bg-slate-800/50 border border-slate-700/50">High
+                            Importance</span>
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="w-3 h-3 rounded-full bg-yellow-500"></span>
-                        <span class="text-xs text-slate-400">⭐⭐ Important</span>
+                        <span
+                            class="text-[10px] uppercase font-bold text-slate-400 tracking-widest px-2 py-0.5 rounded bg-slate-800/50 border border-slate-700/50">Medium</span>
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="w-3 h-3 rounded-full bg-slate-500"></span>
-                        <span class="text-xs text-slate-400">⭐ Reference</span>
+                        <span
+                            class="text-[10px] uppercase font-bold text-slate-400 tracking-widest px-2 py-0.5 rounded bg-slate-800/50 border border-slate-700/50">Low</span>
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="w-3 h-3 rounded-full bg-red-500"></span>
-                        <span class="text-xs text-slate-400">⚠️ Missing</span>
+                        <span
+                            class="text-[10px] uppercase font-bold text-red-500 tracking-widest px-2 py-0.5 rounded bg-red-500/10 border border-red-500/20">Missing</span>
                     </div>
                 </div>
             </div>
@@ -2022,6 +2217,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-functions-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
     <script src="firebase-config.js"></script>
     <script src="env-config.js"></script>
     <script src="translations.js"></script>
@@ -2307,7 +2503,18 @@
     </button>
     <div id="chatbot-panel" class="chatbot-panel">
         <div class="chatbot-header">
-            <div class="chatbot-header-icon">🤖</div>
+            <div class="chatbot-header-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    class="text-indigo-400">
+                    <path d="M12 8V4H8" />
+                    <rect width="16" height="12" x="4" y="8" rx="2" />
+                    <path d="M2 14h2" />
+                    <path d="M20 14h2" />
+                    <path d="M15 13v2" />
+                    <path d="M9 13v2" />
+                </svg>
+            </div>
             <div class="chatbot-header-info">
                 <p class="chatbot-header-title">ZYNK Assistant</p>
                 <small class="chatbot-header-subtitle">AI 헬프데스크</small>

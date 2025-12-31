@@ -2101,13 +2101,16 @@ exports.analyzeKnowledgeSource = functions.https.onCall(async (data, context) =>
         // Extract text based on source type
         switch (source.sourceType) {
             case 'link':
-                extractedText = await extractTextFromUrl(source.link?.url);
+                extractedText = await extractTextFromUrl(source.link?.url || source.url);
                 break;
             case 'note':
-                extractedText = source.note?.content || '';
+                extractedText = source.note?.content || source.content || '';
                 break;
             case 'google_drive':
-                extractedText = await extractTextFromDrive(source.googleDrive);
+                extractedText = await extractTextFromDrive(source.googleDrive || source.driveInfo);
+                break;
+            case 'file':
+                extractedText = await extractTextFromFile(source.fileUrl, source.contentType);
                 break;
             default:
                 extractedText = source.description || '';
@@ -2190,6 +2193,70 @@ Please provide the analysis in this JSON format:
         throw new functions.https.HttpsError('internal', error.message);
     }
 });
+
+/**
+ * Extract text from File (Storage) - PDF or Image
+ */
+async function extractTextFromFile(fileUrl, contentType) {
+    if (!fileUrl) return '';
+
+    try {
+        const axios = require('axios');
+        console.log(`[extractTextFromFile] Processing ${contentType} from ${fileUrl}`);
+
+        const response = await axios.get(fileUrl, { responseType: 'arraybuffer' });
+        const buffer = Buffer.from(response.data);
+
+        // Case 1: PDF
+        if (contentType === 'application/pdf' || fileUrl.toLowerCase().endsWith('.pdf')) {
+            const pdf = require('pdf-parse');
+            const data = await pdf(buffer);
+            return data.text;
+        }
+
+        // Case 2: Image (Vision RAG)
+        if (contentType.startsWith('image/') || /\.(jpg|jpeg|png)$/i.test(fileUrl)) {
+            return await describeImage(buffer, contentType);
+        }
+
+        return '[Unsupported file type]';
+    } catch (error) {
+        console.error('Error extracting text from file:', error);
+        return `[Error extracting file: ${error.message}]`;
+    }
+}
+
+/**
+ * Describe image using Gemini 1.5 Pro (Vision)
+ */
+async function describeImage(buffer, contentType) {
+    try {
+        const apiKey = await getSystemApiKey('gemini');
+        if (!apiKey) throw new Error('Gemini API key not configured');
+
+        const { GoogleGenerativeAI } = require('@google/generative-ai');
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+
+        const result = await model.generateContent([
+            "Analyze this brand asset in detail for a brand intelligence system. Identify logos, typography, visual style, charts, or diagrams. If there is a chart/diagram, explain the data and relationships clearly. This description will be used as text for RAG (Retrieval Augmented Generation).",
+            {
+                inlineData: {
+                    data: buffer.toString('base64'),
+                    mimeType: contentType || 'image/png'
+                }
+            }
+        ]);
+        const response = await result.response;
+        const text = response.text();
+
+        console.log(`[describeImage] Gemini Vision Output length: ${text.length}`);
+        return `[Visual Description of Image]\n\n${text}`;
+    } catch (error) {
+        console.error('Error in describeImage:', error);
+        return `[Error analyzing image: ${error.message}]`;
+    }
+}
 
 /**
  * Extract text from URL
@@ -2625,13 +2692,34 @@ exports.askKnowledgeHub = onCall(
                 });
             });
 
+            // Persona specialized prompt
+            const personaPrompts = {
+                'marketing': 'You are a world-class Marketing Leader (CMO). Focus on brand consistency, market positioning, and campaign impact.',
+                'strategy': 'You are a Strategic Consultant (McKinsey/BCG level). Focus on business logic, SWOT, and long-term viability.',
+                'legal': 'You are a Legal Advisor. Focus on compliance, risk mitigation, and contractual clarity.',
+                'finance': 'You are a Financial Analyst. Focus on ROI, budgeting, and numerical verification.',
+                'general': 'You are a helpful Knowledge Assistant.'
+            };
+            const personaHeader = personaPrompts[request.data.persona] || personaPrompts['general'];
+
+            // Actionable Intent Prompt
+            const intentInstruction = `
+            INTENT DETECTION:
+            If the user wants to create/generate something (e.g. "write an email", "make a brochure", "create a pitch deck", "generate an image"), 
+            you must append a JSON action tag at the very end of your response exactly like this:
+            [ACTION:{"type":"creative_studio","params":{"type":"TYPE_ID","topic":"TOPIC_SUMMARY","audience":"TARGET_AUDIENCE","tone":"TONE_ID"}}]
+            
+            Valid TYPE_ID: product_brochure, promo_images, one_pager, pitch_deck, email_template, press_release
+            Valid TONE_ID: professional, exciting, persuasive, informative, friendly, luxury
+            `;
+
             // Generate answer via LLM Router
             const routeResult = await llmRouter.route({
                 feature: 'knowledge_hub.qa',
                 messages: [
                     {
                         role: 'system',
-                        content: `You are a helpful "Knowledge Assistant". Answer questions based ONLY on the provided context from the user's documents. If the answer is not in the context, say so. Always cite which source you're referencing. IMPORTANT: Respond ONLY in ${outputLanguage}.`
+                        content: `${personaHeader} Answer questions based ONLY on the provided context. If the answer is not in the context, say so gracefully. Cite sources. IMPORTANT: Respond ONLY in ${outputLanguage}. ${intentInstruction}`
                     },
                     {
                         role: 'user',
@@ -2642,11 +2730,25 @@ exports.askKnowledgeHub = onCall(
                 callLLM: callLLM
             });
 
-            const answer = routeResult.content || 'Unable to generate answer.';
+            let answer = routeResult.content || 'Unable to generate answer.';
+            let suggestedAction = null;
+
+            // Extract Action Tag if present
+            const actionRegex = /\[ACTION:(.*?)\]/;
+            const match = answer.match(actionRegex);
+            if (match) {
+                try {
+                    suggestedAction = JSON.parse(match[1]);
+                    answer = answer.replace(actionRegex, '').trim(); // Remove tag from display text
+                } catch (e) {
+                    console.warn('Failed to parse suggested action JSON:', e);
+                }
+            }
 
             return {
                 success: true,
                 answer,
+                suggestedAction,
                 sources: sourceRefs.map(s => s.title)
             };
 

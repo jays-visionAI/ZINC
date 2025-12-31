@@ -76,6 +76,7 @@ async function initializeKnowledgeHub() {
             loadChatConfig(); // Load saved chat configuration
             initializePanelClickOutside();  // Initialize panel collapse on outside click
             loadCreativeProjects(); // NEW: Load background generation history
+            initializeUploadHandlers(); // NEW: File upload logic
         } else {
             window.location.href = 'index.html';
         }
@@ -612,7 +613,7 @@ function updateSummarySection() {
     if (!summaryToShow) {
         // State: No Summary Available (Welcome Screen)
         renderSummaryHeader('brand');
-        summaryTitle.innerHTML = '🤖 <span class="ml-2">Brand Intelligence</span>';
+        summaryTitle.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-400"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg> <span class="ml-2">Brand Intelligence</span>`;
         summaryContent.textContent = 'Add sources from the left panel to generate your Brand Summary.';
 
         // Hide details
@@ -630,7 +631,7 @@ function updateSummarySection() {
     if (summaryToShow.isSourceView && summaryToShow.sourceId) {
         // --- Source View ---
         renderSummaryHeader('source');
-        summaryTitle.innerHTML = `<span class="text-emerald-400">📄</span> <span class="ml-2">${summaryToShow.title}</span>`;
+        summaryTitle.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-emerald-400"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg> <span class="ml-2 text-white">${summaryToShow.title}</span>`;
 
         const importance = summaryToShow.importance || 2;
         const summarizedAt = summaryToShow.summarizedAt || 'Not yet';
@@ -692,7 +693,7 @@ function updateSummarySection() {
     } else {
         // --- Brand Summary View ---
         renderSummaryHeader('brand');
-        summaryTitle.innerHTML = `🤖 <span class="ml-2">${summaryToShow.title}</span>`;
+        summaryTitle.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-400"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg> <span class="ml-2">${summaryToShow.title}</span>`;
 
         // Weight Breakdown Logic
         let weightBreakdownHtml = '';
@@ -720,7 +721,7 @@ function updateSummarySection() {
                         ${summaryToShow.weightBreakdown.slice(0, 4).map(w => `
                             <div class="flex items-center gap-3">
                                 <span class="text-xs ${w.importance === 3 ? 'text-red-400' : (w.importance === 2 ? 'text-yellow-400' : 'text-slate-400')}">
-                                    ${'⭐'.repeat(w.importance)}
+                                    <span class="text-[10px] text-slate-500 uppercase tracking-widest font-bold">${w.importance === 3 ? 'High' : w.importance === 2 ? 'Med' : 'Low'}</span>
                                 </span>
                                 <span class="text-xs text-slate-300 truncate flex-1" title="${escapeHtml(w.title)}">${escapeHtml(w.title.substring(0, 30))}${w.title.length > 30 ? '...' : ''}</span>
                                 <div class="w-20 h-1.5 bg-slate-700 rounded-full overflow-hidden">
@@ -822,6 +823,7 @@ function renderSources(filter = 'all') {
             if (filter === 'drive') return s.sourceType === 'google_drive';
             if (filter === 'links') return s.sourceType === 'link';
             if (filter === 'notes') return s.sourceType === 'note';
+            if (filter === 'uploads') return s.sourceType === 'file';
             return true;
         });
     }
@@ -922,6 +924,8 @@ function getSourceIcon(type) {
             return `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-emerald-400"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`;
         case 'note':
             return `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-amber-400"><path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z"/><path d="M15 3v6h6"/></svg>`;
+        case 'file':
+            return `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-indigo-400"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`;
         default:
             return `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-slate-400"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/></svg>`;
     }
@@ -932,6 +936,7 @@ function getSourceBgColor(type) {
         case 'google_drive': return 'bg-blue-500/20';
         case 'link': return 'bg-emerald-500/20';
         case 'note': return 'bg-amber-500/20';
+        case 'file': return 'bg-indigo-500/20';
         default: return 'bg-slate-700';
     }
 }
@@ -1118,6 +1123,124 @@ function initializeAddSourceModal() {
     document.getElementById('btn-connect-drive').addEventListener('click', () => {
         requestGoogleDriveAccess();
     });
+
+    // Initialize Upload Handlers
+    initializeUploadHandlers();
+}
+
+let selectedSourceFile = null;
+
+function initializeUploadHandlers() {
+    const dropzone = document.getElementById('source-upload-dropzone');
+    const fileInput = document.getElementById('source-file-input');
+    const selectedFileDiv = document.getElementById('selected-file-name');
+    const fileNameText = document.getElementById('file-name-text');
+    const btnClear = document.getElementById('btn-clear-file');
+    const btnUpload = document.getElementById('btn-upload-source');
+
+    if (!dropzone || !fileInput) return;
+
+    dropzone.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            handleSelectedFile(e.target.files[0]);
+        }
+    });
+
+    dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('border-indigo-500', 'bg-indigo-500/5');
+    });
+
+    dropzone.addEventListener('dragleave', () => {
+        dropzone.classList.remove('border-indigo-500', 'bg-indigo-500/5');
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('border-indigo-500', 'bg-indigo-500/5');
+        if (e.dataTransfer.files.length > 0) {
+            handleSelectedFile(e.dataTransfer.files[0]);
+        }
+    });
+
+    btnClear?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectedSourceFile = null;
+        fileInput.value = '';
+        selectedFileDiv.classList.add('hidden');
+        dropzone.classList.remove('hidden');
+        btnUpload.disabled = true;
+    });
+
+    btnUpload?.addEventListener('click', uploadSourceFile);
+
+    function handleSelectedFile(file) {
+        if (file.size > 10 * 1024 * 1024) {
+            showNotification('File exceeds 10MB limit', 'error');
+            return;
+        }
+        selectedSourceFile = file;
+        fileNameText.textContent = file.name;
+        selectedFileDiv.classList.remove('hidden');
+        dropzone.classList.add('hidden');
+        btnUpload.disabled = false;
+    }
+}
+
+async function uploadSourceFile() {
+    if (!selectedSourceFile || !currentProjectId) return;
+
+    const btn = document.getElementById('btn-upload-source');
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Uploading...';
+
+    try {
+        const fileName = `${Date.now()}_${selectedSourceFile.name}`;
+        const storagePath = `projects/${currentProjectId}/knowledgeSources/${fileName}`;
+        const storageRef = firebase.storage().ref(storagePath);
+
+        // Upload to Storage
+        await storageRef.put(selectedSourceFile);
+        const downloadUrl = await storageRef.getDownloadURL();
+
+        // Save to Firestore
+        const sourceData = {
+            sourceType: 'file',
+            title: selectedSourceFile.name,
+            fileName: fileName,
+            fileUrl: downloadUrl,
+            contentType: selectedSourceFile.type,
+            isActive: true,
+            status: 'pending',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        await firebase.firestore()
+            .collection('projects')
+            .doc(currentProjectId)
+            .collection('knowledgeSources')
+            .add(sourceData);
+
+        showNotification('File uploaded successfully!', 'success');
+        closeModal('add-source-modal');
+
+        // Reset state
+        selectedSourceFile = null;
+        document.getElementById('selected-file-name').classList.add('hidden');
+        document.getElementById('source-upload-dropzone').classList.remove('hidden');
+        btn.textContent = originalText;
+
+        await loadSources();
+    } catch (error) {
+        console.error('Error uploading source:', error);
+        showNotification('Failed to upload file', 'error');
+        btn.disabled = false;
+        btn.textContent = originalText;
+    }
 }
 
 async function addLinkSource() {
@@ -1332,7 +1455,7 @@ async function updateSourceImportance(sourceId, importance) {
         // Re-render sources list (updates the dots on cards)
         renderSources();
 
-        showNotification(`Document importance set to ${'⭐'.repeat(validImportance)}`, 'success');
+        showNotification(`Document importance set to Level ${validImportance}`, 'success');
 
         // Force re-render the summary section with updated stars
         // Check if current displayed summary is for this source
@@ -1388,7 +1511,7 @@ async function regenerateSourceSummary(sourceId) {
     const boostActive = document.getElementById('summary-boost-active')?.value === 'true';
     const qualityTier = boostActive ? 'BOOST' : 'DEFAULT';  // "BOOST" uses Gemini 3.0 Pro, "DEFAULT" uses Gemini 2.0 Flash
 
-    showNotification(`🤖 Market Analyst: Analyzing (${boostActive ? 'Boosted 🚀' : 'Standard'})...`, 'info');
+    showNotification(`[AI] Market Analyst: Analyzing (${boostActive ? 'Boosted' : 'Standard'})...`, 'info');
 
     try {
         // Get content to summarize based on source type
@@ -1635,7 +1758,7 @@ async function handlePlanClick(planType) {
 
     // Show loading indicator
     // Show loading indicator with Agent Persona (Standard Studio Agent)
-    showNotification(`🤖 Strategy Planner: Generating ${formatPlanType(planType)}...`, 'info');
+    showNotification(`[AI] Strategy Planner: Generating ${formatPlanType(planType)}...`, 'info');
 
     try {
         // Call Cloud Function
@@ -1777,19 +1900,19 @@ function getStatusBadgeText(status) {
     switch (status) {
         case 'draft': return '📝 Draft';
         case 'scheduled': return '📅 Scheduled';
-        case 'sent': return '📤 Sent';
-        case 'completed': return '✅ Completed';
+        case 'sent': return `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline-block mr-1"><line x1="22" y1="2" x2="11" y2="13"/><polyline points="22 2 15 22 11 13 2 9 22 2"/></svg> Sent`;
+        case 'completed': return `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline-block mr-1 text-emerald-400"><polyline points="20 6 9 17 4 12"/></svg> Completed`;
         default: return status;
     }
 }
 
 function getPlanIcon(category) {
     switch (category) {
-        case 'strategic': return '🎯';
-        case 'quick_action': return '⚡';
-        case 'knowledge': return '📚';
-        case 'create_now': return '🚀';
-        default: return '📄';
+        case 'strategic': return `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block mr-1 text-rose-400"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`;
+        case 'quick_action': return `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block mr-1 text-amber-400"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>`;
+        case 'knowledge': return `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block mr-1 text-indigo-400"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>`;
+        case 'create_now': return `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block mr-1 text-emerald-400"><path d="M4.5 16.5c-1.5 1.26-2 2.6-2 3.5 0 1 1 1.5 1.5 1.5.9 0 2.24-.5 3.5-2"/><path d="m21 3-9 9"/></svg>`;
+        default: return `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline-block mr-1 opacity-50"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>`;
     }
 }
 
@@ -2320,9 +2443,26 @@ function getLanguageName(code) {
     const names = {
         'ko': '한국어',
         'en': 'English',
-        'ja': '日本語',
         'zh': '中文',
-        'es': 'Español'
+        'hi': 'हिन्दी',
+        'es': 'Español',
+        'fr': 'Français',
+        'ar': 'العربية',
+        'bn': 'বাংলা',
+        'ru': 'Русский',
+        'pt': 'Português',
+        'ur': 'اردو',
+        'id': 'Indonesia',
+        'de': 'Deutsch',
+        'ja': '日本語',
+        'vi': 'Tiếng Việt',
+        'tr': 'Türkçe',
+        'it': 'Italiano',
+        'th': 'ไทย',
+        'tl': 'Tagalog',
+        'mr': 'मराठी',
+        'te': 'తెలుగు',
+        'ta': 'தமிழ்'
     };
     return names[code] || code;
 }
@@ -2342,13 +2482,16 @@ async function sendChatMessage() {
     // Add typing indicator
     const typingId = addTypingIndicator();
 
+    const persona = document.getElementById('chat-expert-persona')?.value || 'general';
+
     try {
         // Call Cloud Function with target language for translation
         const askKnowledgeHub = firebase.app().functions('us-central1').httpsCallable('askKnowledgeHub');
         const result = await askKnowledgeHub({
             projectId: currentProjectId,
             question: message,
-            targetLanguage: targetLanguage || 'ko'  // Pass selected language
+            targetLanguage: targetLanguage || 'ko', // Pass selected language
+            persona: persona // Pass selected expert persona
         });
 
         // Remove typing indicator
@@ -2356,13 +2499,14 @@ async function sendChatMessage() {
 
         if (result.data.success) {
             let answer = result.data.answer;
+            const suggestedAction = result.data.suggestedAction;
 
             // Add source attribution if available
             if (result.data.sources && result.data.sources.length > 0) {
-                answer += `\n\n📚 Sources: ${result.data.sources.join(', ')}`;
+                answer += `\n\nSources: ${result.data.sources.join(', ')}`;
             }
 
-            addChatMessage(answer, 'bot');
+            addChatMessage(answer, 'bot', suggestedAction);
         } else {
             addChatMessage('Sorry, I could not generate an answer. Please try again.', 'bot');
         }
@@ -2541,7 +2685,9 @@ function addTypingIndicator() {
     typingEl.className = 'chat-message flex gap-3';
     typingEl.innerHTML = `
         <div class="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-            <span class="text-lg">🤖</span>
+            <span class="flex items-center justify-center w-6 h-6 rounded bg-indigo-500/10 text-indigo-400">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+            </span>
         </div>
         <div class="max-w-md bg-slate-800 rounded-2xl rounded-tl-md px-4 py-3">
             <div class="flex gap-1">
@@ -2562,7 +2708,7 @@ function removeTypingIndicator(id) {
     if (el) el.remove();
 }
 
-function addChatMessage(content, type) {
+function addChatMessage(content, type, suggestedAction = null) {
     const container = document.getElementById('chat-messages');
     const messageId = Date.now(); // Unique ID for this message
 
@@ -2581,12 +2727,37 @@ function addChatMessage(content, type) {
     } else {
         messageEl.innerHTML = `
             <div class="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-                <span class="text-lg">🤖</span>
+                <span class="flex items-center justify-center w-6 h-6 rounded bg-indigo-500/10 text-indigo-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+                </span>
             </div>
             <div class="flex-1 max-w-lg">
                 <div class="bg-slate-800 rounded-2xl rounded-tl-md px-4 py-3">
                     <p class="text-sm text-slate-200 whitespace-pre-wrap">${escapeHtml(content)}</p>
                 </div>
+
+                <!-- Actionable Chat: Magic Button -->
+                ${suggestedAction ? `
+                <div class="mt-3 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 rounded-xl p-3">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                             <div class="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>
+                             </div>
+                             <div>
+                                <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Magic Action</p>
+                                <p class="text-xs text-white">I've prepared the ${suggestedAction.params?.type?.replace('_', ' ') || 'content'} for you.</p>
+                             </div>
+                        </div>
+                        <button onclick="launchStudioFromChat('${btoa(JSON.stringify(suggestedAction))}')" 
+                                class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold rounded-lg transition-all shadow-lg shadow-indigo-600/20 flex items-center gap-2 group">
+                            Launch Studio
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="transition-transform group-hover:translate-x-1"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                        </button>
+                    </div>
+                </div>
+                ` : ''}
+
                 <!-- Action Buttons (NotebookLM Style) -->
                 <div class="flex items-center gap-2 mt-2 ml-1">
                     <button onclick="saveChatToNote('${messageId}', this)" 
@@ -2649,6 +2820,40 @@ function addChatMessage(content, type) {
     container.scrollTop = container.scrollHeight;
 }
 
+// Actionable Chat: Studio Launch Logic
+function launchStudioFromChat(base64Action) {
+    try {
+        const action = JSON.parse(atob(base64Action));
+        if (action.type === 'creative_studio') {
+            // 1. Switch to 'Create Now' tab in sidebar
+            const createTab = document.querySelector('[data-category="create"]');
+            if (createTab) createTab.click();
+
+            // 2. Open the specific plan modal
+            const type = action.params?.type;
+            if (type) {
+                openPlanModal(type);
+
+                // 3. Pre-fill inputs (with slight delay for modal render)
+                setTimeout(() => {
+                    const topicEl = document.getElementById('creative-input-topic');
+                    const audienceEl = document.getElementById('creative-input-audience');
+                    const toneEl = document.getElementById('creative-input-tone');
+
+                    if (topicEl && action.params.topic) topicEl.value = action.params.topic;
+                    if (audienceEl && action.params.audience) audienceEl.value = action.params.audience;
+                    if (toneEl && action.params.tone) toneEl.value = action.params.tone;
+
+                    showNotification(`Drafting your ${type.replace('_', ' ')} based on chat context...`, 'success');
+                }, 400);
+            }
+        }
+    } catch (e) {
+        console.error('Failed to launch studio from chat:', e);
+        showNotification('Failed to launch studio', 'error');
+    }
+}
+
 async function generateSummary() {
     const activeSources = sources.filter(s => s.isActive !== false && s.status === 'completed');
 
@@ -2704,10 +2909,15 @@ async function generateSummary() {
         // Determine Tier (Standard vs Boost)
         const boostActiveEl = document.getElementById('main-summary-boost-active');
         const boostActive = boostActiveEl ? boostActiveEl.value === 'true' : false;
-        const qualityTier = (analysisLevel === 'depth' || boostActive) ? 'BOOST' : 'DEFAULT';
-
-        // Prepare Prompts
-        const userPrompt = `Please analyze the following source documents and generate a Brand Summary in ${targetLanguage === 'ko' ? 'Korean' : 'English'}.
+        const langLabels = {
+            'ko': 'Korean', 'en': 'English', 'zh': 'Chinese', 'hi': 'Hindi', 'es': 'Spanish',
+            'fr': 'French', 'ar': 'Arabic', 'bn': 'Bengali', 'ru': 'Russian', 'pt': 'Portuguese',
+            'ur': 'Urdu', 'id': 'Indonesian', 'de': 'German', 'ja': 'Japanese', 'vi': 'Vietnamese',
+            'tr': 'Turkish', 'it': 'Italian', 'th': 'Thai', 'tl': 'Tagalog', 'mr': 'Marathi',
+            'te': 'Telugu', 'ta': 'Tamil'
+        };
+        const labelText = langLabels[targetLanguage] || 'Default';
+        const userPrompt = `Please analyze the following source documents and generate a Brand Summary in ${labelText}.
             
 Source Weights (Importance 1-3):
 ${sourceWeights.map(s => `- ${s.title} (Importance: ${s.importance})`).join('\n')}
@@ -4082,7 +4292,7 @@ async function generateCreativeItem() {
             inputs: inputs,
             advancedOptions: advancedOptions,
             projectContext: contextText,
-            targetLanguage: 'English'
+            targetLanguage: targetLanguage || 'ko'
         });
 
         stopProgressBar(100);
@@ -4261,7 +4471,7 @@ async function loadCreativeProjects() {
             if (lastProjectCount > 0 && newProjects.length === lastProjectCount) {
                 const finishedProject = newProjects.find((p, i) => p.status === 'completed' && creativeProjects[i]?.status === 'processing');
                 if (finishedProject) {
-                    showNotification(`✨ "${finishedProject.topic}" generation complete!`, 'success');
+                    showNotification(`Success: "${finishedProject.topic}" generation complete!`, 'success');
                 }
             }
 
@@ -6591,7 +6801,7 @@ function showUpgradeModal(reason, requiredCredits) {
     if (reason === 'insufficient_credits') {
         title = 'Not Enough Credits';
         message = `This action requires ${requiredCredits} credits.You have ${userCredits.credits} remaining.`;
-        icon = '🪙';
+        icon = `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-400"><circle cx="12" cy="12" r="8"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`;
     } else if (reason === 'daily_limit') {
         title = 'Daily Limit Reached';
         message = `You've used ${userCredits.creditsUsedToday}/${userCredits.dailyLimit} credits today. Upgrade for higher limits.`;
@@ -6599,7 +6809,7 @@ function showUpgradeModal(reason, requiredCredits) {
     } else {
         title = 'Upgrade Required';
         message = 'This feature requires a higher plan.';
-        icon = '💎';
+        icon = `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-400"><path d="M6 3h12l4 6-10 12L2 9Z"/><path d="M11 3 8 9l3 12 3-12-3-6Z"/><path d="M2 9h20"/></svg>`;
     }
 
     modal.innerHTML = `
