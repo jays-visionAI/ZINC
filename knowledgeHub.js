@@ -3366,7 +3366,7 @@ const PLAN_DEFINITIONS = {
     product_brochure: { name: 'Product Brochure', credits: 20, category: 'create' },
     promo_images: { name: 'Promo Images', credits: 5, category: 'create' },
     one_pager: { name: '1-Pager PDF', credits: 15, category: 'create' },
-    pitch_deck: { name: 'Pitch Deck Outline', credits: 10, category: 'create' },
+    pitch_deck: { name: 'Pitch Deck', credits: 25, category: 'create' },
     email_template: { name: 'Email Template', credits: 5, category: 'create' },
     press_release: { name: 'Press Release', credits: 10, category: 'create' }
 };
@@ -6705,7 +6705,7 @@ function loadHistorySidebar() {
     let html = `
         <div class="mb-4">
             <button onclick="filterHistory(null)" class="w-full text-left px-3 py-2 rounded-lg text-sm font-medium ${historyFilter === null ? 'bg-indigo-600/20 text-indigo-400' : 'text-slate-400 hover:text-white hover:bg-slate-800'} transition-all">
-                All Plans
+                All Contents
             </button>
         </div>
     `;
@@ -6747,65 +6747,98 @@ async function loadHistoryItems() {
 
     try {
         const db = firebase.firestore();
-        // Use 'contentPlans' (new standard) instead of 'savedPlans'
-        let query = db.collection('projects').doc(currentProjectId)
-            .collection('contentPlans');
-        // .orderBy('createdAt', 'desc') // Removed to prevent index error
 
+        // 1. Fetch contentPlans
+        let plansQuery = db.collection('projects').doc(currentProjectId)
+            .collection('contentPlans');
         if (historyFilter) {
-            // Check both legacy 'planType' and new 'type' by fetching all and filtering client-side
-            // OR use 'type' since we migrated. Assuming 'type' is primary now.
-            query = query.where('type', '==', historyFilter);
+            plansQuery = plansQuery.where('type', '==', historyFilter);
+        }
+        const plansSnapshot = await plansQuery.limit(50).get();
+        const plansData = plansSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            collection: 'contentPlans'
+        }));
+
+        // 2. Fetch creativeProjects
+        let creativeData = [];
+        const isCreateCategory = !historyFilter || (PLAN_DEFINITIONS[historyFilter]?.category === 'create');
+
+        if (isCreateCategory) {
+            let creativeQuery = db.collection('creativeProjects')
+                .where('mainProjectId', '==', currentProjectId)
+                .where('userId', '==', currentUser.uid);
+
+            if (historyFilter && historyFilter !== null) {
+                creativeQuery = creativeQuery.where('type', '==', historyFilter);
+            }
+
+            const creativeSnapshot = await creativeQuery.limit(50).get();
+            creativeData = creativeSnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+                collection: 'creativeProjects',
+                isCreative: true
+            }));
         }
 
-        const snapshot = await query.limit(50).get();
+        // Combine
+        historyDocs = [...plansData, ...creativeData]
+            .sort((a, b) => {
+                const getTs = (val) => {
+                    if (!val) return 0;
+                    if (val.toMillis) return val.toMillis();
+                    if (val instanceof Date) return val.getTime();
+                    return new Date(val).getTime();
+                };
+                return getTs(b.createdAt) - getTs(a.createdAt);
+            });
 
-        if (snapshot.empty) {
-            list.innerHTML = '<div class="text-center py-10 text-slate-500">No saved plans found.</div>';
+        if (historyDocs.length === 0) {
+            list.innerHTML = '<div class="text-center py-10 text-slate-500">No saved contents found.</div>';
             return;
         }
-
-        // Client-side sort & mapping
-        historyDocs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-            .sort((a, b) => {
-                const tA = a.createdAt ? (a.createdAt.toMillis ? a.createdAt.toMillis() : new Date(a.createdAt).getTime()) : 0;
-                const tB = b.createdAt ? (b.createdAt.toMillis ? b.createdAt.toMillis() : new Date(b.createdAt).getTime()) : 0;
-                return tB - tA;
-            });
 
         list.innerHTML = historyDocs.map((plan, index) => {
             // Handle legacy field names
             const pType = plan.type || plan.planType;
-            const pName = plan.title || plan.planName;
+            const pName = plan.title || plan.topic || plan.planName || 'Untitled';
 
             const planDef = PLAN_DEFINITIONS[pType] || { name: pType };
-            const langLabel = plan.language === 'ko' ? '🇰🇷 Korean' : plan.language === 'ja' ? '🇯🇵 Japanese' : plan.language ? '🇺🇸 English' : 'Unknown';
-            const dateStr = plan.createdAt?.toDate ? formatRelativeTime(plan.createdAt.toDate()) : 'Unknown date';
-            const contentPreview = plan.content ? (typeof plan.content === 'string' ? plan.content.substring(0, 150) + '...' : JSON.stringify(plan.content).substring(0, 150) + '...') : 'No content';
+            const langLabel = plan.language === 'ko' ? '🇰🇷 Korean' : plan.language === 'ja' ? '🇯🇵 Japanese' : '🇺🇸 English';
+            const dateStr = plan.createdAt?.toDate ? formatRelativeTime(plan.createdAt.toDate()) : 'Recently';
+
+            let contentPreview = '';
+            if (plan.isCreative) {
+                contentPreview = `Studio generated ${planDef.name || 'document'}`;
+            } else {
+                contentPreview = plan.content ? (typeof plan.content === 'string' ? plan.content.substring(0, 150) + '...' : JSON.stringify(plan.content).substring(0, 150) + '...') : 'No content';
+            }
+
             const versionBadges = plan.version ? `<span class="px-1.5 py-0.5 rounded text-[10px] bg-indigo-500/20 text-indigo-300 font-mono ml-2">${plan.version}</span>` : '';
 
-            // Note: deletePlan(event, id) is globally available
             return `
                 <div class="p-4 bg-slate-800/50 border border-slate-700/50 rounded-xl hover:bg-slate-800 hover:border-indigo-500/30 transition-all cursor-pointer group"
                     onclick="openHistoryPlan(${index})">
                     <div class="flex items-start justify-between mb-2">
                         <div class="flex items-center">
-                            <span class="text-sm font-semibold text-white group-hover:text-indigo-400 transition-colors">${escapeHtml(pName)}</span>
+                            <span class="text-sm font-semibold text-white group-hover:text-indigo-400 transition-colors">${escapeHtml(pName)} ${plan.isCreative ? '<i class="fas fa-wand-magic-sparkles text-[10px] ml-2 text-indigo-400"></i>' : ''}</span>
                             ${versionBadges}
                         </div>
                         <div class="flex items-center gap-3">
                             <span class="text-xs text-slate-500">${dateStr}</span>
                             <button onclick="deletePlan(event, '${plan.id}'); setTimeout(loadHistoryItems, 500);" 
                                 class="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded transition-colors" 
-                                title="Delete Plan">
+                                title="Delete Content">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                             </button>
                         </div>
                     </div>
                     <div class="flex items-center gap-3 text-xs text-slate-400 mb-2">
                         <span class="px-2 py-0.5 rounded bg-slate-900 border border-slate-700 text-slate-500">${planDef.name || pType}</span>
-                        <span>${langLabel}</span>
-                         <span>${plan.creditsUsed || 0} cr</span>
+                        ${!plan.isCreative ? `<span>${langLabel}</span>` : ''}
+                         <span>${plan.creditsUsed || plan.credits || 0} cr</span>
                     </div>
                     <div class="text-xs text-slate-500 line-clamp-2 font-mono bg-slate-900/50 p-2 rounded">
                         ${escapeHtml(contentPreview)}
@@ -6823,8 +6856,12 @@ async function loadHistoryItems() {
 function openHistoryPlan(index) {
     const plan = historyDocs[index];
     if (plan) {
-        viewSavedPlan(plan.id, plan);
-        closeHistoryModal(); // Stack modal behavior: close history, open plan view
+        if (plan.isCreative) {
+            viewCreativeProject(plan.id);
+        } else {
+            viewSavedPlan(plan.id, plan);
+        }
+        closeHistoryModal(); // Stack modal behavior: close history, open plan
     }
 }
 
@@ -7347,29 +7384,36 @@ function updateInspector(nodeData) {
 }
 // --- Plan Management ---
 window.deletePlan = async function (event, planId) {
-    event.stopPropagation(); // Prevent opening the modal
+    if (event) event.stopPropagation();
 
-    if (!confirm("Are you sure you want to delete this saved plan?\n\nThis action cannot be undone.")) {
+    if (!confirm("Are you sure you want to delete this item?\n\nThis action cannot be undone.")) {
         return;
     }
 
     try {
         if (!currentProjectId) throw new Error("No project selected");
 
-        await firebase.firestore()
-            .collection('projects')
-            .doc(currentProjectId)
-            .collection('contentPlans')
-            .doc(planId)
-            .delete();
+        // Unified delete: check which collection the item belongs to
+        const item = historyDocs.find(p => p.id === planId) || { id: planId };
 
-        showNotification("Plan deleted successfully", "success");
-        loadSavedPlans(); // Refresh the list
+        if (item.collection === 'creativeProjects' || item.isCreative) {
+            await firebase.firestore().collection('creativeProjects').doc(planId).delete();
+        } else {
+            await firebase.firestore()
+                .collection('projects')
+                .doc(currentProjectId)
+                .collection('contentPlans')
+                .doc(planId)
+                .delete();
+        }
+
+        showNotification("Deleted successfully", "success");
+        loadSavedPlans(); // Refresh dashboard list if needed
     } catch (e) {
-        console.error("Error deleting plan:", e);
-        showNotification("Failed to delete plan: " + e.message, "error");
+        console.error("Error deleting content:", e);
+        showNotification("Failed to delete: " + e.message, "error");
     }
-}
+};
 function saveMindMapChanges() {
     // TODO: Implement save logic back to currentPlan Version
     showNotification('Mind Map layout saved (simulation)', 'success');
