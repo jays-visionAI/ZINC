@@ -6244,24 +6244,30 @@ function startProgressBar(proj = null) {
     }
 
     // Create progress bar if not exists
-    const modal = document.getElementById('creative-modal');
-    if (!modal) return;
+    const container = document.getElementById('creative-preview-column');
+    if (!container) return;
 
     let progressContainer = document.getElementById('generation-progress-container');
     if (!progressContainer) {
         const progressHtml = `
-            <div id="generation-progress-container" class="absolute bottom-48 left-4 right-4 bg-slate-900/95 backdrop-blur-md rounded-lg border border-slate-700 p-4 z-50 shadow-2xl animate-fade-in-up">
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-sm text-slate-300 font-medium">Generating...</span>
-                    <span id="progress-percentage" class="text-sm text-indigo-400 font-bold">0%</span>
+            <div id="generation-progress-container" class="absolute bottom-6 left-6 right-6 bg-slate-900/90 backdrop-blur-md rounded-xl border border-slate-700 p-5 z-30 shadow-2xl animate-fade-in-up">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></div>
+                        <span class="text-sm text-white font-semibold">Generating Creative...</span>
+                    </div>
+                    <span id="progress-percentage" class="text-xs text-indigo-400 font-mono font-bold bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-500/20">0%</span>
                 </div>
-                <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
-                    <div id="progress-bar" class="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-500 ease-out" style="width: 0%"></div>
+                <div class="w-full bg-slate-800/50 rounded-full h-1.5 overflow-hidden border border-slate-700/50">
+                    <div id="progress-bar" class="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-full transition-all duration-700 ease-out" style="width: 0%"></div>
                 </div>
-                <div id="progress-step" class="mt-2 text-xs text-slate-500">Initializing...</div>
+                <div id="progress-step" class="mt-3 text-[11px] text-slate-400 flex items-center justify-between">
+                    <span class="step-text">Initializing workspace...</span>
+                    <span class="text-slate-600">Please wait</span>
+                </div>
             </div>
         `;
-        modal.insertAdjacentHTML('beforeend', progressHtml);
+        container.insertAdjacentHTML('beforeend', progressHtml);
     }
 
     document.getElementById('generation-progress-container').style.display = 'block';
@@ -6320,7 +6326,11 @@ function animateProgress(from, to, duration) {
 
 function updateProgressStep(message) {
     const stepEl = document.getElementById('progress-step');
-    if (stepEl) stepEl.textContent = message;
+    if (stepEl) {
+        const textEl = stepEl.querySelector('.step-text');
+        if (textEl) textEl.textContent = message;
+        else stepEl.textContent = message;
+    }
     addLog(message, 'info');
 }
 
@@ -6331,7 +6341,12 @@ function stopProgressBar(finalPercent = 100) {
 
     if (progressBar) progressBar.style.width = `${finalPercent}%`;
     if (percentText) percentText.textContent = `${finalPercent}%`;
-    if (stepEl) stepEl.textContent = finalPercent === 100 ? 'Complete!' : 'Failed';
+    if (stepEl) {
+        const textEl = stepEl.querySelector('.step-text');
+        const msg = finalPercent === 100 ? 'Complete!' : 'Failed';
+        if (textEl) textEl.textContent = msg;
+        else stepEl.textContent = msg;
+    }
 
     addLog(finalPercent === 100 ? 'Generation complete!' : 'Generation failed', finalPercent === 100 ? 'success' : 'error');
 
