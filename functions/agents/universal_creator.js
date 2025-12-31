@@ -221,7 +221,93 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
     // 3. HTML ASSEMBLY
     const assetInstructions = visualPlan.visuals.map(v => `- For ${v.id}: use exactly "{{${v.id}}}"`).join('\n');
 
-    const systemPrompt = `
+    // --- PROMPT BRANCHING: WEB vs PRESS RELEASE ---
+    let finalSystemPrompt;
+    let finalTaskPrompt;
+
+    if (type === 'press_release') {
+        const logoPlaceholder = `<div class="mb-10 text-center border-b pb-8"><div class="text-3xl font-black tracking-tight text-slate-800 uppercase">[COMPANY LOGO]</div></div>`;
+
+        finalSystemPrompt = `
+    You are a SEASONED PRESS RELEASE WRITER and CORPORATE COMMUNICATIONS EXPERT.
+    Your goal is to create a professional, distribution-ready media announcement following AP (Associated Press) standards.
+    
+    === MANDATORY PR FORMATTING ===
+    1. STYLE: Journalistic, authoritative, objective, and print-ready.
+    2. THEME: Clean WHITE background. Professional black/gray text.
+    3. TYPOGRAPHY: Use a mix of Serif (for content) and Sans-serif (for headlines).
+    4. STRUCTURE:
+       - Top: "FOR IMMEDIATE RELEASE" in bold uppercase.
+       - Dateline: [CITY, State] — [Current Date] — (Lead paragraph starts here).
+       - Inverted Pyramid: Critical info first, followed by details.
+       - Quotes: Professional quotes from executives.
+       - Boilerplate: "About [Company Name]" section at the end.
+       - Media Contact: Clear contact info.
+       - End Mark: Use '###' centered at the very bottom.
+
+    === MANDATORY INCLUDES ===
+    Always start with this EXACT <head> content:
+    \`\`\`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+        <style>
+            body { font-family: 'EB Garamond', serif; background-color: #ffffff; color: #1a1a1a; }
+            h1, h2, h3, .sans-font { font-family: 'Inter', sans-serif; }
+            .pr-container { max-width: 800px; margin: 0 auto; padding: 60px 40px; background: #fff; }
+            .pr-divider { height: 1px; background: #e5e7eb; margin: 40px 0; }
+            .dateline { font-weight: 700; text-transform: uppercase; margin-right: 8px; font-family: 'Inter', sans-serif; font-size: 0.9rem; }
+            .boilerplate { background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-radius: 4px; }
+            .media-contact { margin-top: 40px; font-size: 0.95rem; line-height: 1.6; }
+            p { margin-bottom: 1.5rem; line-height: 1.8; font-size: 1.15rem; }
+            .quote-box { border-left: 4px solid #4f46e5; padding-left: 24px; font-style: italic; margin: 30px 0; color: #374151; }
+        </style>
+    </head>
+    \`\`\`
+    
+    === DESIGN RULES (PRESS RELEASE ONLY) ===
+    - Background: bg-white (NO gradients, NO dark mode).
+    - Images: Insert generated visual tokens [${visualPlan.visuals.map(v => v.id).join(', ')}] as standard <img> tags with captions.
+    - NO Glassmorphism, NO floating blobs, NO presentation sections.
+    - Professional, linear article layout only.
+    `;
+
+        finalTaskPrompt = `
+    ${strategy.htmlTask}
+
+    PROJECT DETAILS:
+    - Topic: ${topic}
+    - News Category: ${newsType}
+    - Audience: ${audience}
+    - Tone: ${contentTone}
+    
+    KNOWLEDGE BASE CONTENT:
+    """
+    ${context || 'Use general professional content.'}
+    """
+
+    === PR SPECIFIC INSTRUCTIONS ===
+    - Header: Include "${logoPlaceholder}" at the top.
+    - Immediate Release: Start with "FOR IMMEDIATE RELEASE" in the header.
+    - Headline: Create a powerful, news-worthy headline and a descriptive sub-headline.
+    - Dateline: Start the first paragraph with "[LOCATION] — [DATE] — ".
+    - Body Copy: Write 4-6 detailed paragraphs expanding on the knowledge hub content.
+    - Quote: Include a professional quote from a key spokesperson.
+    - Visuals: Spread the visual tokens {{PR_HERO}}, {{PR_DETAIL_1}}, etc. within the story body.
+    - Boilerplate: Write a professional "About" section based on the context.
+    - End Mark: Center "###" at the very end of the document.
+    
+    ${customPrompt ? `💬 USER REQUEST: ${customPrompt}` : ''}
+    
+    Return pure HTML starting with <!DOCTYPE html>.
+    `;
+    } else {
+        // --- ORIGINAL LANDING PAGE STYLE (For Pitch Deck, Brochure, One Pager) ---
+        finalSystemPrompt = `
     You are a WORLD-CLASS Frontend Developer & UI Designer creating award-winning, premium web designs.
     
     === MANDATORY INCLUDES ===
@@ -305,24 +391,24 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
     Pure HTML only. No markdown. No explanations. Start with <!DOCTYPE html>.
     `;
 
-    // Build color scheme instruction based on user selection
-    const colorInstructions = {
-        'Indigo/Purple (Default)': 'Use indigo-500, purple-500 for primary accents.',
-        'Blue/Cyan': 'Use blue-500, cyan-400 for primary accents.',
-        'Green/Teal': 'Use emerald-500, teal-400 for primary accents.',
-        'Orange/Red': 'Use orange-500, red-400 for primary accents.',
-        'Monochrome': 'Use slate-500, gray-400 for primary accents (black/white theme).',
-        'Custom Gradient': 'Use a unique gradient combination that fits the brand.'
-    };
+        // Build color scheme instruction based on user selection
+        const colorInstructions = {
+            'Indigo/Purple (Default)': 'Use indigo-500, purple-500 for primary accents.',
+            'Blue/Cyan': 'Use blue-500, cyan-400 for primary accents.',
+            'Green/Teal': 'Use emerald-500, teal-400 for primary accents.',
+            'Orange/Red': 'Use orange-500, red-400 for primary accents.',
+            'Monochrome': 'Use slate-500, gray-400 for primary accents (black/white theme).',
+            'Custom Gradient': 'Use a unique gradient combination that fits the brand.'
+        };
 
-    const animationInstructions = {
-        'None': 'Do not include any animations or hover effects.',
-        'Subtle': 'Include minimal hover effects (opacity changes only).',
-        'Medium': 'Include hover-lift effects and fade-in animations.',
-        'Rich': 'Include elaborate animations: hover-lift, fade-in, floating blobs, gradient shifts, and micro-interactions.'
-    };
+        const animationInstructions = {
+            'None': 'Do not include any animations or hover effects.',
+            'Subtle': 'Include minimal hover effects (opacity changes only).',
+            'Medium': 'Include hover-lift effects and fade-in animations.',
+            'Rich': 'Include elaborate animations: hover-lift, fade-in, floating blobs, gradient shifts, and micro-interactions.'
+        };
 
-    const taskPrompt = `
+        finalTaskPrompt = `
     ${strategy.htmlTask}
 
     PROJECT DETAILS:
@@ -375,11 +461,12 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
     
     Make it look like a $50,000 custom digital product!
     `;
+    }
 
     console.log('[UniversalCreator] 🏗️ Assembling HTML...');
     let htmlResult;
     try {
-        htmlResult = await executeLLM(systemPrompt, taskPrompt);
+        htmlResult = await executeLLM(finalSystemPrompt, finalTaskPrompt);
     } catch (e) {
         console.error('[UniversalCreator] HTML Assembly failed:', e.message);
         htmlResult = `
