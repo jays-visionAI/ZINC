@@ -4641,39 +4641,50 @@ window.applyZAlign = function (align) {
 
 window.applyFontSize = function (dir) {
     const iframe = document.getElementById('creative-result-iframe');
-    const doc = iframe.contentWindow.document;
-    const sel = doc.getSelection();
-    if (!sel || sel.isCollapsed) return;
+    if (!iframe) return;
+    const win = iframe.contentWindow;
+    const doc = win.document;
+    const sel = win.getSelection();
 
-    // Save Selection Info
-    const range = sel.getRangeAt(0);
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
 
-    // Detect current size from the anchor parent
-    let parent = sel.anchorNode;
-    if (parent.nodeType === 3) parent = parent.parentElement;
+    // Detect current size from selection
+    let node = sel.anchorNode;
+    if (node && node.nodeType === 3) node = node.parentElement;
 
-    // Fallback: If parent is the body, use a default
     let currentSize = 16;
     try {
-        currentSize = parseInt(window.getComputedStyle(parent).fontSize) || 16;
+        currentSize = parseInt(win.getComputedStyle(node).fontSize) || 16;
     } catch (e) { }
 
     let newSize = dir === 'increase' ? currentSize + 2 : currentSize - 2;
     newSize = Math.max(8, Math.min(120, newSize));
 
-    // Marker Technique
+    // Force styleWithCSS to false to get predictable <font> tags for marking
+    doc.execCommand('styleWithCSS', false, false);
     doc.execCommand('fontSize', false, '7');
 
+    // Find all potential markers created by execCommand
     const fonts = doc.querySelectorAll('font[size="7"]');
-    fonts.forEach(f => {
-        f.removeAttribute('size');
-        f.style.fontSize = `${newSize}px`;
-        f.style.display = 'inline-block';
-        f.style.fontFamily = 'inherit'; // Preserve context
-    });
+    if (fonts.length > 0) {
+        fonts.forEach(f => {
+            f.removeAttribute('size');
+            f.style.fontSize = `${newSize}px`;
+            f.style.display = 'inline-block';
+        });
+    } else {
+        // Fallback: If styleWithCSS was somehow true or browser preferred span
+        const allSpans = doc.querySelectorAll('span');
+        allSpans.forEach(s => {
+            const fs = s.style.fontSize;
+            if (fs === 'xxx-large' || fs === '36px' || fs === '48px') {
+                s.style.fontSize = `${newSize}px`;
+            }
+        });
+    }
 
-    // CRITICAL: Restore focus to iframe so selection is visible and subsequent clicks work
-    iframe.contentWindow.focus();
+    // Restore focus to keep selection active
+    win.focus();
     syncCreativeChanges(currentCreativeId);
 };
 
