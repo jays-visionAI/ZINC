@@ -1,13 +1,12 @@
 // admin-documents.js - Smart Editor Version with Tiptap
 import { Editor } from 'https://esm.sh/@tiptap/core';
-import StarterKit from 'https://esm.sh/@tiptap/starter-kit';
-import TextStyle from 'https://esm.sh/@tiptap/extension-text-style';
-import FontFamily from 'https://esm.sh/@tiptap/extension-font-family';
-import FontSize from 'https://esm.sh/tiptap-extension-font-size'; // We might need a custom one if not available, but let's try
-import TextAlign from 'https://esm.sh/@tiptap/extension-text-align';
-import Underline from 'https://esm.sh/@tiptap/extension-underline';
-import Link from 'https://esm.sh/@tiptap/extension-link';
-import Image from 'https://esm.sh/@tiptap/extension-image';
+import { StarterKit } from 'https://esm.sh/@tiptap/starter-kit';
+import { TextStyle } from 'https://esm.sh/@tiptap/extension-text-style';
+import { FontFamily } from 'https://esm.sh/@tiptap/extension-font-family';
+import { TextAlign } from 'https://esm.sh/@tiptap/extension-text-align';
+import { Underline } from 'https://esm.sh/@tiptap/extension-underline';
+import { Link } from 'https://esm.sh/@tiptap/extension-link';
+import { Image } from 'https://esm.sh/@tiptap/extension-image';
 
 let editor = null;
 let allDocuments = [];

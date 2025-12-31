@@ -80,18 +80,15 @@ async function loadAllSettings() {
         const doc = await db.collection('chatbotConfig').doc('pipeline_market_pulse').get();
         if (doc.exists) {
             const data = doc.data();
-            if (data.research) {
-                document.getElementById('agent-research-model').value = data.research.model || 'deepseek-chat';
-                document.getElementById('agent-research-temp').value = data.research.temperature || 0.7;
-                document.getElementById('label-research-temp').textContent = data.research.temperature || 0.7;
-                document.getElementById('agent-research-prompt').value = data.research.systemPrompt || '';
-            }
-            if (data.seo) {
-                document.getElementById('agent-seo-model').value = data.seo.model || 'gpt-4o-mini';
-                document.getElementById('agent-seo-temp').value = data.seo.temperature || 0.3;
-                document.getElementById('label-seo-temp').textContent = data.seo.temperature || 0.3;
-                document.getElementById('agent-seo-prompt').value = data.seo.systemPrompt || '';
-            }
+            updateElValue('agent-research-model', data.research?.model || 'deepseek-chat');
+            updateElValue('agent-research-temp', data.research?.temperature || 0.7);
+            updateElText('label-research-temp', data.research?.temperature || 0.7);
+            updateElValue('agent-research-prompt', data.research?.systemPrompt || '');
+
+            updateElValue('agent-seo-model', data.seo?.model || 'gpt-4o-mini');
+            updateElValue('agent-seo-temp', data.seo?.temperature || 0.3);
+            updateElText('label-seo-temp', data.seo?.temperature || 0.3);
+            updateElValue('agent-seo-prompt', data.seo?.systemPrompt || '');
         }
     } catch (e) { console.error('Error loading market pulse:', e); }
 
@@ -100,12 +97,10 @@ async function loadAllSettings() {
         const doc = await db.collection('chatbotConfig').doc('pipeline_brand_brain').get();
         if (doc.exists) {
             const data = doc.data();
-            if (data.planner) {
-                document.getElementById('agent-planner-model').value = data.planner.model || 'gpt-4o';
-                document.getElementById('agent-planner-temp').value = data.planner.temperature || 0.5;
-                document.getElementById('label-planner-temp').textContent = data.planner.temperature || 0.5;
-                document.getElementById('agent-planner-prompt').value = data.planner.systemPrompt || '';
-            }
+            updateElValue('agent-planner-model', data.planner?.model || 'gpt-4o');
+            updateElValue('agent-planner-temp', data.planner?.temperature || 0.5);
+            updateElText('label-planner-temp', data.planner?.temperature || 0.5);
+            updateElValue('agent-planner-prompt', data.planner?.systemPrompt || '');
         }
     } catch (e) { console.error('Error loading brand brain:', e); }
 
@@ -114,48 +109,40 @@ async function loadAllSettings() {
         const doc = await db.collection('chatbotConfig').doc('pipeline_knowledge_hub').get();
         if (doc.exists) {
             const data = doc.data();
-            if (data.standard) {
-                document.getElementById('agent-standard-model').value = data.standard.model || 'gpt-4o';
-                document.getElementById('agent-standard-temp').value = data.standard.temperature || 0.2;
-                document.getElementById('label-standard-temp').textContent = data.standard.temperature || 0.2;
-                document.getElementById('agent-standard-prompt').value = data.standard.systemPrompt || '';
-            }
-            if (data.depth) {
-                document.getElementById('agent-depth-model').value = data.depth.model || 'deepseek-reasoner';
-                document.getElementById('agent-depth-temp').value = data.depth.temperature || 0.3;
-                document.getElementById('label-depth-temp').textContent = data.depth.temperature || 0.3;
-                document.getElementById('agent-depth-prompt').value = data.depth.systemPrompt || '';
-            }
-            if (data.insights) {
-                document.getElementById('agent-insights-model').value = data.insights.model || 'deepseek-reasoner';
-                document.getElementById('agent-insights-temp').value = data.insights.temperature || 0.3;
-                document.getElementById('label-insights-temp').textContent = data.insights.temperature || 0.3;
-                document.getElementById('agent-insights-prompt').value = data.insights.systemPrompt || '';
-            }
-            if (data.strategy) {
-                document.getElementById('agent-strategy-model').value = data.strategy.model || 'gpt-4o';
-                document.getElementById('agent-strategy-temp').value = data.strategy.temperature || 0.6;
-                document.getElementById('label-strategy-temp').textContent = data.strategy.temperature || 0.6;
-                document.getElementById('agent-strategy-prompt').value = data.strategy.systemPrompt || '';
-            }
-            if (data.quick) {
-                document.getElementById('agent-quick-model').value = data.quick.model || 'gpt-4o-mini';
-                document.getElementById('agent-quick-temp').value = data.quick.temperature || 0.9;
-                document.getElementById('label-quick-temp').textContent = data.quick.temperature || 0.9;
-                document.getElementById('agent-quick-prompt').value = data.quick.systemPrompt || '';
-            }
-            if (data.studio_docs) {
-                document.getElementById('agent-studio-docs-model').value = data.studio_docs.model || 'claude-3-5-sonnet-20241022';
-                document.getElementById('agent-studio-docs-temp').value = data.studio_docs.temperature || 0.4;
-                document.getElementById('label-studio-docs-temp').textContent = data.studio_docs.temperature || 0.4;
-                document.getElementById('agent-studio-docs-prompt').value = data.studio_docs.systemPrompt || '';
-            }
-            if (data.studio_visual) {
-                document.getElementById('agent-studio-visual-model').value = data.studio_visual.model || 'gpt-4o-mini';
-                document.getElementById('agent-studio-visual-temp').value = data.studio_visual.temperature || 0.7;
-                document.getElementById('label-studio-visual-temp').textContent = data.studio_visual.temperature || 0.7;
-                document.getElementById('agent-studio-visual-prompt').value = data.studio_visual.systemPrompt || '';
-            }
+            updateElValue('agent-standard-model', data.standard?.model || 'gpt-4o');
+            updateElValue('agent-standard-temp', data.standard?.temperature || 0.2);
+            updateElText('label-standard-temp', data.standard?.temperature || 0.2);
+            updateElValue('agent-standard-prompt', data.standard?.systemPrompt || '');
+
+            updateElValue('agent-depth-model', data.depth?.model || 'deepseek-reasoner');
+            updateElValue('agent-depth-temp', data.depth?.temperature || 0.3);
+            updateElText('label-depth-temp', data.depth?.temperature || 0.3);
+            updateElValue('agent-depth-prompt', data.depth?.systemPrompt || '');
+
+            updateElValue('agent-insights-model', data.insights?.model || 'deepseek-reasoner');
+            updateElValue('agent-insights-temp', data.insights?.temperature || 0.3);
+            updateElText('label-insights-temp', data.insights?.temperature || 0.3);
+            updateElValue('agent-insights-prompt', data.insights?.systemPrompt || '');
+
+            updateElValue('agent-strategy-model', data.strategy?.model || 'gpt-4o');
+            updateElValue('agent-strategy-temp', data.strategy?.temperature || 0.6);
+            updateElText('label-strategy-temp', data.strategy?.temperature || 0.6);
+            updateElValue('agent-strategy-prompt', data.strategy?.systemPrompt || '');
+
+            updateElValue('agent-quick-model', data.quick?.model || 'gpt-4o-mini');
+            updateElValue('agent-quick-temp', data.quick?.temperature || 0.9);
+            updateElText('label-quick-temp', data.quick?.temperature || 0.9);
+            updateElValue('agent-quick-prompt', data.quick?.systemPrompt || '');
+
+            updateElValue('agent-studio-docs-model', data.studio_docs?.model || 'claude-3-5-sonnet-20241022');
+            updateElValue('agent-studio-docs-temp', data.studio_docs?.temperature || 0.4);
+            updateElText('label-studio-docs-temp', data.studio_docs?.temperature || 0.4);
+            updateElValue('agent-studio-docs-prompt', data.studio_docs?.systemPrompt || '');
+
+            updateElValue('agent-studio-visual-model', data.studio_visual?.model || 'gpt-4o-mini');
+            updateElValue('agent-studio-visual-temp', data.studio_visual?.temperature || 0.7);
+            updateElText('label-studio-visual-temp', data.studio_visual?.temperature || 0.7);
+            updateElValue('agent-studio-visual-prompt', data.studio_visual?.systemPrompt || '');
         }
     } catch (e) { console.error('Error loading knowledge hub:', e); }
 
@@ -164,18 +151,15 @@ async function loadAllSettings() {
         const doc = await db.collection('chatbotConfig').doc('pipeline_studio').get();
         if (doc.exists) {
             const data = doc.data();
-            if (data.creator) {
-                document.getElementById('agent-creator-model').value = data.creator.model || 'gpt-4o';
-                document.getElementById('agent-creator-temp').value = data.creator.temperature || 0.7;
-                document.getElementById('label-creator-temp').textContent = data.creator.temperature || 0.7;
-                document.getElementById('agent-creator-prompt').value = data.creator.systemPrompt || '';
-            }
-            if (data.text) {
-                document.getElementById('agent-text-model').value = data.text.model || 'gpt-4o';
-                document.getElementById('agent-text-temp').value = data.text.temperature || 0.8;
-                document.getElementById('label-text-temp').textContent = data.text.temperature || 0.8;
-                document.getElementById('agent-text-prompt').value = data.text.systemPrompt || '';
-            }
+            updateElValue('agent-creator-model', data.creator?.model || 'gpt-4o');
+            updateElValue('agent-creator-temp', data.creator?.temperature || 0.7);
+            updateElText('label-creator-temp', data.creator?.temperature || 0.7);
+            updateElValue('agent-creator-prompt', data.creator?.systemPrompt || '');
+
+            updateElValue('agent-text-model', data.text?.model || 'gpt-4o');
+            updateElValue('agent-text-temp', data.text?.temperature || 0.8);
+            updateElText('label-text-temp', data.text?.temperature || 0.8);
+            updateElValue('agent-text-prompt', data.text?.systemPrompt || '');
         }
     } catch (e) { console.error('Error loading studio:', e); }
 
@@ -184,14 +168,22 @@ async function loadAllSettings() {
         const doc = await db.collection('chatbotConfig').doc('pipeline_growth').get();
         if (doc.exists) {
             const data = doc.data();
-            if (data.manager) {
-                document.getElementById('agent-manager-model').value = data.manager.model || 'gpt-4o';
-                document.getElementById('agent-manager-temp').value = data.manager.temperature || 0.2;
-                document.getElementById('label-manager-temp').textContent = data.manager.temperature || 0.2;
-                document.getElementById('agent-manager-prompt').value = data.manager.systemPrompt || '';
-            }
+            updateElValue('agent-manager-model', data.manager?.model || 'gpt-4o');
+            updateElValue('agent-manager-temp', data.manager?.temperature || 0.2);
+            updateElText('label-manager-temp', data.manager?.temperature || 0.2);
+            updateElValue('agent-manager-prompt', data.manager?.systemPrompt || '');
         }
     } catch (e) { console.error('Error loading growth:', e); }
+}
+
+// 🛡️ Safety helpers to prevent TypeError when navigating
+function updateElValue(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.value = value;
+}
+function updateElText(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
 }
 
 function setupSaveListeners() {
