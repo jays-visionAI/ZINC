@@ -5806,23 +5806,7 @@ function viewSavedPlan(id, plan) {
 // ============================================================
 // UI PANEL / TAB LOGIC
 // ============================================================
-function togglePanel(side) {
-    const isLeft = side === 'left';
-    const panelId = isLeft ? 'sources-panel' : 'plans-panel';
-    const panel = document.getElementById(panelId);
-    const icon = document.getElementById(`toggle-icon-${side}`);
-    const collapseClass = isLeft ? 'collapsed-left' : 'collapsed-right';
-
-    if (panel.classList.contains(collapseClass)) {
-        panel.classList.remove(collapseClass);
-        icon.className = isLeft ? 'fas fa-chevron-left' : 'fas fa-chevron-right';
-        showNotification(`${isLeft ? 'Sources' : 'Plans'} panel expanded`, 'info');
-    } else {
-        panel.classList.add(collapseClass);
-        icon.className = isLeft ? 'fas fa-chevron-right' : 'fas fa-chevron-left';
-        showNotification(`${isLeft ? 'Sources' : 'Plans'} panel collapsed`, 'info');
-    }
-}
+// Function togglePanel removed as it's replaced by widening expansion
 
 function switchAssetTab(tab) {
     const isPlans = tab === 'plans';

@@ -145,6 +145,10 @@
             pointer-events: none;
         }
 
+        .sources-panel.expanded {
+            width: 520px !important;
+        }
+
         .collapsed-right {
             width: 0 !important;
             margin-left: -1rem !important;
@@ -449,13 +453,6 @@
         <!-- LEFT PANEL: Sources -->
         <div id="sources-panel"
             class="hidden md:flex sources-panel w-72 flex-shrink-0 flex-col bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl h-full panel-transition relative">
-
-            <!-- Panel Toggle Handle (Left) -->
-            <button onclick="togglePanel('left')"
-                class="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-12 bg-slate-800 border border-slate-700 rounded-full flex items-center justify-center text-slate-500 hover:text-white z-50 shadow-lg group transition-all hover:scale-110">
-                <i id="toggle-icon-left"
-                    class="fas fa-chevron-left text-[10px] group-hover:scale-125 transition-transform"></i>
-            </button>
 
             <!-- Sources Header -->
             <div class="p-4 border-b border-slate-800 bg-slate-950/50">
@@ -765,13 +762,6 @@
         <!-- RIGHT PANEL: Creative Planner & Asset Hub -->
         <div id="plans-panel"
             class="hidden md:flex w-80 flex-shrink-0 flex-col bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl h-full panel-transition relative">
-
-            <!-- Panel Toggle Handle (Right) -->
-            <button onclick="togglePanel('right')"
-                class="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-12 bg-slate-800 border border-slate-700 rounded-full flex items-center justify-center text-slate-500 hover:text-white z-50 shadow-lg group transition-all hover:scale-110">
-                <i id="toggle-icon-right"
-                    class="fas fa-chevron-right text-[10px] group-hover:scale-125 transition-transform"></i>
-            </button>
 
             <!-- Plans Header -->
             <div class="p-4 border-b border-slate-800 bg-slate-950/50">
