@@ -2067,14 +2067,19 @@
     <!-- Floating Style Bar for Text Selection -->
     <div id="z-style-bar" class="z-style-bar" style="display: none;">
         <div class="flex items-center gap-1 group">
-            <button onclick="applyZStyle('bold')" title="Bold"><i class="fas fa-bold"></i></button>
-            <button onclick="applyZStyle('italic')" title="Italic"><i class="fas fa-italic"></i></button>
-            <button onclick="applyZStyle('underline')" title="Underline"><i class="fas fa-underline"></i></button>
+            <button onmousedown="event.preventDefault()" onclick="applyZStyle('bold')" title="Bold"><i
+                    class="fas fa-bold"></i></button>
+            <button onmousedown="event.preventDefault()" onclick="applyZStyle('italic')" title="Italic"><i
+                    class="fas fa-italic"></i></button>
+            <button onmousedown="event.preventDefault()" onclick="applyZStyle('underline')" title="Underline"><i
+                    class="fas fa-underline"></i></button>
         </div>
         <div class="z-style-divider"></div>
         <div class="flex items-center gap-1">
-            <button onclick="applyFontSize('increase')" title="Font Size +"><i class="fas fa-plus"></i></button>
-            <button onclick="applyFontSize('decrease')" title="Font Size -"><i class="fas fa-minus"></i></button>
+            <button onmousedown="event.preventDefault()" onclick="applyFontSize('increase')" title="Font Size +"><i
+                    class="fas fa-plus"></i></button>
+            <button onmousedown="event.preventDefault()" onclick="applyFontSize('decrease')" title="Font Size -"><i
+                    class="fas fa-minus"></i></button>
         </div>
         <div class="z-style-divider"></div>
         <div class="flex items-center gap-2 px-1">
@@ -2092,9 +2097,12 @@
         </div>
         <div class="z-style-divider"></div>
         <div class="flex items-center gap-1">
-            <button onclick="applyZAlign('left')" title="Align Left"><i class="fas fa-align-left"></i></button>
-            <button onclick="applyZAlign('center')" title="Align Center"><i class="fas fa-align-center"></i></button>
-            <button onclick="applyZAlign('right')" title="Align Right"><i class="fas fa-align-right"></i></button>
+            <button onmousedown="event.preventDefault()" onclick="applyZAlign('left')" title="Align Left"><i
+                    class="fas fa-align-left"></i></button>
+            <button onmousedown="event.preventDefault()" onclick="applyZAlign('center')" title="Align Center"><i
+                    class="fas fa-align-center"></i></button>
+            <button onmousedown="event.preventDefault()" onclick="applyZAlign('right')" title="Align Right"><i
+                    class="fas fa-align-right"></i></button>
         </div>
     </div>
 

@@ -4603,6 +4603,7 @@ window.applyZStyle = function (command, value = null) {
     if (!iframe) return;
 
     iframe.contentWindow.document.execCommand(command, false, value);
+    iframe.contentWindow.focus();
     syncCreativeChanges(currentCreativeId);
 };
 
@@ -4610,6 +4611,7 @@ window.applyZColor = function (color) {
     const iframe = document.getElementById('creative-result-iframe');
     if (!iframe) return;
     iframe.contentWindow.document.execCommand('foreColor', false, color);
+    iframe.contentWindow.focus();
     syncCreativeChanges(currentCreativeId);
 };
 
@@ -4632,6 +4634,7 @@ window.applyZAlign = function (align) {
     if (target) {
         target.style.textAlign = align;
         target.style.display = 'block'; // Ensure it's a block for alignment to work
+        iframe.contentWindow.focus();
         syncCreativeChanges(currentCreativeId);
     }
 };
@@ -4642,28 +4645,35 @@ window.applyFontSize = function (dir) {
     const sel = doc.getSelection();
     if (!sel || sel.isCollapsed) return;
 
+    // Save Selection Info
+    const range = sel.getRangeAt(0);
+
     // Detect current size from the anchor parent
     let parent = sel.anchorNode;
     if (parent.nodeType === 3) parent = parent.parentElement;
-    let currentSize = parseInt(window.getComputedStyle(parent).fontSize) || 16;
+
+    // Fallback: If parent is the body, use a default
+    let currentSize = 16;
+    try {
+        currentSize = parseInt(window.getComputedStyle(parent).fontSize) || 16;
+    } catch (e) { }
 
     let newSize = dir === 'increase' ? currentSize + 2 : currentSize - 2;
     newSize = Math.max(8, Math.min(120, newSize));
 
-    // PROFESSIONAL TECHNIQUE: Use a dummy font size to find the exact selection nodes
-    const dummyId = 'zynk-temp-' + Date.now();
+    // Marker Technique
     doc.execCommand('fontSize', false, '7');
 
-    // Find the fonts tags that execCommand created and turn them into styled spans
     const fonts = doc.querySelectorAll('font[size="7"]');
     fonts.forEach(f => {
-        const span = document.createElement('span');
-        span.style.fontSize = `${newSize}px`;
-        span.style.display = 'inline-block';
-        span.innerHTML = f.innerHTML;
-        f.parentNode.replaceChild(span, f);
+        f.removeAttribute('size');
+        f.style.fontSize = `${newSize}px`;
+        f.style.display = 'inline-block';
+        f.style.fontFamily = 'inherit'; // Preserve context
     });
 
+    // CRITICAL: Restore focus to iframe so selection is visible and subsequent clicks work
+    iframe.contentWindow.focus();
     syncCreativeChanges(currentCreativeId);
 };
 
@@ -4705,6 +4715,7 @@ window.applyZGradient = function (c1, c2, angle) {
         }
     }
 
+    iframe.contentWindow.focus();
     syncCreativeChanges(currentCreativeId);
 };
 
