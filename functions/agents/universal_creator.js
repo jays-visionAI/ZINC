@@ -343,6 +343,11 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
     Apply the DESIGN ARCHETYPE: ${selectedArchetype.name}
     Rules: ${selectedArchetype.systemRules}
     
+    === CRITICAL: ICON LIBRARY ===
+    - ONLY use Font Awesome icons from the CDN provided below.
+    - DO NOT use Heroicons, Phosphor Icons, or any other icon library.
+    - DO NOT import ESM modules or use "import" statements in the HTML.
+    
     === MANDATORY HEAD ===
     \`\`\`
     <!DOCTYPE html>
@@ -372,6 +377,7 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
     1. EXTRAPOLATE the content from the knowledge base into premium copy.
     2. USE the image tokens {{...}} across the document.
     3. Ensure high visual hierarchy and premium spacing.
+    4. ONLY USE Font Awesome (<i class="fa-solid fa-..."></i>) for icons. NO Heroicons.
     
     ${customPrompt ? `💬 USER REQUEST: ${customPrompt}` : ''}
     
