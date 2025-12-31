@@ -4119,6 +4119,14 @@ async function viewCreativeProject(docId) {
                 section:hover .refine-btn { display: flex; }
                 .img-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; color: white; cursor: pointer; border-radius: inherit; }
                 .img-container:hover .img-overlay { display: flex; }
+
+                /* Z-Editor Gradient Support */
+                .z-gradient-text {
+                    background-size: 100%;
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                    display: inline-block;
+                }
             </style>
         </head>
         <body class="bg-black text-white">
@@ -4599,28 +4607,102 @@ window.applyZStyle = function (command, value = null) {
 };
 
 window.applyZColor = function (color) {
-    window.applyZStyle('foreColor', color);
+    const iframe = document.getElementById('creative-result-iframe');
+    if (!iframe) return;
+    iframe.contentWindow.document.execCommand('foreColor', false, color);
+    syncCreativeChanges(currentCreativeId);
+};
+
+window.applyZAlign = function (align) {
+    const iframe = document.getElementById('creative-result-iframe');
+    const doc = iframe.contentWindow.document;
+    const sel = doc.getSelection();
+    if (!sel.rangeCount) return;
+
+    // Find nearest block parent
+    let node = sel.anchorNode;
+    if (node.nodeType === 3) node = node.parentElement;
+
+    const blockTags = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'div', 'section', 'li'];
+    let target = node;
+    while (target && !blockTags.includes(target.tagName.toLowerCase())) {
+        target = target.parentElement;
+    }
+
+    if (target) {
+        target.style.textAlign = align;
+        target.style.display = 'block'; // Ensure it's a block for alignment to work
+        syncCreativeChanges(currentCreativeId);
+    }
 };
 
 window.applyFontSize = function (dir) {
     const iframe = document.getElementById('creative-result-iframe');
     const doc = iframe.contentWindow.document;
     const sel = doc.getSelection();
-    if (!sel.rangeCount) return;
+    if (!sel || sel.isCollapsed) return;
 
-    const range = sel.getRangeAt(0);
-    const parent = range.commonAncestorContainer.parentElement;
+    // Detect current size from the anchor parent
+    let parent = sel.anchorNode;
+    if (parent.nodeType === 3) parent = parent.parentElement;
+    let currentSize = parseInt(window.getComputedStyle(parent).fontSize) || 16;
 
-    // Modern approach: Style the container or wrapped span
-    let currentSize = parseInt(window.getComputedStyle(parent).fontSize);
     let newSize = dir === 'increase' ? currentSize + 2 : currentSize - 2;
     newSize = Math.max(8, Math.min(120, newSize));
 
-    // If text is selected, wrap in span with new size
-    if (!sel.isCollapsed) {
+    // PROFESSIONAL TECHNIQUE: Use a dummy font size to find the exact selection nodes
+    const dummyId = 'zynk-temp-' + Date.now();
+    doc.execCommand('fontSize', false, '7');
+
+    // Find the fonts tags that execCommand created and turn them into styled spans
+    const fonts = doc.querySelectorAll('font[size="7"]');
+    fonts.forEach(f => {
         const span = document.createElement('span');
         span.style.fontSize = `${newSize}px`;
-        range.surroundContents(span);
+        span.style.display = 'inline-block';
+        span.innerHTML = f.innerHTML;
+        f.parentNode.replaceChild(span, f);
+    });
+
+    syncCreativeChanges(currentCreativeId);
+};
+
+window.syncZGradient = function () {
+    const c1 = document.getElementById('z-style-color-1').value;
+    const c2 = document.getElementById('z-style-color-2').value;
+    const angle = document.getElementById('z-gradient-angle').value;
+    document.getElementById('z-gradient-angle-text').textContent = `${angle}°`;
+
+    applyZGradient(c1, c2, angle);
+};
+
+window.applyZGradient = function (c1, c2, angle) {
+    const iframe = document.getElementById('creative-result-iframe');
+    const doc = iframe.contentWindow.document;
+    const sel = doc.getSelection();
+    if (!sel || sel.isCollapsed) return;
+
+    const range = sel.getRangeAt(0);
+    let parent = range.commonAncestorContainer;
+    if (parent.nodeType === 3) parent = parent.parentElement;
+
+    const gradientCss = `linear-gradient(${angle}deg, ${c1}, ${c2})`;
+
+    if (parent.tagName === 'SPAN' && parent.classList.contains('z-gradient-text')) {
+        parent.style.backgroundImage = gradientCss;
+    } else {
+        const span = document.createElement('span');
+        span.className = 'z-gradient-text';
+        span.style.backgroundImage = gradientCss;
+        span.style.webkitBackgroundClip = 'text';
+        span.style.webkitTextFillColor = 'transparent';
+        span.style.display = 'inline-block';
+
+        try {
+            range.surroundContents(span);
+        } catch (e) {
+            console.warn('Gradient wrap failed for complex selection');
+        }
     }
 
     syncCreativeChanges(currentCreativeId);
