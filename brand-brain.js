@@ -298,10 +298,7 @@ async function loadUserProjects(userId) {
             });
         }
 
-        // Don't auto-select - let user choose
-        // Glow effect remains until user selects a project
-        projectSelect.value = '';  // Keep default "Select Project..."
-
+        // Glow effect remains if no project is selected
     } catch (error) {
         console.error('Error loading user projects:', error);
         const projectSelect = document.getElementById('project-select');
