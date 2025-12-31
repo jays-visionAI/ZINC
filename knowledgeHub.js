@@ -4058,11 +4058,28 @@ const CREATIVE_CONFIGS = {
                     'New Executive Hire',
                     'Thought Leadership / Research',
                     'Crisis Response / Official Statement'
-                ]
+                ],
+                onChange: 'handleNewsTypeChange'
             },
             { id: 'topic', type: 'text', label: 'Main Headline Subject', placeholder: 'e.g., ZYNK Series A Funding' },
             { id: 'keyDetails', type: 'textarea', label: 'Core Announcement Details', placeholder: 'List key facts, figures, or the main news story...' },
-            { id: 'quotes', type: 'textarea', label: 'Quote from Spokesperson', placeholder: 'e.g., "This partnership marks a new era for..."' }
+            { id: 'quotes', type: 'textarea', label: 'Quote from Spokesperson', placeholder: 'e.g., "This partnership marks a new era for..."' },
+            {
+                id: 'executivePhoto',
+                type: 'file',
+                label: 'Executive Photo',
+                placeholder: 'Upload a professional headshot of the new executive',
+                accept: 'image/*',
+                conditionalOn: { field: 'newsType', value: 'New Executive Hire' },
+                required: true
+            },
+            {
+                id: 'executiveName',
+                type: 'text',
+                label: 'Executive Name & Title',
+                placeholder: 'e.g., John Doe, Chief Technology Officer',
+                conditionalOn: { field: 'newsType', value: 'New Executive Hire' }
+            }
         ],
         advancedControls: [
             { id: 'mediaStyle', type: 'select', label: 'Press Style', icon: 'fa-newspaper', options: ['Reuters Standard (Objective)', 'Start-Up Hype', 'Corporate Formal', 'Aggressive Market Move', 'Educational / Informative'] },
@@ -4180,6 +4197,11 @@ function generateCreativeControls(controls) {
     return controls.map(ctrl => {
         let inputHTML = '';
 
+        // Conditional visibility attributes
+        const conditionalAttr = ctrl.conditionalOn
+            ? `data-conditional-field="${ctrl.conditionalOn.field}" data-conditional-value="${ctrl.conditionalOn.value}" style="display:none;"`
+            : '';
+
         switch (ctrl.type) {
             case 'text':
                 inputHTML = `<input type="text" id="${ctrl.id}" placeholder="${ctrl.placeholder || ''}" 
@@ -4191,10 +4213,41 @@ function generateCreativeControls(controls) {
                 break;
             case 'select':
                 const options = ctrl.options.map(opt => `<option value="${opt}">${opt}</option>`).join('');
-                inputHTML = `<select id="${ctrl.id}" 
+                const onChangeAttr = ctrl.onChange ? `onchange="${ctrl.onChange}(this)"` : '';
+                inputHTML = `<select id="${ctrl.id}" ${onChangeAttr}
                     class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-indigo-500">
                     ${options}
                 </select>`;
+                break;
+            case 'file':
+                const acceptAttr = ctrl.accept ? `accept="${ctrl.accept}"` : '';
+                const requiredText = ctrl.required ? '<span class="text-red-400 ml-1">*</span>' : '';
+                inputHTML = `
+                    <div class="flex flex-col gap-2">
+                        <div class="relative">
+                            <input type="file" id="${ctrl.id}" ${acceptAttr}
+                                class="hidden" onchange="handleCreativeFileUpload(this, '${ctrl.id}')">
+                            <label for="${ctrl.id}" 
+                                class="flex items-center justify-center gap-2 w-full px-4 py-3 bg-slate-800 border-2 border-dashed border-slate-600 rounded-lg cursor-pointer hover:border-indigo-500 hover:bg-slate-700/50 transition-all">
+                                <i class="fas fa-cloud-upload-alt text-indigo-400"></i>
+                                <span class="text-sm text-slate-300">${ctrl.placeholder || 'Upload file'}</span>
+                            </label>
+                        </div>
+                        <div id="${ctrl.id}-preview" class="hidden">
+                            <img src="" alt="Preview" class="w-24 h-24 object-cover rounded-lg border border-slate-600">
+                            <span id="${ctrl.id}-filename" class="text-xs text-slate-400 ml-2"></span>
+                        </div>
+                    </div>`;
+                // Add required star to label
+                if (ctrl.required) {
+                    const labelIcon = ctrl.icon ? `<i class="fas ${ctrl.icon} text-indigo-400 mr-2"></i>` : '';
+                    return `
+                        <div class="space-y-1 conditional-control" ${conditionalAttr}>
+                            <label class="block text-xs text-slate-400 font-medium">${labelIcon}${ctrl.label}${requiredText}</label>
+                            ${inputHTML}
+                        </div>
+                    `;
+                }
                 break;
             case 'checkbox':
                 const checkboxIcon = ctrl.icon ? `<i class="fas ${ctrl.icon} text-indigo-400 mr-2"></i>` : '';
@@ -4202,7 +4255,7 @@ function generateCreativeControls(controls) {
                     <input type="checkbox" id="${ctrl.id}" class="w-4 h-4 rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500">
                     <span class="text-sm text-slate-300">${checkboxIcon}${ctrl.label}</span>
                 </label>`;
-                return `<div class="space-y-1">${inputHTML}</div>`;
+                return `<div class="space-y-1 conditional-control" ${conditionalAttr}>${inputHTML}</div>`;
             case 'visual-pick':
                 const gridOptions = ctrl.options.map((opt, idx) => `
                     <div class="visual-option group relative bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 cursor-pointer transition-all hover:bg-slate-700/50 hover:border-indigo-500/50 ${idx === 0 ? 'selected ring-2 ring-indigo-500 bg-indigo-500/10' : ''}" 
@@ -4230,7 +4283,7 @@ function generateCreativeControls(controls) {
         const labelIcon = ctrl.icon ? `<i class="fas ${ctrl.icon} text-indigo-400 mr-2"></i>` : '';
 
         return `
-            <div class="space-y-1">
+            <div class="space-y-1 conditional-control" ${conditionalAttr}>
                 <label class="block text-xs text-slate-400 font-medium">${labelIcon}${ctrl.label}</label>
                 ${inputHTML}
             </div>
@@ -4516,6 +4569,12 @@ async function generateCreativeItem() {
     const topic = inputs.topic || config.name;
     const activeSources = sources.filter(s => s.isActive !== false);
     const contextText = activeSources.map(s => `${s.title}: ${s.content ? s.content.substring(0, 2000) : 'No content'}`).join('\n\n');
+
+    // Add uploaded executive photo URL if available
+    if (uploadedExecutivePhotoUrl && inputs.newsType === 'New Executive Hire') {
+        inputs.executivePhotoUrl = uploadedExecutivePhotoUrl;
+        console.log('[Creative] Including executive photo URL:', uploadedExecutivePhotoUrl);
+    }
 
     // 2. Initialize Firestore Record (Auto-save)
     showNotification('Starting creation workspace...', 'info');
@@ -6354,6 +6413,72 @@ function selectVisualOption(el, inputId) {
     if (input) {
         input.value = el.dataset.value;
         console.log(`[UI] Visual Style selected: ${input.value}`);
+    }
+}
+
+/**
+ * Handle News Type Change - Show/Hide conditional fields
+ */
+function handleNewsTypeChange(selectElement) {
+    const selectedValue = selectElement.value;
+    console.log(`[PR] News type changed to: ${selectedValue}`);
+
+    // Find all conditional controls
+    const controls = document.querySelectorAll('.conditional-control[data-conditional-field]');
+    controls.forEach(control => {
+        const requiredField = control.dataset.conditionalField;
+        const requiredValue = control.dataset.conditionalValue;
+
+        if (requiredField === 'newsType') {
+            if (selectedValue === requiredValue) {
+                control.style.display = '';
+                control.classList.add('animate-fade-in');
+            } else {
+                control.style.display = 'none';
+            }
+        }
+    });
+}
+
+/**
+ * Handle file upload for Creative Studio controls
+ */
+let uploadedExecutivePhotoUrl = null;
+
+async function handleCreativeFileUpload(inputElement, fieldId) {
+    const file = inputElement.files[0];
+    if (!file) return;
+
+    const previewContainer = document.getElementById(`${fieldId}-preview`);
+    const filenameSpan = document.getElementById(`${fieldId}-filename`);
+
+    // Show local preview immediately
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        previewContainer.classList.remove('hidden');
+        previewContainer.querySelector('img').src = e.target.result;
+        filenameSpan.textContent = file.name;
+    };
+    reader.readAsDataURL(file);
+
+    // Upload to Firebase Storage
+    try {
+        showNotification('Uploading photo...', 'info');
+        const storageRef = firebase.storage().ref();
+        const timestamp = Date.now();
+        const ext = file.name.split('.').pop();
+        const filePath = `creative-uploads/${currentProjectId || 'temp'}/${fieldId}_${timestamp}.${ext}`;
+        const uploadRef = storageRef.child(filePath);
+
+        await uploadRef.put(file);
+        uploadedExecutivePhotoUrl = await uploadRef.getDownloadURL();
+
+        console.log(`[PR] Executive photo uploaded: ${uploadedExecutivePhotoUrl}`);
+        showNotification('Photo uploaded successfully!', 'success');
+    } catch (error) {
+        console.error('[PR] Photo upload failed:', error);
+        showNotification('Photo upload failed: ' + error.message, 'error');
+        uploadedExecutivePhotoUrl = null;
     }
 }
 

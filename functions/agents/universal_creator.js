@@ -6,7 +6,13 @@ const { generateWithVertexAI } = require('../utils/vertexAI');
  * Supported Types: 'pitch_deck', 'product_brochure', 'one_pager'
  */
 async function createCreativeContent(inputs, context, plan, executeLLM, type, advancedOptions = {}) {
-    const { topic, style = 'Modern', audience, slideCount = 5, newsType, visualSubject } = inputs;
+    const { topic, style = 'Modern', audience, slideCount = 5, newsType, visualSubject, executivePhotoUrl, executiveName } = inputs;
+
+    // Check if we have a user-uploaded executive photo
+    const hasExecutivePhoto = executivePhotoUrl && newsType === 'New Executive Hire';
+    if (hasExecutivePhoto) {
+        console.log(`[UniversalCreator] 📸 Using user-uploaded executive photo: ${executivePhotoUrl}`);
+    }
 
     // Extract advanced customization options
     const {
@@ -192,6 +198,13 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
     const fallbackDim = getFallbackDim(targetRatio);
 
     await Promise.all(visualPlan.visuals.map(async (visual) => {
+        // Use uploaded executive photo for PR_HERO if available
+        if (hasExecutivePhoto && (visual.id === 'PR_HERO' || visual.id === 'PR_HERO_0')) {
+            console.log(`[UniversalCreator] 📸 Using uploaded executive photo for ${visual.id}`);
+            assetMap[visual.id] = executivePhotoUrl;
+            return;
+        }
+
         try {
             const prompt = `${visual.prompt}, ${style} style, professional, 4k, clean, high resolution`;
             const imageUrl = await generateWithVertexAI(prompt, 'imagen-4.0-generate-001', {
