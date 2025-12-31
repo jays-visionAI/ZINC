@@ -35,6 +35,28 @@ This document outlines the transition from a monolithic content generation funct
 *   **Action:** Create `functions/agents/pitchDeckAgent.js`.
 *   **Role:** Separate the Pitch Deck logic from the generic `generateCreativeContent` function.
 
+## Proposed Changes
+
+### [Backend]
+
+#### [MODIFY] [universal_creator.js](file:///Users/sangjaeseo/Antigravity/ZINC/functions/agents/universal_creator.js)
+- **Extreme Minimization for Press Releases**:
+    - **Persona Shift**: Change the system persona for PRs from "Designer" to "Pure News Wire Editor".
+    - **UI Elimination**: Explicitly forbid any website components: no hero sections, no navigation, no buttons, no glassmorphism, no marketing "slides".
+    - **Document Styling**: Use a plain, single-column layout with 1-inch equivalent margins. Black text on white background. Standard serif typography (`EB Garamond` or `Times New Roman`).
+    - **Linear Flow**: News title followed immediately by dateline and body text. No "sections".
+    - **Embedded Imagery**: Change image placement from "gallery" or "sections" to "embedded within text flow" (e.g., one impact image below the headline, one in the middle of the body).
+- **Design Archetype Variety (Non-PR)**:
+    - Retain the variety system for Pitch Decks and Brochures to ensure they don't all look the same, but keep them strictly separated from the PR logic.
+
+### [Frontend]
+- No major frontend changes needed, but ensure the Cloud Function call passes the `newsType` correctly to influence the editor persona.
+
+## Verification Plan
+1. **Visual Check**: Generate a PR and confirm it looks like a Google Doc or Word document.
+2. **Layout Check**: No "Explore Feature" buttons or icons should be present.
+3. **Hierarchy Check**: Headline -> Subheadline -> Dateline -> Body -> Boilerplate.
+
 ### 2.2 Infographic Prompting Engine
 *   **Concept:** Context-Aware Visual Generation.
 *   **Flow:**
