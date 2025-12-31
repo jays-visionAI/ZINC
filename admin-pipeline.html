@@ -185,6 +185,160 @@
                         placeholder="Deep A4 reporting instructions..."></textarea>
                 </div>
             </div>
+
+            <!-- NEW: Contents Generation Agents -->
+            <div class="admin-section-divider mt-12 mb-8"></div>
+            <h3 class="mb-6" style="color: var(--color-cyan); font-size: 1.1rem;">Contents Generation Pipeline</h3>
+
+            <!-- Agent C: Insight Analyst -->
+            <div class="agent-setting-group">
+                <div class="flex-between mb-4">
+                    <h4>Agent C: Insight Analyst (Insights)</h4>
+                    <span class="status-badge success">Active</span>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Reasoning Model</label>
+                        <select id="agent-insights-model" class="admin-input">
+                            <option value="deepseek-reasoner">DeepSeek R1 (Reasoning)</option>
+                            <option value="o1-preview">OpenAI o1-preview</option>
+                            <option value="gpt-4o">GPT-4o (High Quality)</option>
+                            <option value="deepseek-chat">DeepSeek V3 (Economical)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Temperature</label>
+                        <input type="range" id="agent-insights-temp" min="0" max="1" step="0.1" value="0.3">
+                        <span id="label-insights-temp">0.3</span>
+                    </div>
+                </div>
+                <div class="form-group mt-4">
+                    <label>Insights Analysis Prompt</label>
+                    <textarea id="agent-insights-prompt" class="admin-input prompt-textarea tiny"
+                        placeholder="Focus on pattern recognition and competitive advantage..."></textarea>
+                </div>
+            </div>
+
+            <div class="admin-section-divider mt-8 mb-8"></div>
+
+            <!-- Agent D: Strategic Planner -->
+            <div class="agent-setting-group">
+                <div class="flex-between mb-4">
+                    <h4>Agent D: Strategic Planner (Strategy)</h4>
+                    <span class="status-badge success">Active</span>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Planning Model</label>
+                        <select id="agent-strategy-model" class="admin-input">
+                            <option value="gpt-4o">GPT-4o (High Quality)</option>
+                            <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
+                            <option value="deepseek-chat">DeepSeek V3 (Economical)</option>
+                            <option value="gpt-4o-mini">GPT-4o Mini (Fast)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Temperature</label>
+                        <input type="range" id="agent-strategy-temp" min="0" max="1" step="0.1" value="0.6">
+                        <span id="label-strategy-temp">0.6</span>
+                    </div>
+                </div>
+                <div class="form-group mt-4">
+                    <label>Strategy Planning Prompt</label>
+                    <textarea id="agent-strategy-prompt" class="admin-input prompt-textarea tiny"
+                        placeholder="Focus on goal setting and channel optimization..."></textarea>
+                </div>
+            </div>
+
+            <div class="admin-section-divider mt-8 mb-8"></div>
+
+            <!-- Agent E: Creative Copywriter -->
+            <div class="agent-setting-group">
+                <div class="flex-between mb-4">
+                    <h4>Agent E: Creative Copywriter (Quick)</h4>
+                    <span class="status-badge success">Active</span>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Creative Model</label>
+                        <select id="agent-quick-model" class="admin-input">
+                            <option value="gpt-4o-mini">GPT-4o Mini (Fast/Creative)</option>
+                            <option value="gpt-4o">GPT-4o (High Quality)</option>
+                            <option value="deepseek-chat">DeepSeek V3 (Economical)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Temperature</label>
+                        <input type="range" id="agent-quick-temp" min="0" max="1" step="0.1" value="0.9">
+                        <span id="label-quick-temp">0.9</span>
+                    </div>
+                </div>
+                <div class="form-group mt-4">
+                    <label>Creative Copy Prompt</label>
+                    <textarea id="agent-quick-prompt" class="admin-input prompt-textarea tiny"
+                        placeholder="Focus on trendy, engaging, and generation-specific copy..."></textarea>
+                </div>
+            </div>
+
+            <div class="admin-section-divider mt-8 mb-8"></div>
+
+            <!-- Agent F: Document Designer -->
+            <div class="agent-setting-group">
+                <div class="flex-between mb-4">
+                    <h4>Agent F: Document Designer (Studio Docs)</h4>
+                    <span class="status-badge success">Active</span>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Precision Model</label>
+                        <select id="agent-studio-docs-model" class="admin-input">
+                            <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
+                            <option value="gpt-4o">GPT-4o (High Quality)</option>
+                            <option value="deepseek-chat">DeepSeek V3 (Economical)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Temperature</label>
+                        <input type="range" id="agent-studio-docs-temp" min="0" max="1" step="0.1" value="0.4">
+                        <span id="label-studio-docs-temp">0.4</span>
+                    </div>
+                </div>
+                <div class="form-group mt-4">
+                    <label>Document Layout & Tone Prompt</label>
+                    <textarea id="agent-studio-docs-prompt" class="admin-input prompt-textarea tiny"
+                        placeholder="Focus on professional document structure and formal tone..."></textarea>
+                </div>
+            </div>
+
+            <div class="admin-section-divider mt-8 mb-8"></div>
+
+            <!-- Agent G: Visual Director -->
+            <div class="agent-setting-group">
+                <div class="flex-between mb-4">
+                    <h4>Agent G: Visual Director (Studio Visual)</h4>
+                    <span class="status-badge success">Active</span>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Visual Prompting Model</label>
+                        <select id="agent-studio-visual-model" class="admin-input">
+                            <option value="gpt-4o-mini">GPT-4o Mini (Efficient Prompting)</option>
+                            <option value="gpt-4o">GPT-4o (High Logic)</option>
+                            <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Temperature</label>
+                        <input type="range" id="agent-studio-visual-temp" min="0" max="1" step="0.1" value="0.7">
+                        <span id="label-studio-visual-temp">0.7</span>
+                    </div>
+                </div>
+                <div class="form-group mt-4">
+                    <label>Image Prompt Engineering Guide</label>
+                    <textarea id="agent-studio-visual-prompt" class="admin-input prompt-textarea tiny"
+                        placeholder="Focus on generating high-fidelity AI image prompts..."></textarea>
+                </div>
+            </div>
             <div class="admin-actions mt-8">
                 <button id="save-knowledge-settings" class="admin-btn-primary">Save Knowledge Hub Settings</button>
             </div>

@@ -32,6 +32,11 @@ async function initPipeline(currentUser, initialTab = 'market') {
         { id: 'agent-planner-temp', label: 'label-planner-temp' },
         { id: 'agent-standard-temp', label: 'label-standard-temp' },
         { id: 'agent-depth-temp', label: 'label-depth-temp' },
+        { id: 'agent-insights-temp', label: 'label-insights-temp' },
+        { id: 'agent-strategy-temp', label: 'label-strategy-temp' },
+        { id: 'agent-quick-temp', label: 'label-quick-temp' },
+        { id: 'agent-studio-docs-temp', label: 'label-studio-docs-temp' },
+        { id: 'agent-studio-visual-temp', label: 'label-studio-visual-temp' },
         { id: 'agent-creator-temp', label: 'label-creator-temp' },
         { id: 'agent-text-temp', label: 'label-text-temp' },
         { id: 'agent-manager-temp', label: 'label-manager-temp' }
@@ -120,6 +125,36 @@ async function loadAllSettings() {
                 document.getElementById('agent-depth-temp').value = data.depth.temperature || 0.3;
                 document.getElementById('label-depth-temp').textContent = data.depth.temperature || 0.3;
                 document.getElementById('agent-depth-prompt').value = data.depth.systemPrompt || '';
+            }
+            if (data.insights) {
+                document.getElementById('agent-insights-model').value = data.insights.model || 'deepseek-reasoner';
+                document.getElementById('agent-insights-temp').value = data.insights.temperature || 0.3;
+                document.getElementById('label-insights-temp').textContent = data.insights.temperature || 0.3;
+                document.getElementById('agent-insights-prompt').value = data.insights.systemPrompt || '';
+            }
+            if (data.strategy) {
+                document.getElementById('agent-strategy-model').value = data.strategy.model || 'gpt-4o';
+                document.getElementById('agent-strategy-temp').value = data.strategy.temperature || 0.6;
+                document.getElementById('label-strategy-temp').textContent = data.strategy.temperature || 0.6;
+                document.getElementById('agent-strategy-prompt').value = data.strategy.systemPrompt || '';
+            }
+            if (data.quick) {
+                document.getElementById('agent-quick-model').value = data.quick.model || 'gpt-4o-mini';
+                document.getElementById('agent-quick-temp').value = data.quick.temperature || 0.9;
+                document.getElementById('label-quick-temp').textContent = data.quick.temperature || 0.9;
+                document.getElementById('agent-quick-prompt').value = data.quick.systemPrompt || '';
+            }
+            if (data.studio_docs) {
+                document.getElementById('agent-studio-docs-model').value = data.studio_docs.model || 'claude-3-5-sonnet-20241022';
+                document.getElementById('agent-studio-docs-temp').value = data.studio_docs.temperature || 0.4;
+                document.getElementById('label-studio-docs-temp').textContent = data.studio_docs.temperature || 0.4;
+                document.getElementById('agent-studio-docs-prompt').value = data.studio_docs.systemPrompt || '';
+            }
+            if (data.studio_visual) {
+                document.getElementById('agent-studio-visual-model').value = data.studio_visual.model || 'gpt-4o-mini';
+                document.getElementById('agent-studio-visual-temp').value = data.studio_visual.temperature || 0.7;
+                document.getElementById('label-studio-visual-temp').textContent = data.studio_visual.temperature || 0.7;
+                document.getElementById('agent-studio-visual-prompt').value = data.studio_visual.systemPrompt || '';
             }
         }
     } catch (e) { console.error('Error loading knowledge hub:', e); }
@@ -218,6 +253,36 @@ function setupSaveListeners() {
                     model: document.getElementById('agent-depth-model').value,
                     temperature: parseFloat(document.getElementById('agent-depth-temp').value),
                     systemPrompt: document.getElementById('agent-depth-prompt').value,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                },
+                insights: {
+                    model: document.getElementById('agent-insights-model').value,
+                    temperature: parseFloat(document.getElementById('agent-insights-temp').value),
+                    systemPrompt: document.getElementById('agent-insights-prompt').value,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                },
+                strategy: {
+                    model: document.getElementById('agent-strategy-model').value,
+                    temperature: parseFloat(document.getElementById('agent-strategy-temp').value),
+                    systemPrompt: document.getElementById('agent-strategy-prompt').value,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                },
+                quick: {
+                    model: document.getElementById('agent-quick-model').value,
+                    temperature: parseFloat(document.getElementById('agent-quick-temp').value),
+                    systemPrompt: document.getElementById('agent-quick-prompt').value,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                },
+                studio_docs: {
+                    model: document.getElementById('agent-studio-docs-model').value,
+                    temperature: parseFloat(document.getElementById('agent-studio-docs-temp').value),
+                    systemPrompt: document.getElementById('agent-studio-docs-prompt').value,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                },
+                studio_visual: {
+                    model: document.getElementById('agent-studio-visual-model').value,
+                    temperature: parseFloat(document.getElementById('agent-studio-visual-temp').value),
+                    systemPrompt: document.getElementById('agent-studio-visual-prompt').value,
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 }
             };
