@@ -264,17 +264,21 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
             systemRules: "Style: High-whitespace, thin lines, minimalist. Features: Greyscale, no gradients, very simple borders. Background: bg-stone-50."
         },
         'journalistic': {
-            name: 'Journalistic (Press Release)',
+            name: 'Journalistic (Minimalist Word Doc)',
             style: `
-                body { font-family: 'EB Garamond', serif; background-color: #fff; color: #111827; }
-                .pr-container { max-width: 820px; margin: 0 auto; padding: 80px 50px; }
-                .dateline { font-weight: 800; text-transform: uppercase; margin-right: 6px; font-family: 'Inter', sans-serif; font-size: 0.85rem; }
-                .quote-box { border-left: 3px solid #111827; padding-left: 24px; font-style: italic; margin: 40px 0; color: #374151; font-size: 1.25rem; }
-                .boilerplate { background: #f8fafc; padding: 30px; border: 1px solid #e2e8f0; margin-top: 50px; }
-                h1, h2, .label-font { font-family: 'Inter', sans-serif; letter-spacing: -0.02em; }
-                p { margin-bottom: 1.6rem; line-height: 1.85; font-size: 1.18rem; }
+                body { font-family: 'EB Garamond', serif; background-color: #fff; color: #000; }
+                .document-body { max-width: 800px; margin: 0 auto; padding: 60px 40px; text-align: justify; }
+                .meta-header { font-family: 'Inter', sans-serif; font-weight: 800; text-transform: uppercase; margin-bottom: 40px; font-size: 0.9rem; letter-spacing: 0.05em; }
+                .headline { font-family: 'Inter', sans-serif; font-weight: 900; font-size: 2.25rem; line-height: 1.2; margin-bottom: 20px; color: #000; }
+                .subheadline { font-family: 'Inter', sans-serif; font-weight: 500; font-size: 1.25rem; line-height: 1.4; margin-bottom: 40px; color: #444; }
+                .dateline { font-weight: 900; text-transform: uppercase; margin-right: 10px; font-family: 'Inter', sans-serif; }
+                .boilerplate { border-top: 1px solid #eee; margin-top: 60px; padding-top: 40px; font-size: 1.05rem; }
+                .quote { border-left: 2px solid #000; padding: 10px 0 10px 30px; margin: 40px 0; font-style: italic; font-size: 1.25rem; color: #222; }
+                p { margin-bottom: 1.5rem; line-height: 1.8; font-size: 1.2rem; }
+                img { width: 100%; border-radius: 4px; margin: 40px 0; }
+                .end-mark { text-align: center; margin-top: 60px; font-weight: 900; font-size: 1.5rem; }
             `,
-            systemRules: "Style: Traditional newspaper/media announcement. Features: Strictly WHITE background, Serif fonts. Vertical text flow. NO sections, NO slides, NO landing-page buttons."
+            systemRules: "Style: Minimalist Word-processor document. Features: NO website elements. NO buttons. NO hero sections. Standard linear text flow."
         }
     };
 
@@ -283,12 +287,10 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
     if (type === 'press_release') {
         selectedArchetype = archetypes['journalistic'];
     } else {
-        // Pick a diverse archetype for other types
         const options = ['visionary', 'executive', 'disruptor', 'minimalist'];
         const randomKey = options[Math.floor(Math.random() * options.length)];
         selectedArchetype = archetypes[randomKey];
     }
-    console.log(`[UniversalCreator] 🎨 Applied Archetype: ${selectedArchetype.name}`);
 
     // --- PROMPT BRANCHING ---
     let finalSystemPrompt;
@@ -296,24 +298,26 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
 
     if (type === 'press_release') {
         finalSystemPrompt = `
-    You are a TOP-TIER PRESS RELEASE WRITER (PR Strategist).
-    Your goal is to create a professional MEDIA ANNOUNCEMENT that looks like a formal document, NOT a website.
+    You are a SENIOR NEWS EDITOR at a major global news agency.
+    Your task is to write a PROFESSIONAL PRESS RELEASE in a minimalist, WORD-PROCESSOR format.
     
-    === MANDATORY JOURNALISTIC RULES ===
-    1. THEME: Strictly White background. NO gradients. NO dark mode.
-    2. TYPOGRAPHY: Serif body font (EB Garamond) for the article.
-    3. NO LANDING PAGE ELEMENTS: Do not use hero sections, call-to-action buttons, icons, or floating blobs.
-    4. STRUCTURE:
-       - Top Left: "FOR IMMEDIATE RELEASE" (Bold)
-       - Header: Balanced headline & sub-headline.
-       - Dateline: [CITY, State] — [Current Date] — (Article starts here).
-       - Context: 5-7 paragraphs of high-quality journalistic prose.
-       - Quote: One prominent quote block.
-       - Boilerplate: "About [Company]" section.
-       - Media Contact: Practical contact info at bottom.
-       - End Mark: Center "###" at the very end.
+    === CRITICAL: NOT A WEBSITE ===
+    - DO NOT use Tailwind layout classes like 'flex', 'grid', 'justify-center', 'items-center' for the overall structure.
+    - DO NOT use 'hero sections', 'cards', or 'bento grids'.
+    - DO NOT use modern UI buttons, icons, or navigation menus.
+    - THE RESULT MUST LOOK LIKE A PRINTED DOCUMENT or a PAGE IN MS WORD.
     
-    === MANDATORY HEAD ===
+    === STRUCTURE ===
+    1. TOP: "FOR IMMEDIATE RELEASE" in the top-left, all caps, bold.
+    2. TITLE: Massive, bold headline followed by a descriptive sub-headline.
+    3. DATELINE: [CITY, State] — [Current Date] — (The article text MUST start immediately after the second dash on the same line).
+    4. CONTENT: 5-8 paragraphs of serious, journalistic prose. No bullet points unless absolutely necessary for data.
+    5. IMAGES: Embed {{PR_HERO}} after the sub-headline and {{PR_DETAIL_1}} naturally in the middle of the body text. Use standard <img> tags.
+    6. BOILERPLATE: A clean "About [Company]" section at the end.
+    7. CONTACT: Media contact information.
+    8. END: Centered "###" mark.
+    
+    === HEAD ===
     \`\`\`
     <!DOCTYPE html>
     <html lang="en">
@@ -327,20 +331,19 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
     `;
 
         finalTaskPrompt = `
-    ${strategy.htmlTask} (REFINED: Output as a linear article, not a sectional landing page).
-
-    PROJECT: ${topic}
-    CATEGORY: ${newsType}
-    CONTEXT:
+    Generate the Press Release document for: ${topic}
+    News Category: ${newsType}
+    Context:
     """
-    ${context || 'Professional news.'}
+    ${context || 'Professional media announcement.'}
     """
 
-    === PR REQUIREMENTS ===
-    - Dateline: Start the first paragraph with "[LOCATION] — [DATE] — ".
-    - Visuals: Use {{PR_HERO}}, {{PR_DETAIL_1}} as standard <img> tags with figure captions.
-    - Boilerplate: Generate a professional "About" section based on the context.
-    - End Mark: Center "###" at the end.
+    === OUTPUT RULES ===
+    - Wrap everything in a <div class="document-body">.
+    - Start with <div class="meta-header">FOR IMMEDIATE RELEASE</div>.
+    - Follow with <h1 class="headline"> and <h2 class="subheadline">.
+    - Do NOT use slide-based layouts. 
+    - The output should be ONE SINGLE CONTINUOUS DOCUMENT.
     
     Return ONLY pure HTML starting with <!DOCTYPE html>.
     `;
