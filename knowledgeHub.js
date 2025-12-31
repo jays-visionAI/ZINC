@@ -3781,6 +3781,7 @@ function generateCreativeControls(controls) {
 async function downloadCreativeAsPDF() {
     const resultContainer = document.getElementById('creative-result-container');
     const iframe = resultContainer.querySelector('iframe');
+    if (!iframe) return;
 
     // Load html2pdf if not present
     if (typeof html2pdf === 'undefined') {
@@ -3796,35 +3797,52 @@ async function downloadCreativeAsPDF() {
     showNotification('Preparing PDF...', 'info');
 
     try {
-        let elementToPdf;
         const config = CREATIVE_CONFIGS[currentCreativeType] || { name: 'ZINC_Creative' };
         const filename = `${config.name.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
 
-        if (iframe) {
-            // For iframe content: clone the body content into a temp div in the main doc
-            // This ensures styles and layout are captured correctly by html2pdf
-            const tempDiv = document.createElement('div');
-            tempDiv.style.position = 'absolute';
-            tempDiv.style.left = '-9999px';
-            tempDiv.style.width = '800px'; // Standard A4-ish width
-            tempDiv.innerHTML = iframe.contentDocument.body.innerHTML;
-            document.body.appendChild(tempDiv);
-            elementToPdf = tempDiv;
+        // CLONE the entire document to ensure styles are preserved
+        const tempContainer = document.createElement('div');
+        tempContainer.style.position = 'fixed';
+        tempContainer.style.left = '-10000px';
+        tempContainer.style.top = '0';
 
-            // Wait a bit for any images or layouts to settle
-            await new Promise(r => setTimeout(r, 500));
-        } else {
-            elementToPdf = resultContainer.querySelector('.prose') || resultContainer;
+        // Determine capture width based on orientation and type
+        let captureWidth = 1123; // Default A4 Landscape width in pixels at 96dpi
+        if (currentCreativeType !== 'pitch_deck') {
+            captureWidth = 794; // A4 Portrait
         }
 
+        tempContainer.style.width = captureWidth + 'px';
+
+        // Deep clone iframe content
+        const contentClone = iframe.contentDocument.documentElement.cloneNode(true);
+
+        // Create an internal iframe for the export to ensure exact CSS isolation
+        const exportIframe = document.createElement('iframe');
+        exportIframe.style.width = captureWidth + 'px';
+        exportIframe.style.height = 'auto';
+        exportIframe.style.visibility = 'hidden';
+
+        tempContainer.appendChild(exportIframe);
+        document.body.appendChild(tempContainer);
+
+        exportIframe.contentDocument.open();
+        exportIframe.contentDocument.write(contentClone.outerHTML);
+        exportIframe.contentDocument.close();
+
+        // Wait for styles and fonts to load in the clone
+        await new Promise(r => setTimeout(r, 1000));
+
         const opt = {
-            margin: [10, 10],
+            margin: [0, 0], // Edge to edge for premium look
             filename: filename,
-            image: { type: 'jpeg', quality: 0.98 },
+            image: { type: 'jpeg', quality: 1.0 },
             html2canvas: {
                 scale: 2,
                 useCORS: true,
-                logging: false
+                letterRendering: true,
+                width: captureWidth,
+                windowWidth: captureWidth
             },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
@@ -3833,13 +3851,10 @@ async function downloadCreativeAsPDF() {
             opt.jsPDF.orientation = 'landscape';
         }
 
-        await html2pdf().set(opt).from(elementToPdf).save();
+        // Target the iframe body
+        await html2pdf().set(opt).from(exportIframe.contentDocument.body).save();
 
-        // Cleanup temp div
-        if (iframe && elementToPdf && elementToPdf.parentNode) {
-            elementToPdf.parentNode.removeChild(elementToPdf);
-        }
-
+        document.body.removeChild(tempContainer);
         showNotification('PDF Downloaded!', 'success');
     } catch (error) {
         console.error('PDF Error:', error);
@@ -4082,7 +4097,10 @@ async function viewCreativeProject(docId) {
 
     const iframe = document.createElement('iframe');
     iframe.id = 'creative-result-iframe';
-    iframe.className = 'w-full h-[650px] border-none rounded-lg bg-white shadow-2xl';
+    iframe.style.width = '100%';
+    iframe.style.height = '1000px'; // Default height, will be auto-adjusted or scrollable
+    iframe.style.border = 'none';
+    iframe.style.display = 'block';
 
     const fullHTML = `
         <!DOCTYPE html>
@@ -4091,7 +4109,12 @@ async function viewCreativeProject(docId) {
             <script src="https://cdn.tailwindcss.com"></script>
             <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
             <style>
-                body { margin: 0; padding: 0; overflow-x: hidden; scroll-behavior: smooth; }
+                body { margin: 0; padding: 0; background: transparent; overflow-x: hidden; }
+                /* Custom scrollbar for iframe content */
+                ::-webkit-scrollbar { width: 4px; }
+                ::-webkit-scrollbar-track { background: transparent; }
+                ::-webkit-scrollbar-thumb { background: rgba(99, 102, 241, 0.3); border-radius: 10px; }
+
                 .refine-btn { position: absolute; z-index: 50; display: none; }
                 section:hover .refine-btn { display: flex; }
                 .img-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; color: white; cursor: pointer; border-radius: inherit; }
@@ -4111,6 +4134,18 @@ async function viewCreativeProject(docId) {
 
     // Setup action bar (Edit, PDF etc)
     injectActionButtonsToHeader();
+
+    // APPLY VIEWPORT & RULER
+    setTimeout(() => {
+        if (proj.type === 'pitch_deck') {
+            setCreativeViewport('a4-l');
+        } else if (proj.type === 'one_pager') {
+            setCreativeViewport('a4-p');
+        } else {
+            setCreativeViewport(currentViewportType || 'responsive');
+        }
+        updateRulers();
+    }, 100);
 
     iframe.onload = () => {
         setupDetailedEditing(iframe, docId);
@@ -7255,3 +7290,125 @@ function openKnowledgeScoreModal() {
         modal.classList.add('flex');
     }
 }
+
+/**
+ * Viewport & Workspace Controls
+ */
+let currentViewportType = 'responsive';
+
+window.setCreativeViewport = function (type) {
+    const container = document.getElementById('creative-result-container');
+    const sizeIndicator = document.getElementById('current-viewport-size');
+    const btns = document.querySelectorAll('.viewport-btn');
+
+    currentViewportType = type;
+
+    // UI Update
+    btns.forEach(b => {
+        b.classList.remove('bg-indigo-500', 'text-white');
+        b.classList.add('text-slate-400');
+    });
+    const activeBtn = Array.from(btns).find(b => b.title.toLowerCase().includes(type.split('-')[0]));
+    if (activeBtn) {
+        activeBtn.classList.add('bg-indigo-500', 'text-white');
+        activeBtn.classList.remove('text-slate-400');
+    }
+
+    // Dimension Update
+    container.style.transition = 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+
+    switch (type) {
+        case 'responsive':
+            container.style.width = '100%';
+            container.style.height = 'auto';
+            container.style.minHeight = '800px';
+            sizeIndicator.textContent = 'Responsive';
+            break;
+        case 'desktop':
+            container.style.width = '1280px';
+            container.style.height = 'auto';
+            container.style.minHeight = '100vh';
+            sizeIndicator.textContent = '1280 × Auto';
+            break;
+        case 'mobile':
+            container.style.width = '375px';
+            container.style.height = '667px';
+            sizeIndicator.textContent = '375 × 667 (iPhone)';
+            break;
+        case 'a4-p':
+            container.style.width = '794px'; // 210mm at 96dpi
+            container.style.height = '1123px'; // 297mm at 96dpi
+            sizeIndicator.textContent = 'A4 Portrait (210mm)';
+            break;
+        case 'a4-l':
+            container.style.width = '1123px';
+            container.style.height = '794px';
+            sizeIndicator.textContent = 'A4 Landscape (297mm)';
+            break;
+    }
+
+    // Scroll to top of preview
+    document.getElementById('creative-canvas-container').scrollTop = 0;
+
+    setTimeout(updateRulers, 500);
+};
+
+window.updateRulers = function () {
+    const topRuler = document.getElementById('creative-ruler-top');
+    const leftRuler = document.getElementById('creative-ruler-left');
+    if (!topRuler || !leftRuler) return;
+
+    topRuler.innerHTML = '';
+    leftRuler.innerHTML = '';
+
+    // Top Ruler (Width)
+    const maxWidth = 3000;
+    for (let i = 0; i < maxWidth; i += 10) {
+        const tick = document.createElement('div');
+        tick.style.position = 'absolute';
+        tick.style.left = i + 'px';
+
+        if (i % 100 === 0) {
+            tick.className = 'h-full border-l border-slate-600';
+            const label = document.createElement('span');
+            label.className = 'text-[8px] text-slate-500 absolute left-1 top-0.5';
+            label.textContent = i;
+            tick.appendChild(label);
+        } else if (i % 50 === 0) {
+            tick.className = 'h-3/4 border-l border-slate-700 self-end';
+        } else {
+            tick.className = 'h-1/4 border-l border-slate-800 self-end';
+        }
+        topRuler.appendChild(tick);
+    }
+
+    // Left Ruler (Height)
+    const maxHeight = 5000;
+    for (let i = 0; i < maxHeight; i += 10) {
+        const tick = document.createElement('div');
+        tick.style.position = 'absolute';
+        tick.style.top = i + 'px';
+        tick.style.left = '0';
+        tick.style.width = '100%';
+
+        if (i % 100 === 0) {
+            tick.className = 'w-full border-t border-slate-600';
+            const label = document.createElement('span');
+            label.className = 'text-[8px] text-slate-500 absolute top-1 left-0.5 origin-left -rotate-90';
+            label.textContent = i;
+            tick.appendChild(label);
+        } else if (i % 50 === 0) {
+            tick.className = 'w-3/4 border-t border-slate-700 float-right';
+        } else {
+            tick.className = 'w-1/4 border-t border-slate-800 float-right';
+        }
+        leftRuler.appendChild(tick);
+    }
+};
+
+// Listen for window resize to update rulers
+window.addEventListener('resize', () => {
+    if (document.getElementById('creative-modal').style.display === 'block') {
+        updateRulers();
+    }
+});

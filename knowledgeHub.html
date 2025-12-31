@@ -1703,11 +1703,38 @@
                         <!-- Toolbar -->
                         <div id="creative-preview-toolbar" class="flex justify-between items-center mb-4 min-h-[32px]">
                             <div class="flex items-center gap-2">
-                                <!-- View Toggles (e.g. Grid vs List, Desktop vs Mobile) -->
+                                <!-- View Toggles (Desktop, Mobile, A4) -->
                                 <div id="creative-view-toggles"
-                                    class="flex bg-slate-800 rounded-lg p-0.5 border border-slate-700 hidden">
-                                    <!-- Injected JS -->
+                                    class="flex bg-slate-800 rounded-lg p-0.5 border border-slate-700">
+                                    <button onclick="setCreativeViewport('responsive')"
+                                        class="viewport-btn active px-2 py-1 text-[10px] rounded transition-all bg-indigo-500 text-white"
+                                        title="Responsive">
+                                        <i class="fas fa-expand-arrows-alt"></i>
+                                    </button>
+                                    <button onclick="setCreativeViewport('desktop')"
+                                        class="viewport-btn px-2 py-1 text-[10px] rounded transition-all text-slate-400 hover:text-white"
+                                        title="Desktop (1280px)">
+                                        <i class="fas fa-desktop"></i>
+                                    </button>
+                                    <button onclick="setCreativeViewport('mobile')"
+                                        class="viewport-btn px-2 py-1 text-[10px] rounded transition-all text-slate-400 hover:text-white"
+                                        title="Mobile (375px)">
+                                        <i class="fas fa-mobile-alt"></i>
+                                    </button>
+                                    <div class="w-px h-3 bg-slate-700 mx-1 self-center"></div>
+                                    <button onclick="setCreativeViewport('a4-p')"
+                                        class="viewport-btn px-2 py-1 text-[10px] rounded transition-all text-slate-400 hover:text-white"
+                                        title="A4 Portrait">
+                                        <i class="fas fa-file-alt"></i>
+                                    </button>
+                                    <button onclick="setCreativeViewport('a4-l')"
+                                        class="viewport-btn px-2 py-1 text-[10px] rounded transition-all text-slate-400 hover:text-white"
+                                        title="A4 Landscape">
+                                        <i class="fas fa-file-alt rotate-90"></i>
+                                    </button>
                                 </div>
+                                <span id="current-viewport-size"
+                                    class="text-[10px] text-slate-500 ml-2 font-mono">100%</span>
                             </div>
                             <div class="flex items-center gap-2">
                                 <button id="btn-creative-download" onclick="downloadCreativeItem()"
@@ -1771,9 +1798,27 @@
                                 <p class="text-indigo-400 font-medium loading-text">Generating...</p>
                             </div>
 
-                            <!-- Result Container -->
-                            <div id="creative-result-container" class="w-full h-full hidden p-4">
-                                <!-- Dynamic Result Content -->
+                            <!-- Ruler System Overlay -->
+                            <div id="creative-ruler-top"
+                                class="absolute top-0 left-8 right-0 h-6 bg-slate-900 border-b border-slate-700 z-20 flex overflow-hidden pointer-events-none">
+                                <!-- Ruler ticks injected by JS -->
+                            </div>
+                            <div id="creative-ruler-left"
+                                class="absolute top-6 left-0 bottom-0 w-8 bg-slate-900 border-r border-slate-700 z-20 flex flex-col overflow-hidden pointer-events-none">
+                                <!-- Ruler ticks injected by JS -->
+                            </div>
+                            <div
+                                class="absolute top-0 left-0 w-8 h-6 bg-slate-800 border-b border-r border-slate-700 z-30 flex items-center justify-center">
+                                <i class="fas fa-ruler-combined text-[10px] text-slate-500"></i>
+                            </div>
+
+                            <!-- Canvas Container (Centered) -->
+                            <div id="creative-canvas-container"
+                                class="w-full h-full pt-6 pl-8 flex items-start justify-center overflow-auto bg-slate-900/30 custom-scrollbar">
+                                <div id="creative-result-container"
+                                    class="bg-white shadow-2xl transition-all duration-300 origin-top hidden">
+                                    <!-- Dynamic Content -->
+                                </div>
                             </div>
                         </div>
                     </div>
