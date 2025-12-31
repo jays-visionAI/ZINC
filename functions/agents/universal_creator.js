@@ -36,7 +36,10 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
     };
     const targetRatio = cleanAspectRatio(aspectRatio);
 
-    console.log(`[UniversalCreator] 🚀 Starting generation for type: ${type} (${style})...`);
+    // Normalize type for robust comparison
+    const normalizedType = String(type || '').toLowerCase().trim();
+
+    console.log(`[UniversalCreator] 🚀 Starting generation for type: ${normalizedType} (${style})...`);
     console.log(`[UniversalCreator] ⚙️ Advanced Options: ratio=${targetRatio}, imageStyle=${imageStyle}, lighting=${lighting}, tone=${colorTone}`);
     if (customPrompt) console.log(`[UniversalCreator] 💬 Custom Prompt: ${customPrompt.substring(0, 100)}...`);
 
@@ -48,7 +51,7 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
         visualIds: [{ id: "GENERIC_VISUAL_1", desc: "General concept image" }, { id: "GENERIC_VISUAL_2", desc: "Abstract background" }] // Default fallback
     };
 
-    if (type === 'pitch_deck') {
+    if (normalizedType === 'pitch_deck') {
         strategy = {
             role: "Presentation Designer",
             visualTask: `Identify 3-4 KEY visuals for a ${slideCount}-slide pitch deck (e.g., Cover Image, Data Chart, Product/Team Photo).`,
@@ -71,21 +74,21 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
     DO NOT bypass this count. If you fail to create exactly ${slideCount} sections, you have failed the task.`,
             visualIds: [{ id: "COVER_IMAGE", desc: "Title slide background" }, { id: "VISUAL_1", desc: "Data chart" }, { id: "VISUAL_2", desc: "Product/Concept" }]
         };
-    } else if (type === 'product_brochure') {
+    } else if (normalizedType === 'product_brochure') {
         strategy = {
             role: "Marketing Designer",
             visualTask: "Identify 3 KEY visuals: 1. Hero Product Shot, 2. Feature Close-up, 3. Lifestyle/Usage Shot.",
             htmlTask: "Create a modern Product Brochure. Use a hero header, grid feature section, spec table, and footer.",
             visualIds: [{ id: "HERO_IMAGE", desc: "Main product shot" }, { id: "FEATURE_1", desc: "Feature detail" }, { id: "LIFESTYLE_SHOT", desc: "Usage context" }]
         };
-    } else if (type === 'one_pager') {
+    } else if (normalizedType === 'one_pager') {
         strategy = {
             role: "Corporate Communication Expert",
             visualTask: "Identify 2 visuals: 1. Header Abstract/Photo, 2. Process Diagram or Infographic.",
             htmlTask: "Create a professional Executive One-Pager (A4 style layout). Dense information, clear hierarchy, sidebars.",
             visualIds: [{ id: "HEADER_BG", desc: "Header background" }, { id: "INFOGRAPHIC_1", desc: "Process/Stats diagram" }]
         };
-    } else if (type === 'promo_images') {
+    } else if (normalizedType === 'promo_images') {
         const count = parseInt(imageCount) || 1;
         const vIds = [];
         for (let i = 1; i <= count; i++) {
@@ -101,42 +104,26 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
             - Details: Add a "Copy to Clipboard" or "Download Asset" button simulation for each image.`,
             visualIds: vIds
         };
-    } else if (type === 'press_release') {
+    } else if (normalizedType.includes('press') || normalizedType.includes('news')) {
         strategy = {
-            role: "PR & Media Communications Strategist",
-            visualTask: `Identify 2-3 impact visuals for a professional Press Release about "${topic}" (${newsType}).
-            Focus on ${visualSubject || 'professional media imagery'}.
-            Visual 1: High-impact header/hero.
-            Visual 2: Contextual news shot (e.g., product in use, event atmosphere, or professional team).
-            Visual 3 (Optional): Supporting infographic or branding abstract.`,
-            htmlTask: `Create a professional, high-impact Digital Press Release. 
-            Structure:
-            1. Media Header (Logo placeholder, Dateline, Immediate Release tag)
-            2. Headline (Catchy and bold) & Sub-headline
-            3. Lead Paragraph (The Who, What, When, Where, Why)
-            4. Detailed Body Content (3-4 paragraphs of professional news copy)
-            5. Expert Quote Section (Premium styled)
-            6. Integrated Image Gallery (Sleek and professional)
-            7. Boilerplate (About the Company)
-            8. Media Contact Details & Social Links
-            9. End Mark (###)
-            
-            Use a clean, authoritative news layout. White background for the body content to ensure readability, with indigo/slate accents for the header and quotes.`,
-            visualIds: [{ id: "PR_HERO", desc: "Main news headline visual" }, { id: "PR_DETAIL_1", desc: "Supporting contextual news image" }, { id: "PR_DETAIL_2", desc: "Secondary supporting visual" }]
+            role: "Senior News Wire Editor",
+            visualTask: `Identify 1-2 impact visuals for a professional news wire release about "${topic}". One header image and one supporting shot.`,
+            htmlTask: "Generate a PURE linear news article. NO marketing sections, NO buttons, NO slides.",
+            visualIds: [{ id: "PR_HERO", desc: "Main news headline visual" }, { id: "PR_DETAIL_1", desc: "Supporting news image" }]
         };
     }
 
     // 1. VISUAL PLANNING
     // Calculate total images to generate based on user preference or strategy defaults
     let requestedImageCount = parseInt(imageCount) || strategy.visualIds.length;
-    if (type === 'pitch_deck') {
+    if (normalizedType === 'pitch_deck') {
         requestedImageCount = Math.min(parseInt(imageCount) * 2, 8) || Math.min(slideCount, 8);
     }
 
     const visualPlanPrompt = `
     You are a ${strategy.role} and Visual Experience Director.
     Project Topic: ${topic}
-    Document Format: ${type}
+    Document Format: ${normalizedType}
     Style: ${style}
     Image Style: ${imageStyle} (MANDATORY: Follow this art style strictly)
     Target Audience: ${audience}
@@ -284,7 +271,9 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
 
     // --- ARCHETYPE SELECTION ---
     let selectedArchetype;
-    if (type === 'press_release') {
+    const isNews = normalizedType.includes('press') || normalizedType.includes('news');
+
+    if (isNews) {
         selectedArchetype = archetypes['journalistic'];
     } else {
         const options = ['visionary', 'executive', 'disruptor', 'minimalist'];
@@ -296,7 +285,7 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
     let finalSystemPrompt;
     let finalTaskPrompt;
 
-    if (type === 'press_release') {
+    if (isNews) {
         finalSystemPrompt = `
     You are a SENIOR NEWS EDITOR at a major global news agency.
     Your task is to write a PROFESSIONAL PRESS RELEASE in a minimalist, WORD-PROCESSOR format.
