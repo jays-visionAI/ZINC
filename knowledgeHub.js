@@ -4488,6 +4488,8 @@ function generateMockEmail(inputs) {
 // Z-EDITOR (PROFESSIONAL AI CREATIVE EDITOR)
 // ============================================================
 
+let zActiveSelectionRange = null;
+
 function initZEditor(iframe) {
     const doc = iframe.contentDocument;
     if (!doc) return;
@@ -4514,6 +4516,39 @@ function initZEditor(iframe) {
     // Dismiss menu on click
     doc.addEventListener('mousedown', () => {
         hideZContextMenu();
+        hideZStyleBar();
+    });
+
+    // Handle Selection for Style Bar
+    doc.addEventListener('mouseup', () => {
+        const sel = doc.getSelection();
+        if (sel && sel.toString().trim().length > 0) {
+            const range = sel.getRangeAt(0);
+            zActiveSelectionRange = range;
+
+            const rects = range.getClientRects();
+            if (rects.length > 0) {
+                const rect = rects[0];
+                const iframeRect = iframe.getBoundingClientRect();
+
+                // Position above selection
+                const x = (rect.left + rect.right) / 2 + iframeRect.left;
+                const y = rect.top + iframeRect.top - 50;
+
+                showZStyleBar(x, y);
+            }
+        } else {
+            hideZStyleBar();
+        }
+    });
+
+    // ESC to hide all
+    doc.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            hideZContextMenu();
+            hideZStyleBar();
+            closeZCommandBar();
+        }
     });
 }
 
@@ -4530,6 +4565,66 @@ function hideZContextMenu() {
     const menu = document.getElementById('z-context-menu');
     if (menu) menu.style.display = 'none';
 }
+
+/**
+ * Style Bar UI
+ */
+function showZStyleBar(x, y) {
+    const bar = document.getElementById('z-style-bar');
+    if (!bar) return;
+
+    // Ensure it stays within viewport
+    const safeX = Math.max(10, Math.min(window.innerWidth - 300, x - 150));
+    const safeY = Math.max(80, y);
+
+    bar.style.left = `${safeX}px`;
+    bar.style.top = `${safeY}px`;
+    bar.style.display = 'flex';
+}
+
+function hideZStyleBar() {
+    const bar = document.getElementById('z-style-bar');
+    if (bar) bar.style.display = 'none';
+}
+
+/**
+ * Formatting Operations
+ */
+window.applyZStyle = function (command, value = null) {
+    const iframe = document.getElementById('creative-result-iframe');
+    if (!iframe) return;
+
+    iframe.contentWindow.document.execCommand(command, false, value);
+    syncCreativeChanges(currentCreativeId);
+};
+
+window.applyZColor = function (color) {
+    window.applyZStyle('foreColor', color);
+};
+
+window.applyFontSize = function (dir) {
+    const iframe = document.getElementById('creative-result-iframe');
+    const doc = iframe.contentWindow.document;
+    const sel = doc.getSelection();
+    if (!sel.rangeCount) return;
+
+    const range = sel.getRangeAt(0);
+    const parent = range.commonAncestorContainer.parentElement;
+
+    // Modern approach: Style the container or wrapped span
+    let currentSize = parseInt(window.getComputedStyle(parent).fontSize);
+    let newSize = dir === 'increase' ? currentSize + 2 : currentSize - 2;
+    newSize = Math.max(8, Math.min(120, newSize));
+
+    // If text is selected, wrap in span with new size
+    if (!sel.isCollapsed) {
+        const span = document.createElement('span');
+        span.style.fontSize = `${newSize}px`;
+        range.surroundContents(span);
+    }
+
+    syncCreativeChanges(currentCreativeId);
+};
 
 /**
  * Handle Menu Operations
