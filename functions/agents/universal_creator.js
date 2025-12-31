@@ -6,7 +6,7 @@ const { generateWithVertexAI } = require('../utils/vertexAI');
  * Supported Types: 'pitch_deck', 'product_brochure', 'one_pager'
  */
 async function createCreativeContent(inputs, context, plan, executeLLM, type, advancedOptions = {}) {
-    const { topic, style = 'Modern', audience, slideCount = 5 } = inputs;
+    const { topic, style = 'Modern', audience, slideCount = 5, newsType, visualSubject } = inputs;
 
     // Extract advanced customization options
     const {
@@ -100,6 +100,29 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
             - Layout: Use a responsive grid (grid-cols-1 ${count > 1 ? 'md:grid-cols-2' : ''}) for the images.
             - Details: Add a "Copy to Clipboard" or "Download Asset" button simulation for each image.`,
             visualIds: vIds
+        };
+    } else if (type === 'press_release') {
+        strategy = {
+            role: "PR & Media Communications Strategist",
+            visualTask: `Identify 2-3 impact visuals for a professional Press Release about "${topic}" (${newsType}).
+            Focus on ${visualSubject || 'professional media imagery'}.
+            Visual 1: High-impact header/hero.
+            Visual 2: Contextual news shot (e.g., product in use, event atmosphere, or professional team).
+            Visual 3 (Optional): Supporting infographic or branding abstract.`,
+            htmlTask: `Create a professional, high-impact Digital Press Release. 
+            Structure:
+            1. Media Header (Logo placeholder, Dateline, Immediate Release tag)
+            2. Headline (Catchy and bold) & Sub-headline
+            3. Lead Paragraph (The Who, What, When, Where, Why)
+            4. Detailed Body Content (3-4 paragraphs of professional news copy)
+            5. Expert Quote Section (Premium styled)
+            6. Integrated Image Gallery (Sleek and professional)
+            7. Boilerplate (About the Company)
+            8. Media Contact Details & Social Links
+            9. End Mark (###)
+            
+            Use a clean, authoritative news layout. White background for the body content to ensure readability, with indigo/slate accents for the header and quotes.`,
+            visualIds: [{ id: "PR_HERO", desc: "Main news headline visual" }, { id: "PR_DETAIL_1", desc: "Supporting contextual news image" }, { id: "PR_DETAIL_2", desc: "Secondary supporting visual" }]
         };
     }
 

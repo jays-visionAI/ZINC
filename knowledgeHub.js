@@ -1631,6 +1631,7 @@ const PLAN_CATEGORY_ITEMS = {
         { id: 'messaging_framework', name: 'Messaging Framework', desc: 'Brand voice guidelines', credits: 10 }
     ],
     quick: [
+        { id: 'email_template', name: 'Email Template', desc: 'Marketing email drafts', credits: 5 },
         { id: 'social_post_ideas', name: 'Social Post Ideas', desc: '5-10 post concepts', credits: 1 },
         { id: 'ad_copy', name: 'Ad Copy Variants', desc: 'Multiple ad copy options', credits: 1 },
         { id: 'trend_response', name: 'Trend Response', desc: 'Quick trend-based content', credits: 1 },
@@ -1641,8 +1642,7 @@ const PLAN_CATEGORY_ITEMS = {
         { id: 'promo_images', name: 'Promo Images', desc: 'AI-generated images', credits: 5 },
         { id: 'one_pager', name: '1-Pager PDF', desc: 'Executive summary document', credits: 15 },
         { id: 'pitch_deck', name: 'Pitch Deck', desc: 'Full presentation with AI visuals', credits: 25 },
-        { id: 'email_template', name: 'Email Template', desc: 'Marketing email drafts', credits: 5 },
-        { id: 'press_release', name: 'Press Release', desc: 'Media announcement draft', credits: 10 }
+        { id: 'press_release', name: 'Press Release', desc: 'Professional media announcement', credits: 20 }
     ]
 };
 
@@ -3789,8 +3789,8 @@ const PLAN_DEFINITIONS = {
     promo_images: { name: 'Promo Images', credits: 5, category: 'create' },
     one_pager: { name: '1-Pager PDF', credits: 15, category: 'create' },
     pitch_deck: { name: 'Pitch Deck', credits: 25, category: 'create' },
-    email_template: { name: 'Email Template', credits: 5, category: 'create' },
-    press_release: { name: 'Press Release', credits: 10, category: 'create' }
+    email_template: { name: 'Email Template', credits: 5, category: 'quick' },
+    press_release: { name: 'Press Release', credits: 20, category: 'create' }
 };
 
 // Note: Language is now handled by global targetLanguage
@@ -4038,8 +4038,43 @@ const CREATIVE_CONFIGS = {
             { id: 'lighting', type: 'select', label: 'Lighting', icon: 'fa-bolt', options: ['Natural', 'Studio', 'Dramatic', 'Soft', 'Neon'] },
             { id: 'customPrompt', type: 'textarea', label: 'Additional Prompt', icon: 'fa-comment-dots', placeholder: 'Add more details for image generation...\ne.g., "4k, trending on artstation, octane render"' }
         ]
+    },
+    press_release: {
+        name: 'Professional Press Release',
+        subtitle: 'High-impact media announcements with AI visuals',
+        buttonLabel: 'Press Release',
+        credits: 20,
+        controls: [
+            {
+                id: 'newsType',
+                type: 'select',
+                label: 'News Category',
+                options: [
+                    'Product Launch / Expansion',
+                    'Funding & Investment',
+                    'Strategic Partnership',
+                    'Company Milestone / Award',
+                    'Event / Grand Opening',
+                    'New Executive Hire',
+                    'Thought Leadership / Research',
+                    'Crisis Response / Official Statement'
+                ]
+            },
+            { id: 'topic', type: 'text', label: 'Main Headline Subject', placeholder: 'e.g., ZYNK Series A Funding' },
+            { id: 'keyDetails', type: 'textarea', label: 'Core Announcement Details', placeholder: 'List key facts, figures, or the main news story...' },
+            { id: 'quotes', type: 'textarea', label: 'Quote from Spokesperson', placeholder: 'e.g., "This partnership marks a new era for..."' }
+        ],
+        advancedControls: [
+            { id: 'mediaStyle', type: 'select', label: 'Press Style', icon: 'fa-newspaper', options: ['Reuters Standard (Objective)', 'Start-Up Hype', 'Corporate Formal', 'Aggressive Market Move', 'Educational / Informative'] },
+            { id: 'targetMedia', type: 'text', label: 'Target Outlets', icon: 'fa-bullhorn', placeholder: 'e.g., TechCrunch, Financial Times' },
+            { id: 'imageStyle', type: 'select', label: 'AI Image Style', icon: 'fa-paint-brush', options: ['Photorealistic', '3D Render', 'Minimalist Illustration', 'Data Visualization Style', 'Abstract'] },
+            { id: 'visualSubject', type: 'text', label: 'Image Subject Description', icon: 'fa-image', placeholder: 'What should the news image show?' },
+            { id: 'imageCount', type: 'select', label: 'Number of AI Images', icon: 'fa-images', options: ['1', '2', '3'] },
+            { id: 'aspectRatio', type: 'select', label: 'Image Aspect Ratio', icon: 'fa-crop', options: ['16:9 (Landscape)', '3:2', '4:3', '1:1 (Square)'] }
+        ]
     }
 };
+;
 
 /**
  * Open creative studio modal
@@ -4228,60 +4263,75 @@ async function downloadCreativeAsPDF(options = {}) {
         const config = CREATIVE_CONFIGS[currentCreativeType] || { name: 'ZINC_Creative' };
         const filename = `${config.name.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
 
-        // CLONE the entire document to ensure styles are preserved
-        const tempContainer = document.createElement('div');
-        tempContainer.style.position = 'fixed';
-        tempContainer.style.left = '-10000px';
-        tempContainer.style.top = '0';
-
-        // Determine capture width based on orientation and type
+        // Determine capture width based on current viewport
         let captureWidth = 1200; // Reference width
         let pdfFormat = 'a4';
         let pdfOrientation = 'portrait';
 
-        // Fix: Use correct key name 'product_brochure'
+        // Respect the user's selected viewport if available
+        if (currentViewportType === 'a4-l') {
+            captureWidth = 1123; // A4 Landscape width
+            pdfOrientation = 'landscape';
+        } else if (currentViewportType === 'a4-p') {
+            captureWidth = 794; // A4 Portrait width
+            pdfOrientation = 'portrait';
+        } else if (currentViewportType === 'desktop') {
+            captureWidth = 1280;
+        } else if (currentViewportType === 'mobile') {
+            captureWidth = 375;
+        }
+
         const isFlexibleHeight = (currentCreativeType === 'promo_images' || currentCreativeType === 'one_pager' || currentCreativeType === 'product_brochure');
 
         if (currentCreativeType === 'pitch_deck') {
             pdfOrientation = 'landscape';
-            pdfFormat = [297, 167]; // Professional 16:9 Presentation Format (mm)
-            captureWidth = 1280; // Match high-res desktop ref
-        } else if (isFlexibleHeight) {
-            // Match the A4 Portrait scaling if possible
-            captureWidth = 800; // ~A4 width at decent resolution
+            pdfFormat = [297, 167]; // 16:9 Format
+            captureWidth = 1280;
         }
 
+        // CLONE the entire document
+        const tempContainer = document.createElement('div');
+        tempContainer.style.position = 'fixed';
+        tempContainer.style.left = '-10000px';
+        tempContainer.style.top = '0';
         tempContainer.style.width = captureWidth + 'px';
 
         // Deep clone iframe content
         const contentClone = iframe.contentDocument.documentElement.cloneNode(true);
 
-        // EXTRA: REMOVE UI ELEMENTS (Refine buttons, overlays, etc.)
-        contentClone.querySelectorAll('.refine-btn, .img-overlay, .editor-status-badge').forEach(el => el.remove());
+        // EXTRA: STRIP SCRIPTS (Crucial for preventing UI element re-addition)
+        contentClone.querySelectorAll('script').forEach(s => s.remove());
 
-        // Remove scrollbars and ensure clean background for body
+        // EXTRA: REMOVE UI ELEMENTS
+        contentClone.querySelectorAll('.refine-btn, .img-overlay, .editor-status-badge, [id*="refine-btn"]').forEach(el => el.remove());
+
+        // Fix layout and background for body
         const bodyClone = contentClone.querySelector('body');
         if (bodyClone) {
             bodyClone.style.overflow = 'hidden';
             bodyClone.style.width = captureWidth + 'px';
             bodyClone.style.height = 'auto';
+            bodyClone.style.background = 'transparent'; // Let CSS handle it
         }
 
         // Add PDF-specific fixes to the clone
         const styleFix = document.createElement('style');
         styleFix.innerHTML = `
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-            .z-gradient-text { background-clip: text; -webkit-background-clip: text; }
-            body { margin: 0 !important; padding: 0 !important; overflow: hidden !important; }
-            section { page-break-after: always !important; break-after: page !important; }
-            .no-print { display: none !important; }
+            .z-gradient-text { background-clip: text; -webkit-background-clip: text; color: inherit !important; }
+            body { margin: 0 !important; padding: 0 !important; overflow: hidden !important; background-color: #0A0A0F !important; }
+            section { page-break-after: always !important; break-after: page !important; position: relative !important; overflow: hidden !important; }
+            .no-print, .refine-btn, .img-overlay { display: none !important; opacity: 0 !important; visibility: hidden !important; }
+            /* Fix for navbar items overlapping in flex layout */
+            header nav { width: 100% !important; justify-content: space-between !important; }
+            .flex { display: flex !important; }
         `;
         contentClone.querySelector('head').appendChild(styleFix);
 
-        // Create an internal iframe for the export to ensure exact CSS isolation
+        // Create an internal iframe for export
         const exportIframe = document.createElement('iframe');
         exportIframe.style.width = captureWidth + 'px';
-        exportIframe.style.height = '5000px'; // High enough to render all
+        exportIframe.style.height = '5000px';
         exportIframe.style.visibility = 'hidden';
 
         tempContainer.appendChild(exportIframe);
@@ -4296,30 +4346,33 @@ async function downloadCreativeAsPDF(options = {}) {
             await exportIframe.contentWindow.document.fonts.ready;
         }
 
-        // 2. Wait for all Images
+        // 2. Wait for Images
         const images = exportIframe.contentDocument.querySelectorAll('img');
         const imgPromises = Array.from(images).map(img => {
             if (img.complete) return Promise.resolve();
             return new Promise(resolve => {
                 img.onload = resolve;
-                img.onerror = resolve; // Continue even if one fails
+                img.onerror = resolve;
             });
         });
 
-        // 3. Wait for Tailwind/Styles
-        await new Promise(r => setTimeout(r, 1000));
+        // 3. Wait for Styles & Rendering
+        await new Promise(r => setTimeout(r, 1500)); // Slightly longer wait for heavy layouts
         await Promise.all(imgPromises);
 
         // EXTRA: Measure height for flexible formats
-        if (isFlexibleHeight) {
+        if (isFlexibleHeight && currentViewportType !== 'a4-p' && currentViewportType !== 'a4-l') {
             const body = exportIframe.contentDocument.body;
-            // Use offsetHeight if scrollHeight is bloated
             const contentHeight = Math.max(body.scrollHeight, body.offsetHeight);
-
-            // Calculate mm based on captureWidth being approx 210mm (A4 width)
             const mmPerPx = 210 / captureWidth;
             pdfFormat = [210, contentHeight * mmPerPx];
             pdfOrientation = (contentHeight * mmPerPx < 210) ? 'landscape' : 'portrait';
+        } else if (currentViewportType === 'a4-p') {
+            pdfFormat = 'a4';
+            pdfOrientation = 'portrait';
+        } else if (currentViewportType === 'a4-l') {
+            pdfFormat = 'a4';
+            pdfOrientation = 'landscape';
         }
 
         const isPrint = options && options.isPrint;
@@ -4328,7 +4381,7 @@ async function downloadCreativeAsPDF(options = {}) {
             filename: filename,
             image: { type: 'jpeg', quality: 1.0 },
             html2canvas: {
-                scale: isPrint ? 3 : 2, // High resolution
+                scale: isPrint ? 3 : 2,
                 useCORS: true,
                 letterRendering: true,
                 allowTaint: false,
@@ -4336,7 +4389,7 @@ async function downloadCreativeAsPDF(options = {}) {
                 windowWidth: captureWidth,
                 scrollX: 0,
                 scrollY: 0,
-                backgroundColor: null, // Allow CSS background
+                backgroundColor: '#0A0A0F',
                 logging: false
             },
             jsPDF: { unit: 'mm', format: pdfFormat, orientation: pdfOrientation, compress: true }
@@ -5688,6 +5741,11 @@ CRITICAL RULE: You MUST provide BOTH Part 1 and Part 2. Even if the user asks fo
             renderPlanVersions();
 
             showNotification('Plan generated successfully!', 'success');
+
+            // NEW: Auto-save to Firestore if category is 'quick'
+            if (currentPlan.category === 'quick') {
+                savePlanToFirestore();
+            }
         } else {
             throw new Error('No content generated');
         }
