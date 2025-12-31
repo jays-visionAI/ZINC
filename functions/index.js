@@ -5436,17 +5436,34 @@ exports.refineCreativeContent = onCall({ cors: ALLOWED_ORIGINS, region: 'us-cent
  */
 exports.refreshCreativeImage = onCall({ cors: ALLOWED_ORIGINS, region: 'us-central1', timeoutSeconds: 300, memory: '1GiB' }, async (request) => {
     if (!request.auth) return { success: false, error: 'Unauthenticated' };
-    const { projectId, prompt, currentUrl, aspectRatio } = request.data;
+    let { projectId, prompt, currentUrl, aspectRatio } = request.data;
 
     console.log(`[refreshCreativeImage] Refreshing image for ${projectId} with prompt: ${prompt}`);
-    if (aspectRatio) console.log(`[refreshCreativeImage] Specifying aspect ratio: ${aspectRatio}`);
 
     try {
+        // If aspectRatio is missing, try to fetch it from the project document
+        if (!aspectRatio && projectId) {
+            const projectDoc = await admin.firestore().collection('creativeProjects').doc(projectId).get();
+            if (projectDoc.exists) {
+                const data = projectDoc.data();
+                aspectRatio = data.advancedOptions?.aspectRatio || '16:9';
+                console.log(`[refreshCreativeImage] 📏 Auto-detected aspect ratio from project: ${aspectRatio}`);
+            }
+        }
+
+        // Clean aspect ratio (e.g. "1:1 (Square)" -> "1:1")
+        const cleanRatio = (ratio) => {
+            if (!ratio) return '16:9';
+            const match = ratio.match(/(\d+:\d+)/);
+            return match ? match[1] : '16:9';
+        };
+        const targetRatio = cleanRatio(aspectRatio);
+
         // Simple Vertex AI call - pass options if available
         const imageResult = await generateWithVertexAI(
             prompt || "Modern professional technology abstract background",
             'imagen-4.0-generate-001',
-            { aspectRatio: aspectRatio || '16:9' }
+            { aspectRatio: targetRatio }
         );
 
         // imageResult is the public URL string

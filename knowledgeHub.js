@@ -3470,6 +3470,9 @@ const CREATIVE_CONFIGS = {
             { id: 'includeCharts', type: 'select', label: 'Data Visualization', icon: 'fa-chart-pie', options: ['None', 'Bar Charts', 'Line Graphs', 'Progress Rings', 'Infographic Cards'] },
             { id: 'layoutDensity', type: 'select', label: 'Layout Density', icon: 'fa-table-cells', options: ['Spacious', 'Balanced', 'Compact'] },
             { id: 'imageCount', type: 'select', label: 'AI Images', icon: 'fa-images', options: ['1', '2', '3', '4', '5'] },
+            { id: 'aspectRatio', type: 'select', label: 'Image Aspect Ratio', icon: 'fa-crop', options: ['16:9 (Landscape)', '1:1 (Square)', '9:16 (Portrait)', '4:3', '3:2'] },
+            { id: 'colorTone', type: 'select', label: 'Color Tone', icon: 'fa-palette', options: ['Vibrant', 'Muted', 'Warm', 'Cool', 'Pastel', 'Monochrome'] },
+            { id: 'lighting', type: 'select', label: 'Lighting', icon: 'fa-bolt', options: ['Natural', 'Studio', 'Dramatic', 'Soft', 'Neon'] },
             { id: 'glassmorphism', type: 'checkbox', label: 'Glassmorphism Cards', icon: 'fa-square' },
             { id: 'floatingBlobs', type: 'checkbox', label: 'Floating Gradient Blobs', icon: 'fa-circle' },
             { id: 'customPrompt', type: 'textarea', label: 'Custom Instructions', icon: 'fa-comment-dots', placeholder: 'Add any specific design instructions...' }
@@ -3494,6 +3497,9 @@ const CREATIVE_CONFIGS = {
             { id: 'includeCharts', type: 'select', label: 'Data Visualization', icon: 'fa-chart-pie', options: ['None', 'Bar Charts', 'Line Graphs', 'Progress Rings', 'Infographic Cards'] },
             { id: 'layoutDensity', type: 'select', label: 'Layout Density', icon: 'fa-table-cells', options: ['Spacious', 'Balanced', 'Compact'] },
             { id: 'imageCount', type: 'select', label: 'AI Images', icon: 'fa-images', options: ['1', '2', '3'] },
+            { id: 'aspectRatio', type: 'select', label: 'Image Aspect Ratio', icon: 'fa-crop', options: ['16:9 (Landscape)', '1:1 (Square)', '9:16 (Portrait)', '4:3', '3:2'] },
+            { id: 'colorTone', type: 'select', label: 'Color Tone', icon: 'fa-palette', options: ['Vibrant', 'Muted', 'Warm', 'Cool', 'Pastel', 'Monochrome'] },
+            { id: 'lighting', type: 'select', label: 'Lighting', icon: 'fa-bolt', options: ['Natural', 'Studio', 'Dramatic', 'Soft', 'Neon'] },
             { id: 'glassmorphism', type: 'checkbox', label: 'Glassmorphism Cards', icon: 'fa-square' },
             { id: 'floatingBlobs', type: 'checkbox', label: 'Floating Gradient Blobs', icon: 'fa-circle' },
             { id: 'customPrompt', type: 'textarea', label: 'Custom Instructions', icon: 'fa-comment-dots', placeholder: 'Add any specific design instructions...' }
@@ -3519,8 +3525,12 @@ const CREATIVE_CONFIGS = {
             { id: 'includeCharts', type: 'select', label: 'Data Visualization', icon: 'fa-chart-pie', options: ['None', 'Bar Charts', 'Line Graphs', 'Progress Rings', 'Infographic Cards'] },
             { id: 'layoutDensity', type: 'select', label: 'Layout Density', icon: 'fa-table-cells', options: ['Spacious', 'Balanced', 'Compact'] },
             { id: 'imageCount', type: 'select', label: 'AI Images per Slide', icon: 'fa-images', options: ['1', '2', '3'] },
+            { id: 'aspectRatio', type: 'select', label: 'Image Aspect Ratio', icon: 'fa-crop', options: ['16:9 (Landscape)', '1:1 (Square)', '9:16 (Portrait)', '4:3', '3:2'] },
+            { id: 'colorTone', type: 'select', label: 'Color Tone', icon: 'fa-palette', options: ['Vibrant', 'Muted', 'Warm', 'Cool', 'Pastel', 'Monochrome'] },
+            { id: 'lighting', type: 'select', label: 'Lighting', icon: 'fa-bolt', options: ['Natural', 'Studio', 'Dramatic', 'Soft', 'Neon'] },
             { id: 'slideTransition', type: 'select', label: 'Slide Transitions', icon: 'fa-shuffle', options: ['Fade', 'Slide', 'Zoom', 'None'] },
             { id: 'glassmorphism', type: 'checkbox', label: 'Glassmorphism Cards', icon: 'fa-square' },
+            { id: 'floatingBlobs', type: 'checkbox', label: 'Floating Gradient Blobs', icon: 'fa-circle' },
             { id: 'customPrompt', type: 'textarea', label: 'Custom Instructions', icon: 'fa-comment-dots', placeholder: 'Add any specific design instructions...\ne.g., "Make the traction slide more impactful, use testimonial quotes"' }
         ]
     },

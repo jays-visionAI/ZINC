@@ -12,7 +12,7 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
     const {
         colorScheme = 'Indigo/Purple (Default)',
         contentTone = 'Professional',
-        imageStyle = 'Photorealistic',
+        imageStyle: advImageStyle, // Rename to check against inputs.style
         iconStyle = 'Heroicons',
         includeCharts = 'None',
         layoutDensity = 'Balanced',
@@ -25,6 +25,9 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
         customPrompt = ''
     } = advancedOptions;
 
+    // PRD Fix: Priority to user grid selection (inputs.style) if advanced imageStyle is not set
+    const imageStyle = advImageStyle || style || 'Photorealistic';
+
     // Helper to clean aspect ratio string (e.g., "1:1 (Square)" -> "1:1")
     const cleanAspectRatio = (ratio) => {
         if (!ratio) return '16:9';
@@ -34,7 +37,7 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
     const targetRatio = cleanAspectRatio(aspectRatio);
 
     console.log(`[UniversalCreator] 🚀 Starting generation for type: ${type} (${style})...`);
-    console.log(`[UniversalCreator] ⚙️ Advanced Options: ratio=${targetRatio}, imageStyle=${imageStyle}, count=${imageCount}`);
+    console.log(`[UniversalCreator] ⚙️ Advanced Options: ratio=${targetRatio}, imageStyle=${imageStyle}, lighting=${lighting}, tone=${colorTone}`);
     if (customPrompt) console.log(`[UniversalCreator] 💬 Custom Prompt: ${customPrompt.substring(0, 100)}...`);
 
     // === STRATEGY PATTERN: Define prompts based on type ===
@@ -168,6 +171,16 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
     console.log(`[UniversalCreator] 🎨 Generating ${visualPlan.visuals.length} assets at ${targetRatio}...`);
     const assetMap = {};
 
+    // Helper to get fallback dimensions based on aspect ratio
+    const getFallbackDim = (ratio) => {
+        if (ratio === '1:1') return '1080x1080';
+        if (ratio === '9:16') return '1080x1920';
+        if (ratio === '4:3') return '1200x900';
+        if (ratio === '3:2') return '1200x800';
+        return '1600x900';
+    };
+    const fallbackDim = getFallbackDim(targetRatio);
+
     await Promise.all(visualPlan.visuals.map(async (visual) => {
         try {
             const prompt = `${visual.prompt}, ${style} style, professional, 4k, clean, high resolution`;
@@ -178,7 +191,7 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
         } catch (err) {
             console.warn(`[UniversalCreator] Image gen failed for ${visual.id}, using fallback.`);
             const keyword = encodeURIComponent(topic.split(' ')[0] || 'business');
-            assetMap[visual.id] = `https://source.unsplash.com/1600x900/?${keyword},tech&sig=${Math.random()}`;
+            assetMap[visual.id] = `https://source.unsplash.com/${fallbackDim}/?${keyword},tech&sig=${Math.random()}`;
         }
     }));
 
@@ -392,7 +405,7 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
 
     const fallbackKeyword = encodeURIComponent(topic.split(' ')[0] || 'technology');
     placeholderPatterns.forEach(pattern => {
-        htmlResult = htmlResult.replace(pattern, `https://source.unsplash.com/1600x900/?${fallbackKeyword},business&sig=${Math.random()}`);
+        htmlResult = htmlResult.replace(pattern, `https://source.unsplash.com/${fallbackDim}/?${fallbackKeyword},business&sig=${Math.random()}`);
     });
 
     // 6. AGGRESSIVE IMAGE REPAIR: Fix broken/empty img src attributes
