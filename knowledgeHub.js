@@ -2736,27 +2736,130 @@ function addChatMessage(content, type, suggestedAction = null) {
                     <p class="text-sm text-slate-200 whitespace-pre-wrap">${escapeHtml(content)}</p>
                 </div>
 
-                <!-- Actionable Chat: Magic Button -->
-                ${suggestedAction ? `
-                <div class="mt-3 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 rounded-xl p-3">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-2">
-                             <div class="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>
-                             </div>
-                             <div>
-                                <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Magic Action</p>
-                                <p class="text-xs text-white">I've prepared the ${suggestedAction.params?.type?.replace('_', ' ') || 'content'} for you.</p>
-                             </div>
+                <!-- Actionable Chat: Magic Button / Report Selection / More Info -->
+                ${suggestedAction ? (() => {
+                if (suggestedAction.type === 'report_selection') {
+                    return `
+                        <div class="mt-3 bg-slate-800/50 border border-slate-700 rounded-2xl p-4 animate-in fade-in zoom-in duration-300">
+                            <div class="flex items-center gap-2 mb-4">
+                                <div class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m11.5 15-2 2-2-2"/><path d="M12 9V3"/><path d="M20 12V6a2 2 0 0 0-2-2h-3.5"/><path d="M3 10V6a2 2 0 0 1 2-2h3.5"/><path d="M7 21h10"/><path d="M9 17v4"/><path d="M15 17v4"/></svg>
+                                </div>
+                                <div>
+                                    <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Report Configuration</p>
+                                    <p class="text-xs text-white">Select the desired analysis level for your report.</p>
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-3" id="report-selection-grid-${messageId}">
+                                <!-- Standard Option -->
+                                <button onclick="selectReportLevel('${messageId}', 'standard', this)" 
+                                        class="flex flex-col items-center gap-2 p-3 bg-slate-900 border border-slate-700 rounded-xl hover:border-indigo-500/50 transition-all group">
+                                    <div class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 group-hover:bg-indigo-500/10 group-hover:text-indigo-400 transition-all">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                                    </div>
+                                    <div class="text-center">
+                                        <p class="text-xs font-bold text-white mb-0.5">Standard</p>
+                                        <p class="text-[9px] text-slate-500 leading-tight">Quick 핵심 요약 중심</p>
+                                    </div>
+                                </button>
+                                
+                                <!-- Depth Option -->
+                                <button onclick="selectReportLevel('${messageId}', 'depth', this)" 
+                                        class="flex flex-col items-center gap-2 p-3 bg-slate-900 border border-slate-700 rounded-xl hover:border-purple-500/50 transition-all group">
+                                    <div class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 group-hover:bg-purple-500/10 group-hover:text-purple-400 transition-all">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+                                    </div>
+                                    <div class="text-center">
+                                        <p class="text-xs font-bold text-white mb-0.5">Depth Report</p>
+                                        <p class="text-[9px] text-slate-500 leading-tight">A4 규격 심층 분석 보고서</p>
+                                    </div>
+                                </button>
+                            </div>
+                            
+                            <div id="report-confirm-area-${messageId}" class="hidden mt-4 pt-4 border-t border-slate-700/50 flex items-center justify-between">
+                                 <p class="text-[10px] text-slate-500">Ready to build your report?</p>
+                                 <button onclick="finalizeReportGeneration('${messageId}', this)" 
+                                         class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold rounded-xl transition-all shadow-lg shadow-indigo-600/20">
+                                     Accept & Generate
+                                 </button>
+                            </div>
                         </div>
-                        <button onclick="launchStudioFromChat('${btoa(JSON.stringify(suggestedAction))}')" 
-                                class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold rounded-lg transition-all shadow-lg shadow-indigo-600/20 flex items-center gap-2 group">
-                            Launch Studio
-                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="transition-transform group-hover:translate-x-1"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                        </button>
-                    </div>
-                </div>
-                ` : ''}
+                        `;
+                } else if (suggestedAction.type === 'need_more_info') {
+                    const missingItems = suggestedAction.params?.missing || [];
+                    return `
+                        <div class="mt-3 bg-slate-800/50 border border-amber-500/30 rounded-2xl p-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                            <div class="flex items-center gap-2 mb-3">
+                                <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-500 flex items-center justify-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                                </div>
+                                <div>
+                                    <p class="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Information Readiness Check</p>
+                                    <p class="text-xs text-white">Missing details for ${suggestedAction.params?.task?.replace('_', ' ') || 'content'}.</p>
+                                </div>
+                            </div>
+                            
+                            <div class="space-y-2 mb-4">
+                                ${missingItems.map(item => `
+                                    <div class="flex items-center gap-2 overflow-hidden">
+                                        <div class="w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0 animate-pulse"></div>
+                                        <p class="text-[11px] text-slate-400 truncate">${escapeHtml(item)}</p>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            
+                            <div class="relative">
+                                <textarea id="missing-info-input-${messageId}" 
+                                          class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-amber-500/50 placeholder-slate-600 transition-all"
+                                          placeholder="Enter the missing information here..." rows="3"></textarea>
+                                <div class="absolute bottom-2 right-2 flex gap-2">
+                                    <button onclick="submitAdditionalInfo('${messageId}', '${suggestedAction.params?.task}')" 
+                                            class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white text-[10px] font-bold rounded-lg transition-all flex items-center gap-2">
+                                        Provide Info
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-3 flex justify-between items-center">
+                                <button onclick="launchStudioFromChat('${btoa(JSON.stringify({ type: 'creative_studio', params: { type: suggestedAction.params.task } }))}')" 
+                                        class="text-[10px] text-slate-500 hover:text-slate-300 transition-all bg-transparent border-none">
+                                    Proceed anyway (Low quality)
+                                </button>
+                                <label class="flex items-center gap-2 text-[10px] text-slate-500 cursor-pointer hover:text-white transition-all">
+                                    <input type="file" class="hidden" onchange="handleInfoFileUpload(event, '${messageId}')">
+                                    <button onclick="this.previousElementSibling.click()" class="flex items-center gap-1">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                        Attach File
+                                    </button>
+                                </label>
+                            </div>
+                        </div>
+                        `;
+                } else {
+                    return `
+                        <div class="mt-3 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 rounded-xl p-3">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-2">
+                                     <div class="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>
+                                     </div>
+                                     <div>
+                                        <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Magic Action</p>
+                                        <p class="text-xs text-white">I've prepared the ${suggestedAction.params?.type?.replace('_', ' ') || 'content'} for you.</p>
+                                     </div>
+                                </div>
+                                <button onclick="launchStudioFromChat('${btoa(JSON.stringify(suggestedAction))}')" 
+                                        class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold rounded-lg transition-all shadow-lg shadow-indigo-600/20 flex items-center gap-2 group">
+                                    Launch Studio
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="transition-transform group-hover:translate-x-1"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                        `;
+                }
+            })() : ''}
 
                 <!-- Action Buttons (NotebookLM Style) -->
                 <div class="flex items-center gap-2 mt-2 ml-1">
@@ -3406,6 +3509,115 @@ async function copyText(btn) {
 /**
  * Rate a chat message
  */
+const selectedReportLevels = {};
+
+function selectReportLevel(messageId, level, btn) {
+    selectedReportLevels[messageId] = level;
+
+    // Update UI in the grid
+    const grid = document.getElementById(`report-selection-grid-${messageId}`);
+    const buttons = grid.querySelectorAll('button');
+
+    buttons.forEach(b => {
+        b.classList.remove('border-indigo-500', 'border-purple-500', 'bg-indigo-500/5', 'bg-purple-500/5');
+        const iconDiv = b.querySelector('.w-10');
+        iconDiv.classList.remove('bg-indigo-500/10', 'text-indigo-400', 'bg-purple-500/10', 'text-purple-400');
+    });
+
+    if (level === 'standard') {
+        btn.classList.add('border-indigo-500', 'bg-indigo-500/5');
+        btn.querySelector('.w-10').classList.add('bg-indigo-500/10', 'text-indigo-400');
+    } else {
+        btn.classList.add('border-purple-500', 'bg-purple-500/5');
+        btn.querySelector('.w-10').classList.add('bg-purple-500/10', 'text-purple-400');
+    }
+
+    // Show confirm area
+    const confirmArea = document.getElementById(`report-confirm-area-${messageId}`);
+    confirmArea.classList.remove('hidden');
+    confirmArea.classList.add('flex');
+}
+
+async function finalizeReportGeneration(messageId, btn) {
+    const level = selectedReportLevels[messageId];
+    if (!level) return;
+
+    btn.disabled = true;
+    btn.innerHTML = '<svg class="animate-spin -ml-1 mr-2 h-3 w-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Generating...';
+
+    try {
+        // Set the global level hidden input so the logic uses it
+        document.getElementById('current-analysis-level').value = level;
+
+        // Trigger report generation logic (existing)
+        // Note: This would typically call generateKnowledgeSummary or similar
+        await generateSummary();
+
+        showNotification('Report generation started!', 'success');
+
+        // Update card to show success
+        const confirmArea = document.getElementById(`report-confirm-area-${messageId}`);
+        confirmArea.innerHTML = `
+            <div class="flex items-center gap-2 text-emerald-400">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                <span class="text-[10px] font-bold">Successfully generated</span>
+            </div>
+            <button onclick="viewReportDetail()" class="text-[10px] font-bold text-indigo-400 hover:underline">View Report</button>
+        `;
+    } catch (error) {
+        console.error('Report generation failed:', error);
+        showNotification('Failed to generate report', 'error');
+        btn.disabled = false;
+        btn.textContent = 'Accept & Generate';
+    }
+}
+
+function viewReportDetail() {
+    const summarySection = document.getElementById('summary-section');
+    if (summarySection) {
+        summarySection.scrollIntoView({ behavior: 'smooth' });
+        // Add a subtle highlight effect
+        summarySection.classList.add('ring-2', 'ring-indigo-500/50');
+        setTimeout(() => summarySection.classList.remove('ring-2', 'ring-indigo-500/50'), 2000);
+    }
+}
+
+function submitAdditionalInfo(messageId, taskType) {
+    const input = document.getElementById(`missing-info-input-${messageId}`);
+    const info = input?.value?.trim();
+    if (!info) {
+        showNotification('Please enter some information', 'warning');
+        return;
+    }
+
+    // Prepare message
+    const prompt = `Here is the additional information for the ${taskType.replace('_', ' ')}: \n\n${info}`;
+
+    // Set input and send
+    document.getElementById('chat-input').value = prompt;
+    sendChatMessage();
+
+    // Disable the card button
+    const btn = document.querySelector(`[onclick*="submitAdditionalInfo('${messageId}'"]`);
+    if (btn) {
+        btn.disabled = true;
+        btn.classList.add('opacity-50');
+        btn.innerHTML = 'Information Sent ✓';
+    }
+}
+
+function handleInfoFileUpload(event, messageId) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Show a notification and guide to the upload tab
+    showNotification(`Selected ${file.name}. Please upload it via the "Upload" tab to integrate it into the knowledge base.`, 'info');
+
+    // Switch to upload tab for them
+    const uploadTabBtn = document.querySelector('[data-tab="upload"]');
+    if (uploadTabBtn) uploadTabBtn.click();
+}
+
 function rateChatMessage(messageId, rating, btn) {
     const parent = btn.parentElement;
     const thumbsUp = parent.querySelector('button:nth-child(3)');

@@ -24,9 +24,26 @@ let storage;
 
 try {
     app = firebase.initializeApp(firebaseConfig);
-    auth = firebase.auth();
-    db = firebase.firestore();
-    storage = firebase.storage();
+
+    // Resilient initialization: check if SDKs are loaded before calling functions
+    if (typeof firebase.auth === 'function') {
+        auth = firebase.auth();
+    } else {
+        console.warn("Firebase Auth SDK not loaded - auth will be undefined");
+    }
+
+    if (typeof firebase.firestore === 'function') {
+        db = firebase.firestore();
+    } else {
+        console.warn("Firebase Firestore SDK not loaded - db will be undefined");
+    }
+
+    if (typeof firebase.storage === 'function') {
+        storage = firebase.storage();
+    } else {
+        console.warn("Firebase Storage SDK not loaded - storage will be undefined");
+    }
+
     console.log("Firebase initialized successfully");
 } catch (error) {
     console.error("Firebase initialization failed:", error);

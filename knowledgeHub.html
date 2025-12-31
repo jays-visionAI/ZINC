@@ -781,8 +781,8 @@
 
             <!-- Chat Input -->
             <div class="p-4 border-t border-slate-800 bg-slate-900">
-                <!-- Analysis Tuning Options (NEW) -->
-                <div class="flex items-center gap-4 mb-4 px-2">
+                <!-- Analysis Tuning Options (HIDDEN - now using Inline Actions) -->
+                <div id="analysis-tuning-container" class="hidden flex items-center gap-4 mb-4 px-2">
                     <div class="flex items-center gap-2">
                         <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Analysis
                             Level:</span>
@@ -805,8 +805,8 @@
                             <option value="market">Market & Strategy</option>
                         </select>
                     </div>
-                    <input type="hidden" id="current-analysis-level" value="standard">
                 </div>
+                <input type="hidden" id="current-analysis-level" value="standard">
 
                 <div class="flex gap-3">
                     <div class="flex-1 relative">

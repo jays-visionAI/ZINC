@@ -2705,9 +2705,19 @@ exports.askKnowledgeHub = onCall(
             // Actionable Intent Prompt
             const intentInstruction = `
             INTENT DETECTION:
-            If the user wants to create/generate something (e.g. "write an email", "make a brochure", "create a pitch deck", "generate an image"), 
-            you must append a JSON action tag at the very end of your response exactly like this:
-            [ACTION:{"type":"creative_studio","params":{"type":"TYPE_ID","topic":"TOPIC_SUMMARY","audience":"TARGET_AUDIENCE","tone":"TONE_ID"}}]
+            1. If the user wants to create/generate something (e.g. "write an email", "make a brochure", "create a pitch deck", "generate an image"), 
+               you must append a JSON action tag at the very end of your response:
+               [ACTION:{"type":"creative_studio","params":{"type":"TYPE_ID","topic":"TOPIC_SUMMARY","audience":"TARGET_AUDIENCE","tone":"TONE_ID"}}]
+            
+            2. If the user wants a "report", "formal analysis", "comprehensive summary", or "document" based on sources,
+               you must append: [ACTION:{"type":"report_selection"}]
+
+            3. INFORMATION READINESS CHECK:
+               Before suggesting a "creative_studio" action (especially for multi-page content like pitch_deck or brochures), 
+               evaluate if the provided context has enough detail for all typical sections. 
+               If key information is missing (e.g. business model, team, market data), you MUST append: 
+               [ACTION:{"type":"need_more_info", "params":{"task":"TASK_TYPE", "missing":["Item 1", "Item 2"]}}]
+               Instead of triggering the studio immediately, provide a helpful response explaining what's missing.
             
             Valid TYPE_ID: product_brochure, promo_images, one_pager, pitch_deck, email_template, press_release
             Valid TONE_ID: professional, exciting, persuasive, informative, friendly, luxury
