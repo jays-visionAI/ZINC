@@ -43,7 +43,7 @@ This document outlines the ZYNK creative content generation architecture, includ
 
 ---
 
-## 📋 Business Templates (Promo → Templates 리브랜딩)
+## 📋 Promo Template (비즈니스 템플릿)
 
 ### Supported Template Types
 | 템플릿 | 용도 | 배경 이미지 스타일 |

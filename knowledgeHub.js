@@ -3962,9 +3962,9 @@ const CREATIVE_CONFIGS = {
         ]
     },
     promo_images: {
-        name: 'Business Templates',
+        name: 'Promo Template',
         subtitle: 'AI-powered posters, cards, and banners with editable text',
-        buttonLabel: 'Templates',
+        buttonLabel: 'Promo',
         credits: 5,
         controls: [
             {
