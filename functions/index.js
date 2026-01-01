@@ -24,6 +24,14 @@ const corsMiddleware = require('cors')({ origin: true });
 // Allowed origins for CORS - using true for wildcards or string/array for specific domains
 const ALLOWED_ORIGINS = true;
 
+// Core libraries for source processing
+const axios = require('axios');
+const cheerio = require('cheerio');
+const mammoth = require('mammoth');
+const pdfParse = require('pdf-parse');
+const XLSX = require('xlsx');
+const officeParser = require('officeparser');
+
 // Initialize Admin SDK with explicit project config (only if not already initialized)
 if (!admin.apps.length) {
     admin.initializeApp({
@@ -2062,8 +2070,7 @@ function buildBrandContextFromData(data) {
 // KNOWLEDGE HUB: Source Analysis Functions
 // ============================================================
 
-const axios = require('axios');
-const cheerio = require('cheerio');
+
 
 /**
  * Analyze a knowledge source
@@ -2110,7 +2117,13 @@ exports.analyzeKnowledgeSource = functions.https.onCall(async (data, context) =>
                 extractedText = await extractTextFromDrive(source.googleDrive || source.driveInfo);
                 break;
             case 'file':
-                extractedText = await extractTextFromFile(source.fileUrl, source.contentType);
+                // Use storagePath if available, otherwise fallback to fileName
+                if (source.fileName) {
+                    const storagePath = `projects/${projectId}/knowledgeSources/${source.fileName}`;
+                    extractedText = await extractTextFromFile(storagePath, source.contentType, source.title);
+                } else {
+                    extractedText = await extractTextFromFile(source.fileUrl, source.contentType, source.title);
+                }
                 break;
             default:
                 extractedText = source.description || '';
@@ -2162,6 +2175,10 @@ Please provide the analysis in this JSON format:
         // Update source with analysis
         await sourceRef.update({
             status: 'completed',
+            summary: analysis.summary || '',
+            keyInsights: analysis.keyInsights || [],
+            content: extractedText,
+            summarizedAt: admin.firestore.FieldValue.serverTimestamp(),
             analysis: {
                 ...analysis,
                 extractedTextLength: extractedText.length,
@@ -2321,18 +2338,23 @@ async function extractTextFromDrive(driveInfo) {
 /**
  * Extract text from uploaded file (DOCX, TXT, MD, PDF, XLSX, PPTX)
  */
-async function extractTextFromFile(fileUrl, contentType, fileName) {
-    if (!fileUrl) return '';
+async function extractTextFromFile(storagePath, contentType, fileName) {
+    if (!storagePath) return '';
 
-    console.log(`[extractTextFromFile] Processing: ${fileName}, type: ${contentType}`);
+    console.log(`[extractTextFromFile] Processing from Storage: ${storagePath}, type: ${contentType}`);
 
     try {
-        // Download file from Firebase Storage
-        const response = await axios.get(fileUrl, {
-            responseType: 'arraybuffer',
-            timeout: 60000
-        });
-        const buffer = Buffer.from(response.data);
+        // Use Firebase Admin Storage to get the file buffer directly (more reliable than axios/URL)
+        const bucket = admin.storage().bucket();
+        const file = bucket.file(storagePath);
+
+        const [exists] = await file.exists();
+        if (!exists) {
+            throw new Error(`File not found in storage: ${storagePath}`);
+        }
+
+        const [buffer] = await file.download();
+        console.log(`[extractTextFromFile] Downloaded ${buffer.length} bytes`);
 
         // Determine file type from contentType or fileName extension
         const ext = (fileName || '').toLowerCase().split('.').pop();
@@ -2346,61 +2368,38 @@ async function extractTextFromFile(fileUrl, contentType, fileName) {
         let extractedText = '';
 
         if (isDocx) {
-            // Use mammoth for DOCX
-            const mammoth = require('mammoth');
             const result = await mammoth.extractRawText({ buffer });
             extractedText = result.value || '';
-            console.log(`[extractTextFromFile] DOCX extracted: ${extractedText.length} chars`);
-
         } else if (isPdf) {
-            // Use pdf-parse for PDF
-            const pdfParse = require('pdf-parse');
             const pdfData = await pdfParse(buffer);
             extractedText = pdfData.text || '';
-            console.log(`[extractTextFromFile] PDF extracted: ${extractedText.length} chars`);
-
         } else if (isTxt || isMd) {
-            // Direct text read for TXT/MD
             extractedText = buffer.toString('utf-8');
-            console.log(`[extractTextFromFile] TXT/MD extracted: ${extractedText.length} chars`);
-
         } else if (isExcel) {
-            // Use xlsx for Excel files
-            const XLSX = require('xlsx');
             const workbook = XLSX.read(buffer, { type: 'buffer' });
-            const sheetTexts = [];
-
-            for (const sheetName of workbook.SheetNames) {
-                const sheet = workbook.Sheets[sheetName];
-                const sheetData = XLSX.utils.sheet_to_csv(sheet);
-                sheetTexts.push(`[Sheet: ${sheetName}]\n${sheetData}`);
-            }
-
+            const sheetTexts = workbook.SheetNames.map(name => {
+                const sheet = workbook.Sheets[name];
+                return `[Sheet: ${name}]\n${XLSX.utils.sheet_to_csv(sheet)}`;
+            });
             extractedText = sheetTexts.join('\n\n');
-            console.log(`[extractTextFromFile] Excel extracted: ${extractedText.length} chars, ${workbook.SheetNames.length} sheets`);
-
         } else if (isPptx) {
-            // Use officeparser for PowerPoint
-            const officeParser = require('officeparser');
             extractedText = await new Promise((resolve, reject) => {
                 officeParser.parseOffice(buffer, (err, data) => {
                     if (err) reject(err);
                     else resolve(data || '');
                 });
             });
-            console.log(`[extractTextFromFile] PPTX extracted: ${extractedText.length} chars`);
-
         } else {
-            console.warn(`[extractTextFromFile] Unsupported file type: ${contentType}, ext: ${ext}`);
-            return `[Unsupported file type: ${ext}]\n\nSupported formats: PDF, DOCX, TXT, MD, XLSX, PPTX`;
+            return `[Unsupported file type: ${ext}]`;
         }
 
-        // Clean up and limit
+        console.log(`[extractTextFromFile] Extraction complete: ${extractedText.length} chars`);
+
         return extractedText
             .replace(/\s+/g, ' ')
             .replace(/\n+/g, '\n')
             .trim()
-            .substring(0, 100000); // Limit to 100k chars
+            .substring(0, 100000);
 
     } catch (error) {
         console.error('[extractTextFromFile] Error:', error.message);
@@ -2508,8 +2507,16 @@ exports.onKnowledgeSourceCreated = onDocumentCreated(
                         extractedText = await extractTextFromDrive(source.googleDrive);
                         break;
                     case 'file':
-                        // Handle uploaded files (DOCX, TXT, MD, PDF)
-                        extractedText = await extractTextFromFile(source.fileUrl, source.contentType, source.title);
+                        // Handle uploaded files (DOCX, TXT, MD, PDF, XLSX, PPTX)
+                        // Paths are projects/{projectId}/knowledgeSources/{fileName}
+                        if (source.fileName) {
+                            const storagePath = `projects/${projectId}/knowledgeSources/${source.fileName}`;
+                            extractedText = await extractTextFromFile(storagePath, source.contentType, source.title);
+                        } else if (source.fileUrl) {
+                            // Fallback to URL if somehow fileName is missing (though refactored function now expects path)
+                            console.warn(`[onKnowledgeSourceCreated] Missing fileName for file source ${sourceId}, using description fallback`);
+                            extractedText = source.description || '';
+                        }
                         break;
                     default:
                         extractedText = source.description || '';
@@ -2533,7 +2540,8 @@ exports.onKnowledgeSourceCreated = onDocumentCreated(
                 status: 'completed',
                 summary: analysis.summary || '',
                 keyInsights: analysis.keyInsights || [],
-                content: extractedText, // Save extracted text for Brand Summary context
+                content: extractedText,
+                summarizedAt: admin.firestore.FieldValue.serverTimestamp(), // Matches frontend expectation
                 analysis: {
                     ...analysis,
                     extractedTextLength: extractedText.length,

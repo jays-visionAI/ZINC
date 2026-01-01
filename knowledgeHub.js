@@ -1069,10 +1069,13 @@ function openSourceContent(sourceId) {
     selectedSourceId = sourceId;
     expandSourcesPanel();
 
-    // Use source.summary if available, otherwise description or content
+    // Use source.summary if available, otherwise check analysis sub-object, then content
     // PRD says: Source Summary (3-5 sentences).
-    const content = source.summary || source.description || source.content || 'No summary available for this source.';
-    const summarizedAt = source.summarizedAt ? new Date(source.summarizedAt.toDate()).toLocaleDateString() : 'Not yet';
+    const content = source.summary || source.analysis?.summary || source.description || source.content || source.analysis?.extractedContent || 'No summary available for this source.';
+
+    // Check both summarizedAt and analyzedAt
+    const rawDate = source.summarizedAt || source.analysis?.analyzedAt;
+    const summarizedAt = rawDate ? new Date(rawDate.toDate()).toLocaleDateString() : 'Not yet';
     const importance = source.importance || 2;
 
     // Create a temporary summary object for display
@@ -1599,73 +1602,51 @@ async function regenerateSourceSummary(sourceId) {
     showNotification(`[AI] Market Analyst: Analyzing (${boostActive ? 'Boosted' : 'Standard'})...`, 'info');
 
     try {
-        // Get content to summarize based on source type
+        console.log(`[KnowledgeHub] Regenerating analysis for source: ${source.id}`, source);
+
+        // Get content to summarize based on source type with robust fallbacks
         let contentToSummarize = '';
 
         if (source.sourceType === 'note') {
             contentToSummarize = source.note?.content || source.content || '';
         } else if (source.sourceType === 'link') {
-            contentToSummarize = source.link?.extractedContent || source.content || source.link?.url || '';
+            contentToSummarize = source.link?.extractedContent || source.content || source.analysis?.extractedContent || source.link?.url || '';
         } else if (source.sourceType === 'google_drive') {
-            contentToSummarize = source.googleDrive?.extractedContent || source.content || source.googleDrive?.fileName || '';
+            contentToSummarize = source.googleDrive?.extractedContent || source.content || source.analysis?.extractedContent || source.googleDrive?.fileName || '';
         } else if (source.sourceType === 'file') {
-            // Use the extracted content from the initial analysis
-            contentToSummarize = source.content || '';
+            // Use the extracted content from the initial analysis (check multiple possible fields)
+            contentToSummarize = source.content || source.analysis?.extractedContent || source.extractedText || '';
         }
 
-        if (!contentToSummarize) {
-            showNotification('No content available to summarize', 'error');
+        if (!contentToSummarize || contentToSummarize.trim().length < 5) {
+            console.error('[KnowledgeHub] No content found for source:', source);
+            showNotification('No content available to summarize. The initial text extraction may have failed.', 'error');
             return;
         }
 
-        // Call AI via routeLLM (PRD 11.6 Router)
-        const routeLLM = firebase.app().functions('us-central1').httpsCallable('routeLLM');
+        // Call dedicated analysis Cloud Function which handles both extraction and AI analysis
+        const analyzeKnowledgeSource = firebase.app().functions('us-central1').httpsCallable('analyzeKnowledgeSource');
 
-        const result = await routeLLM({
-            feature: 'brandbrain.analysis', // Maps to Gemini 3.0 Pro (Boost) or Gemini 2.0 Flash (Default)
-            qualityTier: qualityTier,
-            systemPrompt: 'You are a helpful assistant that creates concise document summaries. Structure your response with a clear summary followed by key bullet points.',
-            userPrompt: `Please provide a concise summary of the following document content. Focus on the main strategy, key insights, and actionable items.
-            
-Document Title: ${source.title || 'Untitled'}
-Document Type: ${source.sourceType}
-Content:
-${contentToSummarize.substring(0, 15000)}` // Increased limit for Gemini
+        const result = await analyzeKnowledgeSource({
+            projectId: currentProjectId,
+            sourceId: sourceId,
+            qualityTier: qualityTier // Pass tier if needed for routing
         });
 
-        // routeLLM returns { content: "...", model: "...", ... }
-        const responseText = result.data?.content;
-
-        if (responseText) {
-            // Save summary to Firestore
-            await firebase.firestore()
-                .collection('projects')
-                .doc(currentProjectId)
-                .collection('knowledgeSources')
-                .doc(sourceId)
-                .update({
-                    summary: responseText, // Use responseText
-                    summarizedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-
-            // Update local state
-            source.summary = responseText;
-            source.summarizedAt = { toDate: () => new Date() };
-
-            // Refresh the view
-            openSourceContent(sourceId);
-
+        if (result.data.success) {
             showNotification(`Market Analyst: Analysis complete! (${qualityTier})`, 'success');
+            // View will refresh automatically due to Firestore onSnapshot listener
+            // But we call openSourceContent just to be sure the panel is updated with latest local state
+            openSourceContent(sourceId);
         } else {
-            console.error('RouteLLM Empty Response:', result.data);
-            showNotification(`Failed to generate: ${result.data?.error || 'No content returned from AI'}`, 'error');
+            console.error('AnalyzeKnowledgeSource Error:', result.data);
+            showNotification(`Failed to generate: ${result.data?.error || 'Unknown error'}`, 'error');
         }
 
     } catch (error) {
         console.error('Error regenerating source summary:', error);
         // Show detailed error from Cloud Function
-        const errorMsg = error.details?.message || error.message || 'Unknown error';
+        const errorMsg = error.message || 'Unknown error';
         showNotification(`Generation Error: ${errorMsg}`, 'error');
     }
 }
