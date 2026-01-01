@@ -7,6 +7,7 @@ const { generateWithVertexAI } = require('../utils/vertexAI');
 async function createCreativeContent(inputs, context, plan, executeLLM, type, advancedOptions = {}) {
     const {
         topic,
+        campaignMessage = '',
         style = 'Modern',
         audience = 'General Audience',
         slideCount = 5,
@@ -65,16 +66,20 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
     } else if (normalizedType === 'promo_images' || normalizedType === 'images') {
         const count = Math.min(finalImageCount, 6);
         strategy = {
-            role: "Award-winning Ad Agency Art Director",
-            visualTask: `Identify ${count} ultra-premium, high-impact campaign variations.`,
-            htmlTask: `Create a high-end, futuristic dark-mode showcase. Use a Bento Grid or sophisticated Gallery layout for ${count} campaign assets. 
-            DESIGN RULES:
-            - Use Glassmorphism (blur + borders) for all cards.
-            - Use polished, high-contrast typography (Inter / Space Grotesk).
-            - Add subtle glowing mesh gradients in the background.
-            - Each asset must have a BOLD TITLE, a short conceptual 'Insight' text, and a high-impact background image card.
-            - Ensure the layout feels like a premium portfolio or high-end brand landing page.`,
-            visualIds: Array.from({ length: count }, (_, i) => ({ id: `PROMO_${i + 1}`, desc: `Ad ${i + 1}` }))
+            role: "Award-winning Visual Campaign Director",
+            visualTask: `Generate ${count} stunning, high-impact promotional images for "${topic}".`,
+            htmlTask: `Create an ULTRA-VISUAL image gallery where AI-generated images are the STAR.
+            
+            CRITICAL LAYOUT RULES:
+            1. Use a CSS Grid with large image cards (min-height: 400px each).
+            2. Each card MUST use the image token as a FULL-BLEED BACKGROUND IMAGE via inline style: style="background-image: url('{{PROMO_N}}'); background-size: cover; background-position: center;"
+            3. Text overlay should be MINIMAL - only a short title (max 5 words) at the bottom with a dark gradient overlay for readability.
+            4. NO long paragraphs. NO descriptions. Just the IMAGE and a tiny label.
+            5. The page should feel like an Instagram grid or a Dribbble shot showcase.
+            6. Add subtle hover animations (scale, shadow).
+            7. Dark mode background (#030712).
+            8. Use aspect-ratio: 16/9 or 1/1 on the cards.`,
+            visualIds: Array.from({ length: count }, (_, i) => ({ id: `PROMO_${i + 1}`, desc: `Visual ${i + 1}` }))
         };
     } else {
         strategy = {
@@ -86,13 +91,14 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
     }
 
     // 1. VISUAL PLANNING
-    const visualPlanPrompt = `Plan ${strategy.visualIds.length} visuals for "${topic}". Json only: {"visuals": [{"id": "...", "desc": "...", "prompt": "..."}]}`;
+    const campaignContext = campaignMessage ? `\nCampaign vision: "${campaignMessage}"` : '';
+    const visualPlanPrompt = `Plan ${strategy.visualIds.length} visuals for "${topic}".${campaignContext}\nJson only: {"visuals": [{"id": "...", "desc": "...", "prompt": "..."}]}`;
     let visualPlan = { visuals: [] };
     try {
         const res = await executeLLM("Designer", visualPlanPrompt);
         visualPlan = JSON.parse(res.match(/\{[\s\S]*\}/)[0]);
     } catch (e) {
-        visualPlan.visuals = strategy.visualIds.map(v => ({ id: v.id, prompt: v.desc }));
+        visualPlan.visuals = strategy.visualIds.map(v => ({ id: v.id, prompt: campaignMessage || v.desc }));
     }
 
     // 2. ASSET GENERATION

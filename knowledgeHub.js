@@ -3967,7 +3967,8 @@ const CREATIVE_CONFIGS = {
         buttonLabel: 'Images',
         credits: 5,
         controls: [
-            { id: 'topic', type: 'textarea', label: 'Image Concept', placeholder: 'Describe the image in detail...' },
+            { id: 'topic', type: 'text', label: 'What are you promoting?', placeholder: 'e.g., New iPhone 16, Summer Sale, Crypto Wallet App...' },
+            { id: 'campaignMessage', type: 'textarea', label: 'Campaign Message / Key Visuals', placeholder: 'Describe what the images should convey...\ne.g., "Sleek smartphone floating in space with glowing particles" or "Happy people using our app at a coffee shop"' },
             {
                 id: 'style',
                 type: 'visual-pick',
