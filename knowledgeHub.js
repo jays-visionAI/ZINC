@@ -3973,7 +3973,7 @@ const CREATIVE_CONFIGS = {
         controls: [
             { id: 'topic', type: 'text', label: 'Document Title', placeholder: 'e.g., Q3 Performance Review' },
             { id: 'executiveSummary', type: 'textarea', label: 'Executive Summary', placeholder: 'Brief overview of the main message...' },
-            { id: 'knowledgeContext', type: 'textarea', label: 'Knowledge Context', placeholder: 'Knowledge Hub에서 가져온 정보가 여기에 표시됩니다. 필요시 수정하세요...', rows: 6, prefillFromKnowledgeHub: true },
+            { id: 'knowledgeContext', type: 'textarea', label: 'Knowledge Context', placeholder: 'Knowledge Hub에서 가져온 정보가 여기에 표시됩니다. 필요시 수정하세요...', rows: 9, prefillFromKnowledgeHub: true },
             { id: 'style', type: 'select', label: 'Layout Style', options: ['Corporate', 'Startup', 'Data-Heavy', 'Newsletter', 'Modern Tech', 'Luxury'] },
             { id: 'contactInfo', type: 'text', label: 'Contact Info', placeholder: 'e.g., sales@zynk.ai' }
         ],
