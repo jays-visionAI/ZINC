@@ -130,11 +130,111 @@ RULES:
             contentStrategy: pitchDeckContent
         };
     } else if (normalizedType === 'one_pager') {
+        console.log(`[UniversalCreator] 📄 One Pager: Infographic Mode`);
+
+        // === ONE PAGER: Infographic Strategist ===
+        let onePagerContent = null;
+        try {
+            const infographicPrompt = `You are a world-class Visual Communication Expert and Infographic Designer.
+Your specialty: Distilling complex information into powerful 1-2 page visual documents.
+
+TOPIC: "${topic}"
+DETAILS: "${campaignMessage}"
+CONTEXT: """${knowledgeBase.substring(0, 5000)}"""
+
+Design an executive one-pager that transforms ideas into visual impact. Return JSON only:
+{
+    "documentTitle": "Clear, compelling title",
+    "subtitle": "One-line value proposition or context",
+    "visualStrategy": "Describe the overall visual approach (e.g., 'Grid-based infographic with icon-driven sections')",
+    
+    "sections": [
+        {
+            "sectionType": "hero",
+            "layout": "full-width" | "split",
+            "headline": "Bold statement (max 8 words)",
+            "subheadline": "Supporting context in one sentence",
+            "visualElement": {
+                "type": "image" | "icon-grid" | "stat-display",
+                "description": "What to show visually"
+            }
+        },
+        {
+            "sectionType": "key-metrics",
+            "layout": "3-column" | "4-column",
+            "headline": "Section title",
+            "metrics": [
+                {"value": "85%", "label": "Customer Satisfaction", "icon": "star"},
+                {"value": "$2.5M", "label": "Revenue Generated", "icon": "chart-line"},
+                {"value": "500+", "label": "Active Users", "icon": "users"}
+            ]
+        },
+        {
+            "sectionType": "process",
+            "layout": "horizontal-flow" | "vertical-steps",
+            "headline": "How It Works",
+            "steps": [
+                {"number": 1, "title": "Step Title", "description": "Brief description", "icon": "icon-name"},
+                {"number": 2, "title": "Step Title", "description": "Brief description", "icon": "icon-name"}
+            ]
+        },
+        {
+            "sectionType": "features",
+            "layout": "bento-grid" | "icon-list",
+            "headline": "Key Features",
+            "features": [
+                {"title": "Feature Name", "description": "One-line benefit", "icon": "icon-name"},
+                {"title": "Feature Name", "description": "One-line benefit", "icon": "icon-name"}
+            ]
+        },
+        {
+            "sectionType": "comparison",
+            "layout": "table" | "before-after",
+            "headline": "Why Choose Us",
+            "leftColumn": {"title": "Before", "points": ["Pain point 1", "Pain point 2"]},
+            "rightColumn": {"title": "After", "points": ["Benefit 1", "Benefit 2"]}
+        },
+        {
+            "sectionType": "cta",
+            "layout": "centered",
+            "headline": "Ready to Get Started?",
+            "primaryAction": "Contact Us",
+            "secondaryInfo": "support@company.com | +82-2-1234-5678"
+        }
+    ],
+    
+    "designNotes": {
+        "primaryColor": "hex color for accent",
+        "layoutType": "magazine" | "corporate" | "modern-minimal" | "data-heavy",
+        "iconStyle": "line" | "solid" | "duotone",
+        "visualHierarchy": "Description of what should catch the eye first, second, third"
+    }
+}
+
+INFOGRAPHIC DESIGN PRINCIPLES:
+1. VISUAL HIERARCHY: Most important info should be largest/most prominent
+2. DATA VISUALIZATION: Numbers should be visualized, not just listed
+3. ICON USAGE: Every section should have relevant icons (use Font Awesome names)
+4. WHITE SPACE: Leave room to breathe - don't cram everything
+5. SCAN-ABILITY: Reader should grasp key points in 30 seconds
+6. 1-2 PAGE LIMIT: Max 6-8 sections, prioritize ruthlessly
+
+Return ONLY valid JSON.`;
+
+            const infographicResult = await executeLLM("InfographicStrategist", infographicPrompt);
+            onePagerContent = JSON.parse(infographicResult.match(/\{[\s\S]*\}/)[0]);
+            console.log(`[UniversalCreator] ✅ Infographic Strategy complete: ${onePagerContent.sections?.length || 0} sections`);
+        } catch (e) {
+            console.error(`[UniversalCreator] ⚠️ Infographic Strategy failed:`, e.message);
+            onePagerContent = null;
+        }
+
         strategy = {
-            role: "Executive Document Designer",
+            role: "Executive Document Designer & Infographic Expert",
             visualTask: "Identify Header and 1 conceptual visual.",
-            htmlTask: "Create a rich A4-style Executive One-Pager. 2-column layout, dense copy.",
-            visualIds: [{ id: "HEADER", desc: "Header" }, { id: "DETAIL", desc: "Detail" }]
+            htmlTask: "Create a visually impactful A4-style Executive One-Pager. Use infographic elements: icon grids, metric displays, process flows, bento layouts. Max 2 pages when printed.",
+            visualIds: [{ id: "HEADER", desc: "Header" }, { id: "DETAIL", desc: "Detail" }],
+            contentStrategy: onePagerContent
         };
     } else if (normalizedType === 'product_brochure') {
         strategy = {
@@ -328,6 +428,8 @@ Return ONLY the JSON object.`;
 
     // Build content strategy section if available
     let contentStrategySection = '';
+
+    // Pitch Deck: Slides format
     if (strategy.contentStrategy && strategy.contentStrategy.slides) {
         contentStrategySection = `
     === CONTENT STRATEGY (MUST FOLLOW) ===
@@ -349,7 +451,52 @@ Return ONLY the JSON object.`;
     
     YOU MUST use the exact headlines, bullets, and content provided above.
     `;
-        console.log('[UniversalCreator] 📋 Content Strategy injected into HTML prompt');
+        console.log('[UniversalCreator] 📋 Pitch Deck Content Strategy injected');
+    }
+
+    // One Pager: Infographic sections format
+    if (strategy.contentStrategy && strategy.contentStrategy.sections) {
+        const cs = strategy.contentStrategy;
+        contentStrategySection = `
+    === INFOGRAPHIC STRATEGY (MUST FOLLOW) ===
+    Document Title: ${cs.documentTitle || topic}
+    Subtitle: ${cs.subtitle || ''}
+    Visual Approach: ${cs.visualStrategy || 'Modern infographic with icon-driven sections'}
+    
+    ${cs.designNotes ? `
+    DESIGN DIRECTION:
+    - Primary Color: ${cs.designNotes.primaryColor || '#6366f1'}
+    - Layout Type: ${cs.designNotes.layoutType || 'modern-minimal'}
+    - Icon Style: ${cs.designNotes.iconStyle || 'solid'}
+    - Visual Hierarchy: ${cs.designNotes.visualHierarchy || 'Title > Metrics > Features > CTA'}
+    ` : ''}
+    
+    SECTIONS TO CREATE (IN ORDER):
+    ${cs.sections.map((s, i) => {
+            let sectionDesc = `
+    ${i + 1}. ${s.sectionType?.toUpperCase()} SECTION (Layout: ${s.layout || 'auto'})
+       - Headline: "${s.headline || ''}"`;
+
+            if (s.subheadline) sectionDesc += `\n       - Subheadline: "${s.subheadline}"`;
+            if (s.metrics) sectionDesc += `\n       - METRICS (use large numbers with icons):\n         ${s.metrics.map(m => `• ${m.value} - ${m.label} [icon: fa-${m.icon}]`).join('\n         ')}`;
+            if (s.steps) sectionDesc += `\n       - PROCESS STEPS (use numbered flow):\n         ${s.steps.map(st => `${st.number}. ${st.title}: ${st.description} [icon: fa-${st.icon}]`).join('\n         ')}`;
+            if (s.features) sectionDesc += `\n       - FEATURES (use icon grid/bento):\n         ${s.features.map(f => `• ${f.title}: ${f.description} [icon: fa-${f.icon}]`).join('\n         ')}`;
+            if (s.leftColumn && s.rightColumn) sectionDesc += `\n       - COMPARISON:\n         LEFT (${s.leftColumn.title}): ${s.leftColumn.points?.join(', ')}\n         RIGHT (${s.rightColumn.title}): ${s.rightColumn.points?.join(', ')}`;
+            if (s.primaryAction) sectionDesc += `\n       - CTA Button: "${s.primaryAction}"`;
+            if (s.secondaryInfo) sectionDesc += `\n       - Contact: ${s.secondaryInfo}`;
+
+            return sectionDesc;
+        }).join('\n')}
+    
+    INFOGRAPHIC RULES:
+    - Use Font Awesome icons (fa-solid) for every section
+    - Display metrics as LARGE numbers (text-4xl or bigger)
+    - Use grid layouts (CSS Grid or Flexbox)
+    - Visual elements > text blocks
+    - Max 2 printed pages
+    - Must be scannable in 30 seconds
+    `;
+        console.log('[UniversalCreator] 📋 One Pager Infographic Strategy injected');
     }
 
     const baseTask = `
