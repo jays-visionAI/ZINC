@@ -5458,9 +5458,14 @@ async function handleRefineAssetUpload(input) {
 
 async function uploadRefineAsset(file) {
     const storageRef = firebase.storage().ref();
-    const projectId = currentRefineState.docId || 'shared';
-    const fileName = `creative-uploads/${projectId}/refine_${Date.now()}_${file.name}`;
-    const fileRef = storageRef.child(fileName);
+    // CRITICAL: Use currentProjectId (main project) instead of docId (creative project) 
+    // to match existing Storage Security Rules
+    const projectId = currentProjectId || 'temp';
+    const ext = file.name.split('.').pop();
+    const safeName = `refine_${Date.now()}.${ext}`;
+    const filePath = `creative-uploads/${projectId}/${safeName}`;
+
+    const fileRef = storageRef.child(filePath);
     await fileRef.put(file);
     return await fileRef.getDownloadURL();
 }
