@@ -5896,7 +5896,7 @@ function renderCreativeImages(images) {
 /**
  * Download creative content as PDF using html2pdf.js
  */
-window.downloadCreativeAsPDF = function () {
+window.downloadCreativeAsPDF = async function () {
     const container = document.getElementById('creative-result-container');
     if (!container || !container.innerHTML.trim()) {
         showNotification('No content to export', 'error');
@@ -5915,15 +5915,46 @@ window.downloadCreativeAsPDF = function () {
         contentEl = container.querySelector('.prose') || container.firstElementChild;
     }
 
-    // Configure html2pdf options
+    // Pre-process: Convert background-image CSS to inline <img> for better PDF capture
+    try {
+        const elementsWithBg = contentEl.querySelectorAll('[style*="background-image"]');
+        for (const el of elementsWithBg) {
+            const bgMatch = el.style.backgroundImage.match(/url\(['"]?([^'"]+)['"]?\)/);
+            if (bgMatch && bgMatch[1]) {
+                const imgUrl = bgMatch[1];
+                // Create an img element as background
+                const img = document.createElement('img');
+                img.src = imgUrl;
+                img.style.cssText = 'position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1;';
+                img.crossOrigin = 'anonymous';
+                el.style.position = 'relative';
+                el.insertBefore(img, el.firstChild);
+                el.style.backgroundImage = 'none';
+            }
+        }
+    } catch (e) {
+        console.warn('Background image pre-processing failed:', e);
+    }
+
+    // Configure html2pdf options with enhanced settings for images
     const options = {
-        margin: 10,
-        filename: `zynk - ${currentCreativeType || 'creative'} -${Date.now()}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
+        margin: 0,
+        filename: `zynk-${currentCreativeType || 'creative'}-${Date.now()}.pdf`,
+        image: { type: 'jpeg', quality: 0.95 },
         html2canvas: {
-            scale: 2,
+            scale: 3,
             useCORS: true,
-            logging: false
+            allowTaint: true,
+            logging: false,
+            backgroundColor: '#000000',
+            imageTimeout: 15000,
+            onclone: function (clonedDoc) {
+                // Ensure all images are visible in the clone
+                const images = clonedDoc.querySelectorAll('img');
+                images.forEach(img => {
+                    img.crossOrigin = 'anonymous';
+                });
+            }
         },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
