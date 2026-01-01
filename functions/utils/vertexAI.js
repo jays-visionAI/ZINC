@@ -38,19 +38,38 @@ async function uploadBase64ToStorage(base64String, modelName) {
             }
         });
 
-        // Make it public or get a signed URL
-        // For simplicity and immediate UI loading, we make it public (if the bucket allows)
-        // or use the standard firebasestorage.googleapis.com URL format
-        await file.makePublic();
+        // Use Signed URL instead of makePublic() for Uniform Bucket-Level Access compatibility
+        const [signedUrl] = await file.getSignedUrl({
+            action: 'read',
+            expires: '01-01-2030' // Long expiration for persistent access
+        });
 
-        const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filename}`;
-        console.log(`[uploadBase64ToStorage] ✅ Upload complete: ${publicUrl}`);
-        return publicUrl;
+        console.log(`[uploadBase64ToStorage] ✅ Upload complete with signed URL`);
+        return signedUrl;
     } catch (error) {
-        console.error('[uploadBase64ToStorage] ❌ Storage upload failed:', error);
-        // Fallback to data URI only if absolutely necessary, but warn about Firestore limits
-        console.warn('[uploadBase64ToStorage] Falling back to Data URI (Dangerous for Firestore 1MB limit)');
-        return `data:image/png;base64,${base64String}`;
+        console.error('[uploadBase64ToStorage] ❌ Storage upload failed:', error.message);
+        // Fallback: Try standard Firebase Storage URL format
+        try {
+            const bucket = admin.storage().bucket();
+            const filename = `creative_assets/${modelName}_${Date.now()}_fallback.png`;
+            const file = bucket.file(filename);
+            const buffer = Buffer.from(base64String, 'base64');
+
+            await file.save(buffer, {
+                metadata: { contentType: 'image/png' },
+                public: false // Don't try to make it public
+            });
+
+            // Generate download URL via Firebase format
+            const downloadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(filename)}?alt=media`;
+            console.log(`[uploadBase64ToStorage] ✅ Fallback upload complete: ${downloadUrl}`);
+            return downloadUrl;
+        } catch (fallbackError) {
+            console.error('[uploadBase64ToStorage] ❌ Fallback also failed:', fallbackError.message);
+            // Last resort: Return data URI (risky for Firestore 1MB limit)
+            console.warn('[uploadBase64ToStorage] Returning Data URI as last resort');
+            return `data:image/png;base64,${base64String}`;
+        }
     }
 }
 
