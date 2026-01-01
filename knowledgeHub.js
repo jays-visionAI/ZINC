@@ -5160,6 +5160,11 @@ async function submitRefinePalette() {
     element.style.position = 'relative';
     element.appendChild(loadingOverlay);
 
+    // 3. Show Refinement Log at the bottom
+    renderLogWindow('AI Refinement Log');
+    addLog('Starting refinement workspace...', 'info');
+    addLog('Analyzing section structure and assets...', 'info');
+
     // Briefly show button loading before closing palette
     setTimeout(() => {
         closeRefinePalette();
@@ -5172,6 +5177,7 @@ async function submitRefinePalette() {
     const cleanHTML = sectionClone.innerHTML;
 
     try {
+        addLog('Calling Elite AI Refinement agent (Gemini Pro)...', 'info');
         const refineFn = firebase.app().functions('us-central1').httpsCallable('refineCreativeContent');
         const result = await refineFn({
             projectId: docId,
@@ -5181,15 +5187,26 @@ async function submitRefinePalette() {
         });
 
         if (result.data && result.data.newHtml) {
+            addLog('AI response received. Processing layout updates...', 'success');
             let rawHtml = result.data.newHtml.replace(/```html|```/gi, '').trim();
             element.innerHTML = rawHtml;
+            addLog('Section updated successfully in preview.', 'success');
             showNotification('Section updated successfully!', 'success');
 
+            addLog('Syncing changes to Firestore...', 'info');
             const iframe = document.getElementById('creative-result-iframe');
             if (iframe) setupDetailedEditing(iframe, docId);
             await syncCreativeChanges(docId);
+            addLog('All changes persisted safely.', 'success');
+
+            // Hide log window after a short delay
+            setTimeout(() => {
+                const logContainer = document.getElementById('generation-log-container');
+                if (logContainer) logContainer.style.display = 'none';
+            }, 5000);
         }
     } catch (error) {
+        addLog(`Refinement failed: ${error.message}`, 'error');
         showNotification('Refinement failed: ' + error.message, 'error');
     } finally {
         if (loadingOverlay) loadingOverlay.remove();
@@ -5274,6 +5291,19 @@ function initZEditor(iframe) {
     if (!doc) return;
 
     console.log('[Z-Editor] Initializing on iframe...');
+
+    // Inject Selection/Highlight CSS
+    const highlightCss = `
+        .z-editing-target {
+            outline: 4px solid #6366f1 !important;
+            outline-offset: 4px !important;
+            transition: outline 0.3s ease !important;
+            box-shadow: 0 0 20px rgba(99,102,241,0.4) !important;
+        }
+    `;
+    const styleTag = doc.createElement('style');
+    styleTag.textContent = highlightCss;
+    doc.head.appendChild(styleTag);
 
     // Intercept Right Click
     doc.addEventListener('contextmenu', (e) => {
@@ -5553,22 +5583,66 @@ function openZCommandBar() {
 
     if (!zActiveTarget) return;
 
-    // Identify target type
+    // Remove highlight from previous target if any
+    const iframe = document.getElementById('creative-result-iframe');
+    if (iframe && iframe.contentDocument) {
+        iframe.contentDocument.querySelectorAll('.z-editing-target').forEach(el => el.classList.remove('z-editing-target'));
+    }
+
+    // Add Highlight to current target
+    zActiveTarget.classList.add('z-editing-target');
+
+    // Identify target type with Human-friendly labels
+    const tagLabels = {
+        'h1': 'Main Headline',
+        'h2': 'Sub-Headline',
+        'h3': 'Heading',
+        'p': 'Text Paragraph',
+        'img': 'Image / Photo',
+        'button': 'Call to Action Button',
+        'a': 'Link / Button',
+        'section': 'Full Section Block',
+        'li': 'List Item',
+        'span': 'Text Fragment'
+    };
+
     const tagName = zActiveTarget.tagName.toLowerCase();
-    targetDisplay.textContent = `${tagName}${zActiveSelection ? ' (Partial Text)' : ''} `;
+    const label = tagLabels[tagName] || tagName.toUpperCase();
+
+    // Add hierarchical context (Section #)
+    let sectionInfo = "";
+    const section = zActiveTarget.closest('section');
+    if (section) {
+        const sections = Array.from(zActiveTarget.ownerDocument.querySelectorAll('section'));
+        const index = sections.indexOf(section) + 1;
+        sectionInfo = ` in Section #${index}`;
+    }
+
+    targetDisplay.innerHTML = `<span class="text-indigo-400 font-black mr-2">${label}</span> <span class="text-slate-500 text-[9px]">${sectionInfo}</span>`;
 
     // Provide preview
     if (tagName === 'img') {
-        preview.innerHTML = `< img src = "${zActiveTarget.src}" class="h-12 w-auto rounded border border-slate-700" > `;
+        preview.innerHTML = `<div class="flex justify-center p-2"><img src="${zActiveTarget.src}" class="max-h-24 w-auto rounded-lg shadow-lg border border-slate-700"></div>`;
     } else {
-        preview.textContent = zActiveSelection || zActiveTarget.innerText.substring(0, 150) + (zActiveTarget.innerText.length > 150 ? '...' : '');
+        const fullText = zActiveTarget.innerText;
+        const previewText = zActiveSelection || (fullText.length > 200 ? fullText.substring(0, 197) + '...' : fullText);
+        preview.textContent = `"${previewText}"`;
     }
 
     bar.style.display = 'block';
+
+    // Auto-scroll the iframe to make target visible if needed
+    zActiveTarget.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
     document.getElementById('z-ai-instruction').focus();
 }
 
 function closeZCommandBar() {
+    // Remove highlights on close
+    const iframe = document.getElementById('creative-result-iframe');
+    if (iframe && iframe.contentDocument) {
+        iframe.contentDocument.querySelectorAll('.z-editing-target').forEach(el => el.classList.remove('z-editing-target'));
+    }
     document.getElementById('z-command-bar').style.display = 'none';
 }
 
@@ -7167,7 +7241,7 @@ function stopProgressBar(finalPercent = 100) {
 // ============================================================
 // REAL-TIME LOG UI
 // ============================================================
-function renderLogWindow() {
+function renderLogWindow(title = 'Generation Log') {
     // Append to the modal itself (not the preview panel) so it's at the absolute bottom
     const modal = document.getElementById('creative-modal');
     if (!modal) return;
@@ -7179,12 +7253,15 @@ function renderLogWindow() {
             <div id="generation-log-container" class="absolute bottom-4 left-4 right-4 bg-slate-950/98 backdrop-blur-md rounded-lg border border-slate-700 p-3 font-mono text-xs text-slate-400 max-h-40 overflow-y-auto z-50 shadow-2xl ring-1 ring-white/10">
                 <div class="flex items-center gap-2 mb-2 border-b border-slate-700 pb-1 sticky top-0 bg-slate-950/95">
                     <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                    <span class="text-slate-400 text-[10px] uppercase tracking-wider font-semibold">Generation Log</span>
+                    <span id="generation-log-title" class="text-slate-400 text-[10px] uppercase tracking-wider font-semibold">${title}</span>
                 </div>
                 <div id="generation-logs" class="space-y-0.5"></div>
             </div>
         `;
         modal.insertAdjacentHTML('beforeend', logHtml);
+    } else {
+        const titleEl = document.getElementById('generation-log-title');
+        if (titleEl) titleEl.textContent = title;
     }
 
     // Reset logs and show container

@@ -2532,78 +2532,84 @@
                         placeholder="Type instructions in any language (e.g., 'Translate to French', 'Make it more minimal', '현대적인 느낌으로 수정해줘')..."></textarea>
                 </div>
 
-                <!-- Quick Actions Grid -->
-                <div class="grid grid-cols-2 gap-3">
-                    <button
-                        class="refine-preset p-3 rounded-2xl bg-slate-800/40 border border-slate-700/30 hover:border-indigo-500/50 flex items-center gap-3 transition-all group"
-                        onclick="applyRefinePreset('Translate to English')">
-                        <div
-                            class="w-8 h-8 rounded-xl bg-slate-700/50 flex items-center justify-center text-indigo-400 group-hover:bg-indigo-500/10 transition-colors">
-                            <i class="text-xs">EN</i>
-                        </div>
-                        <span class="text-xs font-medium text-slate-300">Translate to EN</span>
-                    </button>
-                    <button
-                        class="refine-preset p-3 rounded-2xl bg-slate-800/40 border border-slate-700/30 hover:border-indigo-500/50 flex items-center gap-3 transition-all group"
-                        onclick="applyRefinePreset('Make it more professional and corporate')">
-                        <div
-                            class="w-8 h-8 rounded-xl bg-slate-700/50 flex items-center justify-center text-indigo-400 group-hover:bg-indigo-500/10 transition-colors">
-                            <i class="fas fa-briefcase text-xs"></i>
-                        </div>
-                        <span class="text-xs font-medium text-slate-300">Professional Tone</span>
-                    </button>
-                    <button
-                        class="refine-preset p-3 rounded-2xl bg-slate-800/40 border border-slate-700/30 hover:border-indigo-500/50 flex items-center gap-3 transition-all group"
-                        onclick="applyRefinePreset('Summarize concisely while keeping key impact')">
-                        <div
-                            class="w-8 h-8 rounded-xl bg-slate-700/50 flex items-center justify-center text-indigo-400 group-hover:bg-indigo-500/10 transition-colors">
-                            <i class="fas fa-compress-alt text-xs"></i>
-                        </div>
-                        <span class="text-xs font-medium text-slate-300">Summarize</span>
-                    </button>
-                    <button
-                        class="refine-preset p-3 rounded-2xl bg-slate-800/40 border border-slate-700/30 hover:border-indigo-500/50 flex items-center gap-3 transition-all group"
-                        onclick="applyRefinePreset('Improve layout to be ultra-modern (e.g., Apple/Tesla style)')">
-                        <div
-                            class="w-8 h-8 rounded-xl bg-slate-700/50 flex items-center justify-center text-indigo-400 group-hover:bg-indigo-500/10 transition-colors">
-                            <i class="fas fa-palette text-xs"></i>
-                        </div>
-                        <span class="text-xs font-medium text-slate-300">Modernize Style</span>
-                    </button>
-                </div>
-
-                <!-- Asset Dropzone (Conceptual for now, visual only) -->
-                <div class="relative group">
+                <div class="space-y-3">
                     <label
-                        class="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2 mb-3">
-                        <i class="fas fa-image text-indigo-400"></i>
-                        Injected Assets / Resources
+                        class="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fas fa-lightbulb text-amber-400"></i>
+                        Sample Prompts
                     </label>
-                    <div id="refine-asset-list" class="flex flex-wrap gap-3">
-                        <!-- Dynamic items -->
-                        <div
-                            class="w-20 h-20 rounded-xl bg-slate-950/50 border-2 border-dashed border-slate-700 flex flex-col items-center justify-center text-slate-500 hover:border-indigo-500/40 transition-all cursor-pointer">
-                            <i class="fas fa-plus text-xs mb-1"></i>
-                            <span class="text-[8px] font-bold">ADD IMAGE</span>
+                    <!-- Quick Actions Grid -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <button
+                            class="refine-preset p-3 rounded-2xl bg-slate-800/40 border border-slate-700/30 hover:border-indigo-500/50 flex items-center gap-3 transition-all group"
+                            onclick="applyRefinePreset('Translate to English')">
+                            <div
+                                class="w-8 h-8 rounded-xl bg-slate-700/50 flex items-center justify-center text-indigo-400 group-hover:bg-indigo-500/10 transition-colors">
+                                <i class="text-xs">EN</i>
+                            </div>
+                            <span class="text-xs font-medium text-slate-300">Translate to EN</span>
+                        </button>
+                        <button
+                            class="refine-preset p-3 rounded-2xl bg-slate-800/40 border border-slate-700/30 hover:border-indigo-500/50 flex items-center gap-3 transition-all group"
+                            onclick="applyRefinePreset('Make it more professional and corporate')">
+                            <div
+                                class="w-8 h-8 rounded-xl bg-slate-700/50 flex items-center justify-center text-indigo-400 group-hover:bg-indigo-500/10 transition-colors">
+                                <i class="fas fa-briefcase text-xs"></i>
+                            </div>
+                            <span class="text-xs font-medium text-slate-300">Professional Tone</span>
+                        </button>
+                        <button
+                            class="refine-preset p-3 rounded-2xl bg-slate-800/40 border border-slate-700/30 hover:border-indigo-500/50 flex items-center gap-3 transition-all group"
+                            onclick="applyRefinePreset('Summarize concisely while keeping key impact')">
+                            <div
+                                class="w-8 h-8 rounded-xl bg-slate-700/50 flex items-center justify-center text-indigo-400 group-hover:bg-indigo-500/10 transition-colors">
+                                <i class="fas fa-compress-alt text-xs"></i>
+                            </div>
+                            <span class="text-xs font-medium text-slate-300">Summarize</span>
+                        </button>
+                        <button
+                            class="refine-preset p-3 rounded-2xl bg-slate-800/40 border border-slate-700/30 hover:border-indigo-500/50 flex items-center gap-3 transition-all group"
+                            onclick="applyRefinePreset('Improve layout to be ultra-modern (e.g., Apple/Tesla style)')">
+                            <div
+                                class="w-8 h-8 rounded-xl bg-slate-700/50 flex items-center justify-center text-indigo-400 group-hover:bg-indigo-500/10 transition-colors">
+                                <i class="fas fa-palette text-xs"></i>
+                            </div>
+                            <span class="text-xs font-medium text-slate-300">Modernize Style</span>
+                        </button>
+                    </div>
+
+                    <!-- Asset Dropzone (Conceptual for now, visual only) -->
+                    <div class="relative group">
+                        <label
+                            class="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2 mb-3">
+                            <i class="fas fa-image text-indigo-400"></i>
+                            Injected Assets / Resources
+                        </label>
+                        <div id="refine-asset-list" class="flex flex-wrap gap-3">
+                            <!-- Dynamic items -->
+                            <div
+                                class="w-20 h-20 rounded-xl bg-slate-950/50 border-2 border-dashed border-slate-700 flex flex-col items-center justify-center text-slate-500 hover:border-indigo-500/40 transition-all cursor-pointer">
+                                <i class="fas fa-plus text-xs mb-1"></i>
+                                <span class="text-[8px] font-bold">ADD IMAGE</span>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Footer Action -->
-            <div class="p-6 bg-slate-950/50 border-t border-slate-700/50 flex gap-3">
-                <button onclick="closeRefinePalette()"
-                    class="flex-1 py-3.5 rounded-2xl font-bold text-xs text-slate-400 hover:text-white transition-colors">
-                    CANCEL
-                </button>
-                <button onclick="submitRefinePalette()"
-                    class="flex-[2] py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-xs shadow-xl shadow-indigo-500/20 active:scale-95 transition-all">
-                    APPLY CHANGES
-                </button>
+                <!-- Footer Action -->
+                <div class="p-6 bg-slate-950/50 border-t border-slate-700/50 flex gap-3">
+                    <button onclick="closeRefinePalette()"
+                        class="flex-1 py-3.5 rounded-2xl font-bold text-xs text-slate-400 hover:text-white transition-colors">
+                        CANCEL
+                    </button>
+                    <button onclick="submitRefinePalette()"
+                        class="flex-[2] py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-xs shadow-xl shadow-indigo-500/20 active:scale-95 transition-all">
+                        APPLY CHANGES
+                    </button>
+                </div>
             </div>
         </div>
-    </div>
-    <script src="chatbot-v2.js"></script>
+        <script src="chatbot-v2.js"></script>
 
 </body>
 
