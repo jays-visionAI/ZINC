@@ -4562,21 +4562,21 @@ function toggleEditMode() {
             doc.body.focus();
             doc.body.style.outline = '2px dashed #6366f1';
             doc.body.style.padding = '10px';
-            editBtn.innerHTML = '<i class="fas fa-save mr-2"></i>Finish Editing';
+            editBtn.innerHTML = '<i class="fas fa-check-circle mr-2"></i>Edit Mode: ACTIVE';
             editBtn.classList.remove('text-indigo-400', 'bg-indigo-500/10', 'border-indigo-500/20');
-            editBtn.classList.add('text-emerald-400', 'bg-emerald-500/10', 'border-emerald-500/20');
-            showNotification('Edit mode enabled. You can now type directly in the document.', 'info');
+            editBtn.classList.add('text-emerald-400', 'bg-emerald-500/10', 'border-emerald-500/20', 'ring-2', 'ring-emerald-500/40');
+            showNotification('Edit Mode Enabled. You can now modify content directly.', 'info');
         } else {
             doc.body.contentEditable = 'false';
             doc.body.style.outline = 'none';
             doc.body.style.padding = '0';
-            editBtn.innerHTML = '<i class="fas fa-edit mr-2"></i>Edit Content';
-            editBtn.classList.remove('text-emerald-400', 'bg-emerald-500/10', 'border-emerald-500/20');
+            editBtn.innerHTML = '<i class="fas fa-eye mr-2"></i>View Mode (Switch to Edit)';
+            editBtn.classList.remove('text-emerald-400', 'bg-emerald-500/10', 'border-emerald-500/20', 'ring-2', 'ring-emerald-500/40');
             editBtn.classList.add('text-indigo-400', 'bg-indigo-500/10', 'border-indigo-500/20');
 
             // Sync changes to Firestore
             syncCreativeChanges(currentCreativeId);
-            showNotification('Edits saved to view.', 'success');
+            showNotification('Changes saved. View Mode restored.', 'success');
         }
     } else {
         const prose = resultContainer.querySelector('.prose');
@@ -4585,14 +4585,14 @@ function toggleEditMode() {
                 prose.contentEditable = 'true';
                 prose.focus();
                 prose.classList.add('ring-2', 'ring-indigo-500', 'p-4');
-                editBtn.innerHTML = '<i class="fas fa-save mr-2"></i>Finish Editing';
+                editBtn.innerHTML = '<i class="fas fa-check-circle mr-2"></i>Edit Mode: ACTIVE';
                 editBtn.classList.remove('text-indigo-400', 'bg-indigo-500/10', 'border-indigo-500/20');
-                editBtn.classList.add('text-emerald-400', 'bg-emerald-500/10', 'border-emerald-500/20');
+                editBtn.classList.add('text-emerald-400', 'bg-emerald-500/10', 'border-emerald-500/20', 'ring-2', 'ring-emerald-500/40');
             } else {
                 prose.contentEditable = 'false';
                 prose.classList.remove('ring-2', 'ring-indigo-500', 'p-4');
-                editBtn.innerHTML = '<i class="fas fa-edit mr-2"></i>Edit Content';
-                editBtn.classList.remove('text-emerald-400', 'bg-emerald-500/10', 'border-emerald-500/20');
+                editBtn.innerHTML = '<i class="fas fa-eye mr-2"></i>View Mode (Switch to Edit)';
+                editBtn.classList.remove('text-emerald-400', 'bg-emerald-500/10', 'border-emerald-500/20', 'ring-2', 'ring-emerald-500/40');
                 editBtn.classList.add('text-indigo-400', 'bg-indigo-500/10', 'border-indigo-500/20');
                 syncCreativeChanges(currentCreativeId);
             }
@@ -4960,7 +4960,11 @@ function injectActionButtonsToHeader() {
     const editBtn = document.createElement('button');
     editBtn.id = 'btn-creative-edit';
     editBtn.className = 'btn-creative-injected px-3 py-1.5 text-xs text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 rounded hover:bg-indigo-500/20 flex items-center gap-1.5 transition-all';
-    editBtn.innerHTML = '<i class="fas fa-edit"></i> Edit Content';
+    editBtn.innerHTML = isEditMode ? '<i class="fas fa-check-circle mr-2"></i>Edit Mode: ACTIVE' : '<i class="fas fa-eye mr-2"></i>View Mode (Switch to Edit)';
+    if (isEditMode) {
+        editBtn.classList.remove('text-indigo-400', 'bg-indigo-500/10', 'border-indigo-500/20');
+        editBtn.classList.add('text-emerald-400', 'bg-emerald-500/10', 'border-emerald-500/20', 'ring-2', 'ring-emerald-500/40');
+    }
     editBtn.onclick = () => toggleEditMode();
 
     // Setup PDF Download Button (Already in HTML, just show and fix it)
@@ -5093,6 +5097,17 @@ async function syncCreativeChanges(docId) {
  * Refine a specific section using AI (Enhanced UX with Palette)
  */
 async function refineCreativeSection(docId, sectionIdx, sectionEl) {
+    // SECURITY/UX Check: Ensure Edit Mode is active
+    if (!isEditMode) {
+        showNotification('Please activate Edit Mode to refine content.', 'warning');
+        const editBtn = document.getElementById('btn-creative-edit');
+        if (editBtn) {
+            editBtn.classList.add('animate-bounce');
+            setTimeout(() => editBtn.classList.remove('animate-bounce'), 2000);
+        }
+        return;
+    }
+
     // Save state and open palette
     currentRefineState = { docId: docId, index: sectionIdx, element: sectionEl };
     openRefinePalette();
@@ -5562,30 +5577,43 @@ function handleZMenu(action) {
     hideZContextMenu();
     if (!zActiveTarget) return;
 
+    // SECURITY/UX Check: Ensure Edit Mode is active for all AI operations
+    if (!isEditMode && action !== 'delete') {
+        showNotification('Please activate Edit Mode to use AI tools.', 'warning');
+        const editBtn = document.getElementById('btn-creative-edit');
+        if (editBtn) {
+            editBtn.classList.add('animate-bounce');
+            setTimeout(() => editBtn.classList.remove('animate-bounce'), 2000);
+        }
+        return;
+    }
+
     switch (action) {
         case 'refine-content':
-            openZCommandBar();
+            openZCommandBar('refine');
             break;
         case 'change-layout':
-            // TODO: Layout picker UI
-            showNotification('Layout preset selector coming soon!', 'info');
+            openZCommandBar('layout');
             break;
         case 'style-lab':
-            showNotification('Direct Style Editor coming soon!', 'info');
+            openZCommandBar('style');
             break;
         case 'delete':
             if (confirm('Are you sure you want to remove this element?')) {
                 zActiveTarget.remove();
-                syncCreativeChanges();
+                syncCreativeChanges(currentCreativeId);
             }
             break;
     }
 }
 
-function openZCommandBar() {
+function openZCommandBar(mode = 'refine') {
     const bar = document.getElementById('z-command-bar');
+    const title = document.getElementById('z-command-title');
     const targetDisplay = document.getElementById('z-target-display');
     const preview = document.getElementById('z-target-text-preview');
+    const input = document.getElementById('z-ai-instruction');
+    const localeDisplay = document.querySelector('#z-command-bar span.italic');
 
     if (!zActiveTarget) return;
 
@@ -5626,6 +5654,21 @@ function openZCommandBar() {
 
     targetDisplay.innerHTML = `<span class="text-indigo-400 font-black mr-2">${label}</span> <span class="text-slate-500 text-[9px]">${sectionInfo}</span>`;
 
+    // Configure UI based on Mode
+    if (mode === 'layout') {
+        title.innerHTML = '<i class="fas fa-th-large text-emerald-400"></i> Change Layout';
+        input.placeholder = "e.g., 'Make it 3 columns', 'Center-align this block', 'Add more padding around this'...";
+        if (localeDisplay) localeDisplay.textContent = "AI LAYOUT AGENT (Global Standard)";
+    } else if (mode === 'style') {
+        title.innerHTML = '<i class="fas fa-palette text-rose-400"></i> Style Lab (CSS)';
+        input.placeholder = "e.g., 'Make it neon purple', 'Add a glassmorphism effect', 'Make the font bold and larger'...";
+        if (localeDisplay) localeDisplay.textContent = "AI STYLE DESIGNER (Premium CSS)";
+    } else {
+        title.innerHTML = '<i class="fas fa-wand-magic-sparkles text-indigo-400"></i> AI Command Center';
+        input.placeholder = "e.g., '전문 용어를 섞어서 정중한 문체로 바꿔줘', '이미지를 좀 더 화사하고 3D 느낌나게 수정해줘'";
+        if (localeDisplay) localeDisplay.textContent = "AI INSTRUCTIONS (Multilingual)";
+    }
+
     // Provide preview
     if (tagName === 'img') {
         preview.innerHTML = `<div class="flex justify-center p-2"><img src="${zActiveTarget.src}" class="max-h-24 w-auto rounded-lg shadow-lg border border-slate-700"></div>`;
@@ -5640,7 +5683,7 @@ function openZCommandBar() {
     // Auto-scroll the iframe to make target visible if needed
     zActiveTarget.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-    document.getElementById('z-ai-instruction').focus();
+    input.focus();
 }
 
 function closeZCommandBar() {
