@@ -4301,33 +4301,63 @@ async function downloadCreativeAsPDF(options = {}) {
     const iframe = resultContainer.querySelector('iframe');
     if (!iframe) return;
 
-    // === PRESS RELEASE: Server-side Playwright PDF ===
-    if (currentCreativeType === 'press_release') {
-        showNotification('Generating high-quality PDF (server rendering)...', 'info');
+    // === HIGH QUALITY PDF (Server-side Puppeteer) ===
+    // Use server-side for Press Releases and Pitch Decks to ensure WYSIWYG and perfect pagination
+    const normalizedType = (currentCreativeType || '').toLowerCase().trim();
+    const isHQType = normalizedType === 'press_release' || normalizedType === 'news' || normalizedType === 'pitch_deck';
+
+    if (isHQType) {
+        showNotification('Generating high-quality PDF (server-side)...', 'info');
 
         try {
-            const htmlContent = iframe.contentDocument.documentElement.outerHTML;
-            const config = CREATIVE_CONFIGS[currentCreativeType] || { name: 'Press_Release' };
-            const filename = `${config.name.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
+            let htmlContent = iframe.contentDocument.documentElement.outerHTML;
 
-            // Determine format based on viewport
-            let pageFormat = 'A4';
-            let landscape = false;
-            if (currentViewportType === 'a4-l') {
-                landscape = true;
+            // Add Pitch Deck specific pagination fixes
+            if (normalizedType === 'pitch_deck') {
+                const paginationCSS = `
+                <style>
+                    section {
+                        height: 100vh !important;
+                        page-break-after: always !important;
+                        break-after: page !important;
+                        position: relative !important;
+                        overflow: hidden !important;
+                        display: flex !important;
+                        flex-direction: column !important;
+                        justify-content: center !important;
+                        align-items: center !important;
+                    }
+                    /* Remove scroll bars and nav for PDF */
+                    body { overflow: hidden !important; }
+                    nav.fixed { display: none !important; }
+                    .refine-btn, .img-overlay, .editor-status-badge, [id*="refine-btn"] { display: none !important; }
+                </style>`;
+
+                if (htmlContent.includes('</head>')) {
+                    htmlContent = htmlContent.replace('</head>', paginationCSS + '</head>');
+                } else {
+                    htmlContent = paginationCSS + htmlContent;
+                }
             }
 
-            // Call server-side renderer
+            const config = CREATIVE_CONFIGS[currentCreativeType] || { name: 'ZINC_Creative' };
+            const filename = `${config.name.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
+
+            // Determine orientation
+            let landscape = (currentCreativeType === 'pitch_deck' || currentViewportType === 'a4-l');
+            let pageFormat = (currentCreativeType === 'pitch_deck') ? 'A4' : 'A4'; // Both use A4, but orient differently
+
+
+            // Call server-side renderer v3 (optimized sparticuz/chromium)
             const renderFn = firebase.app().functions('us-central1').httpsCallable('renderPressReleasePDF_v3', { timeout: 300000 });
             const result = await renderFn({
                 htmlContent: htmlContent,
-                pageFormat: pageFormat,
+                pageFormat: 'A4',
                 landscape: landscape,
                 documentId: currentCreativeId || null
             });
 
             if (result.data && result.data.success) {
-                // Convert base64 to blob and download
                 const pdfBlob = base64ToBlob(result.data.pdfBase64, 'application/pdf');
                 const url = URL.createObjectURL(pdfBlob);
 
@@ -4345,9 +4375,11 @@ async function downloadCreativeAsPDF(options = {}) {
             }
             return;
         } catch (error) {
-            console.error('[Press Release PDF] Server render failed:', error);
-            showNotification('Server PDF failed, falling back to client-side...', 'warning');
-            // Fall through to client-side html2pdf.js as backup
+            console.error('[HQ PDF] Server render failed:', error);
+            showNotification('Server PDF failed, using browser print fallback...', 'warning');
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+            return;
         }
     }
 
