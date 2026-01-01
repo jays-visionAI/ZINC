@@ -1244,7 +1244,7 @@ function initializeUploadHandlers() {
 
     function handleSelectedFile(file) {
         if (file.size > 10 * 1024 * 1024) {
-            showNotification('File exceeds 10MB limit', 'error');
+            showNotification('File exceeds 10MB limit. Please convert to PDF to reduce file size before uploading.', 'error');
             return;
         }
         selectedSourceFile = file;
@@ -1603,11 +1603,14 @@ async function regenerateSourceSummary(sourceId) {
         let contentToSummarize = '';
 
         if (source.sourceType === 'note') {
-            contentToSummarize = source.note?.content || '';
+            contentToSummarize = source.note?.content || source.content || '';
         } else if (source.sourceType === 'link') {
-            contentToSummarize = source.link?.extractedContent || source.link?.url || '';
+            contentToSummarize = source.link?.extractedContent || source.content || source.link?.url || '';
         } else if (source.sourceType === 'google_drive') {
-            contentToSummarize = source.googleDrive?.extractedContent || source.googleDrive?.fileName || '';
+            contentToSummarize = source.googleDrive?.extractedContent || source.content || source.googleDrive?.fileName || '';
+        } else if (source.sourceType === 'file') {
+            // Use the extracted content from the initial analysis
+            contentToSummarize = source.content || '';
         }
 
         if (!contentToSummarize) {

@@ -2531,6 +2531,9 @@ exports.onKnowledgeSourceCreated = onDocumentCreated(
             // Update source with analysis
             await snap.ref.update({
                 status: 'completed',
+                summary: analysis.summary || '',
+                keyInsights: analysis.keyInsights || [],
+                content: extractedText, // Save extracted text for Brand Summary context
                 analysis: {
                     ...analysis,
                     extractedTextLength: extractedText.length,
