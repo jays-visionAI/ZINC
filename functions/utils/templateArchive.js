@@ -26,18 +26,42 @@ const TEMPLATE_ARCHIVE = {
         }
     },
     invitation: {
-        formal_gold: {
-            name: 'Formal Gold',
-            description: 'Elegant invitation with gold decorations',
+        modern_tech: {
+            name: 'Modern Tech',
+            description: 'Clean invitation with gradient accents',
+            backgroundPrompt: 'Soft abstract gradient background, elegant and minimal, dark mode, no text, subtle glow effects',
+            placeholders: ['EVENT_TYPE', 'HEADLINE', 'SUBTEXT', 'DATE', 'LOCATION', 'CTA_TEXT']
+        },
+        corporate_elegant: {
+            name: 'Corporate Elegant',
+            description: 'Luxurious invitation with gold decorations',
             backgroundPrompt: 'Soft cream paper texture with subtle gold leaf pattern, elegant and formal, no text',
+            placeholders: ['EVENT_TYPE', 'HEADLINE', 'SUBTEXT', 'DATE', 'LOCATION', 'CTA_TEXT']
+        },
+        cyberpunk: {
+            name: 'Cyberpunk',
+            description: 'Neon invitation with futuristic vibes',
+            backgroundPrompt: 'Dark futuristic background with cyan and magenta neon accents, digital aesthetic, no text',
             placeholders: ['EVENT_TYPE', 'HEADLINE', 'SUBTEXT', 'DATE', 'LOCATION', 'CTA_TEXT']
         }
     },
     social_banner: {
-        bold_gradient: {
-            name: 'Bold Gradient',
-            description: 'Eye-catching gradient background',
-            backgroundPrompt: 'Vibrant gradient background, purple to orange, abstract fluid shapes, no text, modern and bold',
+        modern_tech: {
+            name: 'Modern Tech',
+            description: 'Bold banner for social media',
+            backgroundPrompt: 'Wide abstract gradient background, purple to blue, modern and bold, no text',
+            placeholders: ['HEADLINE', 'SUBTEXT', 'CTA_TEXT']
+        },
+        corporate_elegant: {
+            name: 'Corporate Elegant',
+            description: 'Professional banner design',
+            backgroundPrompt: 'Professional business background, subtle patterns, clean and modern, no text',
+            placeholders: ['HEADLINE', 'SUBTEXT', 'CTA_TEXT']
+        },
+        cyberpunk: {
+            name: 'Cyberpunk',
+            description: 'Neon banner with futuristic style',
+            backgroundPrompt: 'Wide cyberpunk cityscape, neon lights reflecting, dark atmosphere, no text',
             placeholders: ['HEADLINE', 'SUBTEXT', 'CTA_TEXT']
         }
     }
@@ -61,7 +85,7 @@ const TEMPLATE_HTML = {
     </style>
 </head>
 <body>
-    <div class="relative w-full min-h-screen" style="aspect-ratio: 9/16; max-width: 450px; margin: 0 auto;">
+    <div class="relative w-full" style="height: 800px; max-width: 450px; margin: 0 auto;">
         <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('{{BACKGROUND}}');"></div>
         <div class="absolute inset-0 gradient-overlay"></div>
         <div class="relative z-10 flex flex-col h-full p-8 text-white">
@@ -110,7 +134,7 @@ const TEMPLATE_HTML = {
     </style>
 </head>
 <body>
-    <div class="relative w-full min-h-screen" style="aspect-ratio: 9/16; max-width: 450px; margin: 0 auto;">
+    <div class="relative w-full" style="height: 800px; max-width: 450px; margin: 0 auto;">
         <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('{{BACKGROUND}}');"></div>
         <div class="absolute inset-0 bg-black/60"></div>
         <div class="absolute inset-4 border-2 gold-border opacity-50"></div>
@@ -163,7 +187,7 @@ const TEMPLATE_HTML = {
     </style>
 </head>
 <body>
-    <div class="relative w-full min-h-screen" style="aspect-ratio: 9/16; max-width: 450px; margin: 0 auto; background: #0a0a0a;">
+    <div class="relative w-full" style="height: 800px; max-width: 450px; margin: 0 auto; background: #0a0a0a;">
         <div class="absolute inset-0 bg-cover bg-center opacity-40" style="background-image: url('{{BACKGROUND}}');"></div>
         <div class="absolute inset-0 pointer-events-none" style="background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.1) 2px, rgba(0,0,0,0.1) 4px);"></div>
         <div class="relative z-10 flex flex-col h-full p-8 text-white">
@@ -201,11 +225,18 @@ const TEMPLATE_HTML = {
  * Get template HTML and fill placeholders
  */
 function getTemplateWithContent(templateType, templateStyle, content, backgroundUrl) {
-    const templateKey = `${templateType}/${templateStyle}`;
+    // Try exact match first, then fall back to event_poster version of the style
+    let templateKey = `${templateType}/${templateStyle}`;
     let html = TEMPLATE_HTML[templateKey];
 
     if (!html) {
-        // Fallback to default template
+        // Try event_poster as base (all styles are defined there)
+        templateKey = `event_poster/${templateStyle}`;
+        html = TEMPLATE_HTML[templateKey];
+    }
+
+    if (!html) {
+        // Ultimate fallback
         html = TEMPLATE_HTML['event_poster/modern_tech'];
     }
 
