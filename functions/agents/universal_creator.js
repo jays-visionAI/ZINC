@@ -515,13 +515,19 @@ Return ONLY the JSON object.`;
     - Use "break-inside: avoid" CSS on all major sections/cards to prevents half-cut content in PDF.
     - Ensure A4-friendly widths (approx 800px-1000px).
     
-    === TEXT CONTRAST RULES (CRITICAL) ===
-    - NEVER use light text (white, #fff, light gray) on light backgrounds (white, cream, light colors)
-    - NEVER use dark text (black, #000, dark gray) on dark backgrounds (black, navy, dark colors)
-    - On LIGHT backgrounds: Use dark text (text-gray-800, text-slate-900, #1e293b, #171717)
-    - On DARK backgrounds: Use light text (text-white, text-gray-100, #f8fafc, #fff)
-    - Minimum contrast ratio: 4.5:1 for body text, 3:1 for large headings
-    - When in doubt, use high contrast: black on white or white on black
+    === TEXT CONTRAST & ACCESSIBILITY RULES (CRITICAL) ===
+    - DARK THEMES (Visionary, Nebula, Cyberpunk, Disruptor): 
+        * Body text MUST be white or extremely light gray (e.g., text-slate-100, text-white).
+        * Headings MUST be bright (white, neon, or light vibrant colors).
+        * NEVER let Tailwind's default dark gray (text-slate-800, text-gray-700) appear on dark backgrounds. 
+        * IF background is dark (#000, #020617, etc.), FORCE all labels and descriptions to be text-gray-200 or lighter.
+    - LIGHT THEMES (Minimalist, Executive, Journalistic):
+        * Body text MUST be dark gray or black (e.g., text-slate-900, text-black).
+        * Headings MUST be dark.
+        * NEVER use white or light gray text on light backgrounds.
+    - INFOGRAPHIC CONTRAST:
+        * Small labels below icons and section headers ("How It Works", "Key Features") are often too dark. FORCE them to be high-contrast.
+    - Minimum contrast ratio: 7:1 for best accessibility. When in doubt, use PURE WHITE on PURE BLACK or vice-versa.
     
     === OUTPUT RULES ===
     - RETURN ONLY PURE HTML. NO markdown. NO introductory text. NO summary.

@@ -1709,7 +1709,7 @@ const PLAN_CATEGORY_ITEMS = {
     create: [
         { id: 'product_brochure', name: 'Product Brochure', desc: 'PDF + Image brochure', credits: 20 },
         { id: 'promo_images', name: 'Promo Images', desc: 'AI-generated images', credits: 5 },
-        { id: 'one_pager', name: '1-Pager PDF', desc: 'Executive summary document', credits: 15 },
+        { id: 'one_pager', name: 'One Pager', desc: 'Executive summary document', credits: 15 },
         { id: 'pitch_deck', name: 'Pitch Deck', desc: 'Full presentation with AI visuals', credits: 25 },
         { id: 'press_release', name: 'Press Release', desc: 'Professional media announcement', credits: 20 }
     ]
@@ -3886,7 +3886,7 @@ const PLAN_DEFINITIONS = {
     // Create Now
     product_brochure: { name: 'Product Brochure', credits: 20, category: 'create' },
     promo_images: { name: 'Promo Images', credits: 5, category: 'create' },
-    one_pager: { name: '1-Pager PDF', credits: 15, category: 'create' },
+    one_pager: { name: 'One Pager', credits: 15, category: 'create' },
     pitch_deck: { name: 'Pitch Deck', credits: 25, category: 'create' },
     email_template: { name: 'Email Template', credits: 5, category: 'quick' },
     press_release: { name: 'Press Release', credits: 20, category: 'create' }
@@ -3999,9 +3999,9 @@ const CREATIVE_CONFIGS = {
         ]
     },
     one_pager: {
-        name: 'Executive One-Pager',
+        name: 'One Pager',
         subtitle: 'Generate a concise A4 summary for stakeholders',
-        buttonLabel: 'One-Pager',
+        buttonLabel: 'One Pager',
         credits: 15,
         controls: [
             { id: 'topic', type: 'text', label: 'Document Title', placeholder: 'e.g., Q3 Performance Review' },
