@@ -4397,36 +4397,65 @@ async function downloadCreativeAsPDF(options = {}) {
 
         // === PROMO TEMPLATES: Use browser print (bypasses CORS issues) ===
         if (normalizedType === 'promo_images' || normalizedType === 'templates') {
-            showNotification('Opening print dialog for PDF...', 'info');
+            showNotification('Preparing PDF... (새 창이 열립니다)', 'info');
 
-            // Create a printable window
+            // Get the actual rendered content
             const printContent = resultContainer.innerHTML;
-            const printWindow = window.open('', '_blank', 'width=800,height=1000');
+
+            // Create a printable window with proper styling
+            const printWindow = window.open('', '_blank', 'width=900,height=1200');
+            if (!printWindow) {
+                showNotification('팝업이 차단되었습니다. 팝업을 허용해주세요.', 'error');
+                return;
+            }
+
             printWindow.document.write(`
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>${filename}</title>
-                    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-                    <script src="https://cdn.tailwindcss.com"><\/script>
-                    <style>
-                        * { margin: 0; padding: 0; box-sizing: border-box; }
-                        body { font-family: 'Inter', sans-serif; background: #0a0a0a; }
-                        @media print {
-                            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                        }
-                    </style>
-                </head>
-                <body>${printContent}</body>
-                </html>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>${filename}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"><\/script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background: #0a0a0a; 
+            min-height: 100vh;
+        }
+        .loading-overlay {
+            position: fixed; inset: 0; background: #0a0a0a; 
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 18px; z-index: 9999;
+        }
+        @media print {
+            body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            .loading-overlay { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-overlay" id="loading">PDF 준비 중... 잠시만 기다려주세요.</div>
+    ${printContent}
+    <script>
+        // Wait for everything to load
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                document.getElementById('loading').style.display = 'none';
+                window.print();
+            }, 2000);
+        });
+        // Fallback in case load doesn't fire
+        setTimeout(function() {
+            document.getElementById('loading').style.display = 'none';
+            window.print();
+        }, 5000);
+    <\/script>
+</body>
+</html>
             `);
             printWindow.document.close();
-
-            // Wait for content to load then print
-            setTimeout(() => {
-                printWindow.print();
-                // printWindow.close(); // User will close after saving
-            }, 1000);
             return;
         }
 
