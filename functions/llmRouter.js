@@ -381,6 +381,24 @@ class LLMRouter {
                     selectedTemp = 0.1;
                     selectedMaxTokens = 4000;
                     break;
+                case 'ECONOMY':
+                case 'ECO':
+                    console.log('[LLMRouter] 🌿 ECO MODE ACTIVATED');
+                    const ecoConfig = globalDefaults?.economy || globalDefaults?.defaultModels?.economy || globalDefaults?.tiers?.['1_economy'];
+                    if (!explicitModel && ecoConfig) {
+                        resolvedProvider = ecoConfig.provider;
+                        resolvedModel = ecoConfig.model;
+                        console.log(`[LLMRouter] Eco overrides model to: ${resolvedProvider}/${resolvedModel}`);
+                    } else if (explicitModel) {
+                        console.log(`[LLMRouter] Respecting explicit model in ECO mode: ${resolvedProvider}/${resolvedModel}`);
+                    } else {
+                        resolvedProvider = 'openai';
+                        resolvedModel = 'gpt-4o-mini';
+                        console.warn('[LLMRouter] Eco defaults missing, falling back to GPT-4o-mini');
+                    }
+                    selectedTemp = 0.5;
+                    selectedMaxTokens = 1500;
+                    break;
                 case 'BALANCED':
                 default:
                     selectedTemp = 0.7;

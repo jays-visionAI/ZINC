@@ -36,6 +36,7 @@ let creativeProjects = []; // List of creative generation projects
 let currentCreativeId = null; // Currently viewed project ID
 let zActiveTarget = null; // Z-Editor global active target
 let zActiveSelection = ""; // Z-Editor global text selection
+let currentUserPerformanceMode = 'balanced'; // Runtime performance mode (eco, balanced, pro)
 
 // Chat Configuration
 let chatConfig = {
@@ -4663,6 +4664,7 @@ async function generateCreativeItem() {
 
     // 2. Initialize Firestore Record (Auto-save)
     showNotification('Starting creation workspace...', 'info');
+    const db = firebase.firestore();
     let projectId;
     try {
         const projectRef = await db.collection('creativeProjects').add({
@@ -4701,13 +4703,15 @@ async function generateCreativeItem() {
             inputs: inputs,
             advancedOptions: advancedOptions,
             projectContext: contextText,
-            targetLanguage: targetLanguage || 'ko'
+            targetLanguage: targetLanguage || 'ko',
+            performanceMode: currentUserPerformanceMode || 'balanced'
         });
 
         stopProgressBar(100);
         const html = result.data?.data || result.data?.html || result.data?.content || '';
 
         // Final update
+        const db = firebase.firestore();
         await db.collection('creativeProjects').doc(projectId).update({
             htmlContent: html,
             status: 'completed',
@@ -4721,7 +4725,8 @@ async function generateCreativeItem() {
         console.error('[Creative] Failed:', error);
         stopProgressBar();
         addLog(`Error: ${error.message}`, 'error');
-        db.collection('creativeProjects').doc(projectId).update({ status: 'failed', error: error.message });
+        const db = firebase.firestore();
+        if (projectId) db.collection('creativeProjects').doc(projectId).update({ status: 'failed', error: error.message });
         showNotification('Creation failed: ' + error.message, 'error');
     }
 }

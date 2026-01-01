@@ -4847,50 +4847,48 @@ exports.generateCreativeContent = onCall({ cors: ALLOWED_ORIGINS, region: 'us-ce
         return { success: false, error: 'Unauthenticated' };
     }
 
-    const { type, inputs, advancedOptions = {}, projectContext, plan = {}, projectId } = request.data;
+    const { type, inputs, advancedOptions = {}, projectContext, plan: userPlan = {}, projectId, performanceMode } = request.data;
 
-    console.log('[generateCreativeContent] Starting:', type, 'ProjectID:', projectId);
+    // 1. Resolve Admin Policy for this feature
+    const policy = await llmRouter.getFeaturePolicy('creative_content');
+    const allowUserChoice = policy?.allowUserChoice ?? true; // Default to true if not specified
+    const defaultTier = policy?.defaultTier || 'BALANCED';
 
-    // Define executeLLM helper
+    // 2. Use StrategyPlanner to determine the execution strategy (Arena, Steps, etc.)
+    // Note: StrategyPlanner is now model-agnostic
+    const strategicPlan = StrategyPlanner.plan({ mode: performanceMode, taskType: type });
+
+    // 3. Determine the final Quality Tier based on Admin policy
+    let finalTier = defaultTier;
+    if (allowUserChoice && performanceMode) {
+        finalTier = strategicPlan.qualityTier || defaultTier;
+    }
+
+    const finalPlan = { ...strategicPlan, ...userPlan, qualityTier: finalTier };
+
+    console.log('[generateCreativeContent] Starting:', type, 'ProjectID:', projectId, 'Mode:', performanceMode, 'FinalTier:', finalTier);
+
+    // Define executeLLM helper using LLMRouter
     const executeLLM = async (systemPrompt, userPrompt) => {
-        const fallbackProviders = [
-            { provider: 'deepseek', model: 'deepseek-chat' },
-            { provider: 'google', model: 'gemini-2.0-flash-exp' },
-            { provider: 'openai', model: 'gpt-4o' }
-        ];
+        const result = await llmRouter.route({
+            feature: 'creative_content',
+            qualityTier: finalTier,
+            messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt }
+            ],
+            userId: request.auth.uid,
+            projectId: projectId,
+            callLLM: callLLM,
+            temperature: 0.7
+        });
 
-        const configuredProvider = plan.modelConfig?.provider;
-        const configuredModel = plan.modelConfig?.model;
-        if (configuredProvider && configuredModel && configuredProvider !== 'openai') {
-            fallbackProviders.unshift({ provider: configuredProvider, model: configuredModel });
-        }
-
-        let lastError = null;
-        for (const { provider, model } of fallbackProviders) {
-            try {
-                console.log(`[executeLLM] Attempting: ${provider}/${model}`);
-                const response = await callLLM(provider, model, [
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: userPrompt }
-                ], 0.7);
-
-                const content = response.content || (typeof response === 'string' ? response : null);
-                if (content) {
-                    console.log(`[executeLLM] ✅ Success with ${provider}/${model}`);
-                    return content;
-                }
-                console.warn(`[executeLLM] ⚠️ Empty response from ${provider}/${model}`);
-            } catch (error) {
-                console.warn(`[executeLLM] ❌ ${provider}/${model} failed: ${error.message}`);
-                lastError = error;
-            }
-        }
-        throw lastError || new Error('All LLM providers failed to generate content');
+        return result.content || result.text || '';
     };
 
     try {
-        console.log(`[generateCreativeContent] 🏗️ Calling creator for: ${type}`);
-        const resultHTML = await createCreativeContent(inputs, projectContext, plan, executeLLM, type, advancedOptions);
+        console.log(`[generateCreativeContent] 🏗️ Calling creator for: ${type} with mode: ${finalPlan.mode}`);
+        const resultHTML = await createCreativeContent(inputs, projectContext, finalPlan, executeLLM, type, advancedOptions);
 
         if (!resultHTML) {
             console.error('[generateCreativeContent] ❌ Creator returned empty result');

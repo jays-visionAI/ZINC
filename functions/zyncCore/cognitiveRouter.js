@@ -42,7 +42,7 @@ class CognitiveRouter {
 
 class StrategyPlanner {
     constructor() {
-        this.router = new CognitiveRouter();
+        // We no longer need an internal router since we use the global LLMRouter
     }
 
     /**
@@ -54,7 +54,7 @@ class StrategyPlanner {
         const { mode, taskType } = requestData;
 
         // 1. Determine Performance Mode (User Override or Default)
-        let performanceMode = mode || 'balanced';
+        let performanceMode = (mode || 'balanced').toLowerCase();
 
         // 2. Identify Complexity
         const isComplexTask = this.isStrategicTask(taskType);
@@ -64,8 +64,8 @@ class StrategyPlanner {
         if (performanceMode === 'eco') {
             return {
                 mode: 'eco',
+                qualityTier: 'ECONOMY',
                 useArena: false, // Skip debate
-                modelConfig: this.router.route('eco'),
                 steps: ['generate']
             };
         }
@@ -74,9 +74,9 @@ class StrategyPlanner {
         if (performanceMode === 'pro' || (performanceMode === 'balanced' && isComplexTask)) {
             return {
                 mode: 'pro',
+                qualityTier: 'BOOST',
                 useArena: true, // Enable debate loop
                 rounds: performanceMode === 'pro' ? 3 : 1, // Pro gets more rounds
-                modelConfig: this.router.route('pro'),
                 steps: ['context', 'debate', 'synthesis']
             };
         }
@@ -84,8 +84,8 @@ class StrategyPlanner {
         // Default Balanced Simple
         return {
             mode: 'balanced',
+            qualityTier: 'BALANCED',
             useArena: false,
-            modelConfig: this.router.route('balanced'),
             steps: ['generate']
         };
     }
@@ -94,7 +94,8 @@ class StrategyPlanner {
         // Strategic tasks benefit from The Arena
         const strategicTypes = [
             'campaign_brief', 'brand_positioning', 'competitor_analysis',
-            'crisis_response', 'pitch_deck', 'press_release'
+            'crisis_response', 'pitch_deck', 'press_release', 'one_pager',
+            'promo_images', 'product_brochure'
         ];
         return strategicTypes.includes(taskType);
     }
