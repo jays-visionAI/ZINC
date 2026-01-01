@@ -4393,7 +4393,42 @@ async function downloadCreativeAsPDF(options = {}) {
 
     try {
         const config = CREATIVE_CONFIGS[currentCreativeType] || { name: 'ZINC_Creative' };
-        const filename = `${config.name.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
+        const filename = `${config.name.replace(/\\s+/g, '_')}_${Date.now()}.pdf`;
+
+        // === PROMO TEMPLATES: Use browser print (bypasses CORS issues) ===
+        if (normalizedType === 'promo_images' || normalizedType === 'templates') {
+            showNotification('Opening print dialog for PDF...', 'info');
+
+            // Create a printable window
+            const printContent = resultContainer.innerHTML;
+            const printWindow = window.open('', '_blank', 'width=800,height=1000');
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>${filename}</title>
+                    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+                    <script src="https://cdn.tailwindcss.com"><\/script>
+                    <style>
+                        * { margin: 0; padding: 0; box-sizing: border-box; }
+                        body { font-family: 'Inter', sans-serif; background: #0a0a0a; }
+                        @media print {
+                            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                        }
+                    </style>
+                </head>
+                <body>${printContent}</body>
+                </html>
+            `);
+            printWindow.document.close();
+
+            // Wait for content to load then print
+            setTimeout(() => {
+                printWindow.print();
+                // printWindow.close(); // User will close after saving
+            }, 1000);
+            return;
+        }
 
         // Determine capture width based on current viewport
         let captureWidth = 1200; // Reference width
