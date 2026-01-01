@@ -21,7 +21,7 @@ const admin = require('firebase-admin');
 const corsMiddleware = require('cors')({ origin: true });
 
 
-// Allowed origins for CORS - using true to allow all for now
+// Allowed origins for CORS - using true for wildcards or string/array for specific domains
 const ALLOWED_ORIGINS = true;
 
 // Initialize Admin SDK with explicit project config (only if not already initialized)
@@ -4841,7 +4841,12 @@ ${planType === 'brand_mind_map'
     }
 });
 
-exports.generateCreativeContent = onCall({ cors: ALLOWED_ORIGINS, region: 'us-central1', timeoutSeconds: 540, memory: '2GiB' }, async (request) => {
+exports.generateCreativeContent = onCall({
+    cors: true,
+    region: 'us-central1',
+    timeoutSeconds: 540,
+    memory: '2GiB'
+}, async (request) => {
     // 1. Auth Check - moved inside try to ensure valid logging if needed, but keeping simple return for now
     if (!request.auth) {
         return { success: false, error: 'Unauthenticated' };
@@ -5609,10 +5614,19 @@ function generateMarketPulseData(projectData) {
 /**
  * Refine a specific section of a creative project
  */
-exports.refineCreativeContent = onCall({ cors: ALLOWED_ORIGINS, region: 'us-central1', timeoutSeconds: 300, memory: '1GiB' }, async (request) => {
-    if (!request.auth) return { success: false, error: 'Unauthenticated' };
-    const { projectId, sectionIndex, instruction, currentContent } = request.data;
-    if (!projectId) return { success: false, error: 'Missing ProjectID' };
+exports.refineCreativeContent = onCall({
+    cors: true,
+    region: 'us-central1',
+    timeoutSeconds: 300,
+    memory: '1GiB'
+}, async (request) => {
+    if (!request.auth) throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
+
+    const data = request.data || {};
+    const { projectId, sectionIndex, instruction, currentContent } = data;
+
+    if (!projectId) throw new functions.https.HttpsError('invalid-argument', 'Missing ProjectID');
+    if (!instruction) throw new functions.https.HttpsError('invalid-argument', 'Missing instruction');
 
     console.log(`[refineCreativeContent] Refining section ${sectionIndex} of ${projectId}`);
 
@@ -5649,16 +5663,23 @@ exports.refineCreativeContent = onCall({ cors: ALLOWED_ORIGINS, region: 'us-cent
         return { success: true, newHtml: refinedHTML };
     } catch (e) {
         console.error('[refineCreativeContent] Error:', e);
-        return { success: false, error: e.message };
+        throw new functions.https.HttpsError('internal', e.message);
     }
 });
 
 /**
  * Refresh/Swap an image in a creative project
  */
-exports.refreshCreativeImage = onCall({ cors: ALLOWED_ORIGINS, region: 'us-central1', timeoutSeconds: 300, memory: '1GiB' }, async (request) => {
-    if (!request.auth) return { success: false, error: 'Unauthenticated' };
-    let { projectId, prompt, currentUrl, aspectRatio } = request.data;
+exports.refreshCreativeImage = onCall({
+    cors: true,
+    region: 'us-central1',
+    timeoutSeconds: 300,
+    memory: '1GiB'
+}, async (request) => {
+    if (!request.auth) throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
+
+    const data = request.data || {};
+    let { projectId, prompt, currentUrl, aspectRatio } = data;
 
     console.log(`[refreshCreativeImage] Refreshing image for ${projectId} with prompt: ${prompt}`);
 
@@ -5692,6 +5713,6 @@ exports.refreshCreativeImage = onCall({ cors: ALLOWED_ORIGINS, region: 'us-centr
         return { success: true, imageUrl: imageResult };
     } catch (e) {
         console.error('[refreshCreativeImage] Error:', e);
-        return { success: false, error: e.message };
+        throw new functions.https.HttpsError('internal', e.message);
     }
 });

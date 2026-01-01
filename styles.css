@@ -4074,14 +4074,17 @@ input:checked+.slider:before {
 
 .smart-editor-content {
     width: 100%;
-    /* Full width */
     padding: 32px;
     outline: none;
     min-height: 400px;
-    max-height: 70vh;
-    overflow-y: auto;
-    line-height: 1.7;
+    line-height: 1.8;
     color: rgba(255, 255, 255, 0.9);
+}
+
+/* Prevent double scrollbars in view modal */
+#view-doc-content.smart-editor-content {
+    max-height: none;
+    overflow-y: visible;
 }
 
 .comment-sidebar {
@@ -4118,33 +4121,47 @@ input:checked+.slider:before {
 }
 
 /* Tiptap Specific Content Styling */
-.ProseMirror p {
-    margin-bottom: 1em;
+.ProseMirror p,
+#view-doc-content p {
+    margin-bottom: 1.25em;
 }
 
-.ProseMirror h1 {
+.ProseMirror h1,
+#view-doc-content h1 {
     color: var(--color-cyan);
-    margin: 1.5em 0 0.5em;
+    margin: 1.8em 0 0.8em;
+    font-weight: 800;
 }
 
-.ProseMirror h2 {
+.ProseMirror h2,
+#view-doc-content h2 {
     color: var(--color-cyan);
-    margin: 1.2em 0 0.5em;
+    margin: 1.5em 0 0.8em;
+    font-weight: 700;
 }
 
 .ProseMirror ul,
-.ProseMirror ol {
+.ProseMirror ol,
+#view-doc-content ul,
+#view-doc-content ol {
     padding-left: 1.5em;
-    margin-bottom: 1em;
+    margin-bottom: 1.25em;
 }
 
-.ProseMirror blockquote {
+.ProseMirror li,
+#view-doc-content li {
+    margin-bottom: 0.75em;
+}
+
+.ProseMirror blockquote,
+#view-doc-content blockquote {
     border-left: 3px solid var(--color-cyan);
     padding-left: 1rem;
     color: rgba(255, 255, 255, 0.6);
 }
 
-.ProseMirror img {
+.ProseMirror img,
+#view-doc-content img {
     max-width: 100%;
     border-radius: 8px;
 }

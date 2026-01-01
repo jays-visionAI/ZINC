@@ -4866,11 +4866,14 @@ async function loadCreativeProjects() {
         .onSnapshot(snapshot => {
             const newProjects = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
+            creativeProjects = newProjects;
+            lastProjectCount = creativeProjects.length;
+
             // 1. Auto-refresh if current viewed project status changed (e.g., from processing to completed)
             if (currentCreativeId) {
                 const updatedCurrent = newProjects.find(p => p.id === currentCreativeId);
-                const prevCurrent = creativeProjects.find(p => p.id === currentCreativeId);
-                if (updatedCurrent && (!prevCurrent || updatedCurrent.status !== prevCurrent.status)) {
+                // Note: using prevCurrentStatus to detect changes since we just updated creativeProjects
+                if (updatedCurrent && updatedCurrent.status !== prevCurrentStatus) {
                     if (updatedCurrent.status === 'completed' || updatedCurrent.status === 'failed') {
                         console.log('[CreativeStore] Current project finished, auto-refreshing view...');
                         viewCreativeProject(currentCreativeId);
@@ -4879,15 +4882,13 @@ async function loadCreativeProjects() {
             }
 
             // 2. UX: Notification for background completion
-            if (lastProjectCount > 0 && newProjects.length === lastProjectCount) {
-                const finishedProject = newProjects.find((p, i) => p.status === 'completed' && creativeProjects[i]?.status === 'processing');
+            if (oldLastCount > 0 && newProjects.length === oldLastCount) {
+                const finishedProject = newProjects.find((p, i) => p.status === 'completed' && oldProjects[i]?.status === 'processing');
                 if (finishedProject) {
                     showNotification(`Success: "${finishedProject.topic}" generation complete!`, 'success');
                 }
             }
 
-            creativeProjects = newProjects;
-            lastProjectCount = creativeProjects.length;
             renderCreativeHistory();
         }, error => {
             console.error('[CreativeStore] Snapshot listener failed:', error);
@@ -5240,6 +5241,17 @@ async function submitRefinePalette() {
  * Swap or Refine Image with AI (Enhanced UX)
  */
 async function swapCreativeImage(docId, imgEl) {
+    // SECURITY/UX Check: Ensure Edit Mode is active
+    if (!isEditMode) {
+        showNotification('Please activate Edit Mode to change images.', 'warning');
+        const editBtn = document.getElementById('btn-creative-edit');
+        if (editBtn) {
+            editBtn.classList.add('animate-bounce');
+            setTimeout(() => editBtn.classList.remove('animate-bounce'), 2000);
+        }
+        return;
+    }
+
     const promptText = prompt('Describe the new image for this spot:');
     if (promptText === null) return;
 

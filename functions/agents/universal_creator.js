@@ -62,12 +62,18 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
             htmlTask: "Create a smooth-scrolling product brochure with feature cards and a specs table.",
             visualIds: [{ id: "HERO", desc: "Hero" }, { id: "FEATURE", desc: "Feature" }, { id: "LIFESTYLE", desc: "Lifestyle" }]
         };
-    } else if (normalizedType === 'promo_images') {
-        const count = Math.min(finalImageCount, 4);
+    } else if (normalizedType === 'promo_images' || normalizedType === 'images') {
+        const count = Math.min(finalImageCount, 6);
         strategy = {
-            role: "Ad Agency Art Director",
-            visualTask: `Identify ${count} campaign variations.`,
-            htmlTask: `Create a dark-mode gallery-style showcase for ${count} campaign assets.`,
+            role: "Award-winning Ad Agency Art Director",
+            visualTask: `Identify ${count} ultra-premium, high-impact campaign variations.`,
+            htmlTask: `Create a high-end, futuristic dark-mode showcase. Use a Bento Grid or sophisticated Gallery layout for ${count} campaign assets. 
+            DESIGN RULES:
+            - Use Glassmorphism (blur + borders) for all cards.
+            - Use polished, high-contrast typography (Inter / Space Grotesk).
+            - Add subtle glowing mesh gradients in the background.
+            - Each asset must have a BOLD TITLE, a short conceptual 'Insight' text, and a high-impact background image card.
+            - Ensure the layout feels like a premium portfolio or high-end brand landing page.`,
             visualIds: Array.from({ length: count }, (_, i) => ({ id: `PROMO_${i + 1}`, desc: `Ad ${i + 1}` }))
         };
     } else {
@@ -91,27 +97,75 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
 
     // 2. ASSET GENERATION
     const assetMap = {};
-    const fallbackDim = targetRatio === '16:9' ? '1600x900' : '1080x1080';
+    const fallbackDim = targetRatio === '16:9' ? '1600/900' : '1080/1080'; // Changed x to / for LoremFlicker
     await Promise.all(visualPlan.visuals.map(async (v) => {
         if (executivePhotoUrl && (v.id.includes('HERO') || v.id.includes('COVER'))) {
             assetMap[v.id] = executivePhotoUrl; return;
         }
         try {
-            assetMap[v.id] = await generateWithVertexAI(`${v.prompt}, ${imageStyle}, high quality`, 'imagen-3.0-generate-001', { aspectRatio: targetRatio });
+            assetMap[v.id] = await generateWithVertexAI(`${v.prompt}, ${imageStyle}, high quality, cinematic lighting`, 'imagen-3.0-generate-001', { aspectRatio: targetRatio });
         } catch (err) {
-            assetMap[v.id] = `https://source.unsplash.com/${fallbackDim}/?${encodeURIComponent(topic.substring(0, 20))},business&s=${Math.random()}`;
+            // Updated to use LoremFlicker as Unsplash Source is deprecated
+            assetMap[v.id] = `https://loremflickr.com/${fallbackDim}/${encodeURIComponent(topic.substring(0, 20).split(' ')[0] || 'tech')}?lock=${Math.floor(Math.random() * 1000)}`;
         }
     }));
 
-    // 3. HTML ASSEMBLY
+    // 3. HTML ASSEMBLY (Multi-Archetype system with Random Variance)
     const archetypes = {
-        'visionary': { name: 'Visionary', style: `body { background: #0f172a; color: #f8fafc; } .glass { background: rgba(255,255,255,0.05); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }`, rules: "Dark, futuristic, neon accents." },
+        'visionary': {
+            name: 'Visionary',
+            style: `body { background: #020617; color: #f8fafc; font-family: 'Space Grotesk', 'Inter', sans-serif; } 
+                   .glass { background: rgba(255,255,255,0.03); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; }`,
+            rules: "Ultra-dark, high-end tech vibe, mesh gradients, rounded 24px corners."
+        },
+        'nebula': {
+            name: 'Nebula',
+            style: `body { background: #000; color: #fff; font-family: 'Inter', sans-serif; } 
+                   .glass { background: rgba(255,255,255,0.05); backdrop-filter: blur(20px); border: 1px dashed rgba(255,255,255,0.2); border-radius: 12px; }`,
+            rules: "Deep space theme, magenta/purple accents, dashed borders, heavy blur."
+        },
+        'cyberpunk': {
+            name: 'Cyberpunk',
+            style: `body { background: #050505; color: #00ffcc; font-family: 'Space Grotesk', sans-serif; } 
+                   .glass { background: #111; border: 2px solid #00ffcc; box-shadow: 4px 4px 0px #ff0055; border-radius: 0px; }`,
+            rules: "High-contrast neon, yellow/pink/cyan accents, brutalist blocks, no rounded corners."
+        },
+        'minimal': {
+            name: 'Minimalist Light',
+            style: `body { background: #fdfdfd; color: #171717; font-family: 'Inter', sans-serif; } 
+                   .glass { background: #fff; border: 1px solid #e5e5e5; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); border-radius: 8px; }`,
+            rules: "Apple-style clean, high whitespace, subtle shadows, greyscale with one accent color."
+        },
         'executive': { name: 'Executive', style: `body { background: #fff; color: #1e293b; } .glass { background: #f8fafc; border: 1px solid #e2e8f0; }`, rules: "Corporate, clean blue/white." },
         'disruptor': { name: 'Disruptor', style: `body { background: #000; color: #fff; } .glass { border: 2px solid #fff; }`, rules: "Brutalist, high-contrast." },
         'journalistic': { name: 'Journalistic', style: `body { font-family: 'EB Garamond', serif; background: #fff; color: #000; padding: 40px; } .document-body { max-width: 800px; margin: 0 auto; }`, rules: "Linear serif document." }
     };
-    const styleKey = { 'modern tech': 'visionary', 'futuristic': 'visionary', 'minimalist': 'executive', 'corporate': 'executive', 'creative bold': 'disruptor' }[style.toLowerCase()] || 'visionary';
+
+    // Random Variance Logic
+    const archetypeKeys = Object.keys(archetypes).filter(k => k !== 'journalistic');
+    const randomKey = archetypeKeys[Math.floor(Math.random() * archetypeKeys.length)];
+
+    const styleKey = {
+        'modern tech': 'visionary',
+        'futuristic': 'nebula',
+        'minimalist': 'minimal',
+        'corporate': 'executive',
+        'creative bold': 'cyberpunk'
+    }[style.toLowerCase()] || randomKey;
+
     const arc = normalizedType.includes('press') ? archetypes.journalistic : (archetypes[styleKey] || archetypes.visionary);
+
+    // Mesh Gradient Randomizer
+    const gradientVariants = [
+        'rgba(99,102,241,0.15)', // Indigo
+        'rgba(236,72,153,0.12)', // Pink
+        'rgba(34,211,238,0.15)', // Cyan
+        'rgba(168,85,247,0.13)', // Purple
+        'rgba(244,63,94,0.1)',   // Rose
+    ];
+    const pickedGradient = gradientVariants[Math.floor(Math.random() * gradientVariants.length)];
+    const meshGlow = `.mesh-glow { position: fixed; width: 60vw; height: 60vw; background: radial-gradient(circle, ${pickedGradient} 0%, transparent 70%); filter: blur(80px); z-index: -1; pointer-events: none; }`;
+    arc.style += `\n${meshGlow}`;
 
     const baseTask = `
     Create: ${strategy.htmlTask} (Language: Auto)
@@ -127,7 +181,7 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
     - RETURN ONLY PURE HTML. NO markdown. NO introductory text. NO summary.
     - Target exactly 1 premium document.
     - Style: ${arc.style}
-    - Include: Tailwind, Font-Awesome, Inter font.
+    - Include: Tailwind, Font-Awesome, Inter font, Space Grotesk font (https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap).
     `;
 
     let html;
@@ -196,13 +250,13 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
 
     // Universal Fallback: Catch any remains {{STUFF}} or broken placeholder URLs
     const fallbackKeyword = encodeURIComponent(topic.substring(0, 30).split(' ')[0] || 'business');
-    const unsplashBase = `https://source.unsplash.com/${fallbackDim}/?${fallbackKeyword}`;
+    const backupImg = `https://loremflickr.com/${fallbackDim}/${fallbackKeyword}`;
 
     // Replace any leftover {{tokens}}
-    html = html.replace(/{{[A-Z_0-9 ]+}}/gi, () => `${unsplashBase},abstract&sig=${Math.random()}`);
+    html = html.replace(/{{[A-Z_0-9 ]+}}/gi, () => `${backupImg}?lock=${Math.floor(Math.random() * 1000)}`);
 
     // Replace via.placeholder.com or similar if LLM used them
-    html = html.replace(/https?:\/\/via\.placeholder\.com[^\s"'>]+/g, () => `${unsplashBase},premium&sig=${Math.random()}`);
+    html = html.replace(/https?:\/\/via\.placeholder\.com[^\s"'>]+/g, () => `${backupImg}?lock=${Math.floor(Math.random() * 1000)}`);
 
     const LIMIT = 850000;
     if (html.length > LIMIT) {
