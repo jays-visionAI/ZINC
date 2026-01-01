@@ -397,22 +397,34 @@ Return ONLY the JSON object.`;
         },
         'minimal': {
             name: 'Minimalist Light',
-            style: `body { background: #fdfdfd !important; color: #171717 !important; font-family: 'Inter', sans-serif; } 
-                   h1, h2, h3, h4 { color: #0f172a !important; }
-                   p, span, li, label { color: #334155 !important; }
-                   .glass { background: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); border-radius: 8px; }`,
-            rules: "Apple-style clean, high whitespace, subtle shadows, greyscale with one accent color."
+            style: `body { background: #fdfdfd !important; color: #171717 !important; font-family: 'Inter', 'Space Grotesk', sans-serif; } 
+                   h1, h2, h3, h4 { color: #0f172a !important; font-weight: 800; }
+                   .bento-card { background: #ffffff; border: 1:px solid #f1f5f9; box-shadow: 0 4px 20px -5px rgba(0,0,0,0.05); border-radius: 16px; transition: all 0.3s ease; }
+                   .accent-text { color: #4f46e5; }`,
+            rules: "Apple-style premium minimalism. High whitespace, subtle shadows, crisp bento-grid layouts. Use Zinc-900 for primary text."
         },
         'executive': {
-            name: 'Executive Light',
+            name: 'Executive Premium',
             style: `body { background: #ffffff !important; color: #1e293b !important; font-family: 'Inter', sans-serif; } 
-                   h1, h2, h3 { color: #0f172a !important; font-weight: 800; }
-                   p, span, li, dt, dd { color: #334155 !important; }
-                   .glass { background: #f8fafc; border: 1px solid #e2e8f0; }`,
-            rules: "Corporate, clean blue/white. FORCE DARK TEXT ON WHITE BACKGROUND."
+                   h1, h2, h3 { color: #0f172a !important; font-weight: 850; letter-spacing: -0.025em; }
+                   .infographic-box { background: #f8fafc; border-left: 4px solid #1e293b; padding: 1.5rem; border-radius: 8px; }
+                   .metric-value { color: #1e293b; font-weight: 900; font-size: 2.5rem; }`,
+            rules: "Fortune 500 style executive summary. Professional, balanced, data-rich. Use Slate-900 labels."
         },
-        'disruptor': { name: 'Disruptor', style: `body { background: #000 !important; color: #fff !important; } .glass { border: 2px solid #fff; }`, rules: "Brutalist, high-contrast." },
-        'journalistic': { name: 'Journalistic Light', style: `body { font-family: 'EB Garamond', serif; background: #fff !important; color: #000 !important; padding: 40px; } .document-body { max-width: 800px; margin: 0 auto; }`, rules: "Linear serif document." }
+        'disruptor': {
+            name: 'Disruptor',
+            style: `body { background: #000 !important; color: #fff !important; font-family: 'Space Grotesk', sans-serif; } 
+                   .glass { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); backdrop-filter: blur(10px); }
+                   .neon-text { color: #00ffcc; text-shadow: 0 0 10px rgba(0,255,204,0.3); }`,
+            rules: "High-contrast future-tech, neon accents, brutalist but polished."
+        },
+        'journalistic': {
+            name: 'Journalistic',
+            style: `body { font-family: 'EB Garamond', serif; background: #fffaf5 !important; color: #1a1a1a !important; padding: 60px; } 
+                   .document-body { max-width: 850px; margin: 0 auto; line-height: 1.6; }
+                   hr { border: 0; border-top: 1px solid #d1d5db; margin: 2rem 0; }`,
+            rules: "New York Times style investigative layout. Classic, readable, authoritative."
+        }
     };
 
     // Random Variance Logic
@@ -533,22 +545,22 @@ Return ONLY the JSON object.`;
     - Use "break-inside: avoid" CSS on all major sections/cards to prevents half-cut content in PDF.
     - Ensure A4-friendly widths (approx 800px-1000px).
     
-    === CONTRAST & READABILITY STANDARDS (NON-NEGOTIABLE) ===
-    - LOGIC: The text/icon color must be the OPPOSITE of the background.
-    - LIGHT BACKGROUND (Minimal Light, Executive Light, Journalistic):
-        * ALL text MUST use dark classes: text-slate-900, text-black, text-gray-800.
-        * ALL icons MUST use dark colors: text-indigo-700, text-blue-800, etc.
-        * NEVER use text-white or light gray on these themes.
-    - DARK BACKGROUND (Visionary, Nebula, Cyberpunk, Disruptor):
-        * ALL text MUST use light classes: text-white, text-slate-100, text-gray-200.
-        * ALL icons MUST be bright: text-cyan-400, text-white.
-    - NO DIRTY FIXES: Do NOT use gray boxes or highlights behind text. 
+    === ZINC DESIGN SYSTEM: PREMIUM INSTRUCTIONS ===
+    - PERSONA: You are a Senior Visual Communication Designer (ex-Apple, ex-IDEO).
+    - TASK: Create a high-end, 1-page Infographic One-Pager that WOWS the user.
+    - VISUALL LAYOUT: Use Bento Grids, Icon Lists, and Data-Driven cards. NEVER just stack bars of color.
+    - TYPOGRAPHY: Use 'Inter' for body and 'Space Grotesk' for bold headlines. Mix font sizes (4xl for focus, xs for labels).
+    
+    === CONTRAST & LEGIBILITY (MANDATORY) ===
+    - RULE: Contrast must be 7:1 for headers, 4.5:1 for body.
+    - LIGHT BG: Use Slate-950 (#0f172a) for text. NEVER use light colors on white.
+    - DARK BG: Use White (#ffffff) or Slate-50 for text.
+    - ICON COLORS: Must be saturated and visible. (e.g., Indigo-600 on white).
     
     === OUTPUT RULES ===
-    - RETURN ONLY PURE HTML. NO markdown.
-    - Target exactly 1 premium document.
+    - RETURN ONLY PURE HTML.
     - Style: ${arc.style}
-    - Include: Tailwind, Font-Awesome, Inter font, Space Grotesk font (https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap).
+    - Include: Tailwind 3.4+, Font-Awesome 6+, Inter, Space Grotesk.
     `;
 
     // 3. HTML ASSEMBLY (Multi-Archetype system with Arena Refinement)
@@ -563,43 +575,40 @@ Return ONLY the JSON object.`;
             // Step 1: Designer Creates Draft
             const draft = await executeLLM(`Designer: ${arc.name}`, baseTask + "\nDraft professional HTML.");
 
-            // Step 2: Specialized Auditor Checks Contrast & Legibility
+            // Step 2: Specialized Auditor Checks Contrast & Quality
             const auditPrompt = `
-                You are a WCAG 2.1 Accessibility Auditor. Analyze the provided HTML for color contrast and legibility.
+                Analyze this HTML for PREMIUM DESIGN and LEGIBILITY.
                 
                 HTML SCRIPT:
                 ${draft.substring(0, 8000)}
                 
-                CRITICAL CHECKLIST:
-                - SEARCH for "Invisible Content": Is there White text on a White background? Is there Dark text on a Dark background?
-                - IF BACKGROUND IS LIGHT (bg-white, bg-gray-50, etc.):
-                    * FAIL if you see text-white, text-gray-100, or light blue/cyan text.
-                - IF BACKGROUND IS DARK (bg-black, bg-navy-900, etc.):
-                    * FAIL if you see text-black, text-slate-900, or dark gray text.
-                - FAIL if icons or headings disappear into the background.
+                FAIL IF:
+                1. INVISIBLE: White text on white background or dark on dark (WCAG Check).
+                2. UGLY/LAZY: Document is just simple stacked color bars with no grid/layout/style.
+                3. GENERIC: Content doesn't use the specific "Context" provided (Topic: ${topic}).
+                4. NO ICONS: Icons are missing from infographic sections.
                 
-                RESPONSE FORMAT:
-                If contrast is perfect: "PASS"
-                If contrast is bad: "FAIL: [Reasoning and specific elements to fix]"
+                RESPONSE:
+                "PASS" or "FAIL: [Detailed design critique for the Designer]"
             `;
-            const auditResult = await executeLLM("Auditor", auditPrompt);
+            const auditResult = await executeLLM("CreativeDirector", auditPrompt);
 
             if (auditResult.toUpperCase().includes("FAIL")) {
-                console.log(`[UniversalCreator] ⚠️ Contrast Audit FAILED: ${auditResult}`);
+                console.log(`[UniversalCreator] ⚠️ Audit FAILED: ${auditResult}`);
                 // Step 3: Designer Fixes based on Auditor Feedback
                 html = await executeLLM(`Designer: ${arc.name}`, `
-                    YOUR PREVIOUS DRAFT HAD CONTRAST ISSUES (INVISIBLE ELEMENTS):
-                    ${auditResult}
+                    YOUR PREVIOUS DRAFT WAS REJECTED BY THE CREATIVE DIRECTOR.
+                    CRITIQUE: ${auditResult}
                     
-                    TASK: Regenerate the HTML ensuring 100% LEGIBILITY.
-                    - IF BACKGROUND IS LIGHT: Use text-slate-950 for ALL text and dark colors for ALL icons.
-                    - IF BACKGROUND IS DARK: Use text-white for ALL text and bright colors for ALL icons.
-                    - DO NOT use gray boxes/highlights behind text.
+                    TASK: Create a TRULY PREMIUM One Pager using Bento Grids and Iconography.
+                    - LEGIBILITY: Use Slate-950 text for Light backgrounds, White for Dark.
+                    - DETAIL: Use specific data and points from the context.
+                    - LOOK: Aesthetic must be high-end tech/corporate. No generic bars.
                     
-                    DELIVER CLEAN, HIGH-CONTRAST, READABLE HTML.
+                    DELIVER THE FINAL PREMIUM HTML.
                 `);
             } else {
-                console.log('[UniversalCreator] ✅ Contrast Audit PASSED');
+                console.log('[UniversalCreator] ✅ Audit PASSED');
                 html = draft;
             }
         } else {
