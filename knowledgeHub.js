@@ -4708,17 +4708,10 @@ async function generateCreativeItem() {
         });
 
         stopProgressBar(100);
-        const html = result.data?.data || result.data?.html || result.data?.content || '';
-
-        // Final update
-        const db = firebase.firestore();
-        await db.collection('creativeProjects').doc(projectId).update({
-            htmlContent: html,
-            status: 'completed',
-            completedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-
         addLog('Generation Success!', 'success');
+
+        // The backend already updates the document status and HTML. 
+        // We just need to trigger the view.
         viewCreativeProject(projectId);
 
     } catch (error) {
