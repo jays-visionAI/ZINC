@@ -118,12 +118,16 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
     Topic: ${topic}. Archetype: ${arc.name}. 
     Context: """${knowledgeBase}"""
     Image Tokens: [${visualPlan.visuals.map(v => `{{${v.id}}}`).join(', ')}]
-    Requirements:
-    - Pure HTML only. No Markdown.
+    
+    === PRINT & PDF RULES ===
+    - Use "break-inside: avoid" CSS on all major sections/cards to prevents half-cut content in PDF.
+    - Ensure A4-friendly widths (approx 800px-1000px).
+    
+    === OUTPUT RULES ===
+    - RETURN ONLY PURE HTML. NO markdown. NO introductory text. NO summary.
+    - Target exactly 1 premium document.
     - Style: ${arc.style}
-    - CDN: Tailwind, Font-Awesome, Inter font.
-    - Content: Rich, professional, and detailed.
-    - Max Output: 50,000 characters.
+    - Include: Tailwind, Font-Awesome, Inter font.
     `;
 
     let html;
@@ -132,7 +136,7 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
             console.log('[UniversalCreator] 🛡️ Arena Enabled');
             const draft = await executeLLM(`Designer: ${arc.name}`, baseTask + "\nDraft professional HTML.");
             const review = await executeLLM("Director", `Critique briefly: ${draft.substring(0, 3000)}`);
-            html = await executeLLM(`Designer: ${arc.name}`, `Draft: ${draft.substring(0, 10000)}\nReview: ${review}\nFINAL: Complete polished HTML. STAY UNDER 800,000 BYTES.`);
+            html = await executeLLM(`Designer: ${arc.name}`, `Draft: ${draft.substring(0, 10000)}\nReview: ${review}\nFINAL: Deliver polished HTML. NO COMMENTARY. NO SUMMARY. STICK TO CODE.`);
         } else {
             html = await executeLLM(`Designer: ${arc.name}`, baseTask);
         }
@@ -140,8 +144,48 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
         html = `<!-- Error: ${e.message} -->`;
     }
 
-    // 4. INJECTION & LIMITS
+    // 4. CLEANUP & EXTRACTION (More aggressive)
     html = String(html || '').replace(/```html/g, '').replace(/```/g, '').trim();
+
+    // Surgical Extraction: Extract only from <html> back to </html> OR first < to last >
+    const htmlStart = html.toLowerCase().indexOf('<html');
+    const htmlEnd = html.toLowerCase().lastIndexOf('</html>');
+
+    if (htmlStart !== -1 && htmlEnd !== -1) {
+        html = html.substring(htmlStart, htmlEnd + 7);
+    } else {
+        const firstTag = html.indexOf('<');
+        const lastTag = html.lastIndexOf('>');
+        if (firstTag !== -1 && lastTag !== -1) {
+            html = html.substring(firstTag, lastTag + 1);
+        }
+    }
+
+    // Inject Print Fixes globally
+    const printFix = `
+    <style>
+        @media print {
+            section, .card, .glass, tr, li { break-inside: avoid !important; page-break-inside: avoid !important; }
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            /* Fix for Gradient Text Bleeding in PDF */
+            .z-gradient-text { 
+                background-clip: initial !important; 
+                -webkit-background-clip: initial !important; 
+                background-image: none !important; 
+                -webkit-text-fill-color: initial !important; 
+                color: #6366f1 !important; /* Semi-generic fallback color */
+            }
+        }
+        section, .card, .glass { break-inside: avoid; }
+    </style>
+    `;
+    if (html.includes('</head>')) {
+        html = html.replace('</head>', `${printFix}</head>`);
+    } else if (html.includes('<body>')) {
+        html = html.replace('<body>', `<body>${printFix}`);
+    } else {
+        html = printFix + html;
+    }
 
     // Surgical Token Injection (Case-Insensitive)
     Object.keys(assetMap).forEach(k => {

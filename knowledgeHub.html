@@ -2493,51 +2493,114 @@
         </button>
     </div>
 
-    <!-- ZYNK AI Chatbot -->
-    <link rel="stylesheet" href="chatbot.css">
-    <button id="chatbot-fab" class="chatbot-fab" aria-label="Open ZYNK Assistant">
-        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-        </svg>
-    </button>
-    <div id="chatbot-panel" class="chatbot-panel">
-        <div class="chatbot-header">
-            <div class="chatbot-header-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                    class="text-indigo-400">
-                    <path d="M12 8V4H8" />
-                    <rect width="16" height="12" x="4" y="8" rx="2" />
-                    <path d="M2 14h2" />
-                    <path d="M20 14h2" />
-                    <path d="M15 13v2" />
-                    <path d="M9 13v2" />
-                </svg>
+    <!-- Zync Refine Palette: Advanced AI Refinement Dashboard -->
+    <div id="zync-refine-palette"
+        class="fixed inset-0 z-[60] hidden flex items-center justify-center bg-slate-950/60 backdrop-blur-md transition-all duration-300">
+        <div class="bg-slate-900/90 border border-slate-700/50 w-[500px] overflow-hidden rounded-3xl shadow-[0_0_50px_rgba(99,102,241,0.2)] flex flex-col scale-95 transition-transform duration-300"
+            id="refine-palette-card">
+            <!-- Header -->
+            <div
+                class="p-6 bg-gradient-to-r from-indigo-600/20 to-purple-600/20 border-b border-slate-700/50 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div
+                        class="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                        <i class="fas fa-wand-magic-sparkles text-white"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-white tracking-tight">Refine Palette</h3>
+                        <p class="text-[10px] text-slate-400 font-medium uppercase tracking-widest">Advanced AI
+                            Refinement</p>
+                    </div>
+                </div>
+                <button onclick="closeRefinePalette()"
+                    class="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center text-slate-400 transition-colors">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
-            <div class="chatbot-header-info">
-                <p class="chatbot-header-title">ZYNK Assistant</p>
-                <small class="chatbot-header-subtitle">AI 헬프데스크</small>
+
+            <!-- Content Area -->
+            <div class="p-6 space-y-6 overflow-y-auto max-h-[70vh] custom-scrollbar">
+                <!-- Multi-Modal Input -->
+                <div class="space-y-3">
+                    <label
+                        class="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fas fa-comment-dots text-indigo-400"></i>
+                        What should I do?
+                    </label>
+                    <textarea id="refine-instruction"
+                        class="w-full bg-slate-950/50 border border-slate-700/50 rounded-2xl p-4 text-sm text-slate-200 focus:outline-none focus:border-indigo-500/50 transition-all placeholder:text-slate-600 min-h-[100px]"
+                        placeholder="Type instructions in any language (e.g., 'Translate to French', 'Make it more minimal', '현대적인 느낌으로 수정해줘')..."></textarea>
+                </div>
+
+                <!-- Quick Actions Grid -->
+                <div class="grid grid-cols-2 gap-3">
+                    <button
+                        class="refine-preset p-3 rounded-2xl bg-slate-800/40 border border-slate-700/30 hover:border-indigo-500/50 flex items-center gap-3 transition-all group"
+                        onclick="applyRefinePreset('Translate to English')">
+                        <div
+                            class="w-8 h-8 rounded-xl bg-slate-700/50 flex items-center justify-center text-indigo-400 group-hover:bg-indigo-500/10 transition-colors">
+                            <i class="text-xs">EN</i>
+                        </div>
+                        <span class="text-xs font-medium text-slate-300">Translate to EN</span>
+                    </button>
+                    <button
+                        class="refine-preset p-3 rounded-2xl bg-slate-800/40 border border-slate-700/30 hover:border-indigo-500/50 flex items-center gap-3 transition-all group"
+                        onclick="applyRefinePreset('Make it more professional and corporate')">
+                        <div
+                            class="w-8 h-8 rounded-xl bg-slate-700/50 flex items-center justify-center text-indigo-400 group-hover:bg-indigo-500/10 transition-colors">
+                            <i class="fas fa-briefcase text-xs"></i>
+                        </div>
+                        <span class="text-xs font-medium text-slate-300">Professional Tone</span>
+                    </button>
+                    <button
+                        class="refine-preset p-3 rounded-2xl bg-slate-800/40 border border-slate-700/30 hover:border-indigo-500/50 flex items-center gap-3 transition-all group"
+                        onclick="applyRefinePreset('Summarize concisely while keeping key impact')">
+                        <div
+                            class="w-8 h-8 rounded-xl bg-slate-700/50 flex items-center justify-center text-indigo-400 group-hover:bg-indigo-500/10 transition-colors">
+                            <i class="fas fa-compress-alt text-xs"></i>
+                        </div>
+                        <span class="text-xs font-medium text-slate-300">Summarize</span>
+                    </button>
+                    <button
+                        class="refine-preset p-3 rounded-2xl bg-slate-800/40 border border-slate-700/30 hover:border-indigo-500/50 flex items-center gap-3 transition-all group"
+                        onclick="applyRefinePreset('Improve layout to be ultra-modern (e.g., Apple/Tesla style)')">
+                        <div
+                            class="w-8 h-8 rounded-xl bg-slate-700/50 flex items-center justify-center text-indigo-400 group-hover:bg-indigo-500/10 transition-colors">
+                            <i class="fas fa-palette text-xs"></i>
+                        </div>
+                        <span class="text-xs font-medium text-slate-300">Modernize Style</span>
+                    </button>
+                </div>
+
+                <!-- Asset Dropzone (Conceptual for now, visual only) -->
+                <div class="relative group">
+                    <label
+                        class="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2 mb-3">
+                        <i class="fas fa-image text-indigo-400"></i>
+                        Injected Assets / Resources
+                    </label>
+                    <div id="refine-asset-list" class="flex flex-wrap gap-3">
+                        <!-- Dynamic items -->
+                        <div
+                            class="w-20 h-20 rounded-xl bg-slate-950/50 border-2 border-dashed border-slate-700 flex flex-col items-center justify-center text-slate-500 hover:border-indigo-500/40 transition-all cursor-pointer">
+                            <i class="fas fa-plus text-xs mb-1"></i>
+                            <span class="text-[8px] font-bold">ADD IMAGE</span>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <span id="chatbot-usage" class="chatbot-usage-badge">0/50</span>
-            <button id="chatbot-close" class="chatbot-close-btn" aria-label="Close">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2">
-                    <path d="M18 6 6 18"></path>
-                    <path d="m6 6 12 12"></path>
-                </svg>
-            </button>
-        </div>
-        <div id="chatbot-messages" class="chatbot-messages"></div>
-        <div class="chatbot-input-area">
-            <input type="text" id="chatbot-input" class="chatbot-input" placeholder="ZYNK에 대해 물어보세요..." />
-            <button id="chatbot-send" class="chatbot-send-btn" aria-label="Send">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2">
-                    <path d="m22 2-7 20-4-9-9-4Z"></path>
-                    <path d="M22 2 11 13"></path>
-                </svg>
-            </button>
+
+            <!-- Footer Action -->
+            <div class="p-6 bg-slate-950/50 border-t border-slate-700/50 flex gap-3">
+                <button onclick="closeRefinePalette()"
+                    class="flex-1 py-3.5 rounded-2xl font-bold text-xs text-slate-400 hover:text-white transition-colors">
+                    CANCEL
+                </button>
+                <button onclick="submitRefinePalette()"
+                    class="flex-[2] py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-xs shadow-xl shadow-indigo-500/20 active:scale-95 transition-all">
+                    APPLY CHANGES
+                </button>
+            </div>
         </div>
     </div>
     <script src="chatbot-v2.js"></script>

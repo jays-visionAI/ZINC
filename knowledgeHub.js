@@ -33,10 +33,15 @@ let currentPlanCategory = 'knowledge'; // Default
 let cachedSavedPlans = []; // Store fetched plans for client-side filtering
 let creativeProjectsUnsubscribe = null; // Unsubscribe listener for creative projects
 let creativeProjects = []; // List of creative generation projects
-let currentCreativeId = null; // Currently viewed project ID
-let zActiveTarget = null; // Z-Editor global active target
-let zActiveSelection = ""; // Z-Editor global text selection
-let currentUserPerformanceMode = 'balanced'; // Runtime performance mode (eco, balanced, pro)
+// Creative Studio State
+let currentCreativeId = null;
+let currentCreativeType = null;
+let currentViewportType = 'responsive';
+let currentUserPerformanceMode = 'balanced';
+let currentRefineState = { docId: null, index: null, element: null };
+let currentCreativeData = {};
+let zActiveTarget = null;
+let zActiveSelection = "";
 
 // Chat Configuration
 let chatConfig = {
@@ -3855,15 +3860,8 @@ function openPlanModal(planType) {
 }
 
 
-/**
- * Creative Studio state
- */
-let currentCreativeType = null;
-let currentCreativeData = {};
+// Creative Studio Configs below
 
-/**
- * Creative content type configurations
- */
 const CREATIVE_CONFIGS = {
     email_template: {
         name: 'Email Template',
@@ -4013,7 +4011,7 @@ const CREATIVE_CONFIGS = {
                     { value: 'Vibrant', label: 'Vibrant', icon: 'fa-sun', desc: 'Saturated' },
                     { value: 'Muted', label: 'Muted', icon: 'fa-cloud', desc: 'Soft & Dull' },
                     { value: 'Warm', label: 'Warm', icon: 'fa-fire', desc: 'Red/Orange' },
-                    { value: 'Cool', label: 'Cool', icon: 'fa-snowflake', desc: 'Blue/Teal' },
+                    { value: 'Cool', label: 'Cool', 'icon': 'fa-snowflake', desc: 'Blue/Teal' },
                     { value: 'Pastel', label: 'Pastel', icon: 'fa-candy-cane', desc: 'Soft Candy' },
                     { value: 'Monochrome', label: 'Mono', icon: 'fa-adjust', desc: 'Black & White' },
                     { value: 'Sepia', label: 'Sepia', icon: 'fa-history', desc: 'Vintage Brown' },
@@ -5086,47 +5084,94 @@ async function syncCreativeChanges(docId) {
 }
 
 /**
- * Refine a specific section using AI (Enhanced UX)
+ * Refine a specific section using AI (Enhanced UX with Palette)
  */
 async function refineCreativeSection(docId, sectionIdx, sectionEl) {
-    // Premium Design: Replace prompt with a custom UI (simplified here but functional)
-    const instruction = prompt('AI Refinement: How should I improve this section?');
-    if (!instruction) return;
+    // Save state and open palette
+    currentRefineState = { docId: docId, index: sectionIdx, element: sectionEl };
+    openRefinePalette();
+}
 
+/**
+ * Palette UI Controllers
+ */
+function openRefinePalette() {
+    const palette = document.getElementById('zync-refine-palette');
+    const card = document.getElementById('refine-palette-card');
+    const input = document.getElementById('refine-instruction');
+
+    if (input) input.value = '';
+    palette.classList.remove('hidden');
+    setTimeout(() => card.classList.remove('scale-95'), 10);
+}
+
+function closeRefinePalette() {
+    const palette = document.getElementById('zync-refine-palette');
+    const card = document.getElementById('refine-palette-card');
+    card.classList.add('scale-95');
+    setTimeout(() => palette.classList.add('hidden'), 200);
+}
+
+function applyRefinePreset(text) {
+    const input = document.getElementById('refine-instruction');
+    if (input) {
+        input.value = text;
+        input.focus();
+    }
+}
+
+async function submitRefinePalette() {
+    const { docId, index, element } = currentRefineState;
+    const instruction = document.getElementById('refine-instruction').value;
+
+    if (!instruction) return;
+    closeRefinePalette();
+
+    // Visual Feedback: Show a real loading overlay on the section
+    const loadingOverlay = document.createElement('div');
+    loadingOverlay.style.cssText = `
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        z-index: 1000; color: white; border-radius: inherit;
+        animation: fadeIn 0.3s ease-out;
+    `;
+    loadingOverlay.innerHTML = `
+        <i class="fas fa-circle-notch fa-spin text-3xl mb-3"></i>
+        <span class="text-xs font-bold uppercase tracking-widest">AI Refining...</span>
+    `;
+
+    element.classList.add('relative');
+    element.appendChild(loadingOverlay);
     showNotification('AI is thinking...', 'info');
-    sectionEl.classList.add('opacity-40', 'transition-opacity', 'duration-500');
 
     // CLEAN CONTENT FOR AI: Clone and remove UI buttons
-    const sectionClone = sectionEl.cloneNode(true);
-    sectionClone.querySelectorAll('.refine-btn, .img-overlay').forEach(el => el.remove());
+    const sectionClone = element.cloneNode(true);
+    sectionClone.querySelectorAll('.refine-btn, .img-overlay, div[style*="z-index: 1000"]').forEach(el => el.remove());
     const cleanHTML = sectionClone.innerHTML;
 
     try {
         const refineFn = firebase.app().functions('us-central1').httpsCallable('refineCreativeContent');
         const result = await refineFn({
             projectId: docId,
-            sectionIndex: sectionIdx,
+            sectionIndex: index,
             instruction: instruction,
             currentContent: cleanHTML
         });
 
         if (result.data && result.data.newHtml) {
-            // STRIP markdown blocks if any
             let rawHtml = result.data.newHtml.replace(/```html|```/gi, '').trim();
-            sectionEl.innerHTML = rawHtml;
+            element.innerHTML = rawHtml;
             showNotification('Section updated successfully!', 'success');
 
-            // Re-setup the refine button for the new content
             const iframe = document.getElementById('creative-result-iframe');
             if (iframe) setupDetailedEditing(iframe, docId);
-
-            // AUTO-SAVE: Sync the whole document back to Firestore
             await syncCreativeChanges(docId);
         }
     } catch (error) {
         showNotification('Refinement failed: ' + error.message, 'error');
     } finally {
-        sectionEl.classList.remove('opacity-40');
+        loadingOverlay.remove();
     }
 }
 
@@ -5410,22 +5455,40 @@ window.applyZGradient = function (c1, c2, angle) {
     let parent = range.commonAncestorContainer;
     if (parent.nodeType === 3) parent = parent.parentElement;
 
-    const gradientCss = `linear-gradient(${angle}deg, ${c1}, ${c2})`;
+    // PERFORMANCE/COMPAT: If colors are the same, use standard text color
+    const isSolid = (c1.toLowerCase() === c2.toLowerCase());
 
-    if (parent.tagName === 'SPAN' && parent.classList.contains('z-gradient-text')) {
-        parent.style.backgroundImage = gradientCss;
+    if (isSolid) {
+        if (parent.tagName === 'SPAN' && parent.classList.contains('z-gradient-text')) {
+            parent.style.backgroundImage = 'none';
+            parent.style.webkitBackgroundClip = 'initial';
+            parent.style.webkitTextFillColor = 'initial';
+            parent.style.color = c1;
+            parent.classList.remove('z-gradient-text');
+        } else {
+            doc.execCommand('foreColor', false, c1);
+        }
     } else {
-        const span = document.createElement('span');
-        span.className = 'z-gradient-text';
-        span.style.backgroundImage = gradientCss;
-        span.style.webkitBackgroundClip = 'text';
-        span.style.webkitTextFillColor = 'transparent';
-        span.style.display = 'inline-block';
+        const gradientCss = `linear-gradient(${angle}deg, ${c1}, ${c2})`;
 
-        try {
-            range.surroundContents(span);
-        } catch (e) {
-            console.warn('Gradient wrap failed for complex selection');
+        if (parent.tagName === 'SPAN' && parent.classList.contains('z-gradient-text')) {
+            parent.style.backgroundImage = gradientCss;
+        } else {
+            const span = document.createElement('span');
+            span.className = 'z-gradient-text';
+            span.style.cssText = `
+                background-image: ${gradientCss};
+                -webkit-background-clip: text;
+                background-clip: text;
+                -webkit-text-fill-color: transparent;
+                display: inline-block;
+                transition: all 0.2s;
+            `;
+            try {
+                range.surroundContents(span);
+            } catch (e) {
+                doc.execCommand('foreColor', false, c1); // Fallback if surround fails
+            }
         }
     }
 
@@ -8323,7 +8386,6 @@ function openKnowledgeScoreModal() {
 /**
  * Viewport & Workspace Controls
  */
-let currentViewportType = 'responsive';
 
 window.setCreativeViewport = function (type) {
     const container = document.getElementById('creative-result-container');

@@ -5617,19 +5617,34 @@ exports.refineCreativeContent = onCall({ cors: ALLOWED_ORIGINS, region: 'us-cent
     console.log(`[refineCreativeContent] Refining section ${sectionIndex} of ${projectId}`);
 
     try {
-        const systemPrompt = "You are a specialized content refiner for high-end web designs. Your task is to update a specific HTML section based on user instructions. You MUST keep the same Tailwind CSS classes and design aesthetic. Output ONLY the refined INNER HTML content. Do NOT include <html>, <head>, or <body> tags. Do NOT use markdown code blocks.";
-        const userPrompt = `Instruction: ${instruction}\n\nCurrent Section Content:\n${currentContent}\n\nTask: Return only the updated HTML snippet that fulfills the instruction while preserving the original layout and styling.`;
+        const systemPrompt = `You are an Elite Creative Director and Senior Frontend Architect. 
+        Your task is to refine a specific section of a premium web document based on user instructions.
+        
+        CRITICAL RULES:
+        1. Output ONLY the INNER HTML content of the target section.
+        2. NO <html>, <head>, <body>, or the wrapping <section> tag.
+        3. Use Tailwind CSS for all styling. Maintain the existing brand vibe but feel free to upgrade visual hierarchy (padding, font-weights, spacing).
+        4. If the user asks for layout changes (e.g., 'columns', 'cards', 'bento'), implement them with modern Tailwind patterns.
+        5. Support rich assets: You can use Font-Awesome icons and polished typography.
+        6. NO markdown code blocks. NO commentary. Pure HTML only.`;
 
-        // Use Gemini for speed/quality balance
-        const response = await callLLM('google', 'gemini-1.5-flash', [
+        const userPrompt = `USER INSTRUCTION: "${instruction}"\n\nEXISTING HTML FRAGMENT:\n${currentContent}`;
+
+        // Use Pro for high-end reasoning and design quality
+        const response = await callLLM('google', 'gemini-1.5-pro', [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }
         ], 0.7);
 
         let refinedHTML = response.content || response;
 
-        // Final cleaning on server side as well
+        // Surgical Extraction
         refinedHTML = refinedHTML.replace(/```html|```/gi, '').trim();
+        const start = refinedHTML.indexOf('<');
+        const end = refinedHTML.lastIndexOf('>');
+        if (start !== -1 && end !== -1 && end > start) {
+            refinedHTML = refinedHTML.substring(start, end + 1);
+        }
 
         return { success: true, newHtml: refinedHTML };
     } catch (e) {
