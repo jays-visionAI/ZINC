@@ -515,6 +515,14 @@ Return ONLY the JSON object.`;
     - Use "break-inside: avoid" CSS on all major sections/cards to prevents half-cut content in PDF.
     - Ensure A4-friendly widths (approx 800px-1000px).
     
+    === TEXT CONTRAST RULES (CRITICAL) ===
+    - NEVER use light text (white, #fff, light gray) on light backgrounds (white, cream, light colors)
+    - NEVER use dark text (black, #000, dark gray) on dark backgrounds (black, navy, dark colors)
+    - On LIGHT backgrounds: Use dark text (text-gray-800, text-slate-900, #1e293b, #171717)
+    - On DARK backgrounds: Use light text (text-white, text-gray-100, #f8fafc, #fff)
+    - Minimum contrast ratio: 4.5:1 for body text, 3:1 for large headings
+    - When in doubt, use high contrast: black on white or white on black
+    
     === OUTPUT RULES ===
     - RETURN ONLY PURE HTML. NO markdown. NO introductory text. NO summary.
     - Target exactly 1 premium document.
