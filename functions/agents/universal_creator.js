@@ -43,12 +43,91 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
         visualIds: [{ id: "HERO_MAIN", desc: "Hero shot" }]
     };
 
+    // === PITCH DECK: Enhanced Content Strategy ===
+    let pitchDeckContent = null;
     if (normalizedType === 'pitch_deck') {
+        console.log(`[UniversalCreator] 🎯 Pitch Deck: ${slideCountNum} slides`);
+
+        // Step 1: LLM Content Strategist - Create structured slide content
+        try {
+            const contentStrategyPrompt = `You are a top-tier pitch deck strategist who has helped raise $500M+ in funding.
+
+COMPANY/PRODUCT: "${topic}"
+DETAILS: "${campaignMessage}"
+CONTEXT: """${knowledgeBase.substring(0, 4000)}"""
+NUMBER OF SLIDES: ${slideCountNum}
+
+Create a compelling investor pitch deck outline. Return JSON only:
+{
+    "companyName": "Company/Product Name",
+    "tagline": "One powerful sentence that captures the vision",
+    "slides": [
+        {
+            "slideNumber": 1,
+            "slideType": "cover",
+            "headline": "Bold statement or company name",
+            "subheadline": "Tagline or value proposition",
+            "visualNote": "What image would work here"
+        },
+        {
+            "slideNumber": 2,
+            "slideType": "problem",
+            "headline": "The Problem We're Solving",
+            "bullets": ["Pain point 1", "Pain point 2", "Pain point 3"],
+            "impactStat": "Key statistic that shows the problem scale",
+            "visualNote": "Problem visualization idea"
+        },
+        {
+            "slideNumber": 3,
+            "slideType": "solution",
+            "headline": "Our Solution",
+            "description": "2-3 sentences explaining how you solve the problem",
+            "keyBenefits": ["Benefit 1", "Benefit 2", "Benefit 3"],
+            "visualNote": "Product/solution visualization"
+        },
+        {
+            "slideNumber": 4,
+            "slideType": "market",
+            "headline": "Market Opportunity",
+            "tam": "Total Addressable Market estimate",
+            "sam": "Serviceable Addressable Market",
+            "som": "Serviceable Obtainable Market",
+            "growthRate": "Market growth percentage",
+            "visualNote": "Market size visualization"
+        },
+        {
+            "slideNumber": 5,
+            "slideType": "traction",
+            "headline": "Traction & Milestones",
+            "metrics": ["Metric 1: Value", "Metric 2: Value"],
+            "milestones": ["Milestone achieved 1", "Milestone achieved 2"],
+            "visualNote": "Growth chart or achievement icons"
+        }
+    ]
+}
+
+RULES:
+- Make headlines punchy and memorable (max 5 words)
+- Bullets should be concise but impactful
+- Include realistic numbers if available from context, otherwise use compelling placeholders
+- Each slide should tell part of a compelling story
+- Adjust slide types based on requested slide count
+- Return ONLY valid JSON`;
+
+            const contentResult = await executeLLM("ContentStrategist", contentStrategyPrompt);
+            pitchDeckContent = JSON.parse(contentResult.match(/\{[\s\S]*\}/)[0]);
+            console.log(`[UniversalCreator] ✅ Content Strategy complete: ${pitchDeckContent.slides?.length || 0} slides`);
+        } catch (e) {
+            console.error(`[UniversalCreator] ⚠️ Content Strategy failed:`, e.message);
+            pitchDeckContent = null;
+        }
+
         strategy = {
             role: "Investor Presentation Designer",
             visualTask: "Identify Cover, Problem, Solution, and Market visuals.",
             htmlTask: `Create a ${slideCountNum}-slide Pitch Deck. Use one <section id="slide-N"> per slide. Vertical snap-scroll.`,
-            visualIds: [{ id: "COVER", desc: "Cover" }, { id: "SOLUTION", desc: "Solution" }]
+            visualIds: [{ id: "COVER", desc: "Cover" }, { id: "SOLUTION", desc: "Solution" }],
+            contentStrategy: pitchDeckContent
         };
     } else if (normalizedType === 'one_pager') {
         strategy = {
@@ -247,12 +326,38 @@ Return ONLY the JSON object.`;
     const meshGlow = `.mesh-glow { position: fixed; width: 60vw; height: 60vw; background: radial-gradient(circle, ${pickedGradient} 0%, transparent 70%); filter: blur(80px); z-index: -1; pointer-events: none; }`;
     arc.style += `\n${meshGlow}`;
 
+    // Build content strategy section if available
+    let contentStrategySection = '';
+    if (strategy.contentStrategy && strategy.contentStrategy.slides) {
+        contentStrategySection = `
+    === CONTENT STRATEGY (MUST FOLLOW) ===
+    Company: ${strategy.contentStrategy.companyName || topic}
+    Tagline: ${strategy.contentStrategy.tagline || ''}
+    
+    SLIDES TO CREATE:
+    ${strategy.contentStrategy.slides.map(s => `
+    Slide ${s.slideNumber} (${s.slideType?.toUpperCase()}):
+    - Headline: "${s.headline || ''}"
+    - ${s.subheadline ? `Subheadline: "${s.subheadline}"` : ''}
+    - ${s.bullets ? `Key Points: ${s.bullets.join(' | ')}` : ''}
+    - ${s.description ? `Description: "${s.description}"` : ''}
+    - ${s.keyBenefits ? `Benefits: ${s.keyBenefits.join(' | ')}` : ''}
+    - ${s.impactStat ? `Impact Stat: "${s.impactStat}"` : ''}
+    - ${s.tam ? `TAM: ${s.tam}` : ''}
+    - ${s.metrics ? `Metrics: ${s.metrics.join(' | ')}` : ''}
+    `).join('\n')}
+    
+    YOU MUST use the exact headlines, bullets, and content provided above.
+    `;
+        console.log('[UniversalCreator] 📋 Content Strategy injected into HTML prompt');
+    }
+
     const baseTask = `
     Create: ${strategy.htmlTask} (Language: Auto)
     Topic: ${topic}. Archetype: ${arc.name}. 
     Context: """${knowledgeBase}"""
     Image Tokens: [${visualPlan.visuals.map(v => `{{${v.id}}}`).join(', ')}]
-    
+    ${contentStrategySection}
     === PRINT & PDF RULES ===
     - Use "break-inside: avoid" CSS on all major sections/cards to prevents half-cut content in PDF.
     - Ensure A4-friendly widths (approx 800px-1000px).
