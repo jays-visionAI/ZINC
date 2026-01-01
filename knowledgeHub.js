@@ -4512,13 +4512,35 @@ async function downloadCreativeAsPDF(options = {}) {
                 scale: isPrint ? 3 : 2,
                 useCORS: true,
                 letterRendering: true,
-                allowTaint: false,
+                allowTaint: true,
                 width: captureWidth,
                 windowWidth: captureWidth,
                 scrollX: 0,
                 scrollY: 0,
                 backgroundColor: '#0A0A0F',
-                logging: false
+                logging: false,
+                imageTimeout: 15000,
+                onclone: function (clonedDoc) {
+                    // Convert background-image CSS to inline <img> for PDF capture
+                    try {
+                        const elementsWithBg = clonedDoc.querySelectorAll('[style*="background-image"]');
+                        for (const el of elementsWithBg) {
+                            const bgMatch = el.style.backgroundImage.match(/url\(['"]?([^'"]+)['"]?\)/);
+                            if (bgMatch && bgMatch[1]) {
+                                const imgUrl = bgMatch[1];
+                                const img = clonedDoc.createElement('img');
+                                img.src = imgUrl;
+                                img.style.cssText = 'position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1;';
+                                img.crossOrigin = 'anonymous';
+                                el.style.position = 'relative';
+                                el.insertBefore(img, el.firstChild);
+                                el.style.backgroundImage = 'none';
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('Background image pre-processing failed:', e);
+                    }
+                }
             },
             jsPDF: { unit: 'mm', format: pdfFormat, orientation: pdfOrientation, compress: true }
         };
@@ -5893,84 +5915,7 @@ function renderCreativeImages(images) {
         `;
 }
 
-/**
- * Download creative content as PDF using html2pdf.js
- */
-window.downloadCreativeAsPDF = async function () {
-    const container = document.getElementById('creative-result-container');
-    if (!container || !container.innerHTML.trim()) {
-        showNotification('No content to export', 'error');
-        return;
-    }
-
-    // Show loading
-    showNotification('Generating PDF... Please wait', 'info');
-
-    // Get the content element
-    let contentEl;
-    const iframe = container.querySelector('iframe');
-    if (iframe) {
-        contentEl = iframe.contentDocument.body;
-    } else {
-        contentEl = container.querySelector('.prose') || container.firstElementChild;
-    }
-
-    // Configure html2pdf options with enhanced settings for images
-    const options = {
-        margin: 0,
-        filename: `zynk-${currentCreativeType || 'creative'}-${Date.now()}.pdf`,
-        image: { type: 'jpeg', quality: 0.95 },
-        html2canvas: {
-            scale: 3,
-            useCORS: true,
-            allowTaint: true,
-            logging: false,
-            backgroundColor: '#000000',
-            imageTimeout: 15000,
-            onclone: function (clonedDoc, clonedEl) {
-                // Pre-process the CLONE: Convert background-image CSS to inline <img>
-                try {
-                    const elementsWithBg = clonedEl.querySelectorAll('[style*="background-image"]');
-                    for (const el of elementsWithBg) {
-                        const bgMatch = el.style.backgroundImage.match(/url\(['"]?([^'"]+)['"]?\)/);
-                        if (bgMatch && bgMatch[1]) {
-                            const imgUrl = bgMatch[1];
-                            const img = clonedDoc.createElement('img');
-                            img.src = imgUrl;
-                            img.style.cssText = 'position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1;';
-                            img.crossOrigin = 'anonymous';
-                            el.style.position = 'relative';
-                            el.insertBefore(img, el.firstChild);
-                            el.style.backgroundImage = 'none';
-                        }
-                    }
-                } catch (e) {
-                    console.warn('Background image pre-processing failed:', e);
-                }
-
-                // Ensure all images are visible in the clone
-                const images = clonedEl.querySelectorAll('img');
-                images.forEach(img => {
-                    img.crossOrigin = 'anonymous';
-                });
-            }
-        },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
-
-    // Generate PDF
-    html2pdf()
-        .set(options)
-        .from(contentEl)
-        .save()
-        .then(() => {
-            showNotification('PDF downloaded successfully!', 'success');
-        })
-        .catch((error) => {
-            console.error('PDF generation error:', error);
-            showNotification('Failed to generate PDF: ' + error.message, 'error');
-        });
-};
+// Note: downloadCreativeAsPDF is defined earlier (around line 4289) with full implementation
 
 /**
  * Render creative text/HTML result
