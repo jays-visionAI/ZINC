@@ -8,6 +8,7 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
     const {
         topic,
         campaignMessage = '',
+        templateType = 'event_poster',
         style = 'Modern',
         audience = 'General Audience',
         slideCount = 5,
@@ -63,24 +64,66 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
             htmlTask: "Create a smooth-scrolling product brochure with feature cards and a specs table.",
             visualIds: [{ id: "HERO", desc: "Hero" }, { id: "FEATURE", desc: "Feature" }, { id: "LIFESTYLE", desc: "Lifestyle" }]
         };
-    } else if (normalizedType === 'promo_images' || normalizedType === 'images') {
-        const count = Math.min(finalImageCount, 6);
-        strategy = {
-            role: "Award-winning Visual Campaign Director",
-            visualTask: `Generate ${count} stunning, high-impact promotional images for "${topic}".`,
-            htmlTask: `Create an ULTRA-VISUAL image gallery where AI-generated images are the STAR.
-            
-            CRITICAL LAYOUT RULES:
-            1. Use a CSS Grid with large image cards (min-height: 400px each).
-            2. Each card MUST use the image token as a FULL-BLEED BACKGROUND IMAGE via inline style: style="background-image: url('{{PROMO_N}}'); background-size: cover; background-position: center;"
-            3. Text overlay should be MINIMAL - only a short title (max 5 words) at the bottom with a dark gradient overlay for readability.
-            4. NO long paragraphs. NO descriptions. Just the IMAGE and a tiny label.
-            5. The page should feel like an Instagram grid or a Dribbble shot showcase.
-            6. Add subtle hover animations (scale, shadow).
-            7. Dark mode background (#030712).
-            8. Use aspect-ratio: 16/9 or 1/1 on the cards.`,
-            visualIds: Array.from({ length: count }, (_, i) => ({ id: `PROMO_${i + 1}`, desc: `Visual ${i + 1}` }))
+    } else if (normalizedType === 'promo_images' || normalizedType === 'images' || normalizedType === 'templates') {
+        // Layered-Gen: Template-based approach with single background image + text overlay
+        const templateType = inputs.templateType || 'event_poster';
+
+        // Template-specific configurations
+        const templateConfigs = {
+            'event_poster': {
+                aspect: '9:16',
+                layout: 'A4 portrait poster with large headline at top, event details in center, call-to-action at bottom',
+                dim: '900x1600'
+            },
+            'invitation': {
+                aspect: '4:3',
+                layout: 'Elegant invitation card with centered headline, decorative border styling, RSVP details at bottom',
+                dim: '1200x900'
+            },
+            'social_banner': {
+                aspect: '1.91:1',
+                layout: 'Wide social media banner (1200x630), bold headline left-aligned, subtle background',
+                dim: '1200x630'
+            },
+            'business_card': {
+                aspect: '1.75:1',
+                layout: 'Compact business card layout with name prominently displayed, contact info small at bottom',
+                dim: '700x400'
+            },
+            'newsletter_header': {
+                aspect: '3:1',
+                layout: 'Email header banner, centered brand headline with date, minimal text',
+                dim: '1200x400'
+            },
+            'product_announce': {
+                aspect: '16:9',
+                layout: 'Product announcement with large product name headline, key benefit subtext, launch date',
+                dim: '1600x900'
+            }
         };
+
+        const config = templateConfigs[templateType] || templateConfigs['event_poster'];
+
+        strategy = {
+            role: "Senior Graphic Designer specializing in business templates",
+            visualTask: `Generate 1 premium, text-free background image suitable for a ${templateType.replace('_', ' ')}. The image should have enough empty space for text overlay.`,
+            htmlTask: `Create a single ${templateType.replace('_', ' ')} template using the LAYERED-GEN approach:
+            
+            CRITICAL RULES:
+            1. Generate exactly ONE template, not a gallery.
+            2. Use {{BACKGROUND}} as the full-bleed background image via CSS: background-image: url('{{BACKGROUND}}'); background-size: cover;
+            3. ALL TEXT must be HTML elements positioned with CSS (NOT in the image).
+            4. Headline: "${topic}"
+            5. Subtext: "${campaignMessage}"
+            6. Layout: ${config.layout}
+            7. Ensure text is readable with proper contrast (use dark overlays or text shadows).
+            8. The template should look like a professional ${templateType.replace('_', ' ')} ready for print/digital use.
+            9. Include subtle ZYNK watermark at bottom corner.`,
+            visualIds: [{ id: 'BACKGROUND', desc: `Clean background for ${templateType}` }]
+        };
+
+        // Override aspect ratio based on template type
+        advancedOptions.aspectRatio = config.aspect;
     } else {
         strategy = {
             role: "Senior News Editor",

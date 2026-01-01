@@ -3962,48 +3962,41 @@ const CREATIVE_CONFIGS = {
         ]
     },
     promo_images: {
-        name: 'Promo Images',
-        subtitle: 'Generate promotional images with AI',
-        buttonLabel: 'Images',
+        name: 'Business Templates',
+        subtitle: 'AI-powered posters, cards, and banners with editable text',
+        buttonLabel: 'Templates',
         credits: 5,
         controls: [
-            { id: 'topic', type: 'text', label: 'What are you promoting?', placeholder: 'e.g., New iPhone 16, Summer Sale, Crypto Wallet App...' },
-            { id: 'campaignMessage', type: 'textarea', label: 'Campaign Message / Key Visuals', placeholder: 'Describe what the images should convey...\ne.g., "Sleek smartphone floating in space with glowing particles" or "Happy people using our app at a coffee shop"' },
+            {
+                id: 'templateType',
+                type: 'visual-pick',
+                label: 'Template Type',
+                options: [
+                    { value: 'event_poster', label: 'Event Poster', icon: 'fa-calendar-star', desc: 'A4 Portrait' },
+                    { value: 'invitation', label: 'Invitation', icon: 'fa-envelope-open-text', desc: 'Formal card' },
+                    { value: 'social_banner', label: 'Social Banner', icon: 'fa-hashtag', desc: '1200x630' },
+                    { value: 'business_card', label: 'Business Card', icon: 'fa-id-card', desc: 'Compact' },
+                    { value: 'newsletter_header', label: 'Newsletter', icon: 'fa-newspaper', desc: 'Email header' },
+                    { value: 'product_announce', label: 'Product Launch', icon: 'fa-bullhorn', desc: 'Announcement' }
+                ]
+            },
+            { id: 'topic', type: 'text', label: 'Headline / Title', placeholder: 'e.g., Vision Chain 2026 Summit, Summer Sale 50% OFF...' },
+            { id: 'campaignMessage', type: 'textarea', label: 'Subtext / Details', placeholder: 'e.g., January 15, 2026 | Grand Ballroom, Seoul\nKeynote by CEO John Smith' },
             {
                 id: 'style',
                 type: 'visual-pick',
-                label: 'Visual Style',
+                label: 'Background Style',
                 options: [
-                    { value: 'Photorealistic', label: 'Realistic', icon: 'fa-camera-retro', desc: 'True-to-life' },
-                    { value: 'Cinematic', label: 'Cinematic', icon: 'fa-film', desc: 'Movie look' },
-                    { value: '3D Render', label: '3D Render', icon: 'fa-cube', desc: 'High-end CG' },
-                    { value: 'Isometric', label: 'Isometric', icon: 'fa-layer-group', desc: 'Top-down 3D' },
-                    { value: 'Vector Illustration', label: 'Vector', icon: 'fa-pen-nib', desc: 'Clean paths' },
-                    { value: 'Cyberpunk', label: 'Cyberpunk', icon: 'fa-bolt', desc: 'Neon & Dark' },
-                    { value: 'Synthwave', label: 'Synthwave', icon: 'fa-sun', desc: '80s Retro' },
+                    { value: 'Photorealistic', label: 'Photo', icon: 'fa-camera-retro', desc: 'Real imagery' },
+                    { value: 'Gradient Abstract', label: 'Gradient', icon: 'fa-palette', desc: 'Modern blend' },
                     { value: 'Minimalist', label: 'Minimal', icon: 'fa-circle', desc: 'Clean & Simple' },
-                    { value: 'Abstract', label: 'Abstract', icon: 'fa-palette', desc: 'Shapes & Color' },
-                    { value: 'Claymation', label: 'Clay Art', icon: 'fa-shapes', desc: '3D Toy look' },
-                    { value: 'Glassmorphism', label: 'Glass', icon: 'fa-clone', desc: 'Frost & Blur' },
-                    { value: 'Pop Art', label: 'Pop-Art', icon: 'fa-burst', desc: 'Comic style' },
-                    { value: 'Watercolor', label: 'Watercolor', icon: 'fa-paint-brush', desc: 'Soft painting' },
-                    { value: 'Oil Painting', label: 'Oil Paint', icon: 'fa-image', desc: 'Classic canvas' },
-                    { value: 'Sketch', label: 'Sketch', icon: 'fa-pencil-alt', desc: 'Hand drawn' },
-                    { value: 'Anime', label: 'Anime', icon: 'fa-mask', desc: 'Japanese style' },
-                    { value: 'Pixel Art', label: 'Pixel', icon: 'fa-th', desc: '8-bit retro' },
-                    { value: 'Futuristic', label: 'Futury', icon: 'fa-rocket', desc: 'Sci-fi tech' },
-                    { value: 'Retro 80s', label: 'Retro', icon: 'fa-broadcast-tower', desc: 'Vintage vibe' },
-                    { value: 'Flat Design', label: 'Flat', icon: 'fa-vector-square', desc: 'Modern web' },
-                    { value: 'Paper Cutout', label: 'Paper', icon: 'fa-cut', desc: 'Layered look' },
-                    { value: 'Corporate', label: 'Enterprise', icon: 'fa-briefcase', desc: 'Pro business' },
-                    { value: 'Gothic', label: 'Dark', icon: 'fa-ghost', desc: 'Moody fantasy' },
-                    { value: 'Surrealism', label: 'Dreamy', icon: 'fa-eye', desc: 'Mind-bending' }
+                    { value: '3D Render', label: '3D', icon: 'fa-cube', desc: 'High-end CG' },
+                    { value: 'Corporate', label: 'Corporate', icon: 'fa-briefcase', desc: 'Professional' },
+                    { value: 'Futuristic', label: 'Tech', icon: 'fa-rocket', desc: 'Sci-fi vibe' }
                 ]
             }
         ],
         advancedControls: [
-            { id: 'aspectRatio', type: 'select', label: 'Aspect Ratio', icon: 'fa-crop', options: ['16:9 (Landscape)', '1:1 (Square)', '9:16 (Portrait)', '4:3', '3:2'] },
-            { id: 'imageCount', type: 'select', label: 'Number of Images', icon: 'fa-images', options: ['1', '2', '3', '4'] },
             {
                 id: 'colorTone',
                 type: 'visual-pick',
