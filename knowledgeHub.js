@@ -1557,8 +1557,27 @@ function renderSummaryHeader(mode) {
 }
 
 function closeSourceView() {
-    currentDisplayedSummary = null; // Reset to show default/latest
+    // Reset to show the latest brand summary
+    selectedSourceId = null;
+
+    // Show latest brand summary if available
+    if (brandSummaries && brandSummaries.length > 0) {
+        currentDisplayedSummary = brandSummaries[0]; // Most recent
+        currentSummary = brandSummaries[0];
+    } else {
+        currentDisplayedSummary = null;
+    }
+
+    // Update UI
     updateSummarySection();
+    renderSummaryHeader('brand'); // Reset to brand summary style
+
+    // Deselect any selected source in the list
+    document.querySelectorAll('.source-item').forEach(item => {
+        item.classList.remove('ring-2', 'ring-indigo-500');
+    });
+
+    console.log('[KnowledgeHub] Returned to Brand Summary view');
 }
 
 /**
