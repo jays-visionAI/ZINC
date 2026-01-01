@@ -4624,6 +4624,12 @@ function closeCreativeModal() {
     const logContainer = document.getElementById('generation-log-container');
     if (logContainer) logContainer.style.display = 'none';
 
+    // NEW: Ensure all floating AI menus/modals are dismissed
+    hideZContextMenu();
+    closeZCommandBar();
+    closeRefinePalette();
+    hideZStyleBar();
+
     console.log('[CreativeModal] Closed and reset.');
 }
 
