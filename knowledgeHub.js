@@ -5325,8 +5325,8 @@ async function refineCreativeSection(docId, sectionIdx, sectionEl) {
         showNotification('Please activate Edit Mode to refine content.', 'warning');
         const editBtn = document.getElementById('btn-creative-edit');
         if (editBtn) {
-            editBtn.classList.add('animate-bounce');
-            setTimeout(() => editBtn.classList.remove('animate-bounce'), 2000);
+            editBtn.classList.add('animate-bounce', 'orange-glow-pulse');
+            setTimeout(() => editBtn.classList.remove('animate-bounce', 'orange-glow-pulse'), 2000);
         }
         return;
     }
@@ -5598,8 +5598,8 @@ async function swapCreativeImage(docId, imgEl) {
         showNotification('Please activate Edit Mode to change images.', 'warning');
         const editBtn = document.getElementById('btn-creative-edit');
         if (editBtn) {
-            editBtn.classList.add('animate-bounce');
-            setTimeout(() => editBtn.classList.remove('animate-bounce'), 2000);
+            editBtn.classList.add('animate-bounce', 'orange-glow-pulse');
+            setTimeout(() => editBtn.classList.remove('animate-bounce', 'orange-glow-pulse'), 2000);
         }
         return;
     }
@@ -5946,8 +5946,8 @@ function handleZMenu(action) {
         showNotification('Please activate Edit Mode to use AI tools.', 'warning');
         const editBtn = document.getElementById('btn-creative-edit');
         if (editBtn) {
-            editBtn.classList.add('animate-bounce');
-            setTimeout(() => editBtn.classList.remove('animate-bounce'), 2000);
+            editBtn.classList.add('animate-bounce', 'orange-glow-pulse');
+            setTimeout(() => editBtn.classList.remove('animate-bounce', 'orange-glow-pulse'), 2000);
         }
         return;
     }

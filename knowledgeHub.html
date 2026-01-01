@@ -127,6 +127,26 @@
             animation: fadeIn 0.3s ease-out;
         }
 
+        /* Edit Mode Warning Glow */
+        @keyframes orange-glow-pulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 8px rgba(249, 115, 22, 0.4);
+                border-color: rgba(249, 115, 22, 0.5);
+            }
+
+            50% {
+                box-shadow: 0 0 20px rgba(249, 115, 22, 0.8);
+                border-color: rgba(249, 115, 22, 1);
+            }
+        }
+
+        .orange-glow-pulse {
+            animation: orange-glow-pulse 0.6s ease-in-out infinite;
+            border-width: 2px !important;
+        }
+
         /* Suggested Question Hover */
         .suggested-question:hover {
             background: rgba(99, 102, 241, 0.2);
@@ -2459,7 +2479,7 @@
     <script src="knowledgeHub.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // UI Loader now handles initialization automatically
+            // UI Loader now handles initialization automally
         });
     </script>
     <!-- Mobile Tab Navigation Bar -->
