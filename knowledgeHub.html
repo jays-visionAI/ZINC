@@ -980,7 +980,8 @@
 
                 <!-- Upload Tab Content -->
                 <div id="add-source-upload" class="add-source-content space-y-4">
-                    <p class="text-xs text-slate-400">Upload PDF documents or brand images (JPG, PNG) for analysis.</p>
+                    <p class="text-xs text-slate-400">Upload documents (PDF, DOCX, TXT, MD) or images (JPG, PNG) for
+                        analysis.</p>
                     <div id="source-upload-dropzone"
                         class="border-2 border-dashed border-slate-700 rounded-xl py-10 flex flex-col items-center justify-center cursor-pointer hover:border-indigo-500 hover:bg-indigo-500/5 transition-all">
                         <div
@@ -994,8 +995,9 @@
                             </svg>
                         </div>
                         <p class="text-sm text-white font-medium">Click to upload or drag & drop</p>
-                        <p class="text-[10px] text-slate-500 mt-1">PDF, JPG, PNG (Max 10MB)</p>
-                        <input type="file" id="source-file-input" class="hidden" accept=".pdf,.jpg,.jpeg,.png">
+                        <p class="text-[10px] text-slate-500 mt-1">PDF, DOCX, TXT, MD, JPG, PNG (Max 10MB)</p>
+                        <input type="file" id="source-file-input" class="hidden"
+                            accept=".pdf,.doc,.docx,.txt,.md,.jpg,.jpeg,.png">
                     </div>
                     <div id="selected-file-name"
                         class="hidden flex items-center justify-between p-3 bg-slate-800 rounded-lg border border-slate-700">

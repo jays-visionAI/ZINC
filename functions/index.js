@@ -2319,6 +2319,68 @@ async function extractTextFromDrive(driveInfo) {
 }
 
 /**
+ * Extract text from uploaded file (DOCX, TXT, MD, PDF)
+ */
+async function extractTextFromFile(fileUrl, contentType, fileName) {
+    if (!fileUrl) return '';
+
+    console.log(`[extractTextFromFile] Processing: ${fileName}, type: ${contentType}`);
+
+    try {
+        // Download file from Firebase Storage
+        const response = await axios.get(fileUrl, {
+            responseType: 'arraybuffer',
+            timeout: 60000
+        });
+        const buffer = Buffer.from(response.data);
+
+        // Determine file type from contentType or fileName extension
+        const ext = (fileName || '').toLowerCase().split('.').pop();
+        const isDocx = contentType?.includes('wordprocessingml') || ext === 'docx' || ext === 'doc';
+        const isPdf = contentType?.includes('pdf') || ext === 'pdf';
+        const isTxt = contentType?.includes('text/plain') || ext === 'txt';
+        const isMd = ext === 'md' || ext === 'markdown';
+
+        let extractedText = '';
+
+        if (isDocx) {
+            // Use mammoth for DOCX
+            const mammoth = require('mammoth');
+            const result = await mammoth.extractRawText({ buffer });
+            extractedText = result.value || '';
+            console.log(`[extractTextFromFile] DOCX extracted: ${extractedText.length} chars`);
+
+        } else if (isPdf) {
+            // Use pdf-parse for PDF
+            const pdfParse = require('pdf-parse');
+            const pdfData = await pdfParse(buffer);
+            extractedText = pdfData.text || '';
+            console.log(`[extractTextFromFile] PDF extracted: ${extractedText.length} chars`);
+
+        } else if (isTxt || isMd) {
+            // Direct text read for TXT/MD
+            extractedText = buffer.toString('utf-8');
+            console.log(`[extractTextFromFile] TXT/MD extracted: ${extractedText.length} chars`);
+
+        } else {
+            console.warn(`[extractTextFromFile] Unsupported file type: ${contentType}, ext: ${ext}`);
+            return `[Unsupported file type: ${ext}]\n\nPlease convert to PDF, DOCX, TXT, or MD format.`;
+        }
+
+        // Clean up and limit
+        return extractedText
+            .replace(/\s+/g, ' ')
+            .replace(/\n+/g, '\n')
+            .trim()
+            .substring(0, 100000); // Limit to 100k chars
+
+    } catch (error) {
+        console.error('[extractTextFromFile] Error:', error.message);
+        return `[Error extracting text: ${error.message}]`;
+    }
+}
+
+/**
  * Generate AI analysis of extracted text
  */
 async function generateSourceAnalysis(text, sourceTitle) {
@@ -2416,6 +2478,10 @@ exports.onKnowledgeSourceCreated = onDocumentCreated(
                         break;
                     case 'google_drive':
                         extractedText = await extractTextFromDrive(source.googleDrive);
+                        break;
+                    case 'file':
+                        // Handle uploaded files (DOCX, TXT, MD, PDF)
+                        extractedText = await extractTextFromFile(source.fileUrl, source.contentType, source.title);
                         break;
                     default:
                         extractedText = source.description || '';
