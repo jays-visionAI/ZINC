@@ -5458,7 +5458,8 @@ async function handleRefineAssetUpload(input) {
 
 async function uploadRefineAsset(file) {
     const storageRef = firebase.storage().ref();
-    const fileName = `refine_assets/${currentUser.uid}/${Date.now()}_${file.name}`;
+    const projectId = currentRefineState.docId || 'shared';
+    const fileName = `creative-uploads/${projectId}/refine_${Date.now()}_${file.name}`;
     const fileRef = storageRef.child(fileName);
     await fileRef.put(file);
     return await fileRef.getDownloadURL();
