@@ -2507,6 +2507,9 @@ function initializeEventListeners() {
     const btnDepth = document.getElementById('btn-analysis-depth');
     if (btnStandard) btnStandard.addEventListener('click', () => setAnalysisLevel('standard'));
     if (btnDepth) btnDepth.addEventListener('click', () => setAnalysisLevel('depth'));
+
+    // Refine Palette Handlers
+    initializeRefinePaletteHandlers();
 }
 
 function getLanguageName(code) {
@@ -5369,15 +5372,64 @@ function applyRefinePreset(text) {
 /**
  * Asset Management for Refine Palette
  */
+function initializeRefinePaletteHandlers() {
+    const assetList = document.getElementById('refine-asset-list');
+    const fileInput = document.getElementById('refine-asset-upload');
+    const addBtn = document.getElementById('refine-add-image-btn');
+
+    if (!assetList || !fileInput || !addBtn) return;
+
+    // Click to upload
+    addBtn.addEventListener('click', () => {
+        console.log('[RefinePalette] Triggering file upload...');
+        fileInput.click();
+    });
+
+    // File input change
+    fileInput.addEventListener('change', (e) => {
+        handleRefineAssetUpload(e.target);
+    });
+
+    // Drag and Drop
+    assetList.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        addBtn.classList.add('border-indigo-500', 'bg-indigo-500/10', 'scale-105');
+    });
+
+    assetList.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        addBtn.classList.remove('border-indigo-500', 'bg-indigo-500/10', 'scale-105');
+    });
+
+    assetList.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        addBtn.classList.remove('border-indigo-500', 'bg-indigo-500/10', 'scale-105');
+
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            console.log('[RefinePalette] Dropped files detected:', e.dataTransfer.files.length);
+            handleRefineAssetUpload({ files: e.dataTransfer.files });
+        }
+    });
+}
+
 function triggerRefineAssetUpload() {
-    document.getElementById('refine-asset-upload').click();
+    // Deprecated but kept for safety if any inline onclick exists
+    const fileInput = document.getElementById('refine-asset-upload');
+    if (fileInput) fileInput.click();
 }
 
 async function handleRefineAssetUpload(input) {
-    if (!input.files || input.files.length === 0) return;
+    const files = input.files;
+    if (!files || files.length === 0) return;
 
-    for (const file of input.files) {
-        if (!file.type.startsWith('image/')) continue;
+    for (const file of files) {
+        if (!file.type.startsWith('image/')) {
+            showNotification('Only image files are allowed.', 'warning');
+            continue;
+        }
 
         // Show immediate local preview with loading state
         const tempId = 'temp-' + Date.now() + Math.random();
@@ -5398,7 +5450,10 @@ async function handleRefineAssetUpload(input) {
         }
         renderRefineAssets();
     }
-    input.value = ''; // Reset input
+
+    // Reset file input if it came from one
+    const actualInput = document.getElementById('refine-asset-upload');
+    if (actualInput) actualInput.value = '';
 }
 
 async function uploadRefineAsset(file) {
