@@ -32,6 +32,13 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
         colorTone = 'Vibrant',
         lighting = 'Studio',
         aspectRatio = '16:9',
+        colorScheme = 'Indigo/Purple',
+        contentTone = 'Professional',
+        iconStyle = 'Heroicons',
+        includeCharts = 'None',
+        layoutDensity = 'Balanced',
+        glassmorphism = false,
+        floatingBlobs = false,
         customPrompt = ''
     } = advancedOptions;
 
@@ -541,6 +548,19 @@ Return ONLY the JSON object.`;
     Context: """${knowledgeBase}"""
     Image Tokens: [${visualPlan.visuals.map(v => `{{${v.id}}}`).join(', ')}]
     ${contentStrategySection}
+    
+    === USER PREFERENCES (MANDATORY) ===
+    - Color Scheme: ${colorScheme}
+    - Content Tone: ${contentTone}
+    - Icon Style: ${iconStyle}
+    - Data Visualization: ${includeCharts}
+    - Layout Density: ${layoutDensity}
+    - Use Glassmorphism: ${glassmorphism ? 'YES' : 'NO'}
+    - Use Floating Blobs: ${floatingBlobs ? 'YES' : 'NO'}
+    - Lighting Style: ${lighting}
+    - Mood/Color Tone: ${colorTone}
+    - Additional Instructions: ${customPrompt || 'None'}
+
     === PRINT & PDF RULES ===
     - Use "break-inside: avoid" CSS on all major sections/cards to prevents half-cut content in PDF.
     - Ensure A4-friendly widths (approx 800px-1000px).
