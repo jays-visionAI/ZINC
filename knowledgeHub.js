@@ -5123,31 +5123,52 @@ function applyRefinePreset(text) {
 async function submitRefinePalette() {
     const { docId, index, element } = currentRefineState;
     const instruction = document.getElementById('refine-instruction').value;
+    const submitBtn = event.currentTarget.closest('button') || document.querySelector('#zync-refine-palette button[onclick="submitRefinePalette()"]');
 
     if (!instruction) return;
-    closeRefinePalette();
 
-    // Visual Feedback: Show a real loading overlay on the section
-    const loadingOverlay = document.createElement('div');
+    // 1. Button Loading State
+    const originalBtnContent = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-2"></i> PROCESSING...';
+
+    // 2. Prepare Overlay in IFRAME's document
+    const iframeDoc = element.ownerDocument;
+    const loadingOverlay = iframeDoc.createElement('div');
     loadingOverlay.style.cssText = `
         position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+        background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
         display: flex; flex-direction: column; align-items: center; justify-content: center;
-        z-index: 1000; color: white; border-radius: inherit;
-        animation: fadeIn 0.3s ease-out;
+        z-index: 5000; color: white; border-radius: inherit;
+        animation: fadeIn 0.4s ease-out; pointer-events: all;
     `;
     loadingOverlay.innerHTML = `
-        <i class="fas fa-circle-notch fa-spin text-3xl mb-3"></i>
-        <span class="text-xs font-bold uppercase tracking-widest">AI Refining...</span>
+        <div style="text-align: center;">
+            <div style="font-size: 40px; margin-bottom: 15px; color: #6366f1;">
+                <i class="fas fa-wand-magic-sparkles fa-pulse"></i>
+            </div>
+            <div style="font-family: sans-serif; font-weight: 800; font-size: 14px; letter-spacing: 2px; text-transform: uppercase;">
+                Zync AI is Refining...
+            </div>
+            <div style="font-family: sans-serif; font-size: 10px; color: #94a3b8; margin-top: 8px;">
+                Updating section design and content
+            </div>
+        </div>
     `;
 
-    element.classList.add('relative');
+    // Ensure parent is relative
+    element.style.position = 'relative';
     element.appendChild(loadingOverlay);
-    showNotification('AI is thinking...', 'info');
 
-    // CLEAN CONTENT FOR AI: Clone and remove UI buttons
+    // Briefly show button loading before closing palette
+    setTimeout(() => {
+        closeRefinePalette();
+        showNotification('AI Refinement started...', 'info');
+    }, 500);
+
+    // CLEAN CONTENT FOR AI
     const sectionClone = element.cloneNode(true);
-    sectionClone.querySelectorAll('.refine-btn, .img-overlay, div[style*="z-index: 1000"]').forEach(el => el.remove());
+    sectionClone.querySelectorAll('.refine-btn, .img-overlay, div[style*="z-index"]').forEach(el => el.remove());
     const cleanHTML = sectionClone.innerHTML;
 
     try {
@@ -5171,7 +5192,9 @@ async function submitRefinePalette() {
     } catch (error) {
         showNotification('Refinement failed: ' + error.message, 'error');
     } finally {
-        loadingOverlay.remove();
+        if (loadingOverlay) loadingOverlay.remove();
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnContent;
     }
 }
 
