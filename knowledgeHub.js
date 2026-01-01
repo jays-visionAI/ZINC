@@ -4855,6 +4855,7 @@ async function viewCreativeProject(docId) {
  * Add History management functions (Load, Render, Delete)
  */
 let lastProjectCount = 0;
+let prevCurrentStatus = null; // Track previous status for auto-refresh logic
 async function loadCreativeProjects() {
     if (!currentUser || !currentProjectId) return;
     if (creativeProjectsUnsubscribe) creativeProjectsUnsubscribe();
@@ -4866,14 +4867,25 @@ async function loadCreativeProjects() {
         .onSnapshot(snapshot => {
             const newProjects = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
+            // Capture OLD state BEFORE updating for comparison
+            const oldProjects = [...creativeProjects];
+            const oldLastCount = lastProjectCount;
+            const oldCurrentStatus = prevCurrentStatus;
+
+            // Update state
             creativeProjects = newProjects;
             lastProjectCount = creativeProjects.length;
+
+            // Update prevCurrentStatus for next snapshot
+            if (currentCreativeId) {
+                const curr = newProjects.find(p => p.id === currentCreativeId);
+                prevCurrentStatus = curr?.status || null;
+            }
 
             // 1. Auto-refresh if current viewed project status changed (e.g., from processing to completed)
             if (currentCreativeId) {
                 const updatedCurrent = newProjects.find(p => p.id === currentCreativeId);
-                // Note: using prevCurrentStatus to detect changes since we just updated creativeProjects
-                if (updatedCurrent && updatedCurrent.status !== prevCurrentStatus) {
+                if (updatedCurrent && oldCurrentStatus && updatedCurrent.status !== oldCurrentStatus) {
                     if (updatedCurrent.status === 'completed' || updatedCurrent.status === 'failed') {
                         console.log('[CreativeStore] Current project finished, auto-refreshing view...');
                         viewCreativeProject(currentCreativeId);
@@ -4883,9 +4895,11 @@ async function loadCreativeProjects() {
 
             // 2. UX: Notification for background completion
             if (oldLastCount > 0 && newProjects.length === oldLastCount) {
-                const finishedProject = newProjects.find((p, i) => p.status === 'completed' && oldProjects[i]?.status === 'processing');
-                if (finishedProject) {
-                    showNotification(`Success: "${finishedProject.topic}" generation complete!`, 'success');
+                for (let i = 0; i < newProjects.length; i++) {
+                    if (newProjects[i].status === 'completed' && oldProjects[i]?.status === 'processing') {
+                        showNotification(`Success: "${newProjects[i].topic}" generation complete!`, 'success');
+                        break;
+                    }
                 }
             }
 
