@@ -4938,10 +4938,10 @@ exports.generateCreativeContent = onCall({ cors: ALLOWED_ORIGINS, region: 'us-ce
  * 🖨️ Render Press Release to PDF using Playwright
  * Server-side rendering for true WYSIWYG output
  */
-exports.renderPressReleasePDF = onCall({
+exports.renderPressReleasePDF_v3 = onCall({
     cors: ALLOWED_ORIGINS,
     region: 'us-central1',
-    timeoutSeconds: 120,
+    timeoutSeconds: 300,
     memory: '2GiB',
     cpu: 2
 }, async (request) => {

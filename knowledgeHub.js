@@ -4318,12 +4318,12 @@ async function downloadCreativeAsPDF(options = {}) {
             }
 
             // Call server-side renderer
-            const renderFn = firebase.app().functions('us-central1').httpsCallable('renderPressReleasePDF', { timeout: 120000 });
+            const renderFn = firebase.app().functions('us-central1').httpsCallable('renderPressReleasePDF_v3', { timeout: 300000 });
             const result = await renderFn({
                 htmlContent: htmlContent,
                 pageFormat: pageFormat,
                 landscape: landscape,
-                documentId: currentCreativeProjectId || null
+                documentId: currentCreativeId || null
             });
 
             if (result.data && result.data.success) {

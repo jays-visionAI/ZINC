@@ -23,10 +23,15 @@
         "firebase-functions": "^7.0.2",
         "googleapis": "^129.0.0",
         "openai": "^4.20.0",
+        "@sparticuz/chromium": "^121.0.0",
         "pdf-parse": "^1.1.1",
-        "playwright-core": "^1.40.0",
+        "puppeteer-core": "^21.0.0",
+        "ws": "8.18.3",
         "stripe": "^20.0.0",
         "twitter-api-v2": "^1.17.0"
+    },
+    "overrides": {
+        "ws": "8.18.3"
     },
     "devDependencies": {
         "firebase-functions-test": "^3.1.0"

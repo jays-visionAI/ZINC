@@ -1,12 +1,13 @@
 /**
- * 🖨️ Playwright PDF Renderer
- * Server-side PDF generation using Playwright for true WYSIWYG output
+ * 🖨️ Serverless PDF Renderer
+ * Uses @sparticuz/chromium (optimized for Cloud Functions) + puppeteer-core
  */
 
-const playwright = require('playwright-core');
+const chromium = require('@sparticuz/chromium');
+const puppeteer = require('puppeteer-core');
 
 /**
- * Render HTML to PDF using Playwright
+ * Render HTML to PDF using Puppeteer with serverless Chromium
  * @param {string} htmlContent - Full HTML document string
  * @param {Object} options - Rendering options
  * @returns {Promise<Buffer>} - PDF as Buffer
@@ -16,140 +17,107 @@ async function renderHTMLToPDF(htmlContent, options = {}) {
         pageFormat = 'A4',
         landscape = false,
         printBackground = true,
-        preferCSSPageSize = true,
-        margin = { top: '0px', right: '0px', bottom: '0px', left: '0px' },
-        timeout = 30000,
-        waitForReadyGate = true
+        timeout = 60000
     } = options;
 
-    console.log('[PlaywrightRenderer] 🚀 Starting PDF generation...');
-    console.log(`[PlaywrightRenderer] Options: format=${pageFormat}, landscape=${landscape}`);
+    console.log('[PDFRenderer] 🚀 Starting PDF generation...');
+    console.log(`[PDFRenderer] Options: format=${pageFormat}, landscape=${landscape}`);
 
     let browser = null;
-    let page = null;
 
     try {
-        // Launch browser - use chromium from environment or bundled
-        browser = await playwright.chromium.launch({
-            headless: true,
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-gpu',
-                '--font-render-hinting=none'
-            ]
+        // Launch browser with @sparticuz/chromium
+        browser = await puppeteer.launch({
+            args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox'],
+            defaultViewport: chromium.defaultViewport,
+            executablePath: await chromium.executablePath(),
+            headless: chromium.headless
         });
 
-        const context = await browser.newContext({
-            viewport: { width: 1280, height: 1024 },
-            deviceScaleFactor: 2 // High DPI for better quality
-        });
+        const page = await browser.newPage();
 
-        page = await context.newPage();
+        // Set viewport
+        await page.setViewport({
+            width: 1280,
+            height: 1024,
+            deviceScaleFactor: 2
+        });
 
         // Set content
-        console.log('[PlaywrightRenderer] 📄 Loading HTML content...');
+        console.log('[PDFRenderer] 📄 Loading HTML content...');
         await page.setContent(htmlContent, {
-            waitUntil: 'networkidle',
+            waitUntil: ['networkidle2', 'domcontentloaded'],
             timeout: timeout
         });
 
-        // Wait for ready-gate if enabled
-        if (waitForReadyGate) {
-            console.log('[PlaywrightRenderer] ⏳ Waiting for render-ready signal...');
-            try {
-                await page.waitForFunction(
-                    () => window.__ZYNK_RENDER_READY__ === true,
-                    { timeout: 15000 }
-                );
-                console.log('[PlaywrightRenderer] ✅ Render-ready signal received');
-            } catch (e) {
-                console.warn('[PlaywrightRenderer] ⚠️ Ready-gate timeout, proceeding anyway...');
-            }
-        }
-
-        // Wait for fonts to load
-        console.log('[PlaywrightRenderer] 🔤 Waiting for fonts...');
+        // Wait for fonts
+        console.log('[PDFRenderer] 🔤 Waiting for fonts...');
         await page.evaluate(() => document.fonts.ready);
 
-        // Wait for images to load
-        console.log('[PlaywrightRenderer] 🖼️ Waiting for images...');
+        // Wait for images
+        console.log('[PDFRenderer] 🖼️ Waiting for images...');
         await page.evaluate(async () => {
             const images = Array.from(document.querySelectorAll('img'));
             await Promise.all(images.map(img => {
                 if (img.complete && img.naturalWidth > 0) return Promise.resolve();
                 return new Promise((resolve) => {
                     img.onload = resolve;
-                    img.onerror = resolve; // Resolve even on error to not block
-                    // Timeout fallback
+                    img.onerror = resolve;
                     setTimeout(resolve, 5000);
                 });
             }));
         });
 
-        // Small delay for any final rendering
-        await page.waitForTimeout(500);
+        // Small delay for final rendering
+        await new Promise(r => setTimeout(r, 500));
 
         // Generate PDF
-        console.log('[PlaywrightRenderer] 📑 Generating PDF...');
+        console.log('[PDFRenderer] 📑 Generating PDF...');
         const pdfBuffer = await page.pdf({
             format: pageFormat,
             landscape: landscape,
             printBackground: printBackground,
-            preferCSSPageSize: preferCSSPageSize,
-            margin: margin,
+            preferCSSPageSize: true,
+            margin: { top: '0px', right: '0px', bottom: '0px', left: '0px' },
             displayHeaderFooter: false
         });
 
-        console.log(`[PlaywrightRenderer] ✅ PDF generated: ${(pdfBuffer.length / 1024).toFixed(1)} KB`);
+        console.log(`[PDFRenderer] ✅ PDF generated: ${(pdfBuffer.length / 1024).toFixed(1)} KB`);
         return pdfBuffer;
 
     } catch (error) {
-        console.error('[PlaywrightRenderer] ❌ PDF generation failed:', error);
+        console.error('[PDFRenderer] ❌ PDF generation failed:', error);
         throw error;
     } finally {
-        if (page) await page.close().catch(() => { });
         if (browser) await browser.close().catch(() => { });
     }
 }
 
 /**
- * Inject ready-gate script into HTML
- * @param {string} htmlContent - Original HTML
- * @returns {string} - HTML with ready-gate script
+ * Inject cleanup styles for PDF (hide UI elements)
  */
 function injectReadyGate(htmlContent) {
-    const readyGateScript = `
-<script>
-    window.__ZYNK_RENDER_READY__ = false;
-    window.addEventListener('load', function() {
-        Promise.all([
-            document.fonts.ready,
-            Promise.all(Array.from(document.images).map(function(img) {
-                if (img.complete && img.naturalWidth > 0) return Promise.resolve();
-                return new Promise(function(resolve) {
-                    img.onload = resolve;
-                    img.onerror = resolve;
-                    setTimeout(resolve, 5000);
-                });
-            }))
-        ]).then(function() {
-            window.__ZYNK_RENDER_READY__ = true;
-            console.log('[ZYNK] Render ready signal set');
-        });
-    });
-</script>
+    const pdfCleanupCSS = `
+<style>
+    .refine-btn, .img-overlay, .editor-status-badge, [id*="refine-btn"],
+    button, .no-print { 
+        display: none !important; 
+        visibility: hidden !important;
+    }
+    * { 
+        -webkit-print-color-adjust: exact !important; 
+        print-color-adjust: exact !important; 
+    }
+    @page { margin: 0; }
+</style>
 `;
 
-    // Insert before </head> or at the start of <body>
     if (htmlContent.includes('</head>')) {
-        return htmlContent.replace('</head>', readyGateScript + '</head>');
+        return htmlContent.replace('</head>', pdfCleanupCSS + '</head>');
     } else if (htmlContent.includes('<body')) {
-        return htmlContent.replace('<body', readyGateScript + '<body');
-    } else {
-        return readyGateScript + htmlContent;
+        return htmlContent.replace('<body', pdfCleanupCSS + '<body');
     }
+    return pdfCleanupCSS + htmlContent;
 }
 
 module.exports = {
