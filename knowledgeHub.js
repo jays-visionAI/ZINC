@@ -4288,15 +4288,19 @@ function generateCreativeControls(controls) {
  */
 async function downloadCreativeAsPDF(options = {}) {
     const resultContainer = document.getElementById('creative-result-container');
+    if (!resultContainer || !resultContainer.innerHTML.trim()) {
+        showNotification('No content to export', 'error');
+        return;
+    }
+
     const iframe = resultContainer.querySelector('iframe');
-    if (!iframe) return;
 
     // === HIGH QUALITY PDF (Server-side Puppeteer) ===
     // Use server-side for Press Releases and Pitch Decks to ensure WYSIWYG and perfect pagination
     const normalizedType = (currentCreativeType || '').toLowerCase().trim();
     const isHQType = normalizedType === 'press_release' || normalizedType === 'news' || normalizedType === 'pitch_deck';
 
-    if (isHQType) {
+    if (isHQType && iframe) {
         showNotification('Generating high-quality PDF (server-side)...', 'info');
 
         try {
@@ -4424,8 +4428,15 @@ async function downloadCreativeAsPDF(options = {}) {
         tempContainer.style.top = '0';
         tempContainer.style.width = captureWidth + 'px';
 
-        // Deep clone iframe content
-        const contentClone = iframe.contentDocument.documentElement.cloneNode(true);
+        // Deep clone content (iframe or direct container)
+        let contentClone;
+        if (iframe && iframe.contentDocument) {
+            contentClone = iframe.contentDocument.documentElement.cloneNode(true);
+        } else {
+            // For non-iframe content (e.g., Promo Templates)
+            contentClone = document.createElement('html');
+            contentClone.innerHTML = `<head><meta charset="UTF-8"></head><body>${resultContainer.innerHTML}</body>`;
+        }
 
         // EXTRA: STRIP SCRIPTS (Crucial for preventing UI element re-addition)
         contentClone.querySelectorAll('script').forEach(s => s.remove());
