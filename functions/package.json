@@ -24,6 +24,7 @@
         "googleapis": "^129.0.0",
         "openai": "^4.20.0",
         "pdf-parse": "^1.1.1",
+        "playwright-core": "^1.40.0",
         "stripe": "^20.0.0",
         "twitter-api-v2": "^1.17.0"
     },

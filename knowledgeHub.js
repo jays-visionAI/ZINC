@@ -4292,13 +4292,66 @@ function generateCreativeControls(controls) {
 }
 
 /**
- * Download the generated creative as PDF using html2pdf.js
+ * Download the generated creative as PDF
+ * For Press Release: Uses server-side Playwright for true WYSIWYG
+ * For others: Uses client-side html2pdf.js
  */
 async function downloadCreativeAsPDF(options = {}) {
     const resultContainer = document.getElementById('creative-result-container');
     const iframe = resultContainer.querySelector('iframe');
     if (!iframe) return;
 
+    // === PRESS RELEASE: Server-side Playwright PDF ===
+    if (currentCreativeType === 'press_release') {
+        showNotification('Generating high-quality PDF (server rendering)...', 'info');
+
+        try {
+            const htmlContent = iframe.contentDocument.documentElement.outerHTML;
+            const config = CREATIVE_CONFIGS[currentCreativeType] || { name: 'Press_Release' };
+            const filename = `${config.name.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
+
+            // Determine format based on viewport
+            let pageFormat = 'A4';
+            let landscape = false;
+            if (currentViewportType === 'a4-l') {
+                landscape = true;
+            }
+
+            // Call server-side renderer
+            const renderFn = firebase.app().functions('us-central1').httpsCallable('renderPressReleasePDF', { timeout: 120000 });
+            const result = await renderFn({
+                htmlContent: htmlContent,
+                pageFormat: pageFormat,
+                landscape: landscape,
+                documentId: currentCreativeProjectId || null
+            });
+
+            if (result.data && result.data.success) {
+                // Convert base64 to blob and download
+                const pdfBlob = base64ToBlob(result.data.pdfBase64, 'application/pdf');
+                const url = URL.createObjectURL(pdfBlob);
+
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                showNotification(`PDF Downloaded! (${result.data.sizeKB} KB)`, 'success');
+            } else {
+                throw new Error(result.data?.error || 'PDF generation failed');
+            }
+            return;
+        } catch (error) {
+            console.error('[Press Release PDF] Server render failed:', error);
+            showNotification('Server PDF failed, falling back to client-side...', 'warning');
+            // Fall through to client-side html2pdf.js as backup
+        }
+    }
+
+    // === OTHER TYPES: Client-side html2pdf.js ===
     // Load html2pdf if not present
     if (typeof html2pdf === 'undefined') {
         showNotification('Loading PDF engine...', 'info');
@@ -6489,6 +6542,19 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+/**
+ * Convert base64 string to Blob
+ */
+function base64ToBlob(base64, mimeType = 'application/octet-stream') {
+    const byteCharacters = atob(base64);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    return new Blob([byteArray], { type: mimeType });
 }
 
 function extractDomain(url) {

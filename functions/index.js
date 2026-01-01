@@ -4933,6 +4933,101 @@ exports.generateCreativeContent = onCall({ cors: ALLOWED_ORIGINS, region: 'us-ce
         return { success: false, error: error.message };
     }
 });
+
+/**
+ * 🖨️ Render Press Release to PDF using Playwright
+ * Server-side rendering for true WYSIWYG output
+ */
+exports.renderPressReleasePDF = onCall({
+    cors: ALLOWED_ORIGINS,
+    region: 'us-central1',
+    timeoutSeconds: 120,
+    memory: '2GiB',
+    cpu: 2
+}, async (request) => {
+    const { htmlContent, pageFormat = 'A4', landscape = false, documentId } = request.data || {};
+
+    if (!htmlContent) {
+        return { success: false, error: 'HTML content is required' };
+    }
+
+    console.log(`[renderPressReleasePDF] 🚀 Starting PDF render for document: ${documentId || 'unknown'}`);
+    console.log(`[renderPressReleasePDF] HTML size: ${htmlContent.length} chars, format: ${pageFormat}`);
+
+    try {
+        const { renderHTMLToPDF, injectReadyGate } = require('./utils/playwrightRenderer');
+
+        // Inject ready-gate script into HTML
+        const preparedHTML = injectReadyGate(htmlContent);
+
+        // Render to PDF
+        const pdfBuffer = await renderHTMLToPDF(preparedHTML, {
+            pageFormat: pageFormat,
+            landscape: landscape,
+            printBackground: true,
+            preferCSSPageSize: true,
+            margin: { top: '0px', right: '0px', bottom: '0px', left: '0px' },
+            timeout: 60000,
+            waitForReadyGate: true
+        });
+
+        // Convert to base64 for transport
+        const pdfBase64 = pdfBuffer.toString('base64');
+
+        console.log(`[renderPressReleasePDF] ✅ PDF generated: ${(pdfBuffer.length / 1024).toFixed(1)} KB`);
+
+        // Optionally save to Storage
+        if (documentId) {
+            try {
+                const bucket = admin.storage().bucket();
+                const filePath = `press-releases/${documentId}/output.pdf`;
+                const file = bucket.file(filePath);
+
+                await file.save(pdfBuffer, {
+                    metadata: {
+                        contentType: 'application/pdf',
+                        metadata: {
+                            documentId: documentId,
+                            generatedAt: new Date().toISOString()
+                        }
+                    }
+                });
+
+                // Get signed URL (valid for 1 hour)
+                const [signedUrl] = await file.getSignedUrl({
+                    action: 'read',
+                    expires: Date.now() + 60 * 60 * 1000
+                });
+
+                console.log(`[renderPressReleasePDF] 📁 Saved to Storage: ${filePath}`);
+
+                return {
+                    success: true,
+                    pdfBase64: pdfBase64,
+                    pdfUrl: signedUrl,
+                    sizeKB: Math.round(pdfBuffer.length / 1024)
+                };
+            } catch (storageError) {
+                console.warn('[renderPressReleasePDF] Storage save failed, returning base64 only:', storageError.message);
+            }
+        }
+
+        return {
+            success: true,
+            pdfBase64: pdfBase64,
+            sizeKB: Math.round(pdfBuffer.length / 1024)
+        };
+
+    } catch (error) {
+        console.error('[renderPressReleasePDF] ❌ Error:', error);
+        return {
+            success: false,
+            error: error.message,
+            hint: 'PDF rendering failed. Please try again or contact support.'
+        };
+    }
+});
+
 // Helper for Nanobananana (Flux)
 async function callNanobananana(params) {
     const apiKey = await getSystemApiKey('banana');
