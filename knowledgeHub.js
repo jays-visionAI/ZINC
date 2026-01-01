@@ -3086,6 +3086,10 @@ async function generateSummary() {
             'te': 'Telugu', 'ta': 'Tamil'
         };
         const labelText = langLabels[targetLanguage] || 'Default';
+
+        // Define qualityTier based on boost status
+        const qualityTier = boostActive ? 'boost' : 'standard';
+
         const userPrompt = `Please analyze the following source documents and generate a Brand Summary in ${labelText}.
             
 Source Weights (Importance 1-3):
