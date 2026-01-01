@@ -3133,13 +3133,33 @@ ${activeSources.map(s => `--- Source: ${s.title} ---\n${s.summary || s.content?.
 
         // Call LLM Router Cloud Function
         const routeLLM = firebase.app().functions('us-central1').httpsCallable('routeLLM');
+
+        // Helper: Infer provider from model name
+        function inferProviderFromModel(model) {
+            if (!model) return 'openai';
+            const m = model.toLowerCase();
+            if (m.includes('deepseek')) return 'deepseek';
+            if (m.includes('claude')) return 'anthropic';
+            if (m.includes('gemini')) return 'google';
+            if (m.includes('gpt') || m.includes('o1') || m.includes('o3')) return 'openai';
+            return 'openai'; // Default fallback
+        }
+
+        // Get model from Admin Pipeline Settings
+        const selectedModel = agentConfig.model || (analysisLevel === 'depth' ? 'gpt-4o' : 'gpt-4o-mini');
+        // Infer provider from model name (since Admin UI only saves model, not provider)
+        const selectedProvider = agentConfig.provider || inferProviderFromModel(selectedModel);
+
+        console.log(`[KnowledgeHub] Using model from Pipeline: ${selectedProvider}/${selectedModel}`);
+
         const result = await routeLLM({
-            feature: 'studio.content_gen', // Using generic content gen feature policy
+            feature: 'knowledge_hub.brand_summary',
             qualityTier: qualityTier,
             systemPrompt: systemPrompt,
             userPrompt: userPrompt,
-            temperature: agentConfig.temperature || 0.2, // Lower temp for factual summary
-            model: agentConfig.model || (analysisLevel === 'depth' ? 'gpt-4o' : 'gpt-4o-mini'),
+            temperature: agentConfig.temperature || 0.2,
+            provider: selectedProvider,  // Pass provider from Admin settings
+            model: selectedModel,
             projectId: currentProjectId
         });
 
