@@ -69,6 +69,7 @@ COMPANY/PRODUCT: "${topic}"
 DETAILS: "${campaignMessage}"
 CONTEXT: """${knowledgeBase.substring(0, 4000)}"""
 NUMBER OF SLIDES: ${slideCountNum}
+CONTENT TONE: ${contentTone}
 
 Create a compelling investor pitch deck outline. Return JSON only:
 {
@@ -154,6 +155,7 @@ Your specialty: Distilling complex information into powerful 1-2 page visual doc
 TOPIC: "${topic}"
 DETAILS: "${campaignMessage}"
 CONTEXT: """${knowledgeBase.substring(0, 5000)}"""
+CONTENT TONE: ${contentTone}
 
 Design an executive one-pager that transforms ideas into visual impact. Return JSON only:
 {
@@ -250,11 +252,40 @@ Return ONLY valid JSON.`;
             contentStrategy: onePagerContent
         };
     } else if (normalizedType === 'product_brochure') {
+        console.log(`[UniversalCreator] 📘 Product Brochure: Marketing Strategist Mode`);
+
+        // Product Brochure: Strategy Phase
+        let brochureContent = null;
+        try {
+            const brochurePrompt = `You are a Senior Product Marketing Manager. Create content for a high-end product brochure.
+            PRODUCT: "${topic}"
+            AUDIENCE: "${audience}"
+            CONTEXT: """${knowledgeBase.substring(0, 4000)}"""
+            CONTENT TONE: ${contentTone}
+            
+            Return JSON only:
+            {
+                "documentTitle": "Product Name/Lead",
+                "subtitle": "Compelling value proposition",
+                "sections": [
+                    { "sectionType": "hero", "headline": "Hero Title", "subheadline": "Benefit-driven subtext", "primaryAction": "${cta || 'Get Started'}" },
+                    { "sectionType": "features", "headline": "Core Features", "features": [ { "title": "Feature 1", "description": "Details", "icon": "cube" }, { "title": "Feature 2", "description": "Details", "icon": "bolt" } ] },
+                    { "sectionType": "key-metrics", "headline": "Product Specs", "metrics": [ { "value": "20h", "label": "Battery Life", "icon": "battery-full" } ] },
+                    { "sectionType": "comparison", "headline": "Why Choose Us", "leftColumn": { "title": "Competitors", "points": ["Complex", "Hidden Fees"] }, "rightColumn": { "title": "${topic}", "points": ["Simple", "Fair Price"] } },
+                    { "sectionType": "cta", "headline": "Join the Future", "primaryAction": "Contact Us", "secondaryInfo": "sales@zynk.ai" }
+                ]
+            }
+            `;
+            const brochureResult = await executeLLM("MarketingStrategist", brochurePrompt);
+            brochureContent = JSON.parse(brochureResult.match(/\{[\s\S]*\}/)[0]);
+        } catch (e) { console.error("Brochure strategy failed:", e.message); }
+
         strategy = {
             role: "Product Marketing Expert",
             visualTask: "Identify Hero, Feature, and Lifestyle shots.",
-            htmlTask: "Create a smooth-scrolling product brochure with feature cards and a specs table.",
-            visualIds: [{ id: "HERO", desc: "Hero" }, { id: "FEATURE", desc: "Feature" }, { id: "LIFESTYLE", desc: "Lifestyle" }]
+            htmlTask: "Create a smooth-scrolling product brochure with feature cards, specs table, and impactful CTAs.",
+            visualIds: [{ id: "HERO", desc: "Hero" }, { id: "FEATURE", desc: "Feature" }, { id: "LIFESTYLE", desc: "Lifestyle" }],
+            contentStrategy: brochureContent
         };
     } else if (normalizedType === 'promo_images' || normalizedType === 'images' || normalizedType === 'templates') {
         // Layered-Gen: Use Template Archive system with LLM-powered copywriting
@@ -326,9 +357,11 @@ Return ONLY the JSON object.`;
 
         // === STEP 2: Generate Background Image ===
         const basePrompt = getBackgroundPrompt(templateType, templateStyle, topic);
+        const styleModifiers = `${imageStyle} style, mood: ${colorTone}, lighting: ${lighting}`;
+
         const finalImagePrompt = customImagePrompt
-            ? `${customImagePrompt}, ${imageStyle} style, no text, professional quality, 4K`
-            : `${basePrompt}, ${imageStyle}, high quality, no text`;
+            ? `${customImagePrompt}, ${styleModifiers}, no text, professional quality, 4K`
+            : `${basePrompt}, ${styleModifiers}, high quality, no text`;
 
         console.log(`[UniversalCreator] 🖼️ Image prompt: ${finalImagePrompt.substring(0, 100)}...`);
 
@@ -584,8 +617,8 @@ Return ONLY the JSON object.`;
     `;
 
     // 3. HTML ASSEMBLY (Multi-Archetype system with Arena Refinement)
-    // Forced High-Quality mode for One Pagers and Pitch Decks
-    const useEnhancedAudit = (normalizedType === 'one_pager' || normalizedType === 'pitch_deck');
+    // Forced High-Quality mode for One Pagers, Pitch Decks, and Brochures
+    const useEnhancedAudit = (normalizedType === 'one_pager' || normalizedType === 'pitch_deck' || normalizedType === 'product_brochure');
 
     let html;
     try {
