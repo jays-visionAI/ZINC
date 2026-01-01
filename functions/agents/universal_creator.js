@@ -397,13 +397,22 @@ Return ONLY the JSON object.`;
         },
         'minimal': {
             name: 'Minimalist Light',
-            style: `body { background: #fdfdfd; color: #171717; font-family: 'Inter', sans-serif; } 
-                   .glass { background: #fff; border: 1px solid #e5e5e5; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); border-radius: 8px; }`,
+            style: `body { background: #fdfdfd !important; color: #171717 !important; font-family: 'Inter', sans-serif; } 
+                   h1, h2, h3, h4 { color: #0f172a !important; }
+                   p, span, li, label { color: #334155 !important; }
+                   .glass { background: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); border-radius: 8px; }`,
             rules: "Apple-style clean, high whitespace, subtle shadows, greyscale with one accent color."
         },
-        'executive': { name: 'Executive', style: `body { background: #fff; color: #1e293b; } .glass { background: #f8fafc; border: 1px solid #e2e8f0; }`, rules: "Corporate, clean blue/white." },
-        'disruptor': { name: 'Disruptor', style: `body { background: #000; color: #fff; } .glass { border: 2px solid #fff; }`, rules: "Brutalist, high-contrast." },
-        'journalistic': { name: 'Journalistic', style: `body { font-family: 'EB Garamond', serif; background: #fff; color: #000; padding: 40px; } .document-body { max-width: 800px; margin: 0 auto; }`, rules: "Linear serif document." }
+        'executive': {
+            name: 'Executive Light',
+            style: `body { background: #ffffff !important; color: #1e293b !important; font-family: 'Inter', sans-serif; } 
+                   h1, h2, h3 { color: #0f172a !important; font-weight: 800; }
+                   p, span, li, dt, dd { color: #334155 !important; }
+                   .glass { background: #f8fafc; border: 1px solid #e2e8f0; }`,
+            rules: "Corporate, clean blue/white. FORCE DARK TEXT ON WHITE BACKGROUND."
+        },
+        'disruptor': { name: 'Disruptor', style: `body { background: #000 !important; color: #fff !important; } .glass { border: 2px solid #fff; }`, rules: "Brutalist, high-contrast." },
+        'journalistic': { name: 'Journalistic Light', style: `body { font-family: 'EB Garamond', serif; background: #fff !important; color: #000 !important; padding: 40px; } .document-body { max-width: 800px; margin: 0 auto; }`, rules: "Linear serif document." }
     };
 
     // Random Variance Logic
@@ -524,22 +533,19 @@ Return ONLY the JSON object.`;
     - Use "break-inside: avoid" CSS on all major sections/cards to prevents half-cut content in PDF.
     - Ensure A4-friendly widths (approx 800px-1000px).
     
-    === TEXT CONTRAST & ACCESSIBILITY RULES (CRITICAL) ===
-    - DARK THEMES (Visionary, Nebula, Cyberpunk, Disruptor): 
-        * Body text MUST be white or extremely light gray (e.g., text-slate-100, text-white).
-        * Headings MUST be bright (white, neon, or light vibrant colors).
-        * NEVER let Tailwind's default dark gray (text-slate-800, text-gray-700) appear on dark backgrounds. 
-        * IF background is dark (#000, #020617, etc.), FORCE all labels and descriptions to be text-gray-200 or lighter.
-    - LIGHT THEMES (Minimalist, Executive, Journalistic):
-        * Body text MUST be dark gray or black (e.g., text-slate-900, text-black).
-        * Headings MUST be dark.
-        * NEVER use white or light gray text on light backgrounds.
-    - INFOGRAPHIC CONTRAST:
-        * Small labels below icons and section headers ("How It Works", "Key Features") are often too dark. FORCE them to be high-contrast.
-    - Minimum contrast ratio: 7:1 for best accessibility. When in doubt, use PURE WHITE on PURE BLACK or vice-versa.
+    === CONTRAST & READABILITY STANDARDS (NON-NEGOTIABLE) ===
+    - LOGIC: The text/icon color must be the OPPOSITE of the background.
+    - LIGHT BACKGROUND (Minimal Light, Executive Light, Journalistic):
+        * ALL text MUST use dark classes: text-slate-900, text-black, text-gray-800.
+        * ALL icons MUST use dark colors: text-indigo-700, text-blue-800, etc.
+        * NEVER use text-white or light gray on these themes.
+    - DARK BACKGROUND (Visionary, Nebula, Cyberpunk, Disruptor):
+        * ALL text MUST use light classes: text-white, text-slate-100, text-gray-200.
+        * ALL icons MUST be bright: text-cyan-400, text-white.
+    - NO DIRTY FIXES: Do NOT use gray boxes or highlights behind text. 
     
     === OUTPUT RULES ===
-    - RETURN ONLY PURE HTML. NO markdown. NO introductory text. NO summary.
+    - RETURN ONLY PURE HTML. NO markdown.
     - Target exactly 1 premium document.
     - Style: ${arc.style}
     - Include: Tailwind, Font-Awesome, Inter font, Space Grotesk font (https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap).
@@ -562,12 +568,15 @@ Return ONLY the JSON object.`;
                 You are a WCAG 2.1 Accessibility Auditor. Analyze the provided HTML for color contrast and legibility.
                 
                 HTML SCRIPT:
-                ${draft.substring(0, 6000)}
+                ${draft.substring(0, 8000)}
                 
                 CRITICAL CHECKLIST:
-                - SEARCH for background classes (bg-white, bg-slate-50, etc.) and check if text inside is too light (text-gray-200, text-blue-100, text-white).
-                - IF you see light text on light background OR dark text on dark background, you MUST FAIL it.
-                - Check if small labels or infographic descriptions are readable.
+                - SEARCH for "Invisible Content": Is there White text on a White background? Is there Dark text on a Dark background?
+                - IF BACKGROUND IS LIGHT (bg-white, bg-gray-50, etc.):
+                    * FAIL if you see text-white, text-gray-100, or light blue/cyan text.
+                - IF BACKGROUND IS DARK (bg-black, bg-navy-900, etc.):
+                    * FAIL if you see text-black, text-slate-900, or dark gray text.
+                - FAIL if icons or headings disappear into the background.
                 
                 RESPONSE FORMAT:
                 If contrast is perfect: "PASS"
@@ -579,18 +588,15 @@ Return ONLY the JSON object.`;
                 console.log(`[UniversalCreator] ⚠️ Contrast Audit FAILED: ${auditResult}`);
                 // Step 3: Designer Fixes based on Auditor Feedback
                 html = await executeLLM(`Designer: ${arc.name}`, `
-                    YOUR PREVIOUS DRAFT HAD CONTRAST ISSUES:
+                    YOUR PREVIOUS DRAFT HAD CONTRAST ISSUES (INVISIBLE ELEMENTS):
                     ${auditResult}
                     
-                    TASK: Regenerate the HTML with EXPLICIT HIGH CONTRAST using TEXT COLORS ONLY.
-                    - PROHIBITED: Do NOT use background colors (bg-gray-200, bg-slate-100, etc.) behind text to fix contrast. It looks like an ugly highlight.
-                    - PROHIBITED: No text-shadows or outlines. 
-                    - REQUIREMENT: Change the actual 'color' or 'text-color' class of the font.
-                    - IF BACKGROUND IS LIGHT: Use text-slate-950 or text-black for ALL text and labels.
-                    - IF BACKGROUND IS DARK: Use text-white or text-gray-100 for ALL text and labels.
-                    - Ensure the design remains CLEAN, PROFESSIONAL, and PREMIUM. No 'dirty' backgrounds behind labels.
+                    TASK: Regenerate the HTML ensuring 100% LEGIBILITY.
+                    - IF BACKGROUND IS LIGHT: Use text-slate-950 for ALL text and dark colors for ALL icons.
+                    - IF BACKGROUND IS DARK: Use text-white for ALL text and bright colors for ALL icons.
+                    - DO NOT use gray boxes/highlights behind text.
                     
-                    DELIVER POLISHED, HIGH-CONTRAST, CLEAN HTML. NO COMMENTARY.
+                    DELIVER CLEAN, HIGH-CONTRAST, READABLE HTML.
                 `);
             } else {
                 console.log('[UniversalCreator] ✅ Contrast Audit PASSED');
