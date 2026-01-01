@@ -582,13 +582,15 @@ Return ONLY the JSON object.`;
                     YOUR PREVIOUS DRAFT HAD CONTRAST ISSUES:
                     ${auditResult}
                     
-                    TASK: Regenerate the HTML with EXPLICIT HIGH CONTRAST.
-                    - IF BACKGROUND IS LIGHT: Use text-slate-950 or text-black for ALL content.
-                    - IF BACKGROUND IS DARK: Use text-white or text-gray-100 for ALL content.
-                    - DO NOT use accent colors for body text/labels.
-                    - Ensure ALL infographic elements are clearly visible.
+                    TASK: Regenerate the HTML with EXPLICIT HIGH CONTRAST using TEXT COLORS ONLY.
+                    - PROHIBITED: Do NOT use background colors (bg-gray-200, bg-slate-100, etc.) behind text to fix contrast. It looks like an ugly highlight.
+                    - PROHIBITED: No text-shadows or outlines. 
+                    - REQUIREMENT: Change the actual 'color' or 'text-color' class of the font.
+                    - IF BACKGROUND IS LIGHT: Use text-slate-950 or text-black for ALL text and labels.
+                    - IF BACKGROUND IS DARK: Use text-white or text-gray-100 for ALL text and labels.
+                    - Ensure the design remains CLEAN, PROFESSIONAL, and PREMIUM. No 'dirty' backgrounds behind labels.
                     
-                    DELIVER POLISHED, HIGH-CONTRAST HTML. NO COMMENTARY.
+                    DELIVER POLISHED, HIGH-CONTRAST, CLEAN HTML. NO COMMENTARY.
                 `);
             } else {
                 console.log('[UniversalCreator] ✅ Contrast Audit PASSED');
