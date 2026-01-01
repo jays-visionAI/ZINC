@@ -5023,7 +5023,7 @@ async function viewCreativeProject(docId) {
                 }
             </style>
         </head>
-        <body class="bg-black text-white">
+        <body class="bg-transparent">
             ${proj.htmlContent}
         </body>
         </html>

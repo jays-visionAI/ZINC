@@ -494,13 +494,22 @@ Return ONLY the JSON object.`;
             return sectionDesc;
         }).join('\n')}
     
-    INFOGRAPHIC RULES:
-    - Use Font Awesome icons (fa-solid) for every section
-    - Display metrics as LARGE numbers (text-4xl or bigger)
-    - Use grid layouts (CSS Grid or Flexbox)
-    - Visual elements > text blocks
-    - Max 2 printed pages
-    - Must be scannable in 30 seconds
+    INFOGRAPHIC CONTRAST RULES:
+    - If Section/Card background is LIGHT (white/gray-50):
+        * Section titles MUST be text-slate-950 or text-black.
+        * Metric numbers MUST be high-contrast (e.g., text-blue-700, text-slate-900).
+        * Labels & Descriptions MUST be text-slate-800 or text-slate-900. NEVER use text-white or text-gray-400.
+    - If Section/Card background is DARK (black/navy-900):
+        * Section titles MUST be text-white or text-yellow-400.
+        * Metric numbers MUST be bright (e.g., text-white, text-cyan-300).
+        * Labels & Descriptions MUST be text-gray-100 or text-white. NEVER use text-black or text-slate-800.
+    - ICON COLORS: Icons must use a color that stands out from the background (e.g., in a white card, use a saturated blue/purple icon, not a pale one).
+    
+    INFOGRAPHIC GENERAL RULES:
+    - Use Font Awesome icons (fa-solid) for every section.
+    - Display metrics as LARGE numbers (text-4xl or bigger).
+    - Max 2 printed pages. Must be scannable in 30 seconds.
+    - Use grid layouts (CSS Grid or Flexbox).
     `;
         console.log('[UniversalCreator] 📋 One Pager Infographic Strategy injected');
     }
@@ -536,18 +545,60 @@ Return ONLY the JSON object.`;
     - Include: Tailwind, Font-Awesome, Inter font, Space Grotesk font (https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap).
     `;
 
+    // 3. HTML ASSEMBLY (Multi-Archetype system with Arena Refinement)
+    // Forced High-Quality mode for One Pagers and Pitch Decks
+    const useEnhancedAudit = (normalizedType === 'one_pager' || normalizedType === 'pitch_deck');
+
     let html;
     try {
-        if (plan.useArena) {
-            console.log('[UniversalCreator] 🛡️ Arena Enabled');
+        if (plan.useArena || useEnhancedAudit) {
+            console.log(`[UniversalCreator] 🛡️ Arena & Quality Audit Enabled for: ${normalizedType}`);
+
+            // Step 1: Designer Creates Draft
             const draft = await executeLLM(`Designer: ${arc.name}`, baseTask + "\nDraft professional HTML.");
-            const review = await executeLLM("Director", `Critique briefly: ${draft.substring(0, 3000)}`);
-            html = await executeLLM(`Designer: ${arc.name}`, `Draft: ${draft.substring(0, 10000)}\nReview: ${review}\nFINAL: Deliver polished HTML. NO COMMENTARY. NO SUMMARY. STICK TO CODE.`);
+
+            // Step 2: Specialized Auditor Checks Contrast & Legibility
+            const auditPrompt = `
+                You are a WCAG 2.1 Accessibility Auditor. Analyze the provided HTML for color contrast and legibility.
+                
+                HTML SCRIPT:
+                ${draft.substring(0, 6000)}
+                
+                CRITICAL CHECKLIST:
+                - SEARCH for background classes (bg-white, bg-slate-50, etc.) and check if text inside is too light (text-gray-200, text-blue-100, text-white).
+                - IF you see light text on light background OR dark text on dark background, you MUST FAIL it.
+                - Check if small labels or infographic descriptions are readable.
+                
+                RESPONSE FORMAT:
+                If contrast is perfect: "PASS"
+                If contrast is bad: "FAIL: [Reasoning and specific elements to fix]"
+            `;
+            const auditResult = await executeLLM("Auditor", auditPrompt);
+
+            if (auditResult.toUpperCase().includes("FAIL")) {
+                console.log(`[UniversalCreator] ⚠️ Contrast Audit FAILED: ${auditResult}`);
+                // Step 3: Designer Fixes based on Auditor Feedback
+                html = await executeLLM(`Designer: ${arc.name}`, `
+                    YOUR PREVIOUS DRAFT HAD CONTRAST ISSUES:
+                    ${auditResult}
+                    
+                    TASK: Regenerate the HTML with EXPLICIT HIGH CONTRAST.
+                    - IF BACKGROUND IS LIGHT: Use text-slate-950 or text-black for ALL content.
+                    - IF BACKGROUND IS DARK: Use text-white or text-gray-100 for ALL content.
+                    - DO NOT use accent colors for body text/labels.
+                    - Ensure ALL infographic elements are clearly visible.
+                    
+                    DELIVER POLISHED, HIGH-CONTRAST HTML. NO COMMENTARY.
+                `);
+            } else {
+                console.log('[UniversalCreator] ✅ Contrast Audit PASSED');
+                html = draft;
+            }
         } else {
             html = await executeLLM(`Designer: ${arc.name}`, baseTask);
         }
     } catch (e) {
-        html = `<!-- Error: ${e.message} -->`;
+        html = `<!-- Error in generation: ${e.message} -->`;
     }
 
     // 4. CLEANUP & EXTRACTION (More aggressive)
