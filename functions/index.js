@@ -2319,7 +2319,7 @@ async function extractTextFromDrive(driveInfo) {
 }
 
 /**
- * Extract text from uploaded file (DOCX, TXT, MD, PDF)
+ * Extract text from uploaded file (DOCX, TXT, MD, PDF, XLSX, PPTX)
  */
 async function extractTextFromFile(fileUrl, contentType, fileName) {
     if (!fileUrl) return '';
@@ -2340,6 +2340,8 @@ async function extractTextFromFile(fileUrl, contentType, fileName) {
         const isPdf = contentType?.includes('pdf') || ext === 'pdf';
         const isTxt = contentType?.includes('text/plain') || ext === 'txt';
         const isMd = ext === 'md' || ext === 'markdown';
+        const isExcel = contentType?.includes('spreadsheet') || ext === 'xlsx' || ext === 'xls';
+        const isPptx = contentType?.includes('presentation') || ext === 'pptx' || ext === 'ppt';
 
         let extractedText = '';
 
@@ -2362,9 +2364,35 @@ async function extractTextFromFile(fileUrl, contentType, fileName) {
             extractedText = buffer.toString('utf-8');
             console.log(`[extractTextFromFile] TXT/MD extracted: ${extractedText.length} chars`);
 
+        } else if (isExcel) {
+            // Use xlsx for Excel files
+            const XLSX = require('xlsx');
+            const workbook = XLSX.read(buffer, { type: 'buffer' });
+            const sheetTexts = [];
+
+            for (const sheetName of workbook.SheetNames) {
+                const sheet = workbook.Sheets[sheetName];
+                const sheetData = XLSX.utils.sheet_to_csv(sheet);
+                sheetTexts.push(`[Sheet: ${sheetName}]\n${sheetData}`);
+            }
+
+            extractedText = sheetTexts.join('\n\n');
+            console.log(`[extractTextFromFile] Excel extracted: ${extractedText.length} chars, ${workbook.SheetNames.length} sheets`);
+
+        } else if (isPptx) {
+            // Use officeparser for PowerPoint
+            const officeParser = require('officeparser');
+            extractedText = await new Promise((resolve, reject) => {
+                officeParser.parseOffice(buffer, (err, data) => {
+                    if (err) reject(err);
+                    else resolve(data || '');
+                });
+            });
+            console.log(`[extractTextFromFile] PPTX extracted: ${extractedText.length} chars`);
+
         } else {
             console.warn(`[extractTextFromFile] Unsupported file type: ${contentType}, ext: ${ext}`);
-            return `[Unsupported file type: ${ext}]\n\nPlease convert to PDF, DOCX, TXT, or MD format.`;
+            return `[Unsupported file type: ${ext}]\n\nSupported formats: PDF, DOCX, TXT, MD, XLSX, PPTX`;
         }
 
         // Clean up and limit
