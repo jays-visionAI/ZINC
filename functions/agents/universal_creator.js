@@ -14,12 +14,18 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
         slideCount = 5,
         newsType,
         executivePhotoUrl,
-        imageCount: inputsImageCount
+        imageCount: inputsImageCount,
+        knowledgeContext = ''  // User-edited context from One Pager
     } = inputs;
 
     const slideCountNum = parseInt(slideCount) || 5;
     const normalizedType = String(type || '').toLowerCase().trim();
-    const knowledgeBase = (context || 'No specific context.').substring(0, 15000);
+
+    // Merge user's knowledge context with system context
+    const combinedContext = knowledgeContext
+        ? `${knowledgeContext}\n\n---\n\n${context || ''}`
+        : (context || 'No specific context.');
+    const knowledgeBase = combinedContext.substring(0, 15000);
 
     const {
         imageStyle: advImageStyle,

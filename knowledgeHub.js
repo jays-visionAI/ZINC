@@ -528,6 +528,66 @@ async function selectProject(projectId) {
     }
 }
 
+/**
+ * Get comprehensive knowledge context from the current project
+ * Used for prefilling context fields in creative tools
+ */
+async function getCurrentKnowledgeContext() {
+    if (!currentProject) {
+        console.warn('[getCurrentKnowledgeContext] No current project');
+        return '';
+    }
+
+    let contextParts = [];
+
+    // 1. Basic project info
+    const projectName = currentProject.name || currentProject.brandName || '';
+    if (projectName) {
+        contextParts.push(`📌 Project/Brand: ${projectName}`);
+    }
+
+    // 2. Brand description/overview
+    if (currentProject.description) {
+        contextParts.push(`📝 Description: ${currentProject.description}`);
+    }
+
+    // 3. Core identity fields
+    if (currentProject.coreIdentity) {
+        const ci = currentProject.coreIdentity;
+        if (ci.mission) contextParts.push(`🎯 Mission: ${ci.mission}`);
+        if (ci.vision) contextParts.push(`🔮 Vision: ${ci.vision}`);
+        if (ci.values) contextParts.push(`💎 Values: ${ci.values}`);
+        if (ci.targetAudience) contextParts.push(`👥 Target Audience: ${ci.targetAudience}`);
+        if (ci.uniqueValue) contextParts.push(`⭐ Unique Value: ${ci.uniqueValue}`);
+    }
+
+    // 4. Industry/category
+    if (currentProject.industry) {
+        contextParts.push(`🏢 Industry: ${currentProject.industry}`);
+    }
+
+    // 5. Current summary (if available)
+    if (currentSummary && currentSummary.content) {
+        const summaryText = typeof currentSummary.content === 'string'
+            ? currentSummary.content
+            : JSON.stringify(currentSummary.content);
+        contextParts.push(`\n📋 Brand Summary:\n${summaryText.substring(0, 2000)}`);
+    }
+
+    // 6. Recent insights from sources (abbreviated)
+    if (sources && sources.length > 0) {
+        const processedSources = sources.filter(s => s.processed && s.summary);
+        if (processedSources.length > 0) {
+            const sourceInsights = processedSources.slice(0, 3).map(s =>
+                `• ${s.name}: ${(s.summary || '').substring(0, 200)}`
+            ).join('\n');
+            contextParts.push(`\n📚 Knowledge Sources:\n${sourceInsights}`);
+        }
+    }
+
+    return contextParts.join('\n\n');
+}
+
 // ============================================================
 // SOURCES MANAGEMENT
 // ============================================================
@@ -3913,6 +3973,7 @@ const CREATIVE_CONFIGS = {
         controls: [
             { id: 'topic', type: 'text', label: 'Document Title', placeholder: 'e.g., Q3 Performance Review' },
             { id: 'executiveSummary', type: 'textarea', label: 'Executive Summary', placeholder: 'Brief overview of the main message...' },
+            { id: 'knowledgeContext', type: 'textarea', label: 'Knowledge Context', placeholder: 'Knowledge Hub에서 가져온 정보가 여기에 표시됩니다. 필요시 수정하세요...', rows: 6, prefillFromKnowledgeHub: true },
             { id: 'style', type: 'select', label: 'Layout Style', options: ['Corporate', 'Startup', 'Data-Heavy', 'Newsletter', 'Modern Tech', 'Luxury'] },
             { id: 'contactInfo', type: 'text', label: 'Contact Info', placeholder: 'e.g., sales@zynk.ai' }
         ],
@@ -4159,6 +4220,26 @@ function openCreativeModal(planType) {
     const oldLog = document.getElementById('generation-log-container');
     if (oldLog) oldLog.remove();
 
+    // === Prefill Knowledge Hub context for marked fields ===
+    setTimeout(async () => {
+        const prefillFields = document.querySelectorAll('[data-prefill-knowledge-hub="true"]');
+        if (prefillFields.length > 0) {
+            try {
+                const knowledgeContext = await getCurrentKnowledgeContext();
+                if (knowledgeContext && knowledgeContext.trim()) {
+                    prefillFields.forEach(field => {
+                        if (!field.value || field.value.trim() === '') {
+                            field.value = knowledgeContext;
+                        }
+                    });
+                    console.log('[CreativeModal] Knowledge Hub context prefilled');
+                }
+            } catch (e) {
+                console.warn('[CreativeModal] Failed to prefill knowledge context:', e);
+            }
+        }
+    }, 100);
+
     // Show modal
     document.getElementById('creative-modal').style.display = 'block';
     console.log('[CreativeModal] Opened for:', planType);
@@ -4198,7 +4279,9 @@ function generateCreativeControls(controls) {
                     class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-indigo-500">`;
                 break;
             case 'textarea':
-                inputHTML = `<textarea id="${ctrl.id}" placeholder="${ctrl.placeholder || ''}" rows="3"
+                const textareaRows = ctrl.rows || 3;
+                const prefillAttr = ctrl.prefillFromKnowledgeHub ? 'data-prefill-knowledge-hub="true"' : '';
+                inputHTML = `<textarea id="${ctrl.id}" placeholder="${ctrl.placeholder || ''}" rows="${textareaRows}" ${prefillAttr}
                     class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-indigo-500 resize-none"></textarea>`;
                 break;
             case 'select':
