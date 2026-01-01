@@ -5728,12 +5728,12 @@ exports.refineCreativeContent = onCall({
     if (!request.auth) throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
 
     const data = request.data || {};
-    const { projectId, sectionIndex, instruction, currentContent } = data;
+    const { projectId, sectionIndex, instruction, currentContent, assets = [] } = data;
 
     if (!projectId) throw new functions.https.HttpsError('invalid-argument', 'Missing ProjectID');
     if (!instruction) throw new functions.https.HttpsError('invalid-argument', 'Missing instruction');
 
-    console.log(`[refineCreativeContent] Refining section ${sectionIndex} of ${projectId}`);
+    console.log(`[refineCreativeContent] Refining section ${sectionIndex} of ${projectId} with ${assets.length} assets`);
 
     try {
         const systemPrompt = `You are an Elite Creative Director and Senior Frontend Architect. 
@@ -5745,9 +5745,15 @@ exports.refineCreativeContent = onCall({
         3. Use Tailwind CSS for all styling. Maintain the existing brand vibe but feel free to upgrade visual hierarchy (padding, font-weights, spacing).
         4. If the user asks for layout changes (e.g., 'columns', 'cards', 'bento'), implement them with modern Tailwind patterns.
         5. Support rich assets: You can use Font-Awesome icons and polished typography.
-        6. NO markdown code blocks. NO commentary. Pure HTML only.`;
+        6. NO markdown code blocks. NO commentary. Pure HTML only.
+        7. ASSET UTILIZATION: If assets (image URLs) are provided, you MUST incorporate them into the design where appropriate (e.g., replacing a background image, adding a product shot card, etc.).`;
 
-        const userPrompt = `USER INSTRUCTION: "${instruction}"\n\nEXISTING HTML FRAGMENT:\n${currentContent}`;
+        let assetContext = "";
+        if (assets && assets.length > 0) {
+            assetContext = `\n\nINJECTED ASSETS (Use these URLs for <img> tags):\n${assets.map((url, i) => `Asset ${i + 1}: ${url}`).join('\n')}`;
+        }
+
+        const userPrompt = `USER INSTRUCTION: "${instruction}"\n\nEXISTING HTML FRAGMENT:\n${currentContent}${assetContext}`;
 
         // Use Pro for high-end reasoning and design quality
         const response = await callLLM('google', 'gemini-1.5-pro', [

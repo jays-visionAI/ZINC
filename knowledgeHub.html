@@ -2582,7 +2582,7 @@
                         </button>
                     </div>
 
-                    <!-- Asset Dropzone (Conceptual for now, visual only) -->
+                    <!-- Asset Dropzone -->
                     <div class="relative group">
                         <label
                             class="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2 mb-3">
@@ -2590,13 +2590,15 @@
                             Injected Assets / Resources
                         </label>
                         <div id="refine-asset-list" class="flex flex-wrap gap-3">
-                            <!-- Dynamic items -->
-                            <div
+                            <!-- Dynamic items will be injected here -->
+                            <div id="refine-add-image-btn" onclick="triggerRefineAssetUpload()"
                                 class="w-20 h-20 rounded-xl bg-slate-950/50 border-2 border-dashed border-slate-700 flex flex-col items-center justify-center text-slate-500 hover:border-indigo-500/40 transition-all cursor-pointer">
                                 <i class="fas fa-plus text-xs mb-1"></i>
                                 <span class="text-[8px] font-bold">ADD IMAGE</span>
                             </div>
                         </div>
+                        <input type="file" id="refine-asset-upload" class="hidden" accept="image/*" multiple
+                            onchange="handleRefineAssetUpload(this)">
                     </div>
                 </div>
 

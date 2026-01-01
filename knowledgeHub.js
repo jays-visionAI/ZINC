@@ -42,6 +42,7 @@ let currentRefineState = { docId: null, index: null, element: null };
 let currentCreativeData = {};
 let zActiveTarget = null;
 let zActiveSelection = "";
+let injectedRefineAssets = []; // Store session-specific assets for refinement
 
 // Chat Configuration
 let chatConfig = {
@@ -5341,6 +5342,11 @@ function openRefinePalette() {
     const input = document.getElementById('refine-instruction');
 
     if (input) input.value = '';
+
+    // Reset assets
+    injectedRefineAssets = [];
+    renderRefineAssets();
+
     palette.classList.remove('hidden');
     setTimeout(() => card.classList.remove('scale-95'), 10);
 }
@@ -5358,6 +5364,75 @@ function applyRefinePreset(text) {
         input.value = text;
         input.focus();
     }
+}
+
+/**
+ * Asset Management for Refine Palette
+ */
+function triggerRefineAssetUpload() {
+    document.getElementById('refine-asset-upload').click();
+}
+
+async function handleRefineAssetUpload(input) {
+    if (!input.files || input.files.length === 0) return;
+
+    for (const file of input.files) {
+        if (!file.type.startsWith('image/')) continue;
+
+        // Show immediate local preview with loading state
+        const tempId = 'temp-' + Date.now() + Math.random();
+        injectedRefineAssets.push({ id: tempId, name: file.name, status: 'uploading', localUrl: URL.createObjectURL(file) });
+        renderRefineAssets();
+
+        try {
+            const url = await uploadRefineAsset(file);
+            const assetIndex = injectedRefineAssets.findIndex(a => a.id === tempId);
+            if (assetIndex !== -1) {
+                injectedRefineAssets[assetIndex].status = 'complete';
+                injectedRefineAssets[assetIndex].url = url;
+            }
+        } catch (e) {
+            console.error('File upload failed:', e);
+            showNotification('Failed to upload image: ' + file.name, 'error');
+            injectedRefineAssets = injectedRefineAssets.filter(a => a.id !== tempId);
+        }
+        renderRefineAssets();
+    }
+    input.value = ''; // Reset input
+}
+
+async function uploadRefineAsset(file) {
+    const storageRef = firebase.storage().ref();
+    const fileName = `refine_assets/${currentUser.uid}/${Date.now()}_${file.name}`;
+    const fileRef = storageRef.child(fileName);
+    await fileRef.put(file);
+    return await fileRef.getDownloadURL();
+}
+
+function renderRefineAssets() {
+    const list = document.getElementById('refine-asset-list');
+    const addBtn = document.getElementById('refine-add-image-btn');
+
+    // Remove all existing previews
+    document.querySelectorAll('.refine-asset-item').forEach(el => el.remove());
+
+    injectedRefineAssets.forEach((asset, idx) => {
+        const item = document.createElement('div');
+        item.className = 'refine-asset-item relative w-20 h-20 rounded-xl overflow-hidden bg-slate-800 border-2 border-slate-700 active:scale-95 transition-all';
+        item.innerHTML = `
+            <img src="${asset.localUrl || asset.url}" class="w-full h-full object-cover ${asset.status === 'uploading' ? 'opacity-40 grayscale' : ''}">
+            ${asset.status === 'uploading' ? '<div class="absolute inset-0 flex items-center justify-center"><i class="fas fa-circle-notch fa-spin text-white"></i></div>' : ''}
+            <button onclick="removeRefineAsset(${idx})" class="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500/80 text-white flex items-center justify-center text-[10px] hover:bg-red-600 transition-colors">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        list.insertBefore(item, addBtn);
+    });
+}
+
+function removeRefineAsset(index) {
+    injectedRefineAssets.splice(index, 1);
+    renderRefineAssets();
 }
 
 async function submitRefinePalette() {
@@ -5419,11 +5494,14 @@ async function submitRefinePalette() {
     try {
         addLog('Calling Elite AI Refinement agent (Gemini Pro)...', 'info');
         const refineFn = firebase.app().functions('us-central1').httpsCallable('refineCreativeContent');
+        const assetUrls = injectedRefineAssets.filter(a => a.status === 'complete').map(a => a.url);
+
         const result = await refineFn({
             projectId: docId,
             sectionIndex: index,
             instruction: instruction,
-            currentContent: cleanHTML
+            currentContent: cleanHTML,
+            assets: assetUrls
         });
 
         if (result.data && result.data.newHtml) {
