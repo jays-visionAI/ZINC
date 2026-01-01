@@ -1,0 +1,15 @@
+[
+    {
+        "origin": [
+            "https://www.zynk.one",
+            "https://zynk.one",
+            "http://localhost:5000",
+            "http://localhost:3000"
+        ],
+        "method": [
+            "GET",
+            "HEAD"
+        ],
+        "maxAgeSeconds": 3600
+    }
+]

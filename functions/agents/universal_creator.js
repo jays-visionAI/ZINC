@@ -65,53 +65,94 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
             visualIds: [{ id: "HERO", desc: "Hero" }, { id: "FEATURE", desc: "Feature" }, { id: "LIFESTYLE", desc: "Lifestyle" }]
         };
     } else if (normalizedType === 'promo_images' || normalizedType === 'images' || normalizedType === 'templates') {
-        // Layered-Gen: Use Template Archive system
+        // Layered-Gen: Use Template Archive system with LLM-powered copywriting
         const { getTemplateWithContent, getBackgroundPrompt, TEMPLATE_ARCHIVE } = require('../utils/templateArchive');
 
         const templateType = inputs.templateType || 'event_poster';
         const templateStyle = inputs.templateStyle || 'modern_tech';
 
-        // Parse user input into structured content
-        const contentFields = {
+        console.log(`[UniversalCreator] 🎨 Promo Template: ${templateType}/${templateStyle}`);
+        console.log(`[UniversalCreator] 📝 User input - Topic: "${topic}", Message: "${campaignMessage}"`);
+
+        // === STEP 1: LLM as Senior Marketing Copywriter ===
+        let contentFields = {
             headline: topic || 'Event Title',
             subtext: campaignMessage || '',
-            eventType: templateType.replace('_', ' ').toUpperCase(),
-            date: '', // Will be extracted by LLM
+            eventType: templateType.replace(/_/g, ' ').toUpperCase(),
+            date: '',
             location: '',
             ctaText: 'Learn More'
         };
 
-        // Use LLM to intelligently parse the subtext into structured fields
         try {
-            const parsePrompt = `Parse this event information into JSON fields. Input: "${campaignMessage}"
-            Return JSON only: {"date": "...", "location": "...", "ctaText": "...", "cleanSubtext": "..."}
-            If information is missing, use empty string. cleanSubtext should be the main description without date/location.`;
-            const parseRes = await executeLLM("Parser", parsePrompt);
-            const parsed = JSON.parse(parseRes.match(/\{[\s\S]*\}/)[0]);
-            contentFields.date = parsed.date || '';
-            contentFields.location = parsed.location || '';
-            contentFields.ctaText = parsed.ctaText || 'Learn More';
-            contentFields.subtext = parsed.cleanSubtext || campaignMessage;
+            const copywriterPrompt = `You are a world-class marketing copywriter. Create compelling promotional content for the following:
+
+TEMPLATE TYPE: ${templateType.replace(/_/g, ' ')}
+USER'S TOPIC: "${topic}"
+USER'S DETAILS: "${campaignMessage}"
+BRAND CONTEXT: ${knowledgeBase.substring(0, 2000)}
+
+Generate promotional content in JSON format:
+{
+    "headline": "A powerful, attention-grabbing headline (max 6 words, impactful and memorable)",
+    "subtext": "2-3 compelling lines that create urgency or excitement",
+    "eventType": "Badge/category label (e.g., PRODUCT LAUNCH, EXCLUSIVE EVENT, LIMITED OFFER)",
+    "date": "Formatted date if mentioned, or empty string",
+    "location": "Location if mentioned, or empty string", 
+    "ctaText": "Action-oriented button text (e.g., Reserve Now, Get Started, Join Free)",
+    "imagePrompt": "Detailed visual description for AI image generation - describe the ideal background image (no text in image)"
+}
+
+RULES:
+- Headline: Make it punchy, memorable, and action-oriented. NOT just the user's topic verbatim.
+- Subtext: Add value propositions, not just repeat what user said.
+- CTA: Strong action verbs that create urgency.
+- ImagePrompt: Describe mood, colors, objects, atmosphere - specific to the content.
+
+Return ONLY the JSON object.`;
+
+            const copyResult = await executeLLM("Copywriter", copywriterPrompt);
+            const parsed = JSON.parse(copyResult.match(/\{[\s\S]*\}/)[0]);
+
+            contentFields = {
+                headline: parsed.headline || topic || 'Event Title',
+                subtext: parsed.subtext || campaignMessage || '',
+                eventType: parsed.eventType || contentFields.eventType,
+                date: parsed.date || '',
+                location: parsed.location || '',
+                ctaText: parsed.ctaText || 'Learn More'
+            };
+
+            // Use LLM-generated image prompt if available
+            var customImagePrompt = parsed.imagePrompt || '';
+
+            console.log(`[UniversalCreator] ✅ LLM Copywriting complete:`, contentFields);
         } catch (e) {
-            // If parsing fails, keep original input
-            console.log('[UniversalCreator] LLM parsing failed, using raw input');
+            console.error('[UniversalCreator] ⚠️ LLM Copywriting failed, using raw input:', e.message);
+            var customImagePrompt = '';
         }
 
-        // Get background prompt based on template
-        const bgPrompt = getBackgroundPrompt(templateType, templateStyle, topic);
+        // === STEP 2: Generate Background Image ===
+        const basePrompt = getBackgroundPrompt(templateType, templateStyle, topic);
+        const finalImagePrompt = customImagePrompt
+            ? `${customImagePrompt}, ${imageStyle} style, no text, professional quality, 4K`
+            : `${basePrompt}, ${imageStyle}, high quality, no text`;
 
-        // Generate background image
+        console.log(`[UniversalCreator] 🖼️ Image prompt: ${finalImagePrompt.substring(0, 100)}...`);
+
         let backgroundUrl = '';
         try {
-            backgroundUrl = await generateWithVertexAI(`${bgPrompt}, ${imageStyle}, high quality`, 'imagen-3.0-generate-001', { aspectRatio: '9:16' });
+            backgroundUrl = await generateWithVertexAI(finalImagePrompt, 'imagen-3.0-generate-001', { aspectRatio: '9:16' });
+            console.log(`[UniversalCreator] ✅ Image generated: ${backgroundUrl.substring(0, 50)}...`);
         } catch (err) {
+            console.error('[UniversalCreator] ⚠️ Image generation failed:', err.message);
             backgroundUrl = `https://picsum.photos/900/1600?random=${Math.floor(Math.random() * 1000)}`;
         }
 
-        // Get pre-designed template and fill content
+        // === STEP 3: Combine Template + Content ===
         const finalHtml = getTemplateWithContent(templateType, templateStyle, contentFields, backgroundUrl);
 
-        console.log(`[UniversalCreator] Template mode: ${templateType}/${templateStyle}`);
+        console.log(`[UniversalCreator] 🎉 Template generation complete!`);
         return finalHtml;
 
     } else {
