@@ -3109,15 +3109,21 @@ async function generateSummary() {
         // Define qualityTier based on boost status
         const qualityTier = boostActive ? 'boost' : 'standard';
 
-        const userPrompt = `Please analyze the following source documents and generate a Brand Summary in ${labelText}.
-            
+        const userPrompt = `Please analyze the following source documents and generate a comprehensive Brand Summary in ${labelText}.
+
+IMPORTANT: Generate a DETAILED summary with 3-4 paragraphs covering:
+1. Core business overview and mission
+2. Key products/services and unique value proposition  
+3. Market position and competitive advantages
+4. Strategic direction and growth opportunities
+
 Source Weights (Importance 1-3):
 ${sourceWeights.map(s => `- ${s.title} (Importance: ${s.importance})`).join('\n')}
 
 Output Format (JSON):
 {
-    "summary": "Executive summary text (A4 level detail)...",
-    "keyInsights": ["Insight 1...", "Insight 2..."],
+    "summary": "A comprehensive 3-4 paragraph summary (minimum 300 words). Cover the full scope of the brand including mission, products, market position, and strategy. Be specific and insightful, not generic.",
+    "keyInsights": ["Insight 1 (specific and actionable)...", "Insight 2...", "Insight 3...", "Insight 4...", "Insight 5..."],
     "suggestedQuestions": ["Question 1?", "Question 2?"],
     "sourceNames": ["Source 1", "Source 2"]
 }
