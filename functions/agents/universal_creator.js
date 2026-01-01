@@ -65,65 +65,55 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
             visualIds: [{ id: "HERO", desc: "Hero" }, { id: "FEATURE", desc: "Feature" }, { id: "LIFESTYLE", desc: "Lifestyle" }]
         };
     } else if (normalizedType === 'promo_images' || normalizedType === 'images' || normalizedType === 'templates') {
-        // Layered-Gen: Template-based approach with single background image + text overlay
+        // Layered-Gen: Use Template Archive system
+        const { getTemplateWithContent, getBackgroundPrompt, TEMPLATE_ARCHIVE } = require('../utils/templateArchive');
+
         const templateType = inputs.templateType || 'event_poster';
+        const templateStyle = inputs.templateStyle || 'modern_tech';
 
-        // Template-specific configurations
-        const templateConfigs = {
-            'event_poster': {
-                aspect: '9:16',
-                layout: 'A4 portrait poster with large headline at top, event details in center, call-to-action at bottom',
-                dim: '900x1600'
-            },
-            'invitation': {
-                aspect: '4:3',
-                layout: 'Elegant invitation card with centered headline, decorative border styling, RSVP details at bottom',
-                dim: '1200x900'
-            },
-            'social_banner': {
-                aspect: '1.91:1',
-                layout: 'Wide social media banner (1200x630), bold headline left-aligned, subtle background',
-                dim: '1200x630'
-            },
-            'business_card': {
-                aspect: '1.75:1',
-                layout: 'Compact business card layout with name prominently displayed, contact info small at bottom',
-                dim: '700x400'
-            },
-            'newsletter_header': {
-                aspect: '3:1',
-                layout: 'Email header banner, centered brand headline with date, minimal text',
-                dim: '1200x400'
-            },
-            'product_announce': {
-                aspect: '16:9',
-                layout: 'Product announcement with large product name headline, key benefit subtext, launch date',
-                dim: '1600x900'
-            }
+        // Parse user input into structured content
+        const contentFields = {
+            headline: topic || 'Event Title',
+            subtext: campaignMessage || '',
+            eventType: templateType.replace('_', ' ').toUpperCase(),
+            date: '', // Will be extracted by LLM
+            location: '',
+            ctaText: 'Learn More'
         };
 
-        const config = templateConfigs[templateType] || templateConfigs['event_poster'];
+        // Use LLM to intelligently parse the subtext into structured fields
+        try {
+            const parsePrompt = `Parse this event information into JSON fields. Input: "${campaignMessage}"
+            Return JSON only: {"date": "...", "location": "...", "ctaText": "...", "cleanSubtext": "..."}
+            If information is missing, use empty string. cleanSubtext should be the main description without date/location.`;
+            const parseRes = await executeLLM("Parser", parsePrompt);
+            const parsed = JSON.parse(parseRes.match(/\{[\s\S]*\}/)[0]);
+            contentFields.date = parsed.date || '';
+            contentFields.location = parsed.location || '';
+            contentFields.ctaText = parsed.ctaText || 'Learn More';
+            contentFields.subtext = parsed.cleanSubtext || campaignMessage;
+        } catch (e) {
+            // If parsing fails, keep original input
+            console.log('[UniversalCreator] LLM parsing failed, using raw input');
+        }
 
-        strategy = {
-            role: "Senior Graphic Designer specializing in business templates",
-            visualTask: `Generate 1 premium, text-free background image suitable for a ${templateType.replace('_', ' ')}. The image should have enough empty space for text overlay.`,
-            htmlTask: `Create a single ${templateType.replace('_', ' ')} template using the LAYERED-GEN approach:
-            
-            CRITICAL RULES:
-            1. Generate exactly ONE template, not a gallery.
-            2. Use {{BACKGROUND}} as the full-bleed background image via CSS: background-image: url('{{BACKGROUND}}'); background-size: cover;
-            3. ALL TEXT must be HTML elements positioned with CSS (NOT in the image).
-            4. Headline: "${topic}"
-            5. Subtext: "${campaignMessage}"
-            6. Layout: ${config.layout}
-            7. Ensure text is readable with proper contrast (use dark overlays or text shadows).
-            8. The template should look like a professional ${templateType.replace('_', ' ')} ready for print/digital use.
-            9. Include subtle ZYNK watermark at bottom corner.`,
-            visualIds: [{ id: 'BACKGROUND', desc: `Clean background for ${templateType}` }]
-        };
+        // Get background prompt based on template
+        const bgPrompt = getBackgroundPrompt(templateType, templateStyle, topic);
 
-        // Override aspect ratio based on template type
-        advancedOptions.aspectRatio = config.aspect;
+        // Generate background image
+        let backgroundUrl = '';
+        try {
+            backgroundUrl = await generateWithVertexAI(`${bgPrompt}, ${imageStyle}, high quality`, 'imagen-3.0-generate-001', { aspectRatio: '9:16' });
+        } catch (err) {
+            backgroundUrl = `https://picsum.photos/900/1600?random=${Math.floor(Math.random() * 1000)}`;
+        }
+
+        // Get pre-designed template and fill content
+        const finalHtml = getTemplateWithContent(templateType, templateStyle, contentFields, backgroundUrl);
+
+        console.log(`[UniversalCreator] Template mode: ${templateType}/${templateStyle}`);
+        return finalHtml;
+
     } else {
         strategy = {
             role: "Senior News Editor",

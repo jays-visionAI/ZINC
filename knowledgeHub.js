@@ -3983,16 +3983,13 @@ const CREATIVE_CONFIGS = {
             { id: 'topic', type: 'text', label: 'Headline / Title', placeholder: 'e.g., Vision Chain 2026 Summit, Summer Sale 50% OFF...' },
             { id: 'campaignMessage', type: 'textarea', label: 'Subtext / Details', placeholder: 'e.g., January 15, 2026 | Grand Ballroom, Seoul\nKeynote by CEO John Smith' },
             {
-                id: 'style',
+                id: 'templateStyle',
                 type: 'visual-pick',
-                label: 'Background Style',
+                label: 'Design Style',
                 options: [
-                    { value: 'Photorealistic', label: 'Photo', icon: 'fa-camera-retro', desc: 'Real imagery' },
-                    { value: 'Gradient Abstract', label: 'Gradient', icon: 'fa-palette', desc: 'Modern blend' },
-                    { value: 'Minimalist', label: 'Minimal', icon: 'fa-circle', desc: 'Clean & Simple' },
-                    { value: '3D Render', label: '3D', icon: 'fa-cube', desc: 'High-end CG' },
-                    { value: 'Corporate', label: 'Corporate', icon: 'fa-briefcase', desc: 'Professional' },
-                    { value: 'Futuristic', label: 'Tech', icon: 'fa-rocket', desc: 'Sci-fi vibe' }
+                    { value: 'modern_tech', label: 'Modern Tech', icon: 'fa-microchip', desc: 'Gradient glow' },
+                    { value: 'corporate_elegant', label: 'Elegant', icon: 'fa-gem', desc: 'Gold accents' },
+                    { value: 'cyberpunk', label: 'Cyberpunk', icon: 'fa-bolt', desc: 'Neon vibes' }
                 ]
             }
         ],

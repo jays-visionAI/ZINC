@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500&display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .serif-title {
+            font-family: 'Playfair Display', serif;
+        }
+
+        .gold-accent {
+            color: #D4AF37;
+        }
+
+        .gold-border {
+            border-color: #D4AF37;
+        }
+
+        .gold-bg {
+            background-color: #D4AF37;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="relative w-full min-h-screen" style="aspect-ratio: 9/16; max-width: 450px; margin: 0 auto;">
+        <!-- Background Image -->
+        <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('{{BACKGROUND}}');"></div>
+
+        <!-- Dark Overlay -->
+        <div class="absolute inset-0 bg-black/60"></div>
+
+        <!-- Decorative Border -->
+        <div class="absolute inset-4 border-2 gold-border opacity-50"></div>
+        <div class="absolute inset-8 border gold-border opacity-30"></div>
+
+        <!-- Content Container -->
+        <div class="relative z-10 flex flex-col h-full p-12 text-white">
+
+            <!-- Top Accent -->
+            <div class="text-center mb-auto">
+                <div class="inline-flex items-center gap-3">
+                    <span class="h-px w-8 gold-bg"></span>
+                    <span class="text-xs tracking-[0.3em] uppercase gold-accent">{{EVENT_TYPE}}</span>
+                    <span class="h-px w-8 gold-bg"></span>
+                </div>
+            </div>
+
+            <!-- Center Section: Main Content -->
+            <div class="flex-1 flex flex-col justify-center items-center text-center">
+
+                <!-- Decorative Element -->
+                <div class="gold-accent text-3xl mb-6">✦</div>
+
+                <h1 class="serif-title text-4xl md:text-5xl font-bold leading-tight mb-6 gold-accent">
+                    {{HEADLINE}}
+                </h1>
+
+                <p class="text-base text-white/80 max-w-xs leading-relaxed mb-8 italic">
+                    {{SUBTEXT}}
+                </p>
+
+                <!-- Divider -->
+                <div class="flex items-center gap-4 mb-8">
+                    <span class="h-px w-12 gold-bg opacity-50"></span>
+                    <div class="gold-accent text-xl">◆</div>
+                    <span class="h-px w-12 gold-bg opacity-50"></span>
+                </div>
+
+                <!-- Date & Location -->
+                <div class="space-y-3 text-sm">
+                    <div class="gold-accent font-medium tracking-wider">
+                        {{DATE}}
+                    </div>
+                    <div class="text-white/70">
+                        {{LOCATION}}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Section -->
+            <div class="mt-auto flex flex-col items-center gap-6">
+                <a href="#"
+                    class="px-10 py-3 border-2 gold-border gold-accent text-sm uppercase tracking-widest hover:bg-[#D4AF37] hover:text-black transition-all duration-300">
+                    {{CTA_TEXT}}
+                </a>
+
+                <!-- Watermark -->
+                <div class="text-[10px] text-white/20 tracking-widest uppercase">
+                    Powered by ZYNK
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
