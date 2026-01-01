@@ -142,9 +142,23 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
 
     // 4. INJECTION & LIMITS
     html = String(html || '').replace(/```html/g, '').replace(/```/g, '').trim();
+
+    // Surgical Token Injection (Case-Insensitive)
     Object.keys(assetMap).forEach(k => {
-        html = html.replace(new RegExp(`{{ ?${k} ?}}`, 'g'), assetMap[k]);
+        const val = assetMap[k];
+        const regex = new RegExp(`{{ ?${k} ?}}`, 'gi');
+        html = html.replace(regex, val);
     });
+
+    // Universal Fallback: Catch any remains {{STUFF}} or broken placeholder URLs
+    const fallbackKeyword = encodeURIComponent(topic.substring(0, 30).split(' ')[0] || 'business');
+    const unsplashBase = `https://source.unsplash.com/${fallbackDim}/?${fallbackKeyword}`;
+
+    // Replace any leftover {{tokens}}
+    html = html.replace(/{{[A-Z_0-9 ]+}}/gi, () => `${unsplashBase},abstract&sig=${Math.random()}`);
+
+    // Replace via.placeholder.com or similar if LLM used them
+    html = html.replace(/https?:\/\/via\.placeholder\.com[^\s"'>]+/g, () => `${unsplashBase},premium&sig=${Math.random()}`);
 
     const LIMIT = 850000;
     if (html.length > LIMIT) {
