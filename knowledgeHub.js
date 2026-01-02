@@ -10,7 +10,7 @@
 const GOOGLE_CLIENT_ID = window.ENV_CONFIG?.GOOGLE_CLIENT_ID || '';
 const GOOGLE_API_KEY = window.ENV_CONFIG?.GOOGLE_API_KEY || '';
 // const GOOGLE_DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'];
-const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/drive.file';
+const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly';
 
 // ============================================================
 // STATE
@@ -176,7 +176,7 @@ function initializeGoogleAPIs() {
             callback: (response) => {
                 if (response.error !== undefined) {
                     console.error('OAuth error:', response);
-                    showNotification('Google Drive authentication failed', 'error');
+                    showNotification(`Google Drive authentication failed: ${response.error_description || response.error}`, 'error');
                     return;
                 }
                 accessToken = response.access_token;
@@ -278,6 +278,8 @@ function openGooglePicker() {
     }
 
     const picker = new google.picker.PickerBuilder()
+        .setAppId("670347890116") // Project Number
+        .setOrigin(window.location.protocol + '//' + window.location.host)
         .addView(new google.picker.DocsView()
             .setIncludeFolders(false)
             .setMimeTypes('application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain'))
