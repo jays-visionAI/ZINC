@@ -5463,7 +5463,7 @@ async function uploadRefineAsset(file) {
     const projectId = currentProjectId || 'temp';
     const ext = file.name.split('.').pop();
     const safeName = `refine_${Date.now()}.${ext}`;
-    const filePath = `creative-uploads/${projectId}/${safeName}`;
+    const filePath = `projects/${projectId}/refine_assets/${safeName}`;
 
     const fileRef = storageRef.child(filePath);
     await fileRef.put(file);
@@ -7081,7 +7081,7 @@ async function handleCreativeFileUpload(inputElement, fieldId) {
         const storageRef = firebase.storage().ref();
         const timestamp = Date.now();
         const ext = file.name.split('.').pop();
-        const filePath = `creative-uploads/${currentProjectId || 'temp'}/${fieldId}_${timestamp}.${ext}`;
+        const filePath = `projects/${currentProjectId || 'temp'}/creative-uploads/${fieldId}_${timestamp}.${ext}`;
         const uploadRef = storageRef.child(filePath);
 
         await uploadRef.put(file);
