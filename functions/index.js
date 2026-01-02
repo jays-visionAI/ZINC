@@ -4959,9 +4959,23 @@ exports.generateCreativeContent = onCall({
 
     const { type, inputs, advancedOptions = {}, projectContext, plan: userPlan = {}, projectId, performanceMode, sectionIndex, instruction, currentContent, assets = [] } = request.data;
 
+    // 1. Resolve Admin Policy for this feature
+    const policy = await llmRouter.getFeaturePolicy('creative_content');
+    const allowUserChoice = policy?.allowUserChoice ?? true; // Default to true if not specified
+    const defaultTier = policy?.defaultTier || 'BALANCED';
+
+    // 2. Use StrategyPlanner to determine the execution strategy (Arena, Steps, etc.)
+    const strategicPlan = StrategyPlanner.plan({ mode: performanceMode, taskType: type });
+
+    // 3. Determine the final Quality Tier based on Admin policy
+    let finalTier = defaultTier;
+    if (allowUserChoice && performanceMode) {
+        finalTier = strategicPlan.qualityTier || defaultTier;
+    }
+
     // === [NEW] SPECIAL HANDLING FOR REFINEMENT & REFRESH (CORS/IAM Bypass) ===
     if (type === 'REFINE_SECTION') {
-        console.log(`[generateCreativeContent] 🛠️ Executing REFINE_SECTION for ${projectId}`);
+        console.log(`[generateCreativeContent] 🛠️ Executing REFINE_SECTION for ${projectId} using Tier: ${finalTier}`);
         try {
             const systemPrompt = `You are an Elite Creative Director and Senior Frontend Architect. Refine the HTML based on instructions. Output ONLY inner HTML. Use Tailwind. If assets are provided, incorporate them (e.g. background-image: url('...'); or <img>).`;
             let assetContext = "";
@@ -4969,12 +4983,22 @@ exports.generateCreativeContent = onCall({
                 assetContext = `\n\nINJECTED ASSETS:\n${assets.map((url, i) => `Asset ${i + 1}: ${url}`).join('\n')}`;
             }
             const userPrompt = `USER INSTRUCTION: "${instruction}"\n\nEXISTING HTML:\n${currentContent}${assetContext}`;
-            // Use Pro for refinement
-            const response = await callLLM('google', 'gemini-1.5-pro', [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: userPrompt }
-            ], 0.7);
-            let refinedHTML = response.content || response;
+
+            // USE ROUTER: Instead of hardcoding, use the router to honor "현재 세팅된 모델"
+            const response = await llmRouter.route({
+                feature: 'creative_content',
+                qualityTier: finalTier,
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userPrompt }
+                ],
+                userId: context?.auth?.uid || request.auth?.uid,
+                projectId: projectId,
+                callLLM: callLLM,
+                temperature: 0.7
+            });
+
+            let refinedHTML = response.content || response.text || response;
             refinedHTML = refinedHTML.replace(/```html|```/gi, '').trim();
             const start = refinedHTML.indexOf('<');
             const end = refinedHTML.lastIndexOf('>');
@@ -5005,20 +5029,6 @@ exports.generateCreativeContent = onCall({
     }
     // === END SPECIAL HANDLING ===
 
-    // 1. Resolve Admin Policy for this feature
-    const policy = await llmRouter.getFeaturePolicy('creative_content');
-    const allowUserChoice = policy?.allowUserChoice ?? true; // Default to true if not specified
-    const defaultTier = policy?.defaultTier || 'BALANCED';
-
-    // 2. Use StrategyPlanner to determine the execution strategy (Arena, Steps, etc.)
-    // Note: StrategyPlanner is now model-agnostic
-    const strategicPlan = StrategyPlanner.plan({ mode: performanceMode, taskType: type });
-
-    // 3. Determine the final Quality Tier based on Admin policy
-    let finalTier = defaultTier;
-    if (allowUserChoice && performanceMode) {
-        finalTier = strategicPlan.qualityTier || defaultTier;
-    }
 
     const finalPlan = { ...strategicPlan, ...userPlan, qualityTier: finalTier };
 
