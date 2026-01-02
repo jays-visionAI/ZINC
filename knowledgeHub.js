@@ -5553,11 +5553,12 @@ async function submitRefinePalette() {
     const cleanHTML = sectionClone.innerHTML;
 
     try {
-        addLog('Calling Elite AI Refinement agent (Gemini Pro)...', 'info');
-        const refineFn = firebase.app().functions('us-central1').httpsCallable('refineCreativeContent');
+        addLog('Calling Elite AI Refinement agent (Multi-Purpose Proxy)...', 'info');
+        const creativeFn = firebase.app().functions('us-central1').httpsCallable('generateCreativeContent');
         const assetUrls = injectedRefineAssets.filter(a => a.status === 'complete').map(a => a.url);
 
-        const result = await refineFn({
+        const result = await creativeFn({
+            type: 'REFINE_SECTION',
             projectId: docId,
             sectionIndex: index,
             instruction: instruction,
@@ -5616,11 +5617,13 @@ async function swapCreativeImage(docId, imgEl) {
     imgEl.classList.add('animate-pulse', 'brightness-50');
 
     try {
-        const swapFn = firebase.app().functions('us-central1').httpsCallable('refreshCreativeImage');
-        const result = await swapFn({
+        const creativeFn = firebase.app().functions('us-central1').httpsCallable('generateCreativeContent');
+        const result = await creativeFn({
+            type: 'REFRESH_IMAGE',
             projectId: docId,
             prompt: promptText,
-            currentUrl: imgEl.src
+            currentUrl: imgEl.src,
+            aspectRatio: '16:9'
         });
 
         if (result.data && result.data.imageUrl) {

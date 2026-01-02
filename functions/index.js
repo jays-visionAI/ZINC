@@ -4957,7 +4957,53 @@ exports.generateCreativeContent = onCall({
         return { success: false, error: 'Unauthenticated' };
     }
 
-    const { type, inputs, advancedOptions = {}, projectContext, plan: userPlan = {}, projectId, performanceMode } = request.data;
+    const { type, inputs, advancedOptions = {}, projectContext, plan: userPlan = {}, projectId, performanceMode, sectionIndex, instruction, currentContent, assets = [] } = request.data;
+
+    // === [NEW] SPECIAL HANDLING FOR REFINEMENT & REFRESH (CORS/IAM Bypass) ===
+    if (type === 'REFINE_SECTION') {
+        console.log(`[generateCreativeContent] 🛠️ Executing REFINE_SECTION for ${projectId}`);
+        try {
+            const systemPrompt = `You are an Elite Creative Director and Senior Frontend Architect. Refine the HTML based on instructions. Output ONLY inner HTML. Use Tailwind. If assets are provided, incorporate them (e.g. background-image: url('...'); or <img>).`;
+            let assetContext = "";
+            if (assets && assets.length > 0) {
+                assetContext = `\n\nINJECTED ASSETS:\n${assets.map((url, i) => `Asset ${i + 1}: ${url}`).join('\n')}`;
+            }
+            const userPrompt = `USER INSTRUCTION: "${instruction}"\n\nEXISTING HTML:\n${currentContent}${assetContext}`;
+            // Use Pro for refinement
+            const response = await callLLM('google', 'gemini-1.5-pro', [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt }
+            ], 0.7);
+            let refinedHTML = response.content || response;
+            refinedHTML = refinedHTML.replace(/```html|```/gi, '').trim();
+            const start = refinedHTML.indexOf('<');
+            const end = refinedHTML.lastIndexOf('>');
+            if (start !== -1 && end !== -1 && end > start) {
+                refinedHTML = refinedHTML.substring(start, end + 1);
+            }
+            return { success: true, newHtml: refinedHTML };
+        } catch (e) {
+            console.error('[REFINE_SECTION] Error:', e);
+            throw new functions.https.HttpsError('internal', e.message);
+        }
+    }
+
+    if (type === 'REFRESH_IMAGE') {
+        const { prompt, currentUrl, aspectRatio } = request.data;
+        console.log(`[generateCreativeContent] 🖼️ Executing REFRESH_IMAGE for ${projectId}`);
+        try {
+            const imageResult = await generateWithVertexAI(
+                prompt || "Modern professional abstract background",
+                'imagen-4.0-generate-001',
+                { aspectRatio: aspectRatio || '16:9' }
+            );
+            return { success: true, imageUrl: imageResult };
+        } catch (e) {
+            console.error('[REFRESH_IMAGE] Error:', e);
+            throw new functions.https.HttpsError('internal', e.message);
+        }
+    }
+    // === END SPECIAL HANDLING ===
 
     // 1. Resolve Admin Policy for this feature
     const policy = await llmRouter.getFeaturePolicy('creative_content');
@@ -5717,108 +5763,5 @@ function generateMarketPulseData(projectData) {
 }
 
 /**
- * Refine a specific section of a creative project
+ * END OF FILE
  */
-exports.refineCreativeContent = functions.https.onCall(async (data, context) => {
-    // Authentication check
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
-
-    // Handle v1 payload data structure
-    const payload = (data && data.data) ? data.data : data;
-    const { projectId, sectionIndex, instruction, currentContent, assets = [] } = payload;
-
-    if (!projectId) throw new functions.https.HttpsError('invalid-argument', 'Missing ProjectID');
-    if (!instruction) throw new functions.https.HttpsError('invalid-argument', 'Missing instruction');
-
-    console.log(`[refineCreativeContent] (v1) Refining section ${sectionIndex} of ${projectId} with ${assets.length} assets`);
-
-    try {
-        const systemPrompt = `You are an Elite Creative Director and Senior Frontend Architect. 
-        Your task is to refine a specific section of a premium web document based on user instructions.
-        
-        CRITICAL RULES:
-        1. Output ONLY the INNER HTML content of the target section.
-        2. NO <html>, <head>, <body>, or the wrapping <section> tag.
-        3. Use Tailwind CSS for all styling. Maintain the existing brand vibe but feel free to upgrade visual hierarchy (padding, font-weights, spacing).
-        4. If the user asks for layout changes (e.g., 'columns', 'cards', 'bento'), implement them with modern Tailwind patterns.
-        5. Support rich assets: You can use Font-Awesome icons and polished typography.
-        6. NO markdown code blocks. NO commentary. Pure HTML only.
-        7. ASSET UTILIZATION: If assets (image URLs) are provided, you MUST incorporate them into the design where appropriate.
-           - If user asks for a 'background image', create a container with style="background-image: url('URL_HERE'); background-size: cover;" or use Tailwind's bg-[url('URL_HERE')] if reliable. 
-           - For standard images, use <img src="URL_HERE" class="..."> tags.
-           - Always prioritize injected assets over generic placeholders if they are relevant to the user request.`;
-
-        let assetContext = "";
-        if (assets && assets.length > 0) {
-            assetContext = `\n\nINJECTED ASSETS (Use these URLs for <img> or background-image):\n${assets.map((url, i) => `Asset ${i + 1}: ${url}`).join('\n')}`;
-        }
-
-        const userPrompt = `USER INSTRUCTION: "${instruction}"\n\nEXISTING HTML FRAGMENT:\n${currentContent}${assetContext}`;
-
-        // Use Pro for high-end reasoning and design quality
-        const response = await callLLM('google', 'gemini-1.5-pro', [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt }
-        ], 0.7);
-
-        let refinedHTML = response.content || response;
-
-        // Surgical Extraction
-        refinedHTML = refinedHTML.replace(/```html|```/gi, '').trim();
-        const start = refinedHTML.indexOf('<');
-        const end = refinedHTML.lastIndexOf('>');
-        if (start !== -1 && end !== -1 && end > start) {
-            refinedHTML = refinedHTML.substring(start, end + 1);
-        }
-
-        return { success: true, newHtml: refinedHTML };
-    } catch (e) {
-        console.error('[refineCreativeContent] Error:', e);
-        throw new functions.https.HttpsError('internal', e.message);
-    }
-});
-
-/**
- * Refresh/Swap an image in a creative project
- */
-exports.refreshCreativeImage = functions.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
-
-    const payload = (data && data.data) ? data.data : data;
-    let { projectId, prompt, currentUrl, aspectRatio } = payload;
-
-    console.log(`[refreshCreativeImage] (v1) Refreshing image for ${projectId} with prompt: ${prompt}`);
-
-    try {
-        // If aspectRatio is missing, try to fetch it from the project document
-        if (!aspectRatio && projectId) {
-            const projectDoc = await admin.firestore().collection('creativeProjects').doc(projectId).get();
-            if (projectDoc.exists) {
-                const data = projectDoc.data();
-                aspectRatio = data.advancedOptions?.aspectRatio || '16:9';
-                console.log(`[refreshCreativeImage] 📏 Auto-detected aspect ratio from project: ${aspectRatio}`);
-            }
-        }
-
-        // Clean aspect ratio (e.g. "1:1 (Square)" -> "1:1")
-        const cleanRatio = (ratio) => {
-            if (!ratio) return '16:9';
-            const match = ratio.match(/(\d+:\d+)/);
-            return match ? match[1] : '16:9';
-        };
-        const targetRatio = cleanRatio(aspectRatio);
-
-        // Simple Vertex AI call - pass options if available
-        const imageResult = await generateWithVertexAI(
-            prompt || "Modern professional technology abstract background",
-            'imagen-4.0-generate-001',
-            { aspectRatio: targetRatio }
-        );
-
-        // imageResult is the public URL string
-        return { success: true, imageUrl: imageResult };
-    } catch (e) {
-        console.error('[refreshCreativeImage] Error:', e);
-        throw new functions.https.HttpsError('internal', e.message);
-    }
-});
