@@ -4992,7 +4992,7 @@ exports.generateCreativeContent = onCall({
                     { role: 'system', content: systemPrompt },
                     { role: 'user', content: userPrompt }
                 ],
-                userId: context?.auth?.uid || request.auth?.uid,
+                userId: request.auth?.uid,
                 projectId: projectId,
                 callLLM: callLLM,
                 temperature: 0.7
