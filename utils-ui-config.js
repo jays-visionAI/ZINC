@@ -15,8 +15,8 @@
             // WORKSPACE Section
             {
                 id: 'command_center',
-                label: 'Command Center',
-                icon: 'layout-dashboard', // Uses internal mapping or SVG content
+                label: 'nav.commandCenter', // Updated to use key
+                icon: 'layout-dashboard',
                 link: '/command-center.html',
                 section: 'WORKSPACE',
                 order: 10
@@ -25,7 +25,7 @@
             // 5-STAGE PIPELINE Section
             {
                 id: 'market_pulse',
-                label: 'Market Pulse',
+                label: 'nav.marketPulse',
                 icon: 'activity',
                 link: '/marketPulse.html',
                 section: '5-STAGE PIPELINE',
@@ -33,7 +33,7 @@
             },
             {
                 id: 'brand_brain',
-                label: 'Brand Brain',
+                label: 'nav.brandBrain',
                 icon: 'brain',
                 link: '/brand-brain.html',
                 section: '5-STAGE PIPELINE',
@@ -41,7 +41,7 @@
             },
             {
                 id: 'knowledge_hub',
-                label: 'Knowledge Hub',
+                label: 'nav.knowledgeHub',
                 icon: 'folder',
                 link: '/knowledgeHub.html',
                 section: '5-STAGE PIPELINE',
@@ -49,7 +49,7 @@
             },
             {
                 id: 'studio',
-                label: 'Studio',
+                label: 'nav.studio',
                 icon: 'grid',
                 link: '/studio/',
                 section: '5-STAGE PIPELINE',
@@ -57,17 +57,18 @@
             },
             {
                 id: 'the_growth',
-                label: 'The Growth',
+                label: 'nav.theGrowth',
                 icon: 'trending-up',
                 link: '/theGrowth.html',
                 section: '5-STAGE PIPELINE',
                 order: 60
             },
 
+
             // SETTINGS Section
             {
                 id: 'settings',
-                label: 'Settings',
+                label: 'nav.settings',
                 icon: 'settings',
                 link: '/user-settings.html',
                 section: 'SETTINGS',
@@ -180,7 +181,8 @@
         'layers': '<polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline>',
         'shield': '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>',
         'credit-card': '<rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line>',
-        'rocket': '<path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.45-.15.8-.3 1.1-.5l-2.5-2.5c-.2.3-.55.65-1.1.5z"></path><path d="m12 15-3-3a22 22 0 0 1 2-5.25A22 22 0 0 1 15 12a22 22 0 0 1-5 2z"></path><path d="M9 13c1.5 1.26 2 5 2 5s3.74-.5 5-2c.45-.15.8-.3 1.1-.5l-2.5-2.5c-.2.3-.55.65-1.1.5z"></path>'
+        'rocket': '<path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.45-.15.8-.3 1.1-.5l-2.5-2.5c-.2.3-.55.65-1.1.5z"></path><path d="m12 15-3-3a22 22 0 0 1 2-5.25A22 22 0 0 1 15 12a22 22 0 0 1-5 2z"></path><path d="M9 13c1.5 1.26 2 5 2 5s3.74-.5 5-2c.45-.15.8-.3 1.1-.5l-2.5-2.5c-.2.3-.55.65-1.1.5z"></path>',
+        'eye': '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle>'
     };
 
     // Assign to window

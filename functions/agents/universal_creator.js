@@ -25,7 +25,7 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
     const combinedContext = knowledgeContext
         ? `${knowledgeContext}\n\n---\n\n${context || ''}`
         : (context || 'No specific context.');
-    const knowledgeBase = combinedContext.substring(0, 15000);
+    const knowledgeBase = combinedContext.substring(0, 30000); // Increased from 15k to 30k for larger docs
 
     const {
         imageStyle: advImageStyle,
@@ -67,9 +67,10 @@ async function createCreativeContent(inputs, context, plan, executeLLM, type, ad
 
 COMPANY/PRODUCT: "${topic}"
 DETAILS: "${campaignMessage}"
-CONTEXT: """${knowledgeBase.substring(0, 4000)}"""
+CONTEXT: """${knowledgeBase.substring(0, 15000)}"""
 NUMBER OF SLIDES: ${slideCountNum}
 CONTENT TONE: ${contentTone}
+ADDITIONAL INSTRUCTIONS: "${customPrompt || 'None'}"
 
 Create a compelling investor pitch deck outline. Return JSON only:
 {
@@ -154,8 +155,9 @@ Your specialty: Distilling complex information into powerful 1-2 page visual doc
 
 TOPIC: "${topic}"
 DETAILS: "${campaignMessage}"
-CONTEXT: """${knowledgeBase.substring(0, 5000)}"""
+CONTEXT: """${knowledgeBase.substring(0, 15000)}"""
 CONTENT TONE: ${contentTone}
+ADDITIONAL INSTRUCTIONS: "${customPrompt || 'None'}"
 
 Design an executive one-pager that transforms ideas into visual impact. Return JSON only:
 {
@@ -260,8 +262,9 @@ Return ONLY valid JSON.`;
             const brochurePrompt = `You are a Senior Product Marketing Manager. Create content for a high-end product brochure.
             PRODUCT: "${topic}"
             AUDIENCE: "${audience}"
-            CONTEXT: """${knowledgeBase.substring(0, 4000)}"""
+            CONTEXT: """${knowledgeBase.substring(0, 15000)}"""
             CONTENT TONE: ${contentTone}
+            ADDITIONAL INSTRUCTIONS: "${customPrompt || 'None'}"
             
             Return JSON only:
             {

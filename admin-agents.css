@@ -109,3 +109,40 @@ textarea.admin-form-input {
     resize: vertical;
     min-height: 100px;
 }
+
+/* Category Badges */
+.category-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.category-badge.Intelligence {
+    background: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
+.category-badge.Design {
+    background: rgba(236, 72, 153, 0.2);
+    color: #f472b6;
+    border-color: rgba(236, 72, 153, 0.3);
+}
+
+.category-badge.QA {
+    background: rgba(16, 185, 129, 0.2);
+    color: #34d399;
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+.category-badge.Strategy {
+    background: rgba(139, 92, 246, 0.2);
+    color: #a78bfa;
+    border-color: rgba(139, 92, 246, 0.3);
+}

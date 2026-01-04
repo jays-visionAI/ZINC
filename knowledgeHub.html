@@ -429,65 +429,7 @@
 
         <!-- Right: Actions -->
         <div class="flex items-center gap-4">
-            <!-- Target Language Selector -->
-            <div class="flex items-center gap-2 bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                    class="text-slate-400">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="2" y1="12" x2="22" y2="12"></line>
-                    <path
-                        d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z">
-                    </path>
-                </svg>
-                <select id="target-language-selector"
-                    class="bg-transparent text-xs font-medium text-slate-300 focus:outline-none cursor-pointer">
-                    <option value="ko" class="bg-slate-800">🇰🇷 한국어</option>
-                    <option value="en" class="bg-slate-800">🇺🇸 English</option>
-                    <option value="zh" class="bg-slate-800">🇨🇳 中文</option>
-                    <option value="hi" class="bg-slate-800">🇮🇳 हिन्दी</option>
-                    <option value="es" class="bg-slate-800">🇪🇸 Español</option>
-                    <option value="fr" class="bg-slate-800">🇫🇷 Français</option>
-                    <option value="ar" class="bg-slate-800">🇸🇦 العربية</option>
-                    <option value="bn" class="bg-slate-800">🇧🇩 বাংলা</option>
-                    <option value="ru" class="bg-slate-800">🇷🇺 Русский</option>
-                    <option value="pt" class="bg-slate-800">🇵🇹 Português</option>
-                    <option value="ur" class="bg-slate-800">🇵🇰 اردو</option>
-                    <option value="id" class="bg-slate-800">🇮🇩 Indonesia</option>
-                    <option value="de" class="bg-slate-800">🇩🇪 Deutsch</option>
-                    <option value="ja" class="bg-slate-800">🇯🇵 日本語</option>
-                    <option value="vi" class="bg-slate-800">🇻🇳 Tiếng Việt</option>
-                    <option value="tr" class="bg-slate-800">🇹🇷 Türkçe</option>
-                    <option value="it" class="bg-slate-800">🇮🇹 Italiano</option>
-                    <option value="th" class="bg-slate-800">🇹🇭 ไทย</option>
-                    <option value="tl" class="bg-slate-800">🇵🇭 Tagalog</option>
-                    <option value="mr" class="bg-slate-800">🇮🇳 मराठी</option>
-                    <option value="te" class="bg-slate-800">🇮🇳 తెలుగు</option>
-                    <option value="ta" class="bg-slate-800">🇮🇳 தமிழ்</option>
-                </select>
-            </div>
-            <span id="credit-display"
-                class="flex items-center gap-1.5 text-xs text-slate-400 bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                    class="text-amber-400">
-                    <circle cx="12" cy="12" r="8" />
-                    <line x1="12" y1="8" x2="12" y2="16" />
-                    <line x1="8" y1="12" x2="16" y2="12" />
-                </svg>
-                <span id="credit-count">--</span> credits
-            </span>
-            <button id="btn-refresh"
-                class="p-2 rounded-lg hover:bg-slate-800 transition-colors text-slate-400 hover:text-white"
-                title="Refresh">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                    <path d="M3 3v5h5" />
-                    <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
-                    <path d="M16 16h5v5" />
-                </svg>
-            </button>
+            <div id="header-controls-container"></div>
         </div>
     </header>
 

@@ -14,6 +14,64 @@ document.addEventListener("DOMContentLoaded", () => {
 let currentUser = null;
 let credentials = [];
 
+window.switchTab = function (tabId) {
+    // Hide all contents
+    document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+    document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
+
+    // Show selected content
+    const activeTab = document.getElementById(`tab-${tabId}`);
+    const activeBtn = document.querySelector(`.settings-tab[data-tab="${tabId}"]`);
+
+    if (activeTab) activeTab.style.display = 'block';
+    if (activeBtn) activeBtn.classList.add('active');
+
+    // Tab-specific logic
+    if (tabId === 'profile') {
+        renderProfileTab();
+    } else if (tabId === 'language') {
+        initLanguageTab();
+    }
+};
+
+function initLanguageTab() {
+    const globalSelect = document.getElementById('global-lang-select');
+    const mainSelect = document.getElementById('main-lang-select');
+    const subSelect = document.getElementById('sub-lang-select');
+
+    if (globalSelect) {
+        globalSelect.value = localStorage.getItem('zynk-language') || 'en';
+    }
+    if (mainSelect) {
+        mainSelect.value = localStorage.getItem('zynk-main-language') || 'ko';
+    }
+    if (subSelect) {
+        subSelect.value = localStorage.getItem('zynk-sub-language') || 'en';
+    }
+}
+
+function renderProfileTab() {
+    const container = document.getElementById('user-info-display');
+    if (!container || !currentUser) return;
+
+    container.innerHTML = `
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div style="display: flex; justify-content: space-between; padding: 12px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+                <span style="color: rgba(255,255,255,0.5);">Email</span>
+                <span style="color: white; font-weight: 500;">${currentUser.email}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 12px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+                <span style="color: rgba(255,255,255,0.5);">User ID</span>
+                <span style="color: white; font-size: 11px; font-family: monospace;">${currentUser.uid}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 12px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+                <span style="color: rgba(255,255,255,0.5);">Last Login</span>
+                <span style="color: white;">${new Date(currentUser.metadata.lastSignInTime).toLocaleString()}</span>
+            </div>
+        </div>
+    `;
+}
+
 async function initSettings(user) {
     currentUser = user;
     console.log("Settings initialized for user:", user.email);
@@ -55,6 +113,85 @@ function setupEventListeners() {
     if (addBtn) addBtn.addEventListener('click', () => openCredentialModal());
     if (testBtn) testBtn.addEventListener('click', testCredential);
     if (form) form.addEventListener('submit', saveCredential);
+
+    // 1. Global UI Language (Preview only)
+    const globalLangSelect = document.getElementById('global-lang-select');
+    if (globalLangSelect) {
+        globalLangSelect.addEventListener('change', (e) => {
+            const lang = e.target.value;
+            if (typeof setAppLanguage === 'function') {
+                // Change UI language WITHOUT persisting (preview mode)
+                setAppLanguage(lang, false);
+                console.log('[Settings] Global UI language preview:', lang);
+            }
+        });
+    }
+
+    // 2. Save Button for all Language Settings
+    const saveLangBtn = document.getElementById('save-language-btn');
+    if (saveLangBtn) {
+        saveLangBtn.addEventListener('click', () => {
+            const globalLang = document.getElementById('global-lang-select')?.value;
+            const mainLang = document.getElementById('main-lang-select')?.value;
+            const subLang = document.getElementById('sub-lang-select')?.value;
+
+            if (globalLang) {
+                localStorage.setItem('zynk-language', globalLang);
+                if (typeof setAppLanguage === 'function') {
+                    setAppLanguage(globalLang, true);
+                }
+            }
+            if (mainLang) localStorage.setItem('zynk-main-language', mainLang);
+            if (subLang) localStorage.setItem('zynk-sub-language', subLang);
+
+            console.log('[Settings] All language settings saved persisted');
+
+            // Show feedback
+            if (typeof showAlertModal === 'function') {
+                const title = (localStorage.getItem('zynk-language') === 'ko') ? '저장 완료' : 'Settings Saved';
+                const msg = (localStorage.getItem('zynk-language') === 'ko') ? '언어 설정이 성공적으로 저장되었습니다.' : 'Language settings have been saved successfully.';
+                showAlertModal(title, msg, null, { type: 'success' });
+            } else {
+                alert('✅ Settings saved');
+            }
+        });
+    }
+
+    // Add Listeners for Language Change
+    window.addEventListener('zynk-lang-changed', (e) => {
+        // Update sidebar and other components
+        if (window.UI && typeof window.UI.refreshUI === 'function') {
+            window.UI.refreshUI();
+        }
+    });
+
+    // Initial sync
+    const currentLang = localStorage.getItem('zynk-language') || 'en';
+}
+
+function updateLanguageButtons(lang) {
+    const btnEn = document.getElementById('lang-btn-en');
+    const btnKo = document.getElementById('lang-btn-ko');
+
+    if (btnEn && btnKo) {
+        if (lang === 'en') {
+            btnEn.classList.add('active');
+            btnEn.style.borderColor = 'var(--color-cyan)';
+            btnEn.style.background = 'rgba(22, 224, 189, 0.1)';
+
+            btnKo.classList.remove('active');
+            btnKo.style.borderColor = 'rgba(255,255,255,0.05)';
+            btnKo.style.background = 'rgba(255,255,255,0.03)';
+        } else {
+            btnKo.classList.add('active');
+            btnKo.style.borderColor = 'var(--color-cyan)';
+            btnKo.style.background = 'rgba(22, 224, 189, 0.1)';
+
+            btnEn.classList.remove('active');
+            btnEn.style.borderColor = 'rgba(255,255,255,0.05)';
+            btnEn.style.background = 'rgba(255,255,255,0.03)';
+        }
+    }
 }
 
 async function loadCredentials() {

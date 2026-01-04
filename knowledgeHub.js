@@ -2451,6 +2451,18 @@ function formatPlanType(type) {
 // CHAT
 // ============================================================
 function initializeEventListeners() {
+    // Listen for Content Language Changes (Standardized)
+    window.addEventListener('zynk-content-lang-changed', (e) => {
+        targetLanguage = e.detail.lang;
+        localStorage.setItem('knowledgeHub_targetLanguage', targetLanguage);
+        if (window.showNotification) {
+            const langName = typeof getLanguageName === 'function' ? getLanguageName(targetLanguage) : targetLanguage;
+            window.showNotification(`Target language changed to ${langName}`, 'success');
+        }
+        // Regenerate summary with new language
+        generateSummary();
+    });
+
     // Project selector change
     document.getElementById('project-selector').addEventListener('change', (e) => {
         selectProject(e.target.value);
@@ -2464,42 +2476,33 @@ function initializeEventListeners() {
 
     // Chat input
     const chatInput = document.getElementById('chat-input');
-    chatInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            sendChatMessage();
-        }
-    });
+    if (chatInput) {
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendChatMessage();
+            }
+        });
+    }
 
-    document.getElementById('btn-send-chat').addEventListener('click', sendChatMessage);
+    const btnSendChat = document.getElementById('btn-send-chat');
+    if (btnSendChat) {
+        btnSendChat.addEventListener('click', sendChatMessage);
+    }
 
     // Suggested questions
     document.querySelectorAll('.suggested-question').forEach(btn => {
         btn.addEventListener('click', () => {
-            chatInput.value = btn.textContent;
-            sendChatMessage();
+            if (chatInput) {
+                chatInput.value = btn.textContent;
+                sendChatMessage();
+            }
         });
     });
 
     // Regenerate summary
-    document.getElementById('btn-regenerate-summary').addEventListener('click', () => {
-        generateSummary();
-    });
-
-    // Target language selector
-    const langSelector = document.getElementById('target-language-selector');
-    if (langSelector) {
-        // Load saved preference
-        const savedLang = localStorage.getItem('knowledgeHub_targetLanguage');
-        if (savedLang) {
-            langSelector.value = savedLang;
-            targetLanguage = savedLang;
-        }
-
-        langSelector.addEventListener('change', (e) => {
-            targetLanguage = e.target.value;
-            localStorage.setItem('knowledgeHub_targetLanguage', targetLanguage);
-            if (window.showNotification) window.showNotification(`Target language changed to ${getLanguageName(targetLanguage)}`, 'success');
-            // Regenerate summary with new language
+    const btnRegenSummary = document.getElementById('btn-regenerate-summary');
+    if (btnRegenSummary) {
+        btnRegenSummary.addEventListener('click', () => {
             generateSummary();
         });
     }
@@ -4868,7 +4871,11 @@ async function generateCreativeItem() {
 
     const topic = inputs.topic || config.name;
     const activeSources = sources.filter(s => s.isActive !== false);
-    const contextText = activeSources.map(s => `${s.title}: ${s.content ? s.content.substring(0, 2000) : 'No content'}`).join('\n\n');
+
+    // Combine Project/Brand context with Knowledge Sources
+    const projectInfo = await getCurrentKnowledgeContext();
+    const sourceContext = activeSources.map(s => `[SOURCE: ${s.title}]\n${s.content ? s.content.substring(0, 5000) : 'No content'}`).join('\n\n');
+    const contextText = `${projectInfo}\n\n=== KNOWLEDGE SOURCES ===\n\n${sourceContext}`;
 
     // Add uploaded executive photo URL if available
     if (uploadedExecutivePhotoUrl && inputs.newsType === 'New Executive Hire') {

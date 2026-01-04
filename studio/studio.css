@@ -428,6 +428,59 @@
 }
 
 /* ============================================
+   🎯 TARGET BRIEF BOARD (Final Context Editor)
+   ============================================ */
+.briefing-board-container {
+    background: rgba(0, 0, 0, 0.4) !important;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.briefing-board-container:focus-within {
+    border-color: rgba(0, 255, 163, 0.3) !important;
+    background: rgba(0, 0, 0, 0.5) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), inset 0 0 10px rgba(0, 255, 163, 0.05);
+}
+
+#final-context-editor::-webkit-scrollbar {
+    width: 6px;
+}
+
+#final-context-editor::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#final-context-editor::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+}
+
+#final-context-editor::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+@keyframes sync-glow {
+    0% {
+        color: #00FFA3;
+        text-shadow: 0 0 0px rgba(0, 255, 163, 0);
+    }
+
+    50% {
+        color: #fff;
+        text-shadow: 0 0 10px rgba(0, 255, 163, 0.8);
+    }
+
+    100% {
+        color: #00FFA3;
+        text-shadow: 0 0 0px rgba(0, 255, 163, 0);
+    }
+}
+
+.sync-active {
+    animation: sync-glow 1.5s ease-in-out;
+}
+
+/* ============================================
    📱 PLATFORM-SPECIFIC PREVIEW FRAMES
    ============================================ */
 
@@ -1414,7 +1467,7 @@
 .studio-main {
     flex: 1;
     display: grid;
-    grid-template-columns: 280px 1fr 380px;
+    grid-template-columns: 310px 1fr 380px;
     gap: 1px;
     background: var(--color-border);
     overflow: hidden;
@@ -1448,6 +1501,10 @@
 
 .studio-main.collapsed {
     grid-template-columns: 80px 1fr 380px;
+}
+
+.studio-main.left-expanded {
+    grid-template-columns: 420px 1fr 380px;
 }
 
 /* Header Row & Toggle Button */
@@ -3605,4 +3662,593 @@
     padding: 24px;
     color: rgba(255, 255, 255, 0.4);
     font-size: 13px;
+}
+
+/* ============================================
+   🤖 STUDIO v2.0 - CHAT ENGINE UI (Skywork Style)
+   ============================================ */
+
+/* --- Center Panel Layout --- */
+#center-panel-engine {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    gap: 0;
+    overflow: hidden;
+    /* Manage scroll internally */
+    background: #0A0A0F;
+    /* Deep dark background */
+}
+
+/* --- 1. Header --- */
+.engine-header {
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    background: rgba(255, 255, 255, 0.02);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    flex-shrink: 0;
+}
+
+.project-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--color-text-primary);
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.mode-switcher {
+    display: flex;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 2px;
+}
+
+.mode-btn {
+    padding: 6px 16px;
+    font-size: 13px;
+    color: var(--color-text-tertiary);
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.mode-btn.active {
+    background: #1F1F27;
+    color: #fff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* --- 2. Stream Container --- */
+.engine-stream-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 20% 150px 20%;
+    /* Centered content channel */
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+/* Welcome State */
+.engine-welcome {
+    text-align: center;
+    margin-top: 100px;
+    color: var(--color-text-secondary);
+    opacity: 0.7;
+}
+
+.welcome-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    display: block;
+}
+
+.engine-welcome h3 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #fff;
+}
+
+/* Plan Card Widget */
+.plan-card {
+    background: #141419;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.plan-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.plan-title {
+    font-weight: 600;
+    color: #fff;
+    font-size: 14px;
+}
+
+.plan-badge-auto {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10B981;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.plan-toggle-btn {
+    background: transparent;
+    border: none;
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+}
+
+/* Plan Step Item */
+.plan-step {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.plan-step:last-child {
+    border-bottom: none;
+}
+
+.plan-step.active {
+    color: #fff;
+}
+
+.step-icon {
+    width: 16px;
+    text-align: center;
+    font-size: 12px;
+}
+
+/* Messages & Logs */
+.chat-log-area {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* User Message */
+.msg-user,
+.user-bubble {
+    align-self: flex-end;
+    background: #252533;
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 18px 18px 4px 18px;
+    max-width: 85%;
+    font-size: 14px;
+    line-height: 1.6;
+    margin: 8px 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* System Message (Orchestrator) */
+.msg-system {
+    align-self: flex-start;
+    color: var(--color-text-secondary);
+    font-size: 14px;
+    line-height: 1.5;
+    padding-left: 12px;
+    border-left: 2px solid #8B5CF6;
+    /* Purple indicator */
+    margin: 8px 0;
+}
+
+/* MCP Chip (The Skywork 'Badge') */
+.mcp-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: #000;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    padding: 10px 28px;
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    min-width: 300px;
+    width: fit-content;
+    margin: 8px 0;
+    font-family: 'JetBrains Mono', monospace;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.mcp-chip:hover {
+    border-color: var(--color-cyan);
+    background: rgba(0, 255, 163, 0.05);
+    color: #fff;
+    box-shadow: 0 0 15px rgba(0, 255, 163, 0.15);
+    transform: translateY(-1px);
+}
+
+.mcp-chip:active {
+    transform: translateY(0);
+    background: rgba(0, 255, 163, 0.1);
+}
+
+.mcp-chip-icon {
+    font-size: 14px;
+}
+
+.mcp-chip-label {
+    font-weight: 600;
+    color: #fff;
+    margin-right: 4px;
+}
+
+.mcp-chip-detail {
+    opacity: 0.7;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 250px;
+}
+
+/* --- 3. Input Footer --- */
+.engine-input-area {
+    padding: 20px 20%;
+    background: linear-gradient(to bottom, transparent, #0A0A0F 20%);
+    flex-shrink: 0;
+}
+
+.input-wrapper {
+    background: #1F1F27;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    transition: border-color 0.2s;
+}
+
+.input-wrapper:focus-within {
+    border-color: #8B5CF6;
+}
+
+#main-instruction-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 14px;
+    max-height: 120px;
+    resize: none;
+    outline: none;
+    line-height: 1.5;
+    padding-bottom: 4px;
+    /* Align with button */
+}
+
+.send-btn {
+    background: #8B5CF6;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.send-btn:hover {
+    background: #7C3AED;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1400px) {
+
+    .engine-stream-container,
+    .engine-input-area {
+        padding-left: 10%;
+        padding-right: 10%;
+    }
+}
+
+/* ============================================
+   ✏️ STUDIO v2.0 - EDITOR UI (Right Panel)
+   ============================================ */
+
+/* Main Layout */
+#right-panel-editor {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    gap: 0;
+    background: #13131A;
+    /* Slightly lighter than center */
+    border-left: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* 1. Toolbar */
+.editor-toolbar {
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    background: rgba(255, 255, 255, 0.02);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    flex-shrink: 0;
+}
+
+.toolbar-left,
+.toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tool-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--color-text-secondary);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.tool-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.tool-btn.active {
+    background: rgba(139, 92, 246, 0.2);
+    color: #A78BFA;
+}
+
+.divider {
+    width: 1px;
+    height: 16px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 0 4px;
+}
+
+.action-btn {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: transparent;
+    color: #fff;
+}
+
+.action-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* 2. Channel Tabs (Refined) */
+.editor-tabs-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #13131A;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 0 16px;
+    height: 48px;
+    flex-shrink: 0;
+}
+
+.editor-channel-tabs {
+    display: flex;
+    gap: 8px;
+    height: 100%;
+    align-items: center;
+}
+
+.editor-channel-tabs .channel-tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 0 12px;
+    height: 100%;
+    color: var(--color-text-secondary);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.editor-channel-tabs .channel-tab:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.editor-channel-tabs .channel-tab.active {
+    color: #fff;
+    border-bottom-color: #8B5CF6;
+}
+
+.channel-tab .tab-status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #64748B;
+    /* Waiting */
+}
+
+.channel-tab.complete .tab-status-dot {
+    background: #10B981;
+}
+
+.channel-tab.generating .tab-status-dot {
+    background: #FBBF24;
+    animation: pulse-status 1s infinite;
+}
+
+.channel-tab.error .tab-status-dot {
+    background: #EF4444;
+}
+
+.view-all-link {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: none;
+    color: #A78BFA;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    padding: 8px 0;
+}
+
+.view-all-link:hover {
+    color: #C4B5FD;
+    text-decoration: underline;
+}
+
+/* 3. Canvas */
+.editor-canvas-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+    background: #0E0E12;
+    background-image: radial-gradient(circle at center, rgba(139, 92, 246, 0.03) 0%, transparent 70%);
+}
+
+/* 3. Canvas */
+.editor-canvas-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+    background: #0E0E12;
+    /* Canvas background */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+
+/* Pagination */
+.canvas-pagination {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #1F1F27;
+    padding: 6px 12px;
+    border-radius: 20px;
+    margin-bottom: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.page-nav {
+    background: transparent;
+    border: none;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 0 4px;
+}
+
+.page-nav:hover {
+    color: #fff;
+}
+
+.page-indicator {
+    font-size: 12px;
+    color: #fff;
+    font-weight: 500;
+}
+
+/* Content Area */
+.canvas-content {
+    width: 100%;
+    max-width: 500px;
+    /* Mobile width default */
+    min-height: 400px;
+    background: transparent;
+    /* Let preview styles handle bg */
+    border-radius: 12px;
+}
+
+/* 4. Floating Actions */
+.editor-floating-actions {
+    position: absolute;
+    bottom: 24px;
+    right: 24px;
+    z-index: 10;
+}
+
+.float-btn-regenerate {
+    background: #8B5CF6;
+    color: #fff;
+    border: none;
+    border-radius: 50px;
+    padding: 12px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: transform 0.2s, background 0.2s;
+}
+
+.float-btn-regenerate:hover {
+    background: #7C3AED;
+    transform: translateY(-2px);
+}
+
+/* Multi-channel View Link */
+.view-all-link:hover {
+    color: #c4b5fd !important;
+    background: rgba(139, 92, 246, 0.1) !important;
+}
+
+.view-all-link:active {
+    transform: scale(0.95);
+}
+
+.view-all-link span {
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    text-decoration-color: rgba(167, 139, 250, 0.4);
+}
+
+.view-all-link:hover span {
+    text-decoration-color: #a78bfa;
 }

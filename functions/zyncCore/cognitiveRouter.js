@@ -11,18 +11,18 @@ class CognitiveRouter {
         // Default configurations for different tiers
         this.models = {
             eco: {
-                provider: 'openai',
-                model: 'gpt-4o-mini', // Fast, cheap
+                provider: 'deepseek',
+                model: 'deepseek-chat', // Fast, cheap
                 temperature: 0.7
             },
             balanced: {
-                provider: 'openai',
-                model: 'gpt-4o', // Standard high quality
+                provider: 'deepseek',
+                model: 'deepseek-chat', // Standard high quality
                 temperature: 0.7
             },
             pro: {
-                provider: 'openai',
-                model: 'gpt-4o', // High quality (could be o1-preview in future)
+                provider: 'deepseek',
+                model: 'deepseek-reasoner', // High quality reasoning
                 temperature: 0.9 // Higher creativity for Pro
             }
         };

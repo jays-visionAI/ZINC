@@ -11,17 +11,18 @@
 
 const admin = require('firebase-admin');
 const { RuntimeProfileAgent, TIER_DEFINITIONS } = require('./runtimeProfileAgent');
+const { logAgentExecution } = require('./utils/logger');
 
 // Hardcoded fallback models (if DB config missing)
 const FALLBACK_DEFAULTS = {
-    default: { provider: 'openai', model: 'gpt-4o', creditMultiplier: 1.0 },
-    boost: { provider: 'openai', model: 'gpt-4o', creditMultiplier: 1.5 },
+    default: { provider: 'deepseek', model: 'deepseek-chat', creditMultiplier: 1.0 },
+    boost: { provider: 'deepseek', model: 'deepseek-reasoner', creditMultiplier: 1.5 },
     // v5.0 Tier Fallbacks
     tiers: {
         '1_economy': { provider: 'deepseek', model: 'deepseek-chat', creditMultiplier: 0.2 },
-        '2_balanced': { provider: 'openai', model: 'gpt-4o-mini', creditMultiplier: 1.0 },
-        '3_standard': { provider: 'openai', model: 'gpt-4o', creditMultiplier: 2.0 },
-        '4_premium': { provider: 'anthropic', model: 'claude-3-5-sonnet-20241022', creditMultiplier: 3.0 },
+        '2_balanced': { provider: 'deepseek', model: 'deepseek-chat', creditMultiplier: 1.0 },
+        '3_standard': { provider: 'deepseek', model: 'deepseek-chat', creditMultiplier: 2.0 },
+        '4_premium': { provider: 'deepseek', model: 'deepseek-reasoner', creditMultiplier: 3.0 },
         '5_ultra': { provider: 'deepseek', model: 'deepseek-reasoner', creditMultiplier: 5.0 }
     }
 };
@@ -61,6 +62,7 @@ class LLMRouter {
             feature,
             engineType,
             runtimeProfileId, // v4.0: Direct Profile ID (Source of Truth)
+            agentId,          // v5.1: Agent Registry ID (Master Class)
             qualityTier = 'DEFAULT',
             messages,
             temperature = 0.7,
@@ -71,32 +73,70 @@ class LLMRouter {
             model: explicitModel
         } = options;
 
-        console.log(`[LLMRouter] Routing request: feature=${feature}, engineType=${engineType}, profileId=${runtimeProfileId}, tier=${qualityTier}`);
+        console.log(`[LLMRouter] Routing request: feature=${feature}, engineType=${engineType}, profileId=${runtimeProfileId}, agentId=${agentId}, tier=${qualityTier}`);
 
         // 1. Get configuration
-        // Priority: Runtime Profile ID > Engine Type Match > Feature Policy
+        // Priority: explicit overrides > Agent Registry > Runtime Profile > Engine Type > Feature
         let policy = null;
         let globalDefaults = null;
+        let agentVersionData = null;
 
-        if (runtimeProfileId) {
-            console.log(`[LLMRouter] Resolving by ID: ${runtimeProfileId}`);
-            [policy, globalDefaults] = await Promise.all([
-                this.getRuntimeRuleById(runtimeProfileId),
-                this.getGlobalDefaults()
-            ]);
-        } else if (engineType) {
-            console.log(`[LLMRouter] Resolving by Engine Type: ${engineType}`);
-            [policy, globalDefaults] = await Promise.all([
-                this.getRuntimeRule(engineType),
-                this.getGlobalDefaults()
-            ]);
-        } else {
-            console.log(`[LLMRouter] Resolving by Feature Policy: ${feature}`);
-            [policy, globalDefaults] = await Promise.all([
-                this.getFeaturePolicy(feature),
-                this.getGlobalDefaults()
-            ]);
+        // v5.1: Agent Registry Lookup
+        if (agentId) {
+            console.log(`[LLMRouter] Resolving by Agent Registry: ${agentId}`);
+            try {
+                // Fetch Global Defaults in parallel
+                [agentVersionData, globalDefaults] = await Promise.all([
+                    this.getAgentPromptById(agentId),
+                    this.getGlobalDefaults()
+                ]);
+
+                if (agentVersionData) {
+                    // Use Agent Config as Policy
+                    policy = agentVersionData.config;
+
+                    // Inject System Prompt
+                    if (agentVersionData.systemPrompt) {
+                        const sysIndex = messages.findIndex(m => m.role === 'system');
+                        const newSysMsg = { role: 'system', content: agentVersionData.systemPrompt };
+
+                        if (sysIndex >= 0) {
+                            console.log(`[LLMRouter] Overriding System Prompt from Registry for ${agentId}`);
+                            messages[sysIndex] = newSysMsg;
+                        } else {
+                            console.log(`[LLMRouter] Injecting System Prompt from Registry for ${agentId}`);
+                            messages.unshift(newSysMsg);
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error(`[LLMRouter] Failed to resolve Agent Registry for ${agentId}`, err);
+            }
         }
+
+        // Fallbacks if no agentId or agent not found
+        if (!policy) {
+            if (runtimeProfileId) {
+                console.log(`[LLMRouter] Resolving by ID: ${runtimeProfileId}`);
+                [policy, globalDefaults] = await Promise.all([
+                    this.getRuntimeRuleById(runtimeProfileId),
+                    this.getGlobalDefaults()
+                ]);
+            } else if (engineType) {
+                console.log(`[LLMRouter] Resolving by Engine Type: ${engineType}`);
+                [policy, globalDefaults] = await Promise.all([
+                    this.getRuntimeRule(engineType),
+                    this.getGlobalDefaults()
+                ]);
+            } else {
+                console.log(`[LLMRouter] Resolving by Feature Policy: ${feature}`);
+                [policy, globalDefaults] = await Promise.all([
+                    this.getFeaturePolicy(feature),
+                    this.getGlobalDefaults()
+                ]);
+            }
+        }
+
 
         // 2. Resolve Configuration (New Router Logic)
         const config = await this.resolveLLMConfig(explicitProvider, explicitModel, policy, qualityTier, globalDefaults, projectId, temperature);
@@ -125,6 +165,30 @@ class LLMRouter {
             creditCost,
             latencyMs
         });
+
+        // 5.1 Log Detailed Execution to GCS (Phase 4)
+        if (agentId) {
+            // Only log if associated with an Agent (to avoid noise)
+            const metrics = {
+                cost: creditCost, // Using credit cost as proxy for $. Real cost calculation available in logger.js
+                tokens: result.usage?.total_tokens || 0,
+                durationMs: latencyMs,
+                success: true
+            };
+
+            // Async logging (fire and forget)
+            logAgentExecution({
+                agentId,
+                runId: `run_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                projectId,
+                metrics,
+                details: {
+                    messages,
+                    response: result,
+                    config: { provider, model, temperature: config.temperature }
+                }
+            });
+        }
 
         // 6. Check if BOOST was requested but premium model not available
         let warning = null;
@@ -192,6 +256,62 @@ class LLMRouter {
             return rule;
         } catch (error) {
             console.error(`[LLMRouter] Error loading rule ${id}:`, error);
+            return null;
+        }
+    }
+
+    /**
+     * Get Agent Prompt directly from Registry (Phase 1)
+     * Fetches the active production version's prompt and config.
+     */
+    async getAgentPromptById(agentId) {
+        const cacheKey = `agent_prompt:${agentId}`;
+        const now = Date.now();
+
+        // 1. Check Cache
+        if (this.policyCache.has(cacheKey) && (now - this.cacheTime < this.CACHE_DURATION)) {
+            return this.policyCache.get(cacheKey);
+        }
+
+        try {
+            // 2. Get Registry Entry to find active version
+            const registryDoc = await this.db.collection('agentRegistry').doc(agentId).get();
+            if (!registryDoc.exists) {
+                console.warn(`[LLMRouter] Agent ID not found: ${agentId}`);
+                return null;
+            }
+            const registryData = registryDoc.data();
+            const activeVersion = registryData.currentProductionVersion;
+
+            if (!activeVersion) {
+                console.warn(`[LLMRouter] No active version for Agent: ${agentId}`);
+                return null;
+            }
+
+            // 3. Find the version doc (Assuming we query by agentId + version or use a composite ID strategy)
+            // For efficiency, we search where agentId == ID AND version == activeVersion
+            // OR if we store version ID directly in registry, that is faster.
+            // Let's assume for now we search `agentVersions` collection.
+
+            const versionSnapshot = await this.db.collection('agentVersions')
+                .where('agentId', '==', agentId)
+                .where('version', '==', activeVersion)
+                .limit(1)
+                .get();
+
+            if (versionSnapshot.empty) {
+                console.warn(`[LLMRouter] Active version ${activeVersion} not found for Agent: ${agentId}`);
+                return null;
+            }
+
+            const versionData = versionSnapshot.docs[0].data();
+
+            // 4. Cache and Return
+            this.policyCache.set(cacheKey, versionData);
+            return versionData;
+
+        } catch (error) {
+            console.error(`[LLMRouter] Error loading agent prompt ${agentId}:`, error);
             return null;
         }
     }
@@ -298,8 +418,8 @@ class LLMRouter {
     async resolveLLMConfig(explicitProvider, explicitModel, policy, qualityTier, globalDefaults, projectId, temperature) {
 
         // A. Resolve Abstract "LLM Router" Provider
-        let resolvedProvider = explicitProvider || policy?.provider || globalDefaults?.provider || 'openai';
-        let resolvedModel = explicitModel || policy?.model_id || globalDefaults?.model || 'gpt-4o';
+        let resolvedProvider = explicitProvider || policy?.provider || globalDefaults?.defaultModels?.text?.provider || globalDefaults?.provider || 'deepseek';
+        let resolvedModel = explicitModel || policy?.model_id || globalDefaults?.defaultModels?.text?.model || globalDefaults?.model || 'deepseek-chat';
 
         if (resolvedProvider === 'llm_router') {
             const abstractTag = resolvedModel;
@@ -318,20 +438,20 @@ class LLMRouter {
                 console.warn(`[LLMRouter] No mapping found for '${abstractTag}', using hardcoded fallback.`);
                 switch (abstractTag) {
                     case 'reasoning_optimized':
-                        resolvedProvider = 'openai';
-                        resolvedModel = 'gpt-4o';
+                        resolvedProvider = 'deepseek';
+                        resolvedModel = 'deepseek-reasoner';
                         break;
                     case 'image_optimized':
                         resolvedProvider = 'openai';
                         resolvedModel = 'dall-e-3';
                         break;
                     case 'speed_optimized':
-                        resolvedProvider = 'openai';
-                        resolvedModel = 'gpt-4o-mini';
+                        resolvedProvider = 'deepseek';
+                        resolvedModel = 'deepseek-chat';
                         break;
                     default:
-                        resolvedProvider = 'openai';
-                        resolvedModel = 'gpt-4o';
+                        resolvedProvider = 'deepseek';
+                        resolvedModel = 'deepseek-chat';
                 }
             }
         }
@@ -364,9 +484,9 @@ class LLMRouter {
                         console.log(`[LLMRouter] Boost missing, falling back to reasoning_optimized: ${resolvedProvider}/${resolvedModel}`);
                     } else {
                         // Hardcoded Fallback
-                        resolvedProvider = 'openai';
-                        resolvedModel = 'gpt-4o';
-                        console.warn('[LLMRouter] Boost and Tag defaults missing, falling back to GPT-4o');
+                        resolvedProvider = 'deepseek';
+                        resolvedModel = 'deepseek-chat';
+                        console.warn('[LLMRouter] Boost and Tag defaults missing, falling back to Deepseek');
                     }
 
                     // Boost Params

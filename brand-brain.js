@@ -78,6 +78,8 @@ async function initializeBrandBrain() {
         if (user) {
             await loadUserProjects(user.uid);
             initializeEventListeners();
+
+            // Initialize Content Language Selector
         }
     });
 }

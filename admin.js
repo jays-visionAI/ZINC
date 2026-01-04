@@ -118,6 +118,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function navigateToPage(page) {
+        if (!page) page = 'overview'; // Fallback for empty hash
         // PRD 11.4: Redirect deprecated pages
         if (page === 'agentruns') {
             // Redirect Agent Runs to Sub-Agents Execution Logs tab
@@ -138,6 +139,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             actualPage = 'agentrun-detail';
         } else if (page.startsWith('project-detail/')) {
             actualPage = 'project-detail';
+        } else if (page.startsWith('registry-detail/')) {
+            actualPage = 'registry-detail';
         }
 
         currentPage = actualPage;
@@ -165,7 +168,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             agentruns: "Agent Execution Logs",
             subagents: "Sub-Agent Management",
             'channel-profiles': "Channel Profile Management",
+            'registry': 'Agent Registry',
+            'registry-detail': 'Agent Version Control',
             'runtime-profiles': 'Runtime Profile Management',
+            'registry': 'Agent Registry',
+            'registry-detail': 'Agent Version Control',
             'runtime-performance': 'Runtime Performance & Analytics',
             'kpi-management': 'KPI Management',
             performance: "Performance & KPI",
@@ -180,7 +187,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             'pipeline-studio': "Pipeline: Studio Settings",
             'pipeline-growth': "Pipeline: The Growth Settings",
             settings: "Settings",
-            'ui-menu': "UI & Menu Management"
+            'ui-menu': "UI & Menu Management",
+            'vision-test': "👁️ Vision QA Test (Aesthetic Critic)",
+            monitoring: "📊 System Monitoring & Analytics"
         };
         document.getElementById("admin-page-title").textContent = titles[actualPage] || "Admin";
 

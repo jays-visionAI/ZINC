@@ -15,6 +15,7 @@ const functions = require('firebase-functions');
 const { onCall, onRequest } = require('firebase-functions/v2/https');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { createCreativeContent } = require('./agents/universal_creator');
+const { analyzeAesthetic } = require('./agents/aesthetic_critic');
 const { generateWithVertexAI } = require('./utils/vertexAI');
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const admin = require('firebase-admin');
@@ -643,9 +644,9 @@ async function callLLM(provider, model, messages, temperature = 0.7) {
             return await callDeepSeekInternal(apiKey, model || 'deepseek-chat', messages, temperature);
 
         default:
-            // Fallback to OpenAI
-            console.warn(`[callLLM] Unknown provider ${provider}, falling back to OpenAI`);
-            return await callOpenAIInternal(apiKey, model || 'gpt-4o-mini', messages, temperature);
+            // Fallback to DeepSeek instead of OpenAI to respect user preference
+            console.warn(`[callLLM] Unknown provider ${provider}, falling back to DeepSeek`);
+            return await callDeepSeekInternal(apiKey, model || 'deepseek-chat', messages, temperature);
     }
 }
 
@@ -5773,5 +5774,66 @@ function generateMarketPulseData(projectData) {
 }
 
 /**
+ * Aesthetic Critic (Vision QA)
+ * Analyzes webpage screenshots for design quality
+ * Requires: Puppeteer (2GB Memory recommended)
+ */
+/**
+ * Aesthetic Critic (Vision QA)
+ * Analyzes webpage screenshots for design quality
+ * Requires: Puppeteer (2GB Memory recommended)
+ */
+exports.analyzeAesthetic = onCall({
+    timeoutSeconds: 300,
+    memory: '4GiB',
+    cors: '*'
+}, analyzeAesthetic);
+
+/**
  * END OF FILE
  */
+
+/**
+ * Scheduled Data Cleanup (TTL)
+ * Deletes agent run logs older than 30 days to save Firestore storage.
+ * Runs every day at midnight.
+ */
+exports.cleanupOldLogs = onSchedule("every day 00:00", async (event) => {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    console.log(`[Cleanup] Starting log cleanup for docs older than ${thirtyDaysAgo.toISOString()}`);
+
+    try {
+        const snapshot = await db.collection('agentRuns')
+            .where('createdAt', '<', admin.firestore.Timestamp.fromDate(thirtyDaysAgo))
+            .limit(500) // Batch limit
+            .get();
+
+        if (snapshot.empty) {
+            console.log('[Cleanup] No old logs found to delete.');
+            return;
+        }
+
+        const batch = db.batch();
+        snapshot.docs.forEach(doc => {
+            batch.delete(doc.ref);
+        });
+
+        await batch.commit();
+        console.log(`[Cleanup] Successfully deleted ${snapshot.size} old log documents.`);
+
+    } catch (error) {
+        console.error('[Cleanup] Failed to delete old logs:', error);
+    }
+});
+
+// ============================================
+// Phase 5: Registry Seeding (Callable)
+// ============================================
+exports.seedMasterAgents = require('./maintenance/seedMasterAgents').seedMasterAgents;
+
+// ============================================
+// Phase 5: Studio Pipeline V2
+// ============================================
+exports.executeStudioPipeline = require('./studioPipeline').executeStudioPipeline;

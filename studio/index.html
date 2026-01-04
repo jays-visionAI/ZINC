@@ -15,6 +15,23 @@
         rel="stylesheet">
 
     <!-- Styles -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: { 850: '#151f32', 900: '#0f172a', 950: '#020617' },
+                        brand: { 500: '#6366f1', 600: '#4f46e5' },
+                        accent: { 500: '#10b981' }
+                    },
+                    fontFamily: { sans: ['Inter', 'sans-serif'] }
+                },
+            },
+        };
+    </script>
+    <link rel="icon" type="image/png" href="../favicon.png">
     <link rel="stylesheet" href="../styles.css">
     <link rel="stylesheet" href="studio.css">
 
@@ -52,7 +69,7 @@
             </div>
         </div>
 
-        <div class="studio-header-right">
+        <div class="flex items-center gap-4">
             <button id="booster-toggle-btn" class="booster-btn" title="Activate Booster Mode (Max Performance)">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z">
@@ -65,6 +82,8 @@
                 </svg>
                 <span>BOOST</span>
             </button>
+            <div id="header-controls-container"></div>
+
             <div class="studio-timer" id="studio-timer">
                 <span class="timer-dot"></span>
                 <span>00:00</span>
@@ -82,600 +101,414 @@
     <main class="studio-main">
         <!-- LEFT PANEL: Workflow Config -->
         <aside class="studio-panel studio-panel-left">
-            <div class="panel-section header-section">
-                <div class="panel-header-row">
-                    <h3 class="panel-title">Workflow Config</h3>
-                    <button id="sidebar-toggle" class="sidebar-toggle-btn" aria-label="Toggle Sidebar">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                            <line x1="9" y1="3" x2="9" y2="21"></line>
-                            <path d="M15 10l-2 2 2 2"></path>
-                        </svg>
-                    </button>
-                </div>
-
-                <div class="config-group">
-                    <label>Template Selection</label>
-                    <select id="workflow-template" class="template-dropdown">
-                        <option value="quick">Quick Post</option>
-                        <option value="standard" selected>Standard</option>
-                        <option value="premium">Premium</option>
-                        <option value="seo_focused">SEO Focused</option>
-                        <option value="full_media">Full Media</option>
-                    </select>
+            <!-- Source Context History (Restored for absorbed functionality) -->
+            <div class="panel-section history-section" style="margin-top: 10px; flex-shrink: 0;">
+                <h3 class="panel-title"
+                    style="font-size: 11px; color: #666; margin-bottom: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+                    Context History</h3>
+                <div id="source-context-display" class="source-display-box"
+                    style="display:flex; flex-direction:column; gap:8px; max-height:220px; overflow-y:auto; padding-right: 4px;">
+                    <!-- Dynamically populated by studio.js -->
                 </div>
             </div>
 
-            <div class="panel-section flex-grow">
-                <div class="panel-header-row"
-                    style="display: flex; justify-content: space-between; align-items: center;">
-                    <h3 class="panel-title">Agent Roster <span class="agent-count">(12)</span></h3>
-                    <button id="btn-team-settings" class="team-settings-btn" onclick="openTeamSettingsModal()"
-                        title="Team Settings">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <circle cx="12" cy="12" r="3"></circle>
-                            <path
-                                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
-                            </path>
-                        </svg>
-                    </button>
+            <!-- FINAL CONTEXT: Briefing Board (New Implementation) -->
+            <div class="panel-section briefing-section"
+                style="margin-top: 24px; flex: 1; display: flex; flex-direction: column; min-height: 0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h3 class="panel-title"
+                        style="font-size: 11px; color: #fff; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px;">
+                        <span style="color: #00FFA3;">🎯</span> Target Brief
+                    </h3>
+                    <span id="brief-sync-indicator"
+                        style="font-size: 9px; color: #00FFA3; opacity: 0; transition: opacity 0.5s;">Synced</span>
                 </div>
-                <div id="agent-roster" class="agent-roster-grid">
-                    <!-- Phase 1: Research -->
-                    <div class="agent-card active" data-agent="research">
-                        <svg class="agent-icon">
-                            <use href="agent-icons.svg#icon-research" />
-                        </svg>
-                        <div class="agent-label">Research</div>
-                    </div>
-                    <div class="agent-card" data-agent="seo_watcher">
-                        <svg class="agent-icon">
-                            <use href="agent-icons.svg#icon-seo_watcher" />
-                        </svg>
-                        <div class="agent-label">SEO Watcher</div>
-                    </div>
-                    <div class="agent-card active" data-agent="knowledge_curator">
-                        <svg class="agent-icon">
-                            <use href="agent-icons.svg#icon-knowledge_curator" />
-                        </svg>
-                        <div class="agent-label">Knowledge</div>
-                    </div>
-                    <div class="agent-card" data-agent="kpi">
-                        <svg class="agent-icon">
-                            <use href="agent-icons.svg#icon-kpi" />
-                        </svg>
-                        <div class="agent-label">KPI Advisor</div>
-                    </div>
 
-                    <!-- Required: Planner -->
-                    <div class="agent-card active required" data-agent="planner">
-                        <svg class="agent-icon">
-                            <use href="agent-icons.svg#icon-planner" />
-                        </svg>
-                        <div class="agent-label">Planner</div>
-                    </div>
+                <div class="briefing-board-container"
+                    style="flex: 1; min-height: 0; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; transition: all 0.3s ease;">
+                    <textarea id="final-context-editor"
+                        placeholder="Your finalized content strategy will appear here. AI will use this as the ultimate reference."
+                        style="flex: 1; width: 100%; background: transparent; border: none; color: rgba(255,255,255,0.9); font-size: 13px; line-height: 1.6; padding: 16px; outline: none; resize: none; overflow-y: auto; font-family: 'Inter', sans-serif;"></textarea>
 
-                    <!-- Phase 2: Creation -->
-                    <div class="agent-card active required" data-agent="creator_text">
-                        <svg class="agent-icon">
-                            <use href="agent-icons.svg#icon-creator_text" />
-                        </svg>
-                        <div class="agent-label">Text Creator</div>
-                    </div>
-                    <div class="agent-card" data-agent="creator_image">
-                        <svg class="agent-icon">
-                            <use href="agent-icons.svg#icon-creator_image" />
-                        </svg>
-                        <div class="agent-label">Image Creator</div>
-                    </div>
-                    <div class="agent-card disabled" data-agent="creator_video">
-                        <svg class="agent-icon">
-                            <use href="agent-icons.svg#icon-creator_video" />
-                        </svg>
-                        <div class="agent-label">Video Planner</div>
-                    </div>
-
-                    <!-- Phase 3: Validation -->
-                    <div class="agent-card active" data-agent="compliance">
-                        <svg class="agent-icon">
-                            <use href="agent-icons.svg#icon-compliance" />
-                        </svg>
-                        <div class="agent-label">Compliance</div>
-                    </div>
-                    <div class="agent-card" data-agent="seo_optimizer">
-                        <svg class="agent-icon">
-                            <use href="agent-icons.svg#icon-seo_optimizer" />
-                        </svg>
-                        <div class="agent-label">SEO Optimizer</div>
-                    </div>
-                    <div class="agent-card" data-agent="evaluator">
-                        <svg class="agent-icon">
-                            <use href="agent-icons.svg#icon-evaluator" />
-                        </svg>
-                        <div class="agent-label">Evaluator</div>
-                    </div>
-
-                    <!-- Phase 4: Final -->
-                    <div class="agent-card active required" data-agent="manager">
-                        <svg class="agent-icon">
-                            <use href="agent-icons.svg#icon-manager" />
-                        </svg>
-                        <div class="agent-label">Manager</div>
+                    <div
+                        style="padding: 10px 16px; background: rgba(255,255,255,0.02); border-top: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
+                        <span id="brief-char-count" style="font-size: 10px; color: #666;">0 characters</span>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="btn-clear-brief" title="Clear Brief"
+                                style="background: transparent; border: none; color: #666; cursor: pointer; padding: 2px;">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2.5">
+                                    <path
+                                        d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                                    </path>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="panel-section stats-section">
-                <div class="stats-grid">
-                    <div class="stat-box">
-                        <div class="stat-label">Selected:</div>
-                        <div class="stat-value" id="stats-agents">10/12 agents</div>
+            <!-- Stats Section -->
+            <div class="panel-section stats-section"
+                style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.05);">
+                <div class="stats-grid" style="display: flex; gap: 10px; font-size: 11px; color: #666;">
+                    <div class="stat-box" style="display: flex; gap: 4px;">
+                        <span class="stat-label">Agents:</span>
+                        <span class="stat-value" id="stats-agents" style="color: #888;">Auto</span>
                     </div>
-                    <div class="stat-box">
-                        <div class="stat-label">Est. Time:</div>
-                        <div class="stat-value" id="stats-time">3 min</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-label">Cost:</div>
-                        <div class="stat-value" id="stats-cost">$0.15</div>
+                    <div class="stat-box" style="display: flex; gap: 4px;">
+                        <span class="stat-label">Est. Time:</span>
+                        <span class="stat-value" id="stats-time" style="color: #888;">-- min</span>
                     </div>
                 </div>
             </div>
-
-            <button id="start-execution-btn" class="btn-start-execution" disabled>
-                Start Execution ▶
-            </button>
         </aside>
 
-        <!-- CENTER PANEL: Pipeline Visualization -->
-        <section class="studio-panel studio-panel-center">
-            <div class="panel-section dag-section">
-                <div class="dag-header">
-                    <h3 class="panel-title">Workflow Pipeline</h3>
-                    <div class="dag-zoom-controls">
-                        <button class="zoom-btn" id="zoom-out" title="Zoom Out">−</button>
-                        <span class="zoom-level" id="zoom-level">100%</span>
-                        <button class="zoom-btn" id="zoom-in" title="Zoom In">+</button>
-                        <button class="zoom-btn" id="zoom-reset" title="Reset">⟲</button>
+        <!-- CENTER PANEL: Orchestrator Chat Engine -->
+        <section class="studio-panel studio-panel-center" id="center-panel-engine">
+            <!-- 1. Header: Project & Mode -->
+            <div class="engine-header">
+                <div class="project-info">
+                    <span class="project-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #60A5FA;">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                        </svg>
+                    </span>
+                    <span class="project-name" id="current-project-name">Select Project...</span>
+                </div>
+                <div class="mode-switcher">
+                    <button class="mode-btn active" data-mode="agent">Agent Engine</button>
+                    <button class="mode-btn" data-mode="social">Social Media</button>
+                </div>
+            </div>
+
+            <!-- 2. Main Scroll Area: Stream -->
+            <div class="engine-stream-container" id="chat-stream-container">
+
+                <!-- A. Plan Card Widget (Hidden by default, shown when plan exists) -->
+                <div id="plan-card-widget" class="plan-card" style="display:none;">
+                    <div class="plan-header">
+                        <span class="plan-title">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                style="vertical-align: middle; margin-right: 6px;">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                                <line x1="16" y1="2" x2="16" y2="6" />
+                                <line x1="8" y1="2" x2="8" y2="6" />
+                                <line x1="3" y1="10" x2="21" y2="10" />
+                            </svg>
+                            Execution Plan</span>
+                        <span class="plan-badge-auto">Auto-Running</span>
+                        <button class="plan-toggle-btn" onclick="togglePlanDetails()">▼</button>
+                    </div>
+                    <div class="plan-body" id="plan-steps-list">
+                        <!-- Dynamic Steps will be injected here -->
                     </div>
                 </div>
-                <div id="dag-visualizer" class="dag-visualizer">
-                    <div id="dag-canvas" class="dag-canvas">
-                        <svg id="dag-svg" class="dag-svg" viewBox="0 0 500 480">
-                            <defs>
-                                <!-- Gradient for connections -->
-                                <linearGradient id="connection-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                                    <stop offset="0%" stop-color="#8B5CF6" stop-opacity="0.6" />
-                                    <stop offset="100%" stop-color="#16E0BD" stop-opacity="0.8" />
-                                </linearGradient>
-                                <!-- Glow filter for active nodes -->
-                                <filter id="glow-running" x="-50%" y="-50%" width="200%" height="200%">
-                                    <feGaussianBlur stdDeviation="3" result="blur" />
-                                    <feMerge>
-                                        <feMergeNode in="blur" />
-                                        <feMergeNode in="SourceGraphic" />
-                                    </feMerge>
-                                </filter>
-                                <filter id="glow-complete" x="-50%" y="-50%" width="200%" height="200%">
-                                    <feGaussianBlur stdDeviation="3" result="blur" />
-                                    <feMerge>
-                                        <feMergeNode in="blur" />
-                                        <feMergeNode in="SourceGraphic" />
-                                    </feMerge>
-                                </filter>
-                                <!-- Particle gradient -->
-                                <radialGradient id="particle-gradient">
-                                    <stop offset="0%" stop-color="#16E0BD" />
-                                    <stop offset="100%" stop-color="#16E0BD" stop-opacity="0" />
-                                </radialGradient>
-                            </defs>
 
-                            <!-- Connection Paths Group -->
-                            <g id="dag-connections" class="dag-connections">
-                                <!-- Phase 1 (Research Row) to Planner -->
-                                <!-- Research (100,100) to Planner (260,130) -->
-                                <path class="dag-path" id="path-research-planner"
-                                    d="M100,100 C100,115 260,115 260,130" />
-                                <!-- SEO (200,100) to Planner (260,130) -->
-                                <path class="dag-path" id="path-seo-planner" d="M200,100 C200,115 260,115 260,130" />
-                                <!-- Knowledge (300,100) to Planner (260,130) -->
-                                <path class="dag-path" id="path-knowledge-planner"
-                                    d="M300,100 C300,115 260,115 260,130" />
-                                <!-- KPI (400,100) to Planner (260,130) -->
-                                <path class="dag-path" id="path-kpi-planner" d="M400,100 C400,115 260,115 260,130" />
-
-                                <!-- Planner (260,190) to Creation -->
-                                <!-- Planner to Text (150,220) -->
-                                <path class="dag-path" id="path-planner-text" d="M260,190 C260,205 150,205 150,220" />
-                                <!-- Planner to Image (280,220) -->
-                                <path class="dag-path" id="path-planner-image" d="M260,190 C260,205 280,205 280,220" />
-                                <!-- Planner to Video (400,220) -->
-                                <path class="dag-path" id="path-planner-video" d="M260,190 C260,205 400,205 400,220" />
-
-                                <!-- Creation to Validation -->
-                                <!-- Text (150,280) to Compliance (100,310) -->
-                                <path class="dag-path" id="path-text-compliance"
-                                    d="M150,280 C150,295 100,295 100,310" />
-                                <!-- Text (150,280) to SEO Opt (220,310) -->
-                                <path class="dag-path" id="path-text-seo" d="M150,280 C150,295 220,295 220,310" />
-                                <!-- Image (280,280) to Evaluator (340,310) -->
-                                <path class="dag-path" id="path-image-evaluator"
-                                    d="M280,280 C280,295 340,295 340,310" />
-
-                                <!-- Validation to Manager (260,400) -->
-                                <!-- Compliance (100,370) to Manager -->
-                                <path class="dag-path" id="path-compliance-manager"
-                                    d="M100,370 C100,385 260,385 260,400" />
-                                <!-- SEO Opt (220,370) to Manager -->
-                                <path class="dag-path" id="path-seo-manager" d="M220,370 C220,385 260,385 260,400" />
-                                <!-- Evaluator (340,370) to Manager -->
-                                <path class="dag-path" id="path-evaluator-manager"
-                                    d="M340,370 C340,385 260,385 260,400" />
-                            </g>
-
-                            <!-- Particle Effects Group -->
-                            <g id="dag-particles" class="dag-particles">
-                                <!-- Particles will be dynamically added here -->
-                            </g>
-
-                            <!-- Nodes Group -->
-                            <g id="dag-nodes" class="dag-nodes">
-                                <!-- Phase 1: Research -->
-                                <g class="dag-node waiting" id="node-research" transform="translate(60, 40)">
-                                    <rect class="node-bg" x="0" y="0" width="80" height="60" rx="8" />
-                                    <svg class="node-icon" x="28" y="8" width="24" height="24" viewBox="0 0 24 24"
-                                        fill="none" stroke="currentColor" stroke-width="1.5">
-                                        <circle cx="11" cy="11" r="8" />
-                                        <path d="M21 21l-4.35-4.35" />
-                                    </svg>
-                                    <text class="node-label" x="40" y="48" text-anchor="middle">Research</text>
-                                </g>
-                                <g class="dag-node waiting" id="node-seo" transform="translate(160, 40)">
-                                    <rect class="node-bg" x="0" y="0" width="80" height="60" rx="8" />
-                                    <svg class="node-icon" x="28" y="8" width="24" height="24" viewBox="0 0 24 24"
-                                        fill="none" stroke="currentColor" stroke-width="1.5">
-                                        <circle cx="12" cy="12" r="10" />
-                                        <path d="M12 6v6l4 2" />
-                                    </svg>
-                                    <text class="node-label" x="40" y="48" text-anchor="middle">SEO</text>
-                                </g>
-                                <g class="dag-node waiting" id="node-knowledge" transform="translate(260, 40)">
-                                    <rect class="node-bg" x="0" y="0" width="80" height="60" rx="8" />
-                                    <svg class="node-icon" x="28" y="8" width="24" height="24" viewBox="0 0 24 24"
-                                        fill="none" stroke="currentColor" stroke-width="1.5">
-                                        <path d="M4 19.5A2.5 2.5 0 016.5 17H20" />
-                                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
-                                    </svg>
-                                    <text class="node-label" x="40" y="48" text-anchor="middle">Knowledge</text>
-                                </g>
-                                <g class="dag-node waiting" id="node-kpi" transform="translate(360, 40)">
-                                    <rect class="node-bg" x="0" y="0" width="80" height="60" rx="8" />
-                                    <svg class="node-icon" x="28" y="8" width="24" height="24" viewBox="0 0 24 24"
-                                        fill="none" stroke="currentColor" stroke-width="1.5">
-                                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-                                    </svg>
-                                    <text class="node-label" x="40" y="48" text-anchor="middle">KPI</text>
-                                </g>
-
-                                <!-- Aggregator: Planner -->
-                                <g class="dag-node waiting" id="node-planner" transform="translate(220, 130)">
-                                    <rect class="node-bg node-main" x="0" y="0" width="80" height="60" rx="8" />
-                                    <svg class="node-icon" x="28" y="8" width="24" height="24" viewBox="0 0 24 24"
-                                        fill="none" stroke="currentColor" stroke-width="1.5">
-                                        <circle cx="12" cy="12" r="10" />
-                                        <circle cx="12" cy="12" r="6" />
-                                        <circle cx="12" cy="12" r="2" />
-                                    </svg>
-                                    <text class="node-label" x="40" y="48" text-anchor="middle">Planner</text>
-                                </g>
-
-                                <!-- Phase 2: Creation -->
-                                <g class="dag-node waiting" id="node-text" transform="translate(110, 220)">
-                                    <rect class="node-bg" x="0" y="0" width="80" height="60" rx="8" />
-                                    <svg class="node-icon" x="28" y="8" width="24" height="24" viewBox="0 0 24 24"
-                                        fill="none" stroke="currentColor" stroke-width="1.5">
-                                        <path d="M12 19l7-7 3 3-7 7-3-3z" />
-                                        <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
-                                    </svg>
-                                    <text class="node-label" x="40" y="48" text-anchor="middle">Text</text>
-                                </g>
-                                <g class="dag-node waiting" id="node-image" transform="translate(240, 220)">
-                                    <rect class="node-bg" x="0" y="0" width="80" height="60" rx="8" />
-                                    <svg class="node-icon" x="28" y="8" width="24" height="24" viewBox="0 0 24 24"
-                                        fill="none" stroke="currentColor" stroke-width="1.5">
-                                        <rect x="3" y="3" width="18" height="18" rx="2" />
-                                        <circle cx="8.5" cy="8.5" r="1.5" />
-                                        <path d="M21 15l-5-5L5 21" />
-                                    </svg>
-                                    <text class="node-label" x="40" y="48" text-anchor="middle">Image</text>
-                                </g>
-                                <g class="dag-node waiting disabled" id="node-video" transform="translate(360, 220)">
-                                    <rect class="node-bg" x="0" y="0" width="80" height="60" rx="8" />
-                                    <svg class="node-icon" x="28" y="8" width="24" height="24" viewBox="0 0 24 24"
-                                        fill="none" stroke="currentColor" stroke-width="1.5">
-                                        <rect x="2" y="4" width="20" height="14" rx="2" />
-                                        <path d="M10 9l5 3-5 3z" />
-                                    </svg>
-                                    <text class="node-label" x="40" y="48" text-anchor="middle">Video</text>
-                                </g>
-
-                                <!-- Phase 3: Validation -->
-                                <g class="dag-node waiting" id="node-compliance" transform="translate(60, 310)">
-                                    <rect class="node-bg" x="0" y="0" width="80" height="60" rx="8" />
-                                    <svg class="node-icon" x="28" y="8" width="24" height="24" viewBox="0 0 24 24"
-                                        fill="none" stroke="currentColor" stroke-width="1.5">
-                                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                                    </svg>
-                                    <text class="node-label" x="40" y="48" text-anchor="middle">Compliance</text>
-                                </g>
-                                <g class="dag-node waiting" id="node-seo-opt" transform="translate(180, 310)">
-                                    <rect class="node-bg" x="0" y="0" width="80" height="60" rx="8" />
-                                    <svg class="node-icon" x="28" y="8" width="24" height="24" viewBox="0 0 24 24"
-                                        fill="none" stroke="currentColor" stroke-width="1.5">
-                                        <circle cx="12" cy="12" r="3" />
-                                        <path
-                                            d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33" />
-                                    </svg>
-                                    <text class="node-label" x="40" y="48" text-anchor="middle">SEO Opt</text>
-                                </g>
-                                <g class="dag-node waiting" id="node-evaluator" transform="translate(300, 310)">
-                                    <rect class="node-bg" x="0" y="0" width="80" height="60" rx="8" />
-                                    <svg class="node-icon" x="28" y="8" width="24" height="24" viewBox="0 0 24 24"
-                                        fill="none" stroke="currentColor" stroke-width="1.5">
-                                        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-                                        <path d="M9 15l2 2 4-4" />
-                                    </svg>
-                                    <text class="node-label" x="40" y="48" text-anchor="middle">Evaluator</text>
-                                </g>
-
-                                <!-- Phase 4: Final -->
-                                <g class="dag-node waiting" id="node-manager" transform="translate(220, 400)">
-                                    <rect class="node-bg node-main" x="0" y="0" width="80" height="60" rx="8" />
-                                    <svg class="node-icon" x="28" y="8" width="24" height="24" viewBox="0 0 24 24"
-                                        fill="none" stroke="currentColor" stroke-width="1.5">
-                                        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-                                        <circle cx="12" cy="7" r="4" />
-                                    </svg>
-                                    <text class="node-label" x="40" y="48" text-anchor="middle">Manager</text>
-                                </g>
-                            </g>
-
-                            <!-- Phase Labels -->
-                            <g class="dag-phase-labels">
-                                <text class="phase-label" x="20" y="70" transform="rotate(-90, 20, 70)">Research</text>
-                                <text class="phase-label" x="20" y="160"
-                                    transform="rotate(-90, 20, 160)">Planning</text>
-                                <text class="phase-label" x="20" y="250"
-                                    transform="rotate(-90, 20, 250)">Creation</text>
-                                <text class="phase-label" x="20" y="340"
-                                    transform="rotate(-90, 20, 340)">Validation</text>
-                                <text class="phase-label" x="20" y="430" transform="rotate(-90, 20, 430)">Final</text>
-                            </g>
+                <!-- B. Welcome / Empty State -->
+                <div id="engine-welcome-state" class="engine-welcome">
+                    <div class="welcome-icon">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#FBBF24" stroke-width="1.5"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 3l1.91 5.89L20 10l-5.89 1.91L12 18l-1.91-5.89L4 10l5.89-1.91z" />
                         </svg>
                     </div>
+                    <h3>Hello! I'm your AI Orchestrator.</h3>
+                    <p>Select a context history or type a goal to start.</p>
                 </div>
-            </div>
 
-            <div class="panel-section">
-                <h3 class="panel-title">Activity Log</h3>
-                <div id="activity-log" class="activity-log">
-                    <div class="log-entry">
-                        <span class="log-time">[--:--:--]</span>
-                        <span class="log-message">Waiting for execution to start...</span>
+                <!-- C. Chat Stream (Logs & Messages) -->
+                <div id="chat-stream-log" class="chat-log-area">
+                    <!-- Dynamic Messages & MCP Chips go here -->
+
+                    <!-- 3. Unified Command Bar (Bottom Fixed) -->
+                    <div class="main-instruction-container" id="command-bar" style="
+                    position: absolute; 
+                    bottom: 24px; 
+                    left: 50%; 
+                    transform: translateX(-50%); 
+                    width: 90%; 
+                    max-width: 800px; 
+                    background: rgba(20, 20, 25, 0.95); 
+                    backdrop-filter: blur(24px); 
+                    border: 1px solid rgba(255, 255, 255, 0.1); 
+                    border-radius: 16px; 
+                    padding: 12px; 
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5); 
+                    z-index: 100;
+                    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+                ">
+                        <!-- File Preview Area (Added dynamically) -->
+                        <div id="command-preview-area"
+                            style="display: none; display: flex; gap: 8px; padding-bottom: 12px; overflow-x: auto;">
+                            <!-- Thumbnails will be injected here -->
+                        </div>
+
+                        <div class="input-wrapper"
+                            style="display: flex; align-items: flex-end; gap: 12px; position: relative;">
+
+                            <!-- Attachments (Left) -->
+                            <div class="input-actions-left"
+                                style="display: flex; align-items: center; gap: 4px; padding-bottom: 6px;">
+                                <button id="btn-toggle-attachments" onclick="toggleAttachmentMenu()" title="Add context"
+                                    style="
+                                            width: 36px; 
+                                            height: 36px; 
+                                            border-radius: 8px; 
+                                            border: none; 
+                                            background: transparent; 
+                                            color: #ccc; 
+                                            cursor: pointer; 
+                                            display: flex; 
+                                            align-items: center; 
+                                            justify-content: center; 
+                                            transition: all 0.2s;
+                                        ">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                                    </svg>
+                                </button>
+
+                                <!-- Attachment Menu (Absolute Popup) -->
+                                <div id="attachment-menu" class="attachment-menu" style="
+                                        display: none;
+                                        position: absolute;
+                                        bottom: 60px;
+                                        left: 0;
+                                        background: #25252b;
+                                        border: 1px solid rgba(255,255,255,0.1);
+                                        border-radius: 16px;
+                                        padding: 10px 6px;
+                                        width: 195px;
+                                        box-shadow: 0 15px 40px rgba(0,0,0,0.8);
+                                        z-index: 200;
+                                        animation: menuSlideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                                    ">
+                                    <div
+                                        style="padding: 8px 12px 14px 12px; color: #888; font-size: 14px; font-weight: 600; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 8px;">
+                                        Add context</div>
+
+                                    <div class="menu-item" onclick="triggerAttachment('image')"
+                                        style="padding: 12px 14px; display: flex; align-items: center; gap: 14px; color: #fff; cursor: pointer; border-radius: 10px; transition: all 0.2s; font-size: 15px; font-weight: 500;">
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" style="color: #eee;">
+                                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                            <polyline points="21 15 16 10 5 21"></polyline>
+                                        </svg>
+                                        <span>Image</span>
+                                    </div>
+
+                                    <div class="menu-item" onclick="triggerAttachment('file')"
+                                        style="padding: 12px 14px; display: flex; align-items: center; gap: 14px; color: #fff; cursor: pointer; border-radius: 10px; transition: all 0.2s; font-size: 15px; font-weight: 500;">
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" style="color: #eee;">
+                                            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                                            <polyline points="13 2 13 9 20 9"></polyline>
+                                        </svg>
+                                        <span>File</span>
+                                    </div>
+
+                                    <div class="menu-item" onclick="triggerAttachment('mention')"
+                                        style="padding: 12px 14px; display: flex; align-items: center; gap: 14px; color: #fff; cursor: pointer; border-radius: 10px; transition: all 0.2s; font-size: 15px; font-weight: 500;">
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" style="color: #eee;">
+                                            <circle cx="12" cy="12" r="4"></circle>
+                                            <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"></path>
+                                        </svg>
+                                        <span>Mention</span>
+                                    </div>
+                                </div>
+
+                                <style>
+                                    @keyframes menuSlideUp {
+                                        from {
+                                            transform: translateY(10px);
+                                            opacity: 0;
+                                        }
+
+                                        to {
+                                            transform: translateY(0);
+                                            opacity: 1;
+                                        }
+                                    }
+
+                                    .menu-item:hover {
+                                        background: rgba(255, 255, 255, 0.08);
+                                    }
+
+                                    .menu-item:hover svg {
+                                        color: #fff !important;
+                                    }
+
+                                    #btn-toggle-attachments:hover {
+                                        color: #fff !important;
+                                        background: rgba(255, 255, 255, 0.05);
+                                    }
+
+                                    #btn-toggle-attachments.active {
+                                        background: rgba(255, 255, 255, 0.1) !important;
+                                        color: #fff !important;
+                                    }
+                                </style>
+
+                                <!-- Hidden File Inputs -->
+                                <input type="file" id="input-image-upload" accept="image/*" style="display: none;"
+                                    onchange="handleFileSelection(this, 'image')" multiple>
+                                <input type="file" id="input-file-upload" accept=".pdf,.doc,.docx,.txt,.md"
+                                    style="display: none;" onchange="handleFileSelection(this, 'file')" multiple>
+                            </div>
+
+                            <!-- Main Text Area -->
+                            <textarea id="main-instruction-input" placeholder="Describe your goal or drop files here..."
+                                style="flex: 1; min-height: 24px; max-height: 150px; background: transparent; border: none; color: white; font-size: 15px; line-height: 1.5; outline: none; resize: none; overflow-y: auto; padding: 10px 0;"></textarea>
+
+                            <!-- Right Actions (Voice & Run) -->
+                            <div class="input-actions-right"
+                                style="display: flex; align-items: center; gap: 8px; padding-bottom: 4px;">
+
+                                <!-- Language Select (Expanded to 20) -->
+                                <select id="select-voice-lang" onchange="window.setVoiceLanguage(this.value)"
+                                    style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: #888; cursor: pointer; padding: 2px 4px; border-radius: 4px; font-size: 10px; font-weight: 600; outline: none; height: 24px;">
+                                    <option value="ko-KR">KO (Korean)</option>
+                                    <option value="en-US">EN (English)</option>
+                                    <option value="ja-JP">JA (Japanese)</option>
+                                    <option value="zh-CN">ZH (Chinese)</option>
+                                    <option value="es-ES">ES (Spanish)</option>
+                                    <option value="fr-FR">FR (French)</option>
+                                    <option value="de-DE">DE (German)</option>
+                                    <option value="it-IT">IT (Italian)</option>
+                                    <option value="ru-RU">RU (Russian)</option>
+                                    <option value="pt-PT">PT (Portuguese)</option>
+                                    <option value="hi-IN">HI (Hindi)</option>
+                                    <option value="ar-SA">AR (Arabic)</option>
+                                    <option value="bn-IN">BN (Bengali)</option>
+                                    <option value="ur-PK">UR (Urdu)</option>
+                                    <option value="id-ID">ID (Indonesian)</option>
+                                    <option value="vi-VN">VI (Vietnamese)</option>
+                                    <option value="tr-TR">TR (Turkish)</option>
+                                    <option value="th-TH">TH (Thai)</option>
+                                    <option value="tl-PH">TL (Tagalog)</option>
+                                    <option value="mr-IN">MR (Marathi)</option>
+                                </select>
+
+                                <!-- Voice Button -->
+                                <button id="btn-voice-input" onclick="toggleVoiceInput()" class="btn-voice"
+                                    style="width: 32px; height: 32px; border-radius: 50%; border: none; background: rgba(255,255,255,0.05); color: #aaa; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round">
+                                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                                        <line x1="12" y1="19" x2="12" y2="23"></line>
+                                        <line x1="8" y1="23" x2="16" y2="23"></line>
+                                    </svg>
+                                </button>
+
+                                <!-- Smart Action Button -->
+                                <button id="btn-send-instruction" title="Start / Regenerate"
+                                    style="width: 42px; height: 42px; border-radius: 12px; border: none; background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%); color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4); transition: all 0.2s;">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path>
+                                    </svg>
+                                </button>
+
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>
         </section>
 
-        <!-- RIGHT PANEL: Live Preview -->
-        <aside class="studio-panel studio-panel-right">
-            <div class="panel-section">
-                <h3 class="panel-title">Live Preview</h3>
 
-                <!-- Status Indicator -->
-                <div class="approval-status" style="margin-top: 12px; margin-bottom: 4px;">
-                    <div class="status-badges">
-                        <span class="status-badge active" id="status-pending">PENDING</span>
-                        <span class="status-badge" id="status-discarded">DISCARDED</span>
-                        <span class="status-badge" id="status-approved">APPROVED</span>
-                    </div>
+        <!-- RIGHT PANEL: Social Media Editor -->
+        <aside class="studio-panel studio-panel-right" id="right-panel-editor">
+
+            <!-- 1. Editor Toolbar -->
+            <div class="editor-toolbar">
+                <div class="toolbar-left">
+                    <button class="tool-btn active" title="Preview Mode">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                    </button>
+                    <button class="tool-btn" id="btn-code-view" onclick="toggleCodeView()" title="Code View">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <polyline points="16 18 22 12 16 6"></polyline>
+                            <polyline points="8 6 2 12 8 18"></polyline>
+                        </svg>
+                    </button>
+                </div>
+                <div class="toolbar-right">
+                    <button class="tool-btn" id="btn-edit-mode" title="Edit Content">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                    </button>
+                    <button class="action-btn-secondary btn-export">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        Export
+                    </button>
                 </div>
             </div>
 
-            <div class="panel-section preview-content" id="multi-channel-preview-container">
-                <!-- Channel Tabs -->
-                <div class="channel-preview-tabs" id="channel-preview-tabs">
-                    <!-- Tabs will be dynamically rendered here -->
-                    <div class="tab-placeholder">Select channels to preview</div>
+            <!-- 2. Channel Tabs & View All Link -->
+            <!-- 2. Channel Tabs & View All Link -->
+            <div class="editor-tabs-wrapper">
+                <div class="editor-channel-tabs" id="channel-preview-tabs">
+                    <!-- Tabs will be injected here -->
+                    <div class="tab-placeholder">Select a channel...</div>
                 </div>
-                <!-- View All Button -->
-                <button class="view-all-btn" id="view-all-channels-btn" title="View All Channels" style="display:none;"
-                    onclick="openMultiChannelOverview()">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <button id="view-all-channels-btn" onclick="openMultiChannelOverview()" class="view-all-link">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
                         <rect x="3" y="3" width="7" height="7"></rect>
                         <rect x="14" y="3" width="7" height="7"></rect>
                         <rect x="14" y="14" width="7" height="7"></rect>
                         <rect x="3" y="14" width="7" height="7"></rect>
                     </svg>
+                    <span>Multi-channel View</span>
                 </button>
-                <!-- Single Channel Preview Area -->
-                <div class="single-channel-preview" id="single-channel-preview">
+            </div>
+
+            <!-- 3. Main Editor Canvas -->
+            <div class="editor-canvas-container" id="editor-canvas">
+                <!-- Content Area -->
+                <div class="canvas-content" id="single-channel-preview">
+                    <!-- Default Placeholder -->
                     <div class="preview-placeholder">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="1" opacity="0.3">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                            <polyline points="21 15 16 10 5 21"></polyline>
-                        </svg>
-                        <p>Start execution to see content preview</p>
+                        <div class="placeholder-icon">📱</div>
+                        <p>Waiting for generated content...</p>
                     </div>
                 </div>
+
+                <!-- Hidden Code Editor -->
+                <textarea id="code-editor-area" style="display: none;"></textarea>
             </div>
 
-            <!-- Content Approval Controls -->
-            <div class="panel-section approval-section">
-                <!-- Status Indicator moved to top -->
-
-                <!-- AI Feedback Prompt -->
-                <div class="feedback-prompt">
-                    <textarea id="feedback-input" class="feedback-input"
-                        placeholder="Add feedback for AI regeneration (e.g., 'Make it more professional', 'Add more emojis')..."></textarea>
-                </div>
-
-                <!-- Action Buttons -->
-                <div class="approval-actions">
-                    <button class="approval-btn btn-edit" id="btn-edit" onclick="toggleEditMode()">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                        </svg>
-                        <span id="btn-edit-text">Edit</span>
-                    </button>
-                    <button class="approval-btn btn-discard" id="btn-discard" onclick="discardContent()">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                        Discard
-                    </button>
-                    <button class="approval-btn btn-regenerate" id="btn-regenerate" onclick="regenerateContent()">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <polyline points="23 4 23 10 17 10"></polyline>
-                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-                        </svg>
-                        Redo
-                    </button>
-                    <button class="approval-btn btn-approve" id="btn-approve" onclick="approveContent()">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <polyline points="20 6 9 17 4 12"></polyline>
-                        </svg>
-                        Approve
-                    </button>
-                </div>
-            </div>
-
-            <div class="panel-section">
-                <div class="section-header-row" style="display:flex; align-items:center; gap:8px; margin-bottom:15px;">
-                    <h3 class="panel-title" style="margin-bottom:0;">Agent Insights</h3>
-                    <div class="info-icon-wrapper" style="position:relative;">
-                        <svg class="info-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" style="cursor:pointer; opacity:0.6;">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-                            <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                        </svg>
-                        <div class="tooltip-bubble" id="insights-tooltip">
-                            <!-- Korean Version (for future usage)
-                            <h4 style="margin:0 0 8px 0; color:#fff; font-size:14px;">Agent Insights 란?</h4>
-                            <p style="margin:0 0 8px 0; font-size:13px; color:#ccc; line-height:1.4;">AI 에이전트가 생성된 콘텐츠를 실시간으로 분석한 결과지표입니다.</p>
-                            <ul style="margin:0; padding-left:16px; font-size:12px; color:#aaa; line-height:1.5;">
-                                <li><strong>SEO Score:</strong> 검색 노출 최적화 점수 (키워드 밀도, 가독성 등 분석)</li>
-                                <li><strong>Compliance:</strong> 브랜드 가이드라인, 저작권, 플랫폼 정책 준수 여부</li>
-                            </ul>
-                            <div style="margin-top:10px; padding-top:8px; border-top:1px solid #444;">
-                                <p style="margin:0 0 5px 0; font-size:12px; font-weight:bold; color:#fff;">점수 기준:</p>
-                                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:4px; font-size:11px;">
-                                    <span style="color:#10b981;">● 90+: Excellent</span>
-                                    <span style="color:#34d399;">● 70-89: Good</span>
-                                    <span style="color:#fbbf24;">● 50-69: Fair</span>
-                                    <span style="color:#ef4444;">● &lt; 50: Needs Work</span>
-                                </div>
-                            </div>
-                            -->
-                            <h4 style="margin:0 0 8px 0; color:#fff; font-size:14px;">What is Agent Insights?</h4>
-                            <p style="margin:0 0 8px 0; font-size:13px; color:#ccc; line-height:1.4;">Real-time quality
-                                metrics for AI-generated content.</p>
-                            <ul style="margin:0; padding-left:16px; font-size:12px; color:#aaa; line-height:1.5;">
-                                <li><strong>SEO Score:</strong> Search optimization score (keyword density,
-                                    readability).</li>
-                                <li><strong>Compliance:</strong> Adherence to brand guidelines, copyright, and platform
-                                    policies.</li>
-                            </ul>
-                            <div style="margin-top:10px; padding-top:8px; border-top:1px solid #444;">
-                                <p style="margin:0 0 5px 0; font-size:12px; font-weight:bold; color:#fff;">Score Levels:
-                                </p>
-                                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:4px; font-size:11px;">
-                                    <span style="color:#10b981;">● 90+: Excellent</span>
-                                    <span style="color:#34d399;">● 70-89: Good</span>
-                                    <span style="color:#fbbf24;">● 50-69: Fair</span>
-                                    <span style="color:#ef4444;">● &lt; 50: Needs Work</span>
-                                </div>
-                            </div>
-                            <div class="tooltip-arrow"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="insights-card">
-                    <div class="insights-circles">
-                        <!-- SEO Score Circle -->
-                        <div class="insight-circle-wrap">
-                            <div class="insight-circle" id="seo-circle">
-                                <svg viewBox="0 0 100 100">
-                                    <circle class="circle-bg" cx="50" cy="50" r="42" />
-                                    <circle class="circle-progress seo-progress" cx="50" cy="50" r="42"
-                                        stroke-dasharray="264" stroke-dashoffset="264" id="seo-progress-ring" />
-                                </svg>
-                                <div class="circle-value">
-                                    <span class="value-number" id="seo-value">--</span>
-                                    <span class="value-unit">%</span>
-                                </div>
-                            </div>
-                            <div class="insight-label">SEO Score</div>
-                            <div class="insight-sublabel" id="seo-sublabel">--/100 - Waiting</div>
-                        </div>
-
-                        <!-- Compliance Circle -->
-                        <div class="insight-circle-wrap">
-                            <div class="insight-circle" id="compliance-circle">
-                                <svg viewBox="0 0 100 100">
-                                    <circle class="circle-bg" cx="50" cy="50" r="42" />
-                                    <circle class="circle-progress compliance-progress" cx="50" cy="50" r="42"
-                                        stroke-dasharray="264" stroke-dashoffset="264" id="compliance-progress-ring" />
-                                </svg>
-                                <div class="circle-value">
-                                    <span class="value-number" id="compliance-value">--</span>
-                                    <span class="value-unit">%</span>
-                                </div>
-                                <div class="compliance-check" id="compliance-check" style="display:none;">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                                        <polyline points="20 6 9 17 4 12" />
-                                    </svg>
-                                </div>
-                            </div>
-                            <div class="insight-label">Compliance</div>
-                            <div class="insight-sublabel" id="compliance-sublabel">Status: Waiting</div>
-                        </div>
-                    </div>
-                    <div class="insights-footer">
-                        Insights updated every 30s.
-                    </div>
-                </div>
-            </div>
         </aside>
     </main>
 
     <!-- Footer Controls -->
     <footer class="studio-footer">
         <div class="footer-left">
-            <button id="pause-btn" class="footer-btn" disabled>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="6" y="4" width="4" height="16"></rect>
-                    <rect x="14" y="4" width="4" height="16"></rect>
-                </svg>
-                Pause
-            </button>
-            <button id="stop-btn" class="footer-btn btn-danger" disabled>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                </svg>
-                Stop
-            </button>
+            <!-- Buttons removed per user request -->
         </div>
         <div class="footer-center">
             <span id="footer-progress">Phase --/-- • Agent --/--</span>
@@ -742,6 +575,32 @@
         </div>
     </div>
 
+    <!-- Market Research Details Modal -->
+    <div id="market-research-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-container"
+            style="max-width: 700px; width: 90%; background: #0f0f13; border: 1px solid rgba(0, 255, 163, 0.2); box-shadow: 0 0 40px rgba(0, 255, 163, 0.1); border-radius: 16px;">
+            <div class="modal-header"
+                style="border-bottom: 1px solid rgba(255,255,255,0.05); padding: 20px 24px; display: flex; justify-content: space-between; align-items: center;">
+                <h3 class="modal-title flex items-center gap-2" style="color: var(--color-cyan);">
+                    <span>🎯</span>
+                    <span id="research-modal-title">Market Research Overview</span>
+                </h3>
+                <button class="modal-close-btn" onclick="closeMarketResearchModal()">×</button>
+            </div>
+            <div class="modal-body"
+                style="padding: 24px; color: rgba(255,255,255,0.8); line-height: 1.6; max-height: 70vh; overflow-y: auto;">
+                <div id="research-modal-content">
+                    <!-- Research findings will be injected here -->
+                </div>
+            </div>
+            <div class="modal-footer"
+                style="padding: 20px 24px; border-top: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: flex-end;">
+                <button class="btn-primary" onclick="closeMarketResearchModal()" style="min-width: 120px;">Got
+                    it</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Agent Team Settings Modal (Unified with Mission Control) - 100% Identical -->
     <div id="agent-settings-modal" class="modal-overlay" style="display: none;">
         <div class="modal-container"
@@ -753,7 +612,21 @@
             </div>
             <div class="modal-body" style="overflow-y: auto; flex: 1; padding: 24px;">
                 <div class="form-group">
-                    <label class="form-label">🎯 Active Directive (Team Goal)</label>
+                    <label class="form-label">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+                            style="color: #10B981; vertical-align: middle; margin-right: 6px;">
+                            <circle cx="12" cy="12" r="10" />
+                            <polyline points="12 16 12 12 15 11" />
+                            <path d="m19.07 4.93-1.41 1.41" />
+                            <path d="M10.89 2.1 12 4l1.11-1.9" />
+                            <path d="m19.07 19.07-1.41-1.41" />
+                            <path d="M21.9 10.89 20 12l1.9 1.11" />
+                            <path d="m4.93 19.07 1.41-1.41" />
+                            <path d="M2.1 13.11 4 12 2.1 10.89" />
+                            <path d="m4.93 4.93 1.41 1.41" />
+                        </svg>
+                        Active Directive (Team Goal)</label>
                     <textarea id="setting-directive" class="form-input" rows="3"
                         placeholder="e.g., Increase brand awareness by posting daily news about AI trends..."></textarea>
                     <div class="form-helper" style="color: rgba(255,255,255,0.5);">Target specific goals for the entire
@@ -764,7 +637,15 @@
                     style="height: 1px; background: rgba(255,255,255,0.1); margin: 24px 0;"></div>
 
                 <div class="form-group">
-                    <label class="form-label">🤖 Sub-Agents Configuration</label>
+                    <label class="form-label">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+                            style="color: #8B5CF6; vertical-align: middle; margin-right: 6px;">
+                            <rect x="3" y="11" width="18" height="10" rx="2" />
+                            <circle cx="12" cy="5" r="2" />
+                            <path d="M12 7v4M8 16h0M16 16h0" />
+                        </svg>
+                        Sub-Agents Configuration</label>
                     <div class="form-helper" style="margin-bottom: 12px; color: rgba(255,255,255,0.5);">Fine-tune the
                         behavior and personality of each agent.</div>
                     <div id="setting-subagents-list" style="display: flex; flex-direction: column; gap: 16px;">
@@ -791,6 +672,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
 
     <!-- Config & Auth -->
+    <script src="../translations.js"></script>
     <script src="../firebase-config.js"></script>
     <script src="../env-config.js"></script>
     <script src="../auth.js"></script>
@@ -810,7 +692,14 @@
     </button>
     <div id="chatbot-panel" class="chatbot-panel">
         <div class="chatbot-header">
-            <div class="chatbot-header-icon">🤖</div>
+            <div class="chatbot-header-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="10" rx="2" />
+                    <circle cx="12" cy="5" r="2" />
+                    <path d="M12 7v4M8 16h0M16 16h0" />
+                </svg>
+            </div>
             <div class="chatbot-header-info">
                 <p class="chatbot-header-title">ZYNK Assistant</p>
                 <small class="chatbot-header-subtitle">AI 헬프데스크</small>

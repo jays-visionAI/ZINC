@@ -73,6 +73,7 @@ async function init() {
     renderInvestigations();
     renderAIActions();
     setupEventListeners();
+
 }
 
 /**

@@ -264,6 +264,14 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     
+    // [TEMP] Allow public write for seeding Agent Registry
+    match /agentRegistry/{document=**} {
+      allow read, write: if true;
+    }
+    match /agentVersions/{document=**} {
+      allow read, write: if true;
+    }
+
     // Master agents library
     match /agents/{agentId} {
       allow read: if isAuthenticated();

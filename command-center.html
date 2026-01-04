@@ -15,6 +15,22 @@
         rel="stylesheet">
 
     <!-- Styles -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: { 850: '#151f32', 900: '#0f172a', 950: '#020617' },
+                        brand: { 500: '#6366f1', 600: '#4f46e5' },
+                        accent: { 500: '#10b981' }
+                    },
+                    fontFamily: { sans: ['Inter', 'sans-serif'] }
+                },
+            },
+        };
+    </script>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="chatbot.css">
 
@@ -67,14 +83,8 @@
                     <div class="header-subtitle" data-i18n="dashboard.subtitle">High-level oversight of all managed
                         client hives.</div>
                 </div>
-                <div class="header-controls">
-                    <span id="credit-display" class="credit-badge"
-                        style="font-size: 12px; padding: 6px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; margin-right: 12px;">
-                        🪙 <span id="credit-count">--</span> credits
-                    </span>
-                    <button id="btn-lang-en" class="btn-lang-sm active"
-                        style="background: var(--color-cyan); color: #000; font-weight: bold;">EN</button>
-                    <button id="btn-lang-ko" class="btn-lang-sm">KR</button>
+                <div class="flex items-center gap-4">
+                    <div id="header-controls-container"></div>
                     <div id="user-profile-container"></div>
                 </div>
             </header>

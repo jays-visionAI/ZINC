@@ -8,6 +8,32 @@
 (function () {
     console.log('[UI Loader] Initializing...');
 
+    // Content Languages (22)
+    const CONTENT_LANGUAGES = [
+        { code: 'ko', name: '한국어', flag: '🇰🇷' },
+        { code: 'en', name: 'English', flag: '🇺🇸' },
+        { code: 'zh', name: '中文', flag: '🇨🇳' },
+        { code: 'hi', name: 'हिन्दी', flag: '🇮🇳' },
+        { code: 'es', name: 'Español', flag: '🇪🇸' },
+        { code: 'fr', name: 'Français', flag: '🇫🇷' },
+        { code: 'ar', name: 'العربية', flag: '🇸🇦' },
+        { code: 'bn', name: 'বাংলা', flag: '🇧🇩' },
+        { code: 'ru', name: 'Русский', flag: '🇷🇺' },
+        { code: 'pt', name: 'Português', flag: '🇵🇹' },
+        { code: 'ur', name: 'اردو', flag: '🇵🇰' },
+        { code: 'id', name: 'Indonesia', flag: '🇮🇩' },
+        { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
+        { code: 'ja', name: '日本語', flag: '🇯🇵' },
+        { code: 'vi', name: 'Tiếng Việt', flag: '🇻🇳' },
+        { code: 'tr', name: 'Türkçe', flag: '🇹🇷' },
+        { code: 'it', name: 'Italiano', flag: '🇮🇹' },
+        { code: 'th', name: 'ไทย', flag: '🇹🇭' },
+        { code: 'tl', name: 'Tagalog', flag: '🇵🇭' },
+        { code: 'mr', name: 'मराठी', flag: '🇮🇳' },
+        { code: 'te', name: 'తెలుగు', flag: '🇮🇳' },
+        { code: 'ta', name: 'தமிழ்', flag: '🇮🇳' }
+    ];
+
     const UI = {
         config: null,
 
@@ -73,31 +99,14 @@
             } else {
                 console.warn('[UI Loader] Firestore DB not initialized. Using defaults only.');
             }
+            // Render Content Lang Selector if container exists
+            if (document.getElementById('content-lang-container')) {
+                this.renderContentLangSelector('content-lang-container');
+            }
+
             console.log('[UI Loader] Final Configuration:', this.config);
         },
 
-        /**
-         * Re-render all known UI components if they are present in DOM
-         */
-        refreshUI: function () {
-            // Sidebar
-            if (document.getElementById('sidebar-menu-area')) {
-                this.renderSidebar('sidebar-menu-area');
-            }
-            // Page Headers
-            const headerMap = {
-                'brand-brain-header-container': 'brand_brain',
-                'studio-header-container': 'studio',
-                'knowledge-hub-header-container': 'knowledge_hub',
-                'market-pulse-header-container': 'market_pulse',
-                'the-growth-header-container': 'the_growth' // Added mapping
-            };
-            Object.keys(headerMap).forEach(containerId => {
-                if (document.getElementById(containerId)) {
-                    this.renderHeader(containerId, headerMap[containerId]);
-                }
-            });
-        },
 
         /**
          * Render the Sidebar into a target container
@@ -159,11 +168,12 @@
                 items.forEach(item => {
                     const isActive = this.isCurrentPage(item.link) ? 'active' : '';
                     const iconSvg = this.getIconSvg(item.icon);
+                    const translatedLabel = typeof t === 'function' ? t(item.label, 'en') : item.label;
 
                     html += `
                     <a href="${item.link}" class="menu-item ${isActive}">
                         ${iconSvg}
-                        ${item.label}
+                        ${translatedLabel}
                     </a>
                     `;
                 });
@@ -318,6 +328,82 @@
         },
 
         /**
+         * Render Language Selector for Content
+         */
+        /**
+         * Render Standardized Header Controls (Lang Selector + Credits)
+         */
+        renderHeaderControls: function (containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            const lang = localStorage.getItem('zynk-main-language') || localStorage.getItem('activeContentLanguage') || 'ko';
+            const selectedLang = CONTENT_LANGUAGES.find(l => l.code === lang) || CONTENT_LANGUAGES[0];
+
+            container.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <!-- Content Language Selector -->
+                    <div id="header-lang-picker" class="flex items-center gap-3 bg-[#0f172a] border border-slate-800/60 rounded-full px-4 py-1.5 cursor-pointer hover:border-slate-500 transition-all group relative">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-400">
+                            <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                        </svg>
+                        <div class="flex items-center gap-2 min-w-[80px]">
+                            <span class="text-sm">${selectedLang.flag}</span>
+                            <span class="text-sm font-medium text-slate-200">${selectedLang.name}</span>
+                        </div>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-500 transition-transform group-hover:translate-y-0.5">
+                            <path d="m6 9 6 6 6-6"/>
+                        </svg>
+
+                        <!-- Hidden Select for Logic -->
+                        <select id="header-content-lang-selector" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full">
+                            ${CONTENT_LANGUAGES.map(l => `<option value="${l.code}" ${l.code === lang ? 'selected' : ''}>${l.flag} ${l.name}</option>`).join('')}
+                        </select>
+                    </div>
+
+                    <!-- Credit Badge -->
+                    <div class="flex items-center gap-2 bg-[#0f172a] border border-red-500/20 rounded-full px-4 py-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+                        </svg>
+                        <span class="text-sm font-medium text-red-100/80"><span id="header-credit-count">0</span> credits</span>
+                    </div>
+                </div>
+            `;
+
+            // Logic: Sync with existing credit display if any
+            const syncCredits = () => {
+                const globalCredits = document.getElementById('credit-count') || document.getElementById('user-credits');
+                const headerCredits = document.getElementById('header-credit-count');
+                if (globalCredits && headerCredits) {
+                    headerCredits.textContent = globalCredits.textContent;
+                }
+            };
+
+            // Watch for changes in the main credit display
+            const observer = new MutationObserver(syncCredits);
+            const target = document.getElementById('credit-count') || document.getElementById('user-credits');
+            if (target) observer.observe(target, { childList: true, characterData: true, subtree: true });
+            syncCredits();
+
+            // Logic: Handle Language Change
+            const selector = document.getElementById('header-content-lang-selector');
+            if (selector) {
+                selector.addEventListener('change', (e) => {
+                    const newLang = e.target.value;
+                    localStorage.setItem('zynk-main-language', newLang);
+                    localStorage.setItem('activeContentLanguage', newLang);
+
+                    // Re-render itself to update flag/name immediately
+                    this.renderHeaderControls(containerId);
+
+                    // Dispatch global event
+                    window.dispatchEvent(new CustomEvent('zynk-content-lang-changed', { detail: { lang: newLang } }));
+                });
+            }
+        },
+
+        /**
          * Helper to check active page
          */
         isCurrentPage: function (link) {
@@ -340,15 +426,13 @@
             }
 
             // 3. Partial Match for sub-paths (careful not to overmatch)
-            // e.g., link='settings' matches '/settings/profile'
-            // But link='market' NO MATCH '/marketPulse'
             if (cleanPath.startsWith(cleanLink + '/')) return true;
 
             return false;
         },
+
         /**
          * Update Credit Balance display in the UI
-         * @param {string} userId - Current User ID
          */
         updateCreditBalance: async function (userId) {
             if (!userId || typeof CreditService === 'undefined') return;
@@ -356,7 +440,7 @@
             try {
                 const balance = await CreditService.getBalance(userId);
                 // Support both legacy and new IDs
-                const elements = document.querySelectorAll('#user-credits, #credit-count');
+                const elements = document.querySelectorAll('#user-credits, #credit-count, #header-credit-count');
                 elements.forEach(el => {
                     el.textContent = balance.toLocaleString() || '0';
                 });
@@ -364,6 +448,39 @@
                 return balance;
             } catch (error) {
                 console.error('[UI Loader] Failed to update credit balance:', error);
+            }
+        },
+
+        refreshUI: function () {
+            console.log('[UI Loader] Refreshing UI...');
+
+            // Sidebar
+            if (document.getElementById('sidebar-menu-area')) {
+                this.renderSidebar('sidebar-menu-area');
+            }
+
+            // Page Headers
+            const headerMap = {
+                'brand-brain-header-container': 'brand_brain',
+                'studio-header-container': 'studio',
+                'knowledge-hub-header-container': 'knowledge_hub',
+                'market-pulse-header-container': 'market_pulse',
+                'the-growth-header-container': 'the_growth'
+            };
+
+            Object.keys(headerMap).forEach(containerId => {
+                const container = document.getElementById(containerId);
+                if (container) {
+                    this.renderHeader(containerId, headerMap[containerId]);
+                }
+            });
+
+            // Universal Header Controls
+            if (document.getElementById('header-controls-container')) {
+                this.renderHeaderControls('header-controls-container');
+            } else if (document.getElementById('content-lang-container')) {
+                // Backward compatibility if some page hasn't updated the ID yet
+                this.renderHeaderControls('content-lang-container');
             }
         }
     };

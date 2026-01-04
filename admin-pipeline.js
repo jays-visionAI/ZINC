@@ -39,7 +39,8 @@ async function initPipeline(currentUser, initialTab = 'market') {
         { id: 'agent-studio-visual-temp', label: 'label-studio-visual-temp' },
         { id: 'agent-creator-temp', label: 'label-creator-temp' },
         { id: 'agent-text-temp', label: 'label-text-temp' },
-        { id: 'agent-manager-temp', label: 'label-manager-temp' }
+        { id: 'agent-manager-temp', label: 'label-manager-temp' },
+        { id: 'agent-orchestrator-temp', label: 'label-orchestrator-temp' }
     ];
 
     sliderConfigs.forEach(s => {
@@ -160,6 +161,17 @@ async function loadAllSettings() {
             updateElValue('agent-text-temp', data.text?.temperature || 0.8);
             updateElText('label-text-temp', data.text?.temperature || 0.8);
             updateElValue('agent-text-prompt', data.text?.systemPrompt || '');
+
+            updateElValue('agent-orchestrator-model', data.orchestrator?.model || 'gpt-4o');
+            updateElValue('agent-orchestrator-temp', data.orchestrator?.temperature || 0.5);
+            updateElText('label-orchestrator-temp', data.orchestrator?.temperature || 0.5);
+            updateElValue('agent-orchestrator-prompt', data.orchestrator?.systemPrompt || '');
+
+            const complexityEl = document.getElementById('orchestrator-complexity-routing');
+            if (complexityEl) complexityEl.checked = data.orchestrator?.enableComplexityRouting !== false;
+
+            const brandSyncEl = document.getElementById('orchestrator-brand-sync');
+            if (brandSyncEl) brandSyncEl.checked = data.orchestrator?.autoSyncBrand !== false;
         }
     } catch (e) { console.error('Error loading studio:', e); }
 
@@ -299,6 +311,14 @@ function setupSaveListeners() {
                     model: document.getElementById('agent-text-model').value,
                     temperature: parseFloat(document.getElementById('agent-text-temp').value),
                     systemPrompt: document.getElementById('agent-text-prompt').value,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                },
+                orchestrator: {
+                    model: document.getElementById('agent-orchestrator-model').value,
+                    temperature: parseFloat(document.getElementById('agent-orchestrator-temp').value),
+                    systemPrompt: document.getElementById('agent-orchestrator-prompt').value,
+                    enableComplexityRouting: document.getElementById('orchestrator-complexity-routing').checked,
+                    autoSyncBrand: document.getElementById('orchestrator-brand-sync').checked,
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 }
             };
