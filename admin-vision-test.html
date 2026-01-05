@@ -1,0 +1,75 @@
+<div style="max-width: 800px; margin: 0 auto;">
+    <div
+        style="background: rgba(255,255,255,0.05); padding: 32px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1);">
+        <div style="text-align: center; margin-bottom: 32px;">
+            <h2 style="font-size: 24px; margin-bottom: 8px;">🎨 Aesthetic Critic Test</h2>
+            <p style="color: rgba(255,255,255,0.6);">
+                Evaluate the UI/UX quality of any public URL using Gemini 2.0 Flash Vision.
+            </p>
+        </div>
+
+        <div class="admin-form-group">
+            <label class="admin-form-label" style="font-size: 14px;">Target URL</label>
+            <div style="display: flex; gap: 12px;">
+                <input type="url" id="vision-url" class="admin-form-input" placeholder="https://example.com"
+                    style="flex: 1; padding: 12px;">
+                <button type="button" onclick="runAestheticAnalysis()" class="admin-btn-primary"
+                    style="padding: 0 24px; font-size: 14px;">
+                    👁️ Analyze
+                </button>
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div id="vision-loading" style="display: none; text-align: center; padding: 40px;">
+            <div class="spinner" style="border-top-color: #a855f7; width: 40px; height: 40px;"></div>
+            <p style="margin-top: 16px; color: #a855f7;">Capturing Screenshot & Analyzing...</p>
+        </div>
+
+        <!-- Result -->
+        <div id="vision-result" style="display: none; margin-top: 32px; animation: fadeIn 0.3s ease;">
+
+            <!-- Summary Card -->
+            <div
+                style="background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.3); padding: 20px; border-radius: 12px; margin-bottom: 24px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-size: 12px; color: #a855f7; font-weight: 600; text-transform: uppercase;">
+                            Aesthetic Score</div>
+                        <div id="vision-score" style="font-size: 48px; font-weight: 800; color: #fff;">0</div>
+                    </div>
+                    <div style="text-align: right; max-width: 70%;">
+                        <div style="font-size: 16px; font-weight: 600; color: #e9d5ff;" id="vision-impression"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Analysis -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                <div>
+                    <h4 style="color: rgba(255,255,255,0.8); margin-bottom: 12px;">🎨 Color & Typography</h4>
+                    <div
+                        style="background: rgba(0,0,0,0.2); padding: 16px; border-radius: 8px; font-size: 13px; color: rgba(255,255,255,0.7); line-height: 1.6;">
+                        <strong style="color: #fff;">Palette:</strong> <span id="vision-palette"></span><br><br>
+                        <strong style="color: #fff;">Typography:</strong> <span id="vision-typo"></span>
+                    </div>
+                </div>
+                <div>
+                    <h4 style="color: rgba(255,255,255,0.8); margin-bottom: 12px;">⚠️ Key Issues</h4>
+                    <ul id="vision-issues"
+                        style="background: rgba(0,0,0,0.2); padding: 16px 16px 16px 32px; border-radius: 8px; font-size: 13px; color: rgba(255,255,255,0.7); margin: 0; line-height: 1.6;">
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Actionable Recs -->
+            <div style="margin-top: 24px;">
+                <h4 style="color: #4ade80; margin-bottom: 12px;">✅ Recommendations</h4>
+                <ul id="vision-recs"
+                    style="background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.2); padding: 20px 20px 20px 40px; border-radius: 8px; font-size: 14px; color: #dcfce7;">
+                </ul>
+            </div>
+
+        </div>
+    </div>
+</div>

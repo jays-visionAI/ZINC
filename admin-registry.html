@@ -1,0 +1,47 @@
+<!-- Agent Registry Management Page -->
+<div id="registry-container">
+    <div class="admin-header">
+        <h2 class="admin-title">Agent Registry (Master Classes)</h2>
+        <div class="admin-actions">
+            <div class="admin-search-box">
+                <input type="text" id="profile-search" class="admin-search-input" placeholder="Search agents...">
+            </div>
+            <select id="registry-category-filter" class="admin-select" style="margin-right: 10px;">
+                <option value="all">All Categories</option>
+                <option value="Intelligence">Intelligence</option>
+                <option value="Design">Design</option>
+                <option value="Strategy">Strategy</option>
+                <option value="QA">QA</option>
+            </select>
+            <!-- Future Filter: Category -->
+            <button type="button" class="admin-btn-primary" onclick="seedRegistry()" id="add-profile-btn">🌱 Seed Core
+                Agents</button>
+        </div>
+    </div>
+
+    <div class="admin-card">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Agent Name / ID</th>
+                    <th>Category</th>
+                    <th>Current Production</th>
+                    <th>Status</th>
+                    <th>Last Updated</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="profiles-table-body">
+                <!-- Dynamically populated by admin-registry.js -->
+                <tr>
+                    <td colspan="6">Initializing...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Wrapper (Reuse for Create New Agent if needed later) -->
+<div id="profile-modal" class="admin-modal" style="display: none;">
+    <!-- Content logic in admin-registry.js if extended -->
+</div>

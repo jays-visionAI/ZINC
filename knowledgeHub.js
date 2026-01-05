@@ -8,7 +8,11 @@
 // ============================================================
 // These values are set in env-config.js (loaded before this script)
 const GOOGLE_CLIENT_ID = window.ENV_CONFIG?.GOOGLE_CLIENT_ID || '';
-const GOOGLE_API_KEY = window.ENV_CONFIG?.GOOGLE_API_KEY || '';
+const GOOGLE_API_KEY = window.ENV_CONFIG?.GOOGLE_API_KEY || (typeof firebaseConfig !== 'undefined' ? firebaseConfig.apiKey : '');
+console.log('[KnowledgeHub] Google API Config:', {
+    clientId: GOOGLE_CLIENT_ID ? 'Loaded' : 'Missing',
+    apiKey: GOOGLE_API_KEY ? 'Loaded' : 'Missing'
+});
 // const GOOGLE_DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'];
 const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/drive.file';
 
@@ -67,24 +71,39 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function initializeKnowledgeHub() {
+    console.log('[KnowledgeHub] Starting initialization sequence...');
     // Initialize Google APIs
     initializeGoogleAPIs();
 
     // Check auth
     firebase.auth().onAuthStateChanged(async (user) => {
         if (user) {
+            console.log('[KnowledgeHub] User authenticated:', user.email);
             currentUser = user;
-            await loadUserProjects();
-            await loadUserCredits();
-            initializeEventListeners();
-            initializeSourceFilters();
-            initializeAddSourceModal();
-            initializePlanCards();
-            loadChatConfig(); // Load saved chat configuration
-            initializePanelClickOutside();  // Initialize panel collapse on outside click
-            loadCreativeProjects(); // NEW: Load background generation history
-            initializeUploadHandlers(); // NEW: File upload logic
+
+            try {
+                console.log('[KnowledgeHub] Loading projects...');
+                await loadUserProjects();
+
+                console.log('[KnowledgeHub] Loading credits...');
+                await loadUserCredits();
+
+                console.log('[KnowledgeHub] Initializing UI handlers...');
+                initializeEventListeners();
+                initializeSourceFilters();
+                initializeAddSourceModal();
+                initializePlanCards();
+                loadChatConfig(); // Load saved chat configuration
+                initializePanelClickOutside();  // Initialize panel collapse on outside click
+                loadCreativeProjects(); // NEW: Load background generation history
+                initializeUploadHandlers(); // NEW: File upload logic
+
+                console.log('[KnowledgeHub] Initialization complete.');
+            } catch (initError) {
+                console.error('[KnowledgeHub] Critical initialization error:', initError);
+            }
         } else {
+            console.log('[KnowledgeHub] No user found, redirecting to index...');
             window.location.href = 'index.html';
         }
     });
@@ -131,41 +150,31 @@ function setPerformanceMode(mode) {
  * Initialize Google APIs (GAPI + GIS)
  */
 function initializeGoogleAPIs() {
-    // Load GAPI with retry logic
+    console.log('[GAPI] Starting background initialization...');
+
     if (typeof gapi !== 'undefined') {
-        gapi.load('client:picker', async () => {
-            const maxRetries = 3;
-            let retryCount = 0;
+        gapi.load('client', async () => {
+            try {
+                // Initialize client (minimal)
+                await gapi.client.init({
+                    apiKey: GOOGLE_API_KEY,
+                });
+                gapiInited = true;
+                console.log('[GAPI] client.init success');
 
-            const initGAPI = async () => {
-                try {
-                    await gapi.client.init({
-                        apiKey: GOOGLE_API_KEY,
-                        discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
-                    });
-
-                    gapiInited = true;
-                    console.log('GAPI initialized successfully (v3)');
+                // Load picker module separately (doesn't need discovery)
+                gapi.load('picker', () => {
+                    console.log('[GAPI] picker module loaded');
                     maybeEnableGoogleDrive();
-                } catch (error) {
-                    console.error('Error initializing GAPI (attempt ' + (retryCount + 1) + '):', error);
-
-                    // Retry on transient errors (502, 503, network errors)
-                    if (retryCount < maxRetries - 1) {
-                        retryCount++;
-                        const delay = Math.pow(2, retryCount) * 1000; // Exponential backoff: 2s, 4s, 8s
-                        console.log(`Retrying GAPI init in ${delay / 1000}s...`);
-                        setTimeout(initGAPI, delay);
-                    } else {
-                        console.error('GAPI initialization failed after ' + maxRetries + ' attempts');
-                        // Suppress UI notification for GAPI failure to avoid blocking other features
-                        console.warn('Google API connection failed. Drive features will be unavailable.');
-                    }
-                }
-            };
-
-            await initGAPI();
+                });
+            } catch (error) {
+                console.error('[GAPI] Minimal init failed:', error);
+                // We don't retry here as fetch fallback handles the API calls
+                gapiInited = true; // Still allow picker load if possible
+            }
         });
+    } else {
+        console.warn('[GAPI] gapi script not found');
     }
 
     // Initialize GIS Token Client
@@ -331,29 +340,36 @@ async function addGoogleDriveSource(file) {
                 const isGoogleDoc = file.mimeType.startsWith('application/vnd.google-apps.');
 
                 if (isGoogleDoc) {
-                    // Export Google Docs as plain text
-                    const response = await gapi.client.drive.files.export({
-                        fileId: file.id,
-                        mimeType: 'text/plain'
+                    // Export Google Docs as plain text (Bypass GAPI Client for resilience)
+                    console.log(`[Drive] Exporting ${file.name} via fetch callback...`);
+                    const exportResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}/export?mimeType=text/plain`, {
+                        headers: { 'Authorization': `Bearer ${accessToken}` }
                     });
-                    extractedText = response.body || '';
+
+                    if (exportResponse.ok) {
+                        extractedText = await exportResponse.text();
+                    } else {
+                        throw new Error(`Export failed: ${exportResponse.statusText}`);
+                    }
                 } else {
                     // For PDFs/Text files, try to get media content if text-based
-                    // Note: Browser-side binary extraction is complex. 
-                    // For now, we prioritize Google Docs. 
-                    // If it's a text file, download it.
-                    if (file.mimeType.startsWith('text/') || file.mimeType === 'application/json') {
-                        const response = await gapi.client.drive.files.get({
-                            fileId: file.id,
-                            alt: 'media'
+                    if (file.mimeType.startsWith('text/') || file.mimeType === 'application/json' || file.mimeType === 'application/pdf') {
+                        console.log(`[Drive] Fetching media content for ${file.name}...`);
+                        const mediaResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, {
+                            headers: { 'Authorization': `Bearer ${accessToken}` }
                         });
-                        extractedText = response.body || '';
+
+                        if (mediaResponse.ok) {
+                            extractedText = await mediaResponse.text();
+                        } else {
+                            throw new Error(`Media fetch failed: ${mediaResponse.statusText}`);
+                        }
                     } else {
-                        extractedText = `(Binary file: ${file.name}. Analysis relies on metadata.)`;
+                        extractedText = `(Binary file: ${file.name}. Content extraction not supported client-side for this type.)`;
                     }
                 }
             } catch (err) {
-                console.warn('Failed to extract Drive content client-side:', err);
+                console.warn('Failed to extract Drive content via fetch:', err);
                 extractedText = `(Content extraction failed: ${err.message})`;
             }
         }
@@ -1185,16 +1201,21 @@ function initializeAddSourceModal() {
     });
 
     // Add Link
-    document.getElementById('btn-add-link').addEventListener('click', () => addLinkSource());
+    const btnAddLink = document.getElementById('btn-add-link');
+    if (btnAddLink) btnAddLink.addEventListener('click', () => addLinkSource());
 
     // Add Note
-    document.getElementById('btn-add-note').addEventListener('click', () => addNoteSource());
+    const btnAddNote = document.getElementById('btn-add-note');
+    if (btnAddNote) btnAddNote.addEventListener('click', () => addNoteSource());
 
 
     // Connect Drive
-    document.getElementById('btn-connect-drive').addEventListener('click', () => {
-        requestGoogleDriveAccess();
-    });
+    const btnConnectDrive = document.getElementById('btn-connect-drive');
+    if (btnConnectDrive) {
+        btnConnectDrive.addEventListener('click', () => {
+            requestGoogleDriveAccess();
+        });
+    }
 
     // Initialize Upload Handlers
     initializeUploadHandlers();
@@ -2464,15 +2485,21 @@ function initializeEventListeners() {
     });
 
     // Project selector change
-    document.getElementById('project-selector').addEventListener('change', (e) => {
-        selectProject(e.target.value);
-    });
+    const projectSelector = document.getElementById('project-selector');
+    if (projectSelector) {
+        projectSelector.addEventListener('change', (e) => {
+            selectProject(e.target.value);
+        });
+    }
 
     // Refresh button
-    document.getElementById('btn-refresh').addEventListener('click', () => {
-        loadSources();
-        showNotification('Refreshed!', 'success');
-    });
+    const btnRefresh = document.getElementById('btn-refresh');
+    if (btnRefresh) {
+        btnRefresh.addEventListener('click', () => {
+            loadSources();
+            showNotification('Refreshed!', 'success');
+        });
+    }
 
     // Chat input
     const chatInput = document.getElementById('chat-input');

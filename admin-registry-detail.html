@@ -1,0 +1,88 @@
+<div id="registry-detail-container">
+    <!-- Agent Header -->
+    <div style="background: rgba(255,255,255,0.05); padding: 24px; border-radius: 12px; margin-bottom: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: start;">
+            <div>
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                    <a href="#registry"
+                        style="text-decoration: none; color: rgba(255,255,255,0.5); font-size: 20px;">&larr;</a>
+                    <h2 id="agent-name" style="margin: 0; font-size: 24px;">Loading...</h2>
+                    <span id="agent-version"
+                        style="background: rgba(22, 224, 189, 0.2); padding: 6px 12px; border-radius: 6px; font-weight: 600; font-size: 14px;"></span>
+                    <span id="agent-status"></span>
+                </div>
+                <p id="agent-description" style="margin: 8px 0 0 0; color: rgba(255,255,255,0.7); font-size: 14px;"></p>
+                <div style="margin-top: 12px; display: flex; gap: 16px; font-size: 13px; color: rgba(255,255,255,0.6);">
+                    <span>ID: <code id="agent-id" style="color: #4ecdc4;"></code></span>
+                    <span>Created: <span id="agent-created"></span></span>
+                    <span>Updated: <span id="agent-updated"></span></span>
+                </div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <!-- Future: Edit Meta Info -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Version History Section -->
+    <div style="background: rgba(255,255,255,0.05); padding: 24px; border-radius: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 style="margin: 0;">Version History</h3>
+        </div>
+
+        <div id="versions-grid"></div>
+    </div>
+</div>
+
+<!-- Edit Version Modal (Prompt Editor) -->
+<div id="edit-version-modal" class="admin-modal" style="display: none;">
+    <div class="admin-modal-content" style="max-width: 900px; height: 90vh; display: flex; flex-direction: column;">
+        <div class="admin-modal-header">
+            <h3 class="admin-modal-title" id="edit-modal-title">Edit Agent Prompt</h3>
+            <button class="admin-modal-close" onclick="closeEditModal()">&times;</button>
+        </div>
+        <div class="admin-modal-body"
+            style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 16px;">
+            <input type="hidden" id="edit-source-id">
+
+            <div class="admin-form-group" style="flex: 1; display: flex; flex-direction: column;">
+                <label class="admin-form-label">System Prompt</label>
+                <textarea id="edit-prompt" class="admin-form-input"
+                    style="flex: 1; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.5;"
+                    spellcheck="false"></textarea>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Target Version Number</label>
+                    <input type="text" id="edit-next-version" class="admin-form-input" placeholder="e.g. 1.0.1">
+                </div>
+                <div class="admin-form-group">
+                    <label class="admin-form-label">LLM Model</label>
+                    <select id="edit-model" class="admin-select" style="width: 100%;">
+                        <option value="gpt-4o">GPT-4o</option>
+                        <option value="gpt-4o-mini">GPT-4o Mini</option>
+                        <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
+                        <option value="deepseek-chat">DeepSeek V3</option>
+                        <option value="deepseek-reasoner">DeepSeek R1 (Reasoner)</option>
+                    </select>
+                </div>
+                <div class="admin-form-group">
+                    <label class="admin-form-label">Temperature</label>
+                    <input type="number" id="edit-temperature" class="admin-form-input" min="0" max="2" step="0.1"
+                        value="0.7">
+                </div>
+            </div>
+
+            <div class="admin-form-group">
+                <label class="admin-form-label">Change Log (Mandatory)</label>
+                <input type="text" id="edit-changelog" class="admin-form-input"
+                    placeholder="What changed in this version?">
+            </div>
+        </div>
+        <div class="admin-modal-footer">
+            <button type="button" class="admin-btn-secondary" onclick="closeEditModal()">Cancel</button>
+            <button type="button" class="admin-btn-primary" onclick="saveNewVersion()">💾 Save as New Version</button>
+        </div>
+    </div>
+</div>
