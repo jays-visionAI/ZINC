@@ -1326,10 +1326,15 @@
 
     // Load workflows for a single context (for refresh)
     async function loadPipelineWorkflows(context) {
-        if (typeof firebase === 'undefined' || !firebase.firestore) return;
+        console.log('[Pipeline] loadPipelineWorkflows called for context:', context);
+        if (typeof firebase === 'undefined' || !firebase.firestore) {
+            console.error('[Pipeline] Firebase not ready');
+            return;
+        }
 
         const db = firebase.firestore();
         try {
+            console.log('[Pipeline] Querying workflowDefinitions where pipelineContext ==', context);
             const snapshot = await db.collection('workflowDefinitions')
                 .where('pipelineContext', '==', context)
                 .orderBy('createdAt', 'desc')
@@ -1341,16 +1346,35 @@
                 ...doc.data()
             }));
 
+            console.log('[Pipeline] Found', workflows.length, 'workflows for context:', context);
             renderWorkflowCards(context, workflows);
         } catch (err) {
             console.error(`Refresh failed for ${context}:`, err);
+            // Fallback without orderBy if index missing
+            if (err.code === 'failed-precondition') {
+                console.warn('[Pipeline] Trying fallback without orderBy...');
+                try {
+                    const snapshot = await db.collection('workflowDefinitions')
+                        .where('pipelineContext', '==', context)
+                        .limit(6)
+                        .get();
+                    const workflows = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
+                    }));
+                    console.log('[Pipeline] Fallback found', workflows.length, 'workflows');
+                    renderWorkflowCards(context, workflows);
+                } catch (fallbackErr) {
+                    console.error('[Pipeline] Fallback also failed:', fallbackErr);
+                }
+            }
         }
     }
 
     // Listen for workflow saved events
     window.addEventListener('workflowSaved', (e) => {
         const { context } = e.detail;
-        console.log('[Pipeline] Workflow saved, refreshing:', context);
+        console.log('[Pipeline] ✅ workflowSaved event received! Refreshing context:', context);
         loadPipelineWorkflows(context);
     });
 
