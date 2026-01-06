@@ -1378,6 +1378,12 @@
         loadPipelineWorkflows(context);
     });
 
+    // Global function for direct call from WorkflowCanvas
+    window.refreshPipelineWorkflows = function (context) {
+        console.log('[Pipeline] 🔄 refreshPipelineWorkflows called directly for:', context);
+        loadPipelineWorkflows(context);
+    };
+
     // Initialize when pipeline page loads
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', loadAllPipelineWorkflows);

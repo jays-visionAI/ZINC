@@ -2503,6 +2503,12 @@ const WorkflowCanvas = (function () {
                 detail: { context: state.pipelineContext }
             }));
 
+            // Also try direct function call as fallback
+            if (typeof window.refreshPipelineWorkflows === 'function') {
+                console.log('[WorkflowCanvas] Calling refreshPipelineWorkflows directly');
+                window.refreshPipelineWorkflows(state.pipelineContext);
+            }
+
         } catch (err) {
             console.error('Failed to save workflow:', err);
             alert('저장 중 오류가 발생했습니다: ' + err.message);
