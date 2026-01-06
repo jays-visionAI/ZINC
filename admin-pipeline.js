@@ -1,5 +1,207 @@
 // admin-pipeline.js - Unified 5-Step Pipeline Management
 
+// ============================================
+// Workflow List Management (exposed to window for WorkflowCanvas)
+// ============================================
+window.refreshPipelineWorkflows = async function (context) {
+    console.log('[Pipeline] 🔄 refreshPipelineWorkflows called for:', context);
+    await loadPipelineWorkflows(context);
+};
+
+async function loadPipelineWorkflows(context) {
+    console.log('[Pipeline] loadPipelineWorkflows called for context:', context);
+    if (typeof firebase === 'undefined' || !firebase.firestore) {
+        console.error('[Pipeline] Firebase not ready');
+        return;
+    }
+
+    const db = firebase.firestore();
+    try {
+        console.log('[Pipeline] Querying workflowDefinitions where pipelineContext ==', context);
+        const snapshot = await db.collection('workflowDefinitions')
+            .where('pipelineContext', '==', context)
+            .orderBy('createdAt', 'desc')
+            .limit(6)
+            .get();
+
+        const workflows = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+
+        console.log('[Pipeline] Found', workflows.length, 'workflows for context:', context);
+        renderWorkflowCards(context, workflows);
+    } catch (err) {
+        console.error(`[Pipeline] Refresh failed for ${context}:`, err);
+        // Fallback without orderBy if index missing
+        if (err.code === 'failed-precondition') {
+            console.warn('[Pipeline] Trying fallback without orderBy...');
+            try {
+                const snapshot = await db.collection('workflowDefinitions')
+                    .where('pipelineContext', '==', context)
+                    .limit(6)
+                    .get();
+                const workflows = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                console.log('[Pipeline] Fallback found', workflows.length, 'workflows');
+                renderWorkflowCards(context, workflows);
+            } catch (fallbackErr) {
+                console.error('[Pipeline] Fallback also failed:', fallbackErr);
+            }
+        }
+    }
+}
+
+async function loadAllPipelineWorkflows() {
+    const contexts = ['market', 'brand', 'knowledge', 'studio', 'growth'];
+
+    if (typeof firebase === 'undefined' || !firebase.firestore) {
+        console.log('[Pipeline] Waiting for Firebase...');
+        setTimeout(loadAllPipelineWorkflows, 500);
+        return;
+    }
+
+    for (const context of contexts) {
+        await loadPipelineWorkflows(context);
+    }
+}
+
+function renderWorkflowCards(context, workflows) {
+    const container = document.getElementById(`workflow-cards-${context}`);
+    const countEl = document.getElementById(`workflow-count-${context}`);
+
+    if (!container) {
+        console.warn(`[Pipeline] Container not found for context: ${context}`);
+        return;
+    }
+
+    if (countEl) countEl.textContent = `(${workflows.length})`;
+
+    if (workflows.length === 0) {
+        container.innerHTML = `
+            <div class="workflow-empty-state">
+                <span class="workflow-empty-icon">📭</span>
+                <p>저장된 워크플로우가 없습니다</p>
+                <span class="workflow-empty-hint">위의 버튼을 클릭하여 새 워크플로우를 생성하세요</span>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = workflows.map(wf => `
+        <div class="workflow-card" data-workflow-id="${wf.id}">
+            <div class="workflow-card-header">
+                <span class="workflow-card-status ${wf.status || 'draft'}">${wf.status || 'Draft'}</span>
+                <button class="workflow-card-menu" onclick="showWorkflowMenu('${wf.id}')">⋮</button>
+            </div>
+            <div class="workflow-card-title">
+                <span class="workflow-card-title-icon">📋</span>
+                <h5>${wf.name || 'Untitled Workflow'}</h5>
+            </div>
+            <div class="workflow-card-meta">
+                <span class="workflow-card-time">
+                    <span>🕐</span>
+                    <span>${formatRelativeTime(wf.createdAt)}</span>
+                </span>
+            </div>
+            <div class="workflow-card-temp">
+                <div class="workflow-card-temp-label">
+                    <span>🌡️ Temperature</span>
+                    <span class="workflow-card-temp-value">${wf.temperature || 0.7}</span>
+                </div>
+                <div class="workflow-card-temp-bar">
+                    <div class="workflow-card-temp-fill" style="width: ${(wf.temperature || 0.7) * 100}%"></div>
+                </div>
+            </div>
+            <div class="workflow-card-stats">
+                <div class="workflow-card-stat">
+                    <span class="workflow-card-stat-icon">👥</span>
+                    <span class="workflow-card-stat-value">${wf.agentCount || 0}</span>
+                    <span class="workflow-card-stat-label">Agents</span>
+                </div>
+                <div class="workflow-card-stat">
+                    <span class="workflow-card-stat-icon">📄</span>
+                    <span class="workflow-card-stat-value">${wf.contentCount || 0}</span>
+                    <span class="workflow-card-stat-label">Contents</span>
+                </div>
+            </div>
+            <div class="workflow-card-actions">
+                <button class="workflow-card-action primary" onclick="runWorkflow('${wf.id}')">
+                    <span>▶</span>
+                    <span>실행</span>
+                </button>
+                <button class="workflow-card-action secondary" onclick="editWorkflow('${wf.id}', '${context}')">
+                    <span>✏️</span>
+                    <span>편집</span>
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function formatRelativeTime(timestamp) {
+    if (!timestamp) return '방금 전';
+    const now = new Date();
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffMins < 1) return '방금 전';
+    if (diffMins < 60) return `${diffMins}분 전`;
+    if (diffHours < 24) return `${diffHours}시간 전`;
+    if (diffDays < 7) return `${diffDays}일 전`;
+    return date.toLocaleDateString('ko-KR');
+}
+
+// Global workflow action functions
+window.openWorkflowCanvas = function (context) {
+    if (typeof WorkflowCanvas !== 'undefined') {
+        WorkflowCanvas.open(context);
+    } else {
+        console.error('WorkflowCanvas not loaded');
+        alert('워크플로우 캔버스를 로드하는 중 오류가 발생했습니다.');
+    }
+};
+
+window.runWorkflow = function (workflowId) {
+    console.log('Running workflow:', workflowId);
+    alert('워크플로우 실행 기능은 곧 제공될 예정입니다.');
+};
+
+window.editWorkflow = function (workflowId, context) {
+    console.log('Editing workflow:', workflowId, 'in context:', context);
+    if (typeof WorkflowCanvas !== 'undefined') {
+        WorkflowCanvas.open(context, null, workflowId);
+    }
+};
+
+window.duplicateWorkflow = function (workflowId) {
+    console.log('Duplicating workflow:', workflowId);
+    alert('워크플로우 복제 기능은 곧 제공될 예정입니다.');
+};
+
+window.showWorkflowMenu = function (workflowId) {
+    console.log('Show menu for:', workflowId);
+};
+
+window.viewAllWorkflows = function (context) {
+    console.log('View all workflows for:', context);
+    alert('전체 워크플로우 목록은 곧 제공될 예정입니다.');
+};
+
+// Listen for workflow saved events
+window.addEventListener('workflowSaved', (e) => {
+    const { context } = e.detail;
+    console.log('[Pipeline] ✅ workflowSaved event received! Refreshing context:', context);
+    loadPipelineWorkflows(context);
+});
+
+// ============================================
+// Pipeline Initialization
+// ============================================
 window.initPipelineMarket = (user) => initPipeline(user, 'market');
 window.initPipelineBrand = (user) => initPipeline(user, 'brand');
 window.initPipelineKnowledge = (user) => initPipeline(user, 'knowledge');
@@ -63,6 +265,10 @@ async function initPipeline(currentUser, initialTab = 'market') {
     }).catch(err => {
         console.error('[Pipeline] Error in loadAllSettings:', err);
     });
+
+    // 5. Load all saved workflows
+    console.log('[Pipeline] Loading saved workflows...');
+    loadAllPipelineWorkflows();
 }
 
 function notify(msg, type = 'success') {
