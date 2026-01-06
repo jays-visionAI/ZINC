@@ -855,10 +855,7 @@ window.switchSettingsTab = function (tabId) {
     if (tabId === 'pricing') {
         loadPricingData();
     }
-    // Load Standard Agent Profiles when switching to Agent Config tab (v5.0)
-    if (tabId === 'agentconfig') {
-        loadStandardProfiles();
-    }
+    // Agent Config tab removed - now managed in Agent Registry
 };
 
 // --- Pricing & Credits Interface ---

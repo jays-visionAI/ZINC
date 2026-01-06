@@ -151,19 +151,73 @@ class DAGExecutor {
     }
 
     /**
-     * v5.0: Load Standard Agent Profiles from Firestore
+     * v5.0 → v6.0: Load Agent Profiles from Agent Registry
+     * UNIFIED SOURCE OF TRUTH: Now uses agentRegistry + agentVersions
      * Layer 1 of the 4-Layer Prompt System
      */
     async loadStandardAgentProfiles() {
         try {
             const db = firebase.firestore();
-            const doc = await db.collection('systemSettings').doc('standardAgentProfiles').get();
-            if (doc.exists && doc.data().agents) {
-                this.state.standardAgentProfiles = doc.data().agents;
-                console.log('✅ Standard Agent Profiles Loaded:', Object.keys(this.state.standardAgentProfiles));
+
+            // v6.0: Load from Agent Registry (Single Source of Truth)
+            const registrySnapshot = await db.collection('agentRegistry')
+                .where('status', '==', 'active')
+                .get();
+
+            if (registrySnapshot.empty) {
+                console.warn('⚠️ No active agents found in Agent Registry');
+                return;
             }
+
+            const agents = {};
+            const versionPromises = [];
+
+            registrySnapshot.forEach(doc => {
+                const agent = { id: doc.id, ...doc.data() };
+
+                // Load production version for each agent
+                const versionPromise = db.collection('agentVersions')
+                    .where('agentId', '==', doc.id)
+                    .where('isProduction', '==', true)
+                    .limit(1)
+                    .get()
+                    .then(versionSnap => {
+                        if (!versionSnap.empty) {
+                            const versionData = versionSnap.docs[0].data();
+                            agents[doc.id] = {
+                                displayName: agent.name,
+                                systemPrompt: versionData.systemPrompt || '',
+                                temperature: versionData.config?.temperature || 0.7,
+                                model: versionData.config?.model,
+                                isEnabled: agent.status === 'active',
+                                category: agent.category,
+                                version: versionData.version,
+                                procedures: versionData.procedures || []
+                            };
+                        }
+                    });
+
+                versionPromises.push(versionPromise);
+            });
+
+            await Promise.all(versionPromises);
+
+            this.state.standardAgentProfiles = agents;
+            console.log('✅ Agent Profiles Loaded from Registry:', Object.keys(agents));
+            console.log('   Active agents:', Object.entries(agents).map(([k, v]) => `${k} (v${v.version})`).join(', '));
         } catch (error) {
-            console.warn('⚠️ Failed to load standard agent profiles:', error);
+            console.warn('⚠️ Failed to load agent profiles from Registry:', error);
+            // Fallback: Try legacy standardAgentProfiles for backward compatibility
+            try {
+                const db = firebase.firestore();
+                const doc = await db.collection('systemSettings').doc('standardAgentProfiles').get();
+                if (doc.exists && doc.data().agents) {
+                    this.state.standardAgentProfiles = doc.data().agents;
+                    console.log('⚠️ Using legacy standardAgentProfiles as fallback');
+                }
+            } catch (fallbackError) {
+                console.error('❌ Both Registry and legacy profile loading failed');
+            }
         }
     }
 

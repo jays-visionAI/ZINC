@@ -16,10 +16,7 @@
             style="padding-bottom: 12px; cursor: pointer; border-bottom: 2px solid transparent; color: rgba(255,255,255,0.5);">
             🤖 LLM Setting
         </div>
-        <div class="settings-tab" onclick="switchSettingsTab('agentconfig')" id="tab-btn-agentconfig"
-            style="padding-bottom: 12px; cursor: pointer; border-bottom: 2px solid transparent; color: rgba(255,255,255,0.5);">
-            🧠 Agent Config
-        </div>
+        <!-- Agent Config tab removed - now managed in Agent Registry -->
         <div class="settings-tab" onclick="switchSettingsTab('scheduler')" id="tab-btn-scheduler"
             style="padding-bottom: 12px; cursor: pointer; border-bottom: 2px solid transparent; color: rgba(255,255,255,0.5);">
             ⏰ Scheduler
@@ -285,54 +282,7 @@
         </div>
     </div>
 
-    <!-- ========================================== -->
-    <!-- TAB: AGENT CONFIGURATION (Standard Profiles) -->
-    <!-- ========================================== -->
-    <div id="tab-agentconfig" class="settings-tab-content" style="display: none;">
-
-        <div
-            style="background: rgba(255,255,255,0.03); border-radius: 12px; padding: 24px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 24px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <div>
-                    <h4 style="margin: 0; color: #fff; display: flex; align-items: center; gap: 10px;">
-                        🧠 Standard Agent Profiles
-                        <span
-                            style="background: linear-gradient(135deg, #16e0bd, #8b5cf6); padding: 3px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; color: #000;">v5.0</span>
-                    </h4>
-                    <p style="font-size: 12px; color: rgba(255,255,255,0.5); margin: 6px 0 0 0;">
-                        12개 에이전트의 기본 시스템 프롬프트를 중앙에서 관리합니다. 모든 프로젝트에 적용됩니다.
-                    </p>
-                </div>
-                <div style="display: flex; gap: 8px;">
-                    <button onclick="resetStandardProfiles()" class="admin-btn-secondary" style="padding: 8px 14px;">↩️
-                        Reset</button>
-                    <button onclick="saveStandardProfiles()" class="admin-btn-primary" style="padding: 8px 14px;">💾
-                        Save All</button>
-                </div>
-            </div>
-
-            <!-- Agent Profiles Container -->
-            <div id="standard-profiles-container">
-                <div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">
-                    Loading agent profiles...
-                </div>
-            </div>
-        </div>
-
-        <!-- Info Box -->
-        <div
-            style="padding: 16px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 8px;">
-            <div style="display: flex; align-items: flex-start; gap: 12px;">
-                <span style="font-size: 20px;">💡</span>
-                <div style="font-size: 13px; color: rgba(255,255,255,0.7); line-height: 1.6;">
-                    <strong style="color: #8b5cf6;">Layer 구조:</strong><br>
-                    • <strong>Layer 1 (Admin):</strong> 이 화면에서 설정하는 기본 프롬프트<br>
-                    • <strong>Layer 2 (User):</strong> 사용자가 Brain Modal에서 추가하는 커스텀 지시사항<br>
-                    • <strong>Layer 3 (AI):</strong> Runtime Profile Agent가 자동으로 적합한 LLM/Tier 선택
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- Agent Config tab removed - now managed in Agent Registry -->
 
     <!-- ========================================== -->
     <!-- TAB 2: LLM SETTING                         -->
