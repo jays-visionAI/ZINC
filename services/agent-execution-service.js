@@ -420,9 +420,37 @@
         /**
          * Execute a single sub-agent
          * Returns both input (prompts) and output for transparency
+         * Agent-OS Phase 1: Now supports Registry-based prompt resolution
          */
         async _executeSubAgent(subAgent, context) {
-            const baseSystemPrompt = subAgent.system_prompt || this._getDefaultPrompt(subAgent.role_type);
+            // Agent-OS: Try to resolve prompt from Registry first
+            let baseSystemPrompt = subAgent.system_prompt;
+            let promptSource = 'subagent';
+            let resolvedConfig = null;
+
+            if (typeof AgentRuntimeService !== 'undefined' && subAgent.registry_agent_id) {
+                try {
+                    const resolved = await AgentRuntimeService.resolveAgentPrompt(
+                        subAgent.registry_agent_id,
+                        subAgent.system_prompt,
+                        subAgent.role_type
+                    );
+                    if (resolved.source === 'registry') {
+                        baseSystemPrompt = resolved.prompt;
+                        resolvedConfig = resolved.config;
+                        promptSource = 'registry';
+                        console.log(`[AgentExecutionService] 🔗 Registry Integration: ${subAgent.registry_agent_id}`);
+                    }
+                } catch (e) {
+                    console.warn(`[AgentExecutionService] Failed to resolve from Registry:`, e.message);
+                }
+            }
+
+            // Fallback to default if still no prompt
+            if (!baseSystemPrompt) {
+                baseSystemPrompt = this._getDefaultPrompt(subAgent.role_type);
+                promptSource = 'default';
+            }
 
             // Phase 3: Inject Brand Context, Knowledge Context, AND Memory Context into System Prompt
             const systemPrompt = this._buildFullSystemPrompt(
@@ -434,6 +462,7 @@
             const userMessage = this._buildUserMessage(subAgent.role_type, context);
 
             console.log(`[AgentExecutionService] 🤖 ${subAgent.role_name || subAgent.role_type}:`);
+            console.log(`  📋 Prompt Source: ${promptSource}${subAgent.registry_agent_id ? ` (${subAgent.registry_agent_id})` : ''}`);
             console.log(`  📋 System Prompt: ${systemPrompt.substring(0, 150)}...`);
             console.log(`  💬 User Message: ${userMessage.substring(0, 100)}...`);
             if (context.brandContext) {
@@ -458,7 +487,9 @@
                     user_message: userMessage || null,
                     team_directive: context.teamDirective || null,
                     custom_instructions: context.customInstructions || null,
-                    brand_context_applied: !!context.brandContext // Track if brand context was used
+                    brand_context_applied: !!context.brandContext,
+                    prompt_source: promptSource, // Track where prompt came from
+                    registry_agent_id: subAgent.registry_agent_id || null
                 },
                 // Output
                 output: response,

@@ -40,6 +40,7 @@ async function initPipeline(currentUser, initialTab = 'market') {
         { id: 'agent-creator-temp', label: 'label-creator-temp' },
         { id: 'agent-text-temp', label: 'label-text-temp' },
         { id: 'agent-manager-temp', label: 'label-manager-temp' },
+        { id: 'agent-reasoner-temp', label: 'label-reasoner-temp' },
         { id: 'agent-orchestrator-temp', label: 'label-orchestrator-temp' }
     ];
 
@@ -184,6 +185,11 @@ async function loadAllSettings() {
             updateElValue('agent-manager-temp', data.manager?.temperature || 0.2);
             updateElText('label-manager-temp', data.manager?.temperature || 0.2);
             updateElValue('agent-manager-prompt', data.manager?.systemPrompt || '');
+
+            updateElValue('agent-reasoner-model', data.reasoner?.model || 'deepseek-reasoner');
+            updateElValue('agent-reasoner-temp', data.reasoner?.temperature || 0.1);
+            updateElText('label-reasoner-temp', data.reasoner?.temperature || 0.1);
+            updateElValue('agent-reasoner-prompt', data.reasoner?.systemPrompt || '');
         }
     } catch (e) { console.error('Error loading growth:', e); }
 }
@@ -206,15 +212,15 @@ function setupSaveListeners() {
         try {
             const settings = {
                 research: {
-                    model: document.getElementById('agent-research-model').value,
-                    temperature: parseFloat(document.getElementById('agent-research-temp').value),
-                    systemPrompt: document.getElementById('agent-research-prompt').value,
+                    model: document.getElementById('agent-research-model')?.value || 'gpt-4o',
+                    temperature: parseFloat(document.getElementById('agent-research-temp')?.value || 0.7),
+                    systemPrompt: document.getElementById('agent-research-prompt')?.value || '',
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 },
                 seo: {
-                    model: document.getElementById('agent-seo-model').value,
-                    temperature: parseFloat(document.getElementById('agent-seo-temp').value),
-                    systemPrompt: document.getElementById('agent-seo-prompt').value,
+                    model: document.getElementById('agent-seo-model')?.value || 'gpt-4o-mini',
+                    temperature: parseFloat(document.getElementById('agent-seo-temp')?.value || 0.3),
+                    systemPrompt: document.getElementById('agent-seo-prompt')?.value || '',
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 }
             };
@@ -230,9 +236,9 @@ function setupSaveListeners() {
         try {
             const settings = {
                 planner: {
-                    model: document.getElementById('agent-planner-model').value,
-                    temperature: parseFloat(document.getElementById('agent-planner-temp').value),
-                    systemPrompt: document.getElementById('agent-planner-prompt').value,
+                    model: document.getElementById('agent-planner-model')?.value || 'gpt-4o',
+                    temperature: parseFloat(document.getElementById('agent-planner-temp')?.value || 0.5),
+                    systemPrompt: document.getElementById('agent-planner-prompt')?.value || '',
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 }
             };
@@ -248,45 +254,45 @@ function setupSaveListeners() {
         try {
             const settings = {
                 standard: {
-                    model: document.getElementById('agent-standard-model').value,
-                    temperature: parseFloat(document.getElementById('agent-standard-temp').value),
-                    systemPrompt: document.getElementById('agent-standard-prompt').value,
+                    model: document.getElementById('agent-standard-model')?.value || 'gpt-4o',
+                    temperature: parseFloat(document.getElementById('agent-standard-temp')?.value || 0.2),
+                    systemPrompt: document.getElementById('agent-standard-prompt')?.value || '',
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 },
                 depth: {
-                    model: document.getElementById('agent-depth-model').value,
-                    temperature: parseFloat(document.getElementById('agent-depth-temp').value),
-                    systemPrompt: document.getElementById('agent-depth-prompt').value,
+                    model: document.getElementById('agent-depth-model')?.value || 'deepseek-reasoner',
+                    temperature: parseFloat(document.getElementById('agent-depth-temp')?.value || 0.3),
+                    systemPrompt: document.getElementById('agent-depth-prompt')?.value || '',
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 },
                 insights: {
-                    model: document.getElementById('agent-insights-model').value,
-                    temperature: parseFloat(document.getElementById('agent-insights-temp').value),
-                    systemPrompt: document.getElementById('agent-insights-prompt').value,
+                    model: document.getElementById('agent-insights-model')?.value || 'deepseek-reasoner',
+                    temperature: parseFloat(document.getElementById('agent-insights-temp')?.value || 0.3),
+                    systemPrompt: document.getElementById('agent-insights-prompt')?.value || '',
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 },
                 strategy: {
-                    model: document.getElementById('agent-strategy-model').value,
-                    temperature: parseFloat(document.getElementById('agent-strategy-temp').value),
-                    systemPrompt: document.getElementById('agent-strategy-prompt').value,
+                    model: document.getElementById('agent-strategy-model')?.value || 'gpt-4o',
+                    temperature: parseFloat(document.getElementById('agent-strategy-temp')?.value || 0.6),
+                    systemPrompt: document.getElementById('agent-strategy-prompt')?.value || '',
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 },
                 quick: {
-                    model: document.getElementById('agent-quick-model').value,
-                    temperature: parseFloat(document.getElementById('agent-quick-temp').value),
-                    systemPrompt: document.getElementById('agent-quick-prompt').value,
+                    model: document.getElementById('agent-quick-model')?.value || 'gpt-4o-mini',
+                    temperature: parseFloat(document.getElementById('agent-quick-temp')?.value || 0.9),
+                    systemPrompt: document.getElementById('agent-quick-prompt')?.value || '',
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 },
                 studio_docs: {
-                    model: document.getElementById('agent-studio-docs-model').value,
-                    temperature: parseFloat(document.getElementById('agent-studio-docs-temp').value),
-                    systemPrompt: document.getElementById('agent-studio-docs-prompt').value,
+                    model: document.getElementById('agent-studio-docs-model')?.value || 'claude-3-5-sonnet-20241022',
+                    temperature: parseFloat(document.getElementById('agent-studio-docs-temp')?.value || 0.4),
+                    systemPrompt: document.getElementById('agent-studio-docs-prompt')?.value || '',
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 },
                 studio_visual: {
-                    model: document.getElementById('agent-studio-visual-model').value,
-                    temperature: parseFloat(document.getElementById('agent-studio-visual-temp').value),
-                    systemPrompt: document.getElementById('agent-studio-visual-prompt').value,
+                    model: document.getElementById('agent-studio-visual-model')?.value || 'gpt-4o-mini',
+                    temperature: parseFloat(document.getElementById('agent-studio-visual-temp')?.value || 0.7),
+                    systemPrompt: document.getElementById('agent-studio-visual-prompt')?.value || '',
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 }
             };
@@ -302,23 +308,23 @@ function setupSaveListeners() {
         try {
             const settings = {
                 creator: {
-                    model: document.getElementById('agent-creator-model').value,
-                    temperature: parseFloat(document.getElementById('agent-creator-temp').value),
-                    systemPrompt: document.getElementById('agent-creator-prompt').value,
+                    model: document.getElementById('agent-creator-model')?.value || 'gpt-4o',
+                    temperature: parseFloat(document.getElementById('agent-creator-temp')?.value || 0.7),
+                    systemPrompt: document.getElementById('agent-creator-prompt')?.value || '',
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 },
                 text: {
-                    model: document.getElementById('agent-text-model').value,
-                    temperature: parseFloat(document.getElementById('agent-text-temp').value),
-                    systemPrompt: document.getElementById('agent-text-prompt').value,
+                    model: document.getElementById('agent-text-model')?.value || 'gpt-4o',
+                    temperature: parseFloat(document.getElementById('agent-text-temp')?.value || 0.8),
+                    systemPrompt: document.getElementById('agent-text-prompt')?.value || '',
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 },
                 orchestrator: {
-                    model: document.getElementById('agent-orchestrator-model').value,
-                    temperature: parseFloat(document.getElementById('agent-orchestrator-temp').value),
-                    systemPrompt: document.getElementById('agent-orchestrator-prompt').value,
-                    enableComplexityRouting: document.getElementById('orchestrator-complexity-routing').checked,
-                    autoSyncBrand: document.getElementById('orchestrator-brand-sync').checked,
+                    model: document.getElementById('agent-orchestrator-model')?.value || 'gpt-4o',
+                    temperature: parseFloat(document.getElementById('agent-orchestrator-temp')?.value || 0.5),
+                    systemPrompt: document.getElementById('agent-orchestrator-prompt')?.value || '',
+                    enableComplexityRouting: document.getElementById('orchestrator-complexity-routing')?.checked !== false,
+                    autoSyncBrand: document.getElementById('orchestrator-brand-sync')?.checked !== false,
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 }
             };
@@ -334,14 +340,20 @@ function setupSaveListeners() {
         try {
             const settings = {
                 manager: {
-                    model: document.getElementById('agent-manager-model').value,
-                    temperature: parseFloat(document.getElementById('agent-manager-temp').value),
-                    systemPrompt: document.getElementById('agent-manager-prompt').value,
+                    model: document.getElementById('agent-manager-model')?.value || 'gpt-4o',
+                    temperature: parseFloat(document.getElementById('agent-manager-temp')?.value || 0.2),
+                    systemPrompt: document.getElementById('agent-manager-prompt')?.value || '',
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                },
+                reasoner: {
+                    model: document.getElementById('agent-reasoner-model')?.value || 'deepseek-reasoner',
+                    temperature: parseFloat(document.getElementById('agent-reasoner-temp')?.value || 0.1),
+                    systemPrompt: document.getElementById('agent-reasoner-prompt')?.value || '',
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 }
             };
             await db.collection('chatbotConfig').doc('pipeline_growth').set(settings, { merge: true });
-            notify('Growth Settings saved!', 'success');
+            notify('Growth Pipeline Settings saved!', 'success');
         } catch (e) { notify(e.message, 'error'); } finally { btn.disabled = false; }
     });
 }

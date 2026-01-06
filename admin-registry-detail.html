@@ -18,71 +18,369 @@
                     <span>Updated: <span id="agent-updated"></span></span>
                 </div>
             </div>
-            <div style="display: flex; gap: 8px;">
-                <!-- Future: Edit Meta Info -->
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button class="admin-btn-secondary" onclick="openCloneModal()"
+                    style="font-size: 12px; background: rgba(78, 205, 196, 0.1); border-color: rgba(78, 205, 196, 0.3); color: #4ecdc4;">
+                    <i class="fas fa-copy"></i> Clone Agent
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- Version History Section -->
+    <!-- Agent Logic Section (Visible by Default) -->
+    <div id="source-code-section"
+        style="background: rgba(255,255,255,0.05); padding: 24px; border-radius: 12px; margin-bottom: 24px; width: 100%; max-width: 100%; overflow: hidden; box-sizing: border-box;">
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+            <h3 style="margin: 0; font-size: 18px; color: #4ecdc4;">
+                <i class="fas fa-code-branch" style="margin-right: 8px;"></i>
+                프롬프트 및 설정 (Code)
+            </h3>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <select id="source-file-selector" class="admin-select"
+                    style="min-width: 320px; font-size: 13px; background: #161b22;" onchange="loadSourceFile()">
+                    <option value="">불러올 정보를 선택하세요...</option>
+                </select>
+            </div>
+        </div>
+        <div id="source-code-container"
+            style="background: #0d1117; border-radius: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); width: 100%; max-width: 100%;">
+            <div
+                style="background: #161b22; padding: 10px 16px; border-bottom: 1px solid #30363d; display: flex; justify-content: space-between; align-items: center;">
+                <span id="source-file-name" style="color: #4ecdc4; font-size: 12px; font-family: monospace;">-</span>
+                <span id="source-line-count" style="color: #8b949e; font-size: 11px;"></span>
+            </div>
+            <pre id="source-code-content"
+                style="margin: 0; padding: 16px; height: 350px; overflow: auto; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 13px; line-height: 1.6; color: #c9d1d9; background: #0d1117; white-space: pre; width: 0; min-width: 100%; box-sizing: border-box;">
+<code style="color: rgba(255,255,255,0.3);">정보를 불러오고 있습니다...</code>
+            </pre>
+        </div>
+    </div>
+
+    <!-- Agent Logic Flow (Visualization) -->
+    <div style="background: rgba(255,255,255,0.05); padding: 24px; border-radius: 12px; margin-bottom: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 style="margin: 0; display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-microchip" style="color: #10b981;"></i>
+                에이전트 실행 튜닝 및 가시화 (Observability & Tuning)
+            </h3>
+            <span style="font-size: 12px; color: rgba(255,255,255,0.4);">Observability & Execution Trace</span>
+        </div>
+        <div id="narrative-canvas"
+            style="min-height: 300px; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.3); box-shadow: inset 0 0 20px rgba(0,0,0,0.5);">
+            <div style="text-align: center; color: rgba(255,255,255,0.3);">
+                <i class="fas fa-brain" style="font-size: 40px; margin-bottom: 16px; opacity: 0.5;"></i>
+                <p>Loading execution flow visualization...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Version History & History Explorer -->
     <div style="background: rgba(255,255,255,0.05); padding: 24px; border-radius: 12px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h3 style="margin: 0;">Version History</h3>
+            <h3 style="margin: 0; display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-history" style="color: #a855f7;"></i>
+                버전 기록 및 관리
+            </h3>
+            <button id="compare-versions-btn" class="admin-btn-secondary" style="font-size: 11px; padding: 8px 16px;"
+                onclick="initCompareMode()">
+                <i class="fas fa-columns"></i> Multi-Version Diff
+            </button>
         </div>
 
         <div id="versions-grid"></div>
     </div>
 </div>
 
-<!-- Edit Version Modal (Prompt Editor) -->
-<div id="edit-version-modal" class="admin-modal" style="display: none;">
-    <div class="admin-modal-content" style="max-width: 900px; height: 90vh; display: flex; flex-direction: column;">
-        <div class="admin-modal-header">
-            <h3 class="admin-modal-title" id="edit-modal-title">Edit Agent Prompt</h3>
-            <button class="admin-modal-close" onclick="closeEditModal()">&times;</button>
+<!-- Enhanced Code Diff Viewer Modal with Line-by-Line Highlighting -->
+<div id="diff-viewer-modal" class="admin-modal" style="display: none;">
+    <div class="admin-modal-content" style="max-width: 1400px; height: 95vh; display: flex; flex-direction: column;">
+        <div class="admin-modal-header" style="background: #161b22; border-bottom: 1px solid #30363d;">
+            <h3 class="admin-modal-title" style="display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-code-branch" style="color: #f59e0b;"></i>
+                Agent Version Diff
+            </h3>
+            <button class="admin-modal-close" onclick="closeDiffModal()">&times;</button>
         </div>
         <div class="admin-modal-body"
-            style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 16px;">
+            style="flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 0; padding: 0; background: #0d1117;">
+            <!-- Diff Stats Bar -->
+            <div id="diff-stats-bar"
+                style="background: #161b22; padding: 12px 20px; border-bottom: 1px solid #30363d; display: flex; gap: 20px; font-size: 13px;">
+                <span style="color: #8b949e;">Comparing:</span>
+                <span id="diff-version-labels" style="color: #c9d1d9;"></span>
+                <span style="margin-left: auto;">
+                    <span id="diff-additions" style="color: #3fb950;">+0 additions</span>
+                    <span style="margin: 0 8px; color: #484f58;">|</span>
+                    <span id="diff-deletions" style="color: #f85149;">-0 deletions</span>
+                </span>
+            </div>
+            <!-- Side-by-Side Diff View -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; flex: 1; overflow: hidden;">
+                <!-- Left Side: Old Version -->
+                <div style="display: flex; flex-direction: column; border-right: 1px solid #30363d; overflow: hidden;">
+                    <div id="diff-left-header"
+                        style="padding: 10px 16px; background: #161b22; border-bottom: 1px solid #30363d; font-weight: 600; color: #f85149; font-size: 13px;">
+                        <i class="fas fa-minus-circle"></i> Old Version
+                    </div>
+                    <div id="diff-left-content"
+                        style="flex: 1; overflow-y: auto; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.6;">
+                    </div>
+                </div>
+                <!-- Right Side: New Version -->
+                <div style="display: flex; flex-direction: column; overflow: hidden;">
+                    <div id="diff-right-header"
+                        style="padding: 10px 16px; background: #161b22; border-bottom: 1px solid #30363d; font-weight: 600; color: #3fb950; font-size: 13px;">
+                        <i class="fas fa-plus-circle"></i> New Version
+                    </div>
+                    <div id="diff-right-content"
+                        style="flex: 1; overflow-y: auto; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.6;">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="admin-modal-footer" style="background: #161b22; border-top: 1px solid #30363d;">
+            <button type="button" class="admin-btn-secondary" onclick="closeDiffModal()">Close Comparison</button>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Version Modal (Enhanced with Procedures + AI Assist) -->
+<div id="edit-version-modal" class="admin-modal" style="display: none;">
+    <div class="admin-modal-content" style="max-width: 1000px; height: 95vh; display: flex; flex-direction: column;">
+        <div class="admin-modal-header" style="background: linear-gradient(135deg, #1e3a5f 0%, #0d1b2a 100%);">
+            <div>
+                <h3 class="admin-modal-title" id="edit-modal-title">Edit Agent Version</h3>
+                <span id="edit-modal-subtitle" style="font-size: 12px; color: rgba(255,255,255,0.5);"></span>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <button class="admin-btn-secondary" style="font-size: 12px; padding: 6px 12px;"
+                    onclick="openAiAssist()">
+                    🤖 AI Assist
+                </button>
+                <button class="admin-modal-close" onclick="closeEditModal()">&times;</button>
+            </div>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div style="display: flex; background: #161b22; border-bottom: 1px solid #30363d;">
+            <button class="edit-tab active" id="edit-tab-prompt" onclick="switchEditTab('prompt')"
+                style="flex: 1; padding: 12px; background: transparent; border: none; color: #fff; cursor: pointer; border-bottom: 2px solid #4ecdc4; font-weight: 600;">
+                📝 System Prompt
+            </button>
+            <button class="edit-tab" id="edit-tab-procedures" onclick="switchEditTab('procedures')"
+                style="flex: 1; padding: 12px; background: transparent; border: none; color: rgba(255,255,255,0.6); cursor: pointer; border-bottom: 2px solid transparent;">
+                🔄 Procedures
+            </button>
+            <button class="edit-tab" id="edit-tab-config" onclick="switchEditTab('config')"
+                style="flex: 1; padding: 12px; background: transparent; border: none; color: rgba(255,255,255,0.6); cursor: pointer; border-bottom: 2px solid transparent;">
+                ⚙️ Config
+            </button>
+        </div>
+
+        <div class="admin-modal-body" style="flex: 1; overflow-y: auto; padding: 20px;">
             <input type="hidden" id="edit-source-id">
 
-            <div class="admin-form-group" style="flex: 1; display: flex; flex-direction: column;">
-                <label class="admin-form-label">System Prompt</label>
-                <textarea id="edit-prompt" class="admin-form-input"
-                    style="flex: 1; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.5;"
+            <!-- Tab: System Prompt -->
+            <div id="edit-content-prompt" class="edit-content"
+                style="height: 100%; display: flex; flex-direction: column;">
+                <div class="admin-form-group" style="flex: 1; display: flex; flex-direction: column;">
+                    <label class="admin-form-label" style="margin-bottom: 8px;">System Prompt</label>
+                    <textarea id="edit-prompt" class="admin-form-input"
+                        style="flex: 1; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.5; min-height: 300px;"
+                        placeholder="Enter the agent's system prompt..." spellcheck="false"></textarea>
+                </div>
+            </div>
+
+            <!-- Tab: Procedures -->
+            <div id="edit-content-procedures" class="edit-content" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <label class="admin-form-label" style="margin: 0;">Execution Procedures</label>
+                    <button class="admin-btn-secondary" style="font-size: 12px;" onclick="addProcedureStep()">
+                        + Add Step
+                    </button>
+                </div>
+                <div id="procedures-editor" style="display: flex; flex-direction: column; gap: 12px;">
+                    <!-- Dynamically populated -->
+                </div>
+            </div>
+
+            <!-- Tab: Config -->
+            <div id="edit-content-config" class="edit-content" style="display: none;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="admin-form-group">
+                        <label class="admin-form-label">Target Version Number</label>
+                        <input type="text" id="edit-next-version" class="admin-form-input" placeholder="e.g. 1.0.1">
+                    </div>
+                    <div class="admin-form-group">
+                        <label class="admin-form-label">LLM Model</label>
+                        <select id="edit-model" class="admin-select" style="width: 100%;">
+                            <option value="gpt-4o">GPT-4o</option>
+                            <option value="gpt-4o-mini">GPT-4o Mini</option>
+                            <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
+                            <option value="deepseek-chat">DeepSeek V3</option>
+                            <option value="deepseek-reasoner">DeepSeek R1 (Reasoner)</option>
+                        </select>
+                    </div>
+                    <div class="admin-form-group">
+                        <label class="admin-form-label">Temperature</label>
+                        <input type="number" id="edit-temperature" class="admin-form-input" min="0" max="2" step="0.1"
+                            value="0.7">
+                    </div>
+                    <div class="admin-form-group">
+                        <label class="admin-form-label">Max Tokens</label>
+                        <input type="number" id="edit-max-tokens" class="admin-form-input" min="256" max="16384"
+                            step="256" value="4096">
+                    </div>
+                </div>
+                <div class="admin-form-group" style="margin-top: 16px;">
+                    <label class="admin-form-label">Change Log (Required)</label>
+                    <input type="text" id="edit-changelog" class="admin-form-input"
+                        placeholder="What changed in this version?">
+                </div>
+            </div>
+        </div>
+
+        <div class="admin-modal-footer"
+            style="background: #161b22; border-top: 1px solid #30363d; display: flex; justify-content: space-between;">
+            <button type="button" class="admin-btn-secondary" onclick="closeEditModal()">Cancel</button>
+            <div style="display: flex; gap: 8px;">
+                <button type="button" class="admin-btn-secondary" onclick="previewChanges()">👁️ Preview</button>
+                <button type="button" class="admin-btn-primary" onclick="saveNewVersion()">💾 Save as New
+                    Version</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- AI Assist Modal -->
+<div id="ai-assist-modal" class="admin-modal" style="display: none;">
+    <div class="admin-modal-content" style="max-width: 800px; height: 80vh; display: flex; flex-direction: column;">
+        <div class="admin-modal-header" style="background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);">
+            <h3 class="admin-modal-title">
+                <span style="margin-right: 8px;">🤖</span>
+                AI Assist - Modify Agent
+            </h3>
+            <button class="admin-modal-close" onclick="closeAiAssist()">&times;</button>
+        </div>
+
+        <div class="admin-modal-body"
+            style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 16px;">
+            <!-- Current State Preview -->
+            <div style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 8px;">
+                <div style="font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 8px;">Currently Editing</div>
+                <div id="ai-current-agent" style="font-weight: 600; font-size: 16px;"></div>
+            </div>
+
+            <!-- Modification Request -->
+            <div class="admin-form-group" style="flex: 0 0 auto;">
+                <label class="admin-form-label">What changes do you want to make?</label>
+                <textarea id="ai-modification-request" class="admin-form-input" rows="4"
+                    placeholder="예시:&#10;- 더 친근한 톤으로 바꿔줘&#10;- 마케팅 관점을 추가해줘&#10;- 실행 단계를 3단계에서 5단계로 세분화해줘"
                     spellcheck="false"></textarea>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
-                <div class="admin-form-group">
-                    <label class="admin-form-label">Target Version Number</label>
-                    <input type="text" id="edit-next-version" class="admin-form-input" placeholder="e.g. 1.0.1">
-                </div>
-                <div class="admin-form-group">
-                    <label class="admin-form-label">LLM Model</label>
-                    <select id="edit-model" class="admin-select" style="width: 100%;">
-                        <option value="gpt-4o">GPT-4o</option>
-                        <option value="gpt-4o-mini">GPT-4o Mini</option>
-                        <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
-                        <option value="deepseek-chat">DeepSeek V3</option>
-                        <option value="deepseek-reasoner">DeepSeek R1 (Reasoner)</option>
-                    </select>
-                </div>
-                <div class="admin-form-group">
-                    <label class="admin-form-label">Temperature</label>
-                    <input type="number" id="edit-temperature" class="admin-form-input" min="0" max="2" step="0.1"
-                        value="0.7">
+            <!-- Modification Type -->
+            <div class="admin-form-group">
+                <label class="admin-form-label">What to modify?</label>
+                <div style="display: flex; gap: 12px;">
+                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                        <input type="checkbox" id="ai-modify-prompt" checked> System Prompt
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                        <input type="checkbox" id="ai-modify-procedures"> Procedures
+                    </label>
                 </div>
             </div>
 
-            <div class="admin-form-group">
-                <label class="admin-form-label">Change Log (Mandatory)</label>
-                <input type="text" id="edit-changelog" class="admin-form-input"
-                    placeholder="What changed in this version?">
+            <!-- AI Response Area -->
+            <div id="ai-response-area" style="flex: 1; display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <label class="admin-form-label" style="margin: 0;">AI Suggestion</label>
+                    <span id="ai-response-status" style="font-size: 12px; color: #4ecdc4;"></span>
+                </div>
+                <pre id="ai-response-content"
+                    style="background: #0d1117; padding: 16px; border-radius: 8px; border: 1px solid #30363d; max-height: 300px; overflow-y: auto; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #c9d1d9; white-space: pre-wrap;"></pre>
             </div>
         </div>
-        <div class="admin-modal-footer">
-            <button type="button" class="admin-btn-secondary" onclick="closeEditModal()">Cancel</button>
-            <button type="button" class="admin-btn-primary" onclick="saveNewVersion()">💾 Save as New Version</button>
+
+        <div class="admin-modal-footer"
+            style="background: #161b22; border-top: 1px solid #30363d; display: flex; justify-content: space-between;">
+            <button type="button" class="admin-btn-secondary" onclick="closeAiAssist()">Cancel</button>
+            <div style="display: flex; gap: 8px;">
+                <button type="button" id="ai-generate-btn" class="admin-btn-primary" onclick="generateAiSuggestion()"
+                    style="background: #7c3aed;">
+                    ✨ Generate Suggestion
+                </button>
+                <button type="button" id="ai-apply-btn" class="admin-btn-primary" onclick="applyAiSuggestion()"
+                    style="display: none;">
+                    ✅ Apply Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Clone Agent Modal -->
+<div id="clone-agent-modal" class="admin-modal" style="display: none;">
+    <div class="admin-modal-content" style="max-width: 600px;">
+        <div class="admin-modal-header" style="background: linear-gradient(135deg, #059669 0%, #047857 100%);">
+            <h3 class="admin-modal-title">
+                <span style="margin-right: 8px;">📋</span>
+                Clone Agent
+            </h3>
+            <button class="admin-modal-close" onclick="closeCloneModal()">&times;</button>
+        </div>
+
+        <div class="admin-modal-body" style="display: flex; flex-direction: column; gap: 16px;">
+            <div style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 8px;">
+                <div style="font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 4px;">Cloning from</div>
+                <div id="clone-source-info" style="font-weight: 600;"></div>
+            </div>
+
+            <div class="admin-form-group">
+                <label class="admin-form-label">New Agent ID</label>
+                <input type="text" id="clone-new-id" class="admin-form-input" placeholder="e.g. DSN-NEW-AGENT">
+                <small style="color: rgba(255,255,255,0.4); font-size: 11px;">Use format: PREFIX-NAME (e.g.
+                    STG-MARKET-ANALYST)</small>
+            </div>
+
+            <div class="admin-form-group">
+                <label class="admin-form-label">New Agent Name</label>
+                <input type="text" id="clone-new-name" class="admin-form-input" placeholder="e.g. Market Analyst">
+            </div>
+
+            <div class="admin-form-group">
+                <label class="admin-form-label">Category</label>
+                <select id="clone-category" class="admin-select" style="width: 100%;">
+                    <option value="Intelligence">Intelligence</option>
+                    <option value="Design">Design</option>
+                    <option value="Strategy">Strategy</option>
+                    <option value="QA">QA</option>
+                    <option value="Studio">Studio</option>
+                    <option value="Growth">Growth</option>
+                </select>
+            </div>
+
+            <div class="admin-form-group">
+                <label class="admin-form-label">Description</label>
+                <textarea id="clone-description" class="admin-form-input" rows="2"
+                    placeholder="What does this agent do?"></textarea>
+            </div>
+
+            <div
+                style="background: rgba(245, 158, 11, 0.1); padding: 12px; border-radius: 8px; border-left: 3px solid #f59e0b;">
+                <div style="font-size: 12px; color: #f59e0b;">
+                    ℹ️ This will create a new agent with the production prompt from the source agent.
+                </div>
+            </div>
+        </div>
+
+        <div class="admin-modal-footer" style="background: #161b22; border-top: 1px solid #30363d;">
+            <button type="button" class="admin-btn-secondary" onclick="closeCloneModal()">Cancel</button>
+            <button type="button" class="admin-btn-primary" onclick="executeClone()" style="background: #059669;">
+                📋 Create Clone
+            </button>
         </div>
     </div>
 </div>

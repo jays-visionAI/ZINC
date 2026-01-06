@@ -1,0 +1,127 @@
+<div id="playground-container">
+    <!-- Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <div>
+            <h2 style="margin: 0 0 8px 0;">🧪 Agent Playground</h2>
+            <p style="margin: 0; color: rgba(255,255,255,0.6); font-size: 14px;">
+                Test and experiment with agents before deploying to production
+            </p>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <button class="admin-btn-secondary" onclick="loadPlaygroundAgents()">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Layout -->
+    <div style="display: grid; grid-template-columns: 350px 1fr; gap: 24px;">
+        <!-- Left Panel: Agent Selector -->
+        <div style="background: rgba(255,255,255,0.05); border-radius: 12px; padding: 20px;">
+            <h3 style="margin: 0 0 16px 0; font-size: 16px;">
+                <i class="fas fa-robot" style="color: #4ecdc4; margin-right: 8px;"></i>
+                Select Agent
+            </h3>
+
+            <!-- Category Filter -->
+            <div style="margin-bottom: 16px;">
+                <select id="playground-category-filter" class="admin-select" style="width: 100%;"
+                    onchange="filterPlaygroundAgents()">
+                    <option value="">All Categories</option>
+                    <option value="Intelligence">Intelligence</option>
+                    <option value="Design">Design</option>
+                    <option value="QA">QA</option>
+                    <option value="Strategy">Strategy</option>
+                    <option value="Studio">Studio</option>
+                    <option value="Growth">Growth</option>
+                </select>
+            </div>
+
+            <!-- Agent List -->
+            <div id="playground-agent-list" style="max-height: 400px; overflow-y: auto;">
+                <div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.4);">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i>
+                    <p>Loading agents...</p>
+                </div>
+            </div>
+
+            <!-- Selected Agent Info -->
+            <div id="playground-selected-agent"
+                style="margin-top: 16px; padding: 16px; background: rgba(78, 205, 196, 0.1); border-radius: 8px; border: 1px solid rgba(78, 205, 196, 0.2); display: none;">
+                <div style="font-size: 14px; font-weight: 600; color: #4ecdc4; margin-bottom: 8px;">Selected Agent</div>
+                <div id="playground-selected-name" style="font-size: 16px; font-weight: 600;"></div>
+                <div id="playground-selected-category"
+                    style="font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 4px;"></div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Test Area -->
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+            <!-- Prompt Preview -->
+            <div style="background: rgba(255,255,255,0.05); border-radius: 12px; padding: 20px;">
+                <h3 style="margin: 0 0 16px 0; font-size: 16px;">
+                    <i class="fas fa-file-code" style="color: #f59e0b; margin-right: 8px;"></i>
+                    System Prompt (from Registry)
+                </h3>
+                <pre id="playground-prompt-preview"
+                    style="background: #0d1117; padding: 16px; border-radius: 8px; max-height: 200px; overflow-y: auto; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #c9d1d9; white-space: pre-wrap; margin: 0;">
+Select an agent to preview its system prompt...
+                </pre>
+            </div>
+
+            <!-- Test Input -->
+            <div style="background: rgba(255,255,255,0.05); border-radius: 12px; padding: 20px;">
+                <h3 style="margin: 0 0 16px 0; font-size: 16px;">
+                    <i class="fas fa-flask" style="color: #a78bfa; margin-right: 8px;"></i>
+                    Test Input
+                </h3>
+
+                <div class="admin-form-group" style="margin-bottom: 16px;">
+                    <label class="admin-form-label">User Message</label>
+                    <textarea id="playground-user-message" class="admin-form-input" rows="4"
+                        placeholder="Enter a test message or scenario to send to the agent..."
+                        style="font-family: 'Inter', sans-serif;"></textarea>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+                    <div class="admin-form-group">
+                        <label class="admin-form-label">Model</label>
+                        <select id="playground-model" class="admin-select" style="width: 100%;">
+                            <option value="gpt-4o">GPT-4o</option>
+                            <option value="gpt-4o-mini">GPT-4o Mini</option>
+                            <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
+                            <option value="deepseek-chat">DeepSeek V3</option>
+                            <option value="deepseek-reasoner">DeepSeek R1</option>
+                        </select>
+                    </div>
+                    <div class="admin-form-group">
+                        <label class="admin-form-label">Temperature</label>
+                        <input type="number" id="playground-temperature" class="admin-form-input" value="0.7" min="0"
+                            max="2" step="0.1">
+                    </div>
+                    <div class="admin-form-group" style="display: flex; align-items: flex-end;">
+                        <button id="playground-run-btn" class="admin-btn-primary" style="width: 100%;"
+                            onclick="runPlaygroundTest()" disabled>
+                            <i class="fas fa-play"></i> Run Test
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output -->
+            <div style="background: rgba(255,255,255,0.05); border-radius: 12px; padding: 20px; flex: 1;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h3 style="margin: 0; font-size: 16px;">
+                        <i class="fas fa-terminal" style="color: #3fb950; margin-right: 8px;"></i>
+                        Output
+                    </h3>
+                    <div id="playground-output-stats" style="font-size: 12px; color: rgba(255,255,255,0.4);"></div>
+                </div>
+                <div id="playground-output"
+                    style="background: #0d1117; padding: 16px; border-radius: 8px; min-height: 200px; max-height: 400px; overflow-y: auto; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #c9d1d9; white-space: pre-wrap;">
+                    <span style="color: rgba(255,255,255,0.3);">Run a test to see the agent's response here...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -335,7 +335,151 @@ class AgentRuntimeService {
 
         return new Map(contexts);
     }
+
+    // ============================================================
+    // AGENT REGISTRY INTEGRATION (Agent-OS Phase 1)
+    // ============================================================
+
+    /**
+     * Get the production version configuration for an agent from the Registry
+     * @param {string} agentId - Agent ID from the Registry (e.g., 'DSN-NRV-DSGN')
+     * @returns {Promise<Object|null>} Production version config or null
+     */
+    static async getProductionVersion(agentId) {
+        const db = firebase.firestore();
+
+        try {
+            // 1. Get the agent registry entry to find the production version
+            const registryDoc = await db.collection('agentRegistry').doc(agentId).get();
+
+            if (!registryDoc.exists) {
+                console.warn(`[AgentRuntimeService] Agent ${agentId} not found in Registry`);
+                return null;
+            }
+
+            const registryData = registryDoc.data();
+            const prodVersion = registryData.currentProductionVersion?.replace('v', '') || '1.0.0';
+
+            // 2. Query for the production version
+            const versionsSnap = await db.collection('agentVersions')
+                .where('agentId', '==', agentId)
+                .where('isProduction', '==', true)
+                .limit(1)
+                .get();
+
+            if (versionsSnap.empty) {
+                // Fallback: try to find by version string
+                const fallbackSnap = await db.collection('agentVersions')
+                    .where('agentId', '==', agentId)
+                    .where('version', '==', prodVersion)
+                    .limit(1)
+                    .get();
+
+                if (fallbackSnap.empty) {
+                    console.warn(`[AgentRuntimeService] No production version found for ${agentId}`);
+                    return null;
+                }
+
+                return { id: fallbackSnap.docs[0].id, ...fallbackSnap.docs[0].data() };
+            }
+
+            return { id: versionsSnap.docs[0].id, ...versionsSnap.docs[0].data() };
+        } catch (error) {
+            console.error(`[AgentRuntimeService] Error loading production version for ${agentId}:`, error);
+            return null;
+        }
+    }
+
+    /**
+     * Get full agent configuration including registry info and production version
+     * @param {string} agentId - Agent ID
+     * @returns {Promise<Object|null>} Full agent config
+     */
+    static async getAgentConfig(agentId) {
+        const db = firebase.firestore();
+
+        try {
+            const registryDoc = await db.collection('agentRegistry').doc(agentId).get();
+            if (!registryDoc.exists) return null;
+
+            const registryData = { id: registryDoc.id, ...registryDoc.data() };
+            const productionVersion = await this.getProductionVersion(agentId);
+
+            return {
+                registry: registryData,
+                productionVersion: productionVersion,
+                systemPrompt: productionVersion?.systemPrompt || null,
+                procedures: productionVersion?.procedures || [],
+                config: productionVersion?.config || { model: 'gpt-4o', temperature: 0.7 },
+                sourceFiles: registryData.sourceFiles || []
+            };
+        } catch (error) {
+            console.error(`[AgentRuntimeService] Error loading agent config for ${agentId}:`, error);
+            return null;
+        }
+    }
+
+    /**
+     * Resolve the system prompt for an agent, with fallback chain
+     * Priority: Registry Production Version > SubAgent Override > Default
+     */
+    static async resolveAgentPrompt(registryAgentId, subAgentPrompt = null, roleType = 'unknown') {
+        let source = 'default';
+        let prompt = this.getDefaultPromptForRole(roleType);
+        let config = { model: 'gpt-4o', temperature: 0.7 };
+        let procedures = [];
+
+        if (registryAgentId) {
+            const agentConfig = await this.getAgentConfig(registryAgentId);
+            if (agentConfig && agentConfig.systemPrompt) {
+                prompt = agentConfig.systemPrompt;
+                config = agentConfig.config;
+                procedures = agentConfig.procedures;
+                source = 'registry';
+                console.log(`[AgentRuntimeService] ✅ Loaded prompt from Registry: ${registryAgentId}`);
+            }
+        }
+
+        if (source === 'default' && subAgentPrompt) {
+            prompt = subAgentPrompt;
+            source = 'subagent';
+        }
+
+        return { prompt, config, procedures, source, registryAgentId, resolved: true };
+    }
+
+    /**
+     * Get default prompt for a role type (fallback)
+     */
+    static getDefaultPromptForRole(roleType) {
+        const defaults = {
+            'planner': 'You are a content planner. Analyze the requirements and create a structured plan.',
+            'creator_text': 'You are a content writer. Create engaging content based on the provided brief.',
+            'creator_image': 'You are an image prompt engineer. Generate detailed prompts for image generation.',
+            'reviewer': 'You are a content reviewer. Evaluate the content for quality and brand alignment.',
+            'manager': 'You are a project manager. Coordinate the workflow and ensure deliverables meet requirements.',
+            'unknown': 'You are an AI assistant. Help complete the assigned task.'
+        };
+        return defaults[roleType.toLowerCase()] || defaults['unknown'];
+    }
+
+    /**
+     * List all agents in the Registry (for Admin UI)
+     */
+    static async listRegistryAgents(category = null) {
+        const db = firebase.firestore();
+        try {
+            let query = db.collection('agentRegistry');
+            if (category) query = query.where('category', '==', category);
+            const snapshot = await query.orderBy('name').get();
+            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        } catch (error) {
+            console.error('[AgentRuntimeService] Error listing registry agents:', error);
+            return [];
+        }
+    }
 }
 
 // Export to global scope
 window.AgentRuntimeService = AgentRuntimeService;
+

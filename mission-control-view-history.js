@@ -880,7 +880,7 @@
 
         // Use cached channel profile or fallback to content data
         const xProfile = channelProfileCache['x'] || {};
-        const authorName = content.author_profile?.display_name || xProfile.name || 'Vision Chain';
+        const authorName = content.author_profile?.display_name || xProfile.name || (state.selectedProject?.name || 'Project');
         const authorUsername = content.author_profile?.username || xProfile.username || xProfile.handle?.replace('@', '') || 'visionchain';
         const avatarUrl = content.author_profile?.avatar_url || xProfile.profileImageUrl || '';
 
@@ -989,7 +989,7 @@
 
         // Use cached channel profile
         const fbProfile = channelProfileCache['facebook'] || {};
-        const authorName = content.author_profile?.display_name || fbProfile.name || 'Vision Chain';
+        const authorName = content.author_profile?.display_name || fbProfile.name || (state.selectedProject?.name || 'Project');
         const avatarUrl = content.author_profile?.avatar_url || fbProfile.profileImageUrl || '';
 
         return `
@@ -1033,7 +1033,7 @@
 
         // Use cached channel profile
         const liProfile = channelProfileCache['linkedin'] || {};
-        const authorName = content.author_profile?.display_name || liProfile.name || 'Vision Chain';
+        const authorName = content.author_profile?.display_name || liProfile.name || (state.selectedProject?.name || 'Project');
         const avatarUrl = content.author_profile?.avatar_url || liProfile.profileImageUrl || '';
 
         return `

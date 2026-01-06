@@ -619,24 +619,28 @@ CRITICAL: Use high-quality, professional formatting. Maintain the Target Brief B
 
         try {
             // Call LLM Router Service
-            const response = await window.LLMRouterService.call({
-                feature: 'studio_chat', // Custom feature for studio interaction
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    ...state.chatHistory.slice(-5) // Keep last 5 messages for context
-                ],
-                qualityTier: 'DEFAULT',
-                projectId: state.selectedProject
-            });
+            if (window.LLMRouterService) {
+                const response = await window.LLMRouterService.call({
+                    feature: 'studio_chat', // Custom feature for studio interaction
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        ...state.chatHistory.slice(-5) // Keep last 5 messages for context
+                    ],
+                    qualityTier: 'DEFAULT',
+                    projectId: state.selectedProject
+                });
 
-            const aiMessage = response.content;
-            state.chatHistory.push({ role: 'assistant', content: aiMessage });
+                const aiMessage = response.content;
+                state.chatHistory.push({ role: 'assistant', content: aiMessage });
 
-            // 1. Process AI Commands ([CONTEXT: ...], [SEARCH: ...])
-            const cleanMessage = parseAICommands(aiMessage);
+                // 1. Process AI Commands ([CONTEXT: ...], [SEARCH: ...])
+                const cleanMessage = parseAICommands(aiMessage);
 
-            // 2. Display AI Response
-            addLogEntry(cleanMessage, 'info');
+                // 2. Display AI Response
+                addLogEntry(cleanMessage, 'info');
+            } else {
+                throw new Error('LLMRouterService not loaded');
+            }
 
         } catch (error) {
             console.error('[Studio] Interactive AI Error:', error);
@@ -673,24 +677,24 @@ CRITICAL: Use high-quality, professional formatting. Maintain the Target Brief B
 이제 이 조사를 바탕으로 콘텐츠 생성을 진행해볼까요?`;
             }
 
-            // Always try to extract context if project keywords are present, even inside a question
-            if (lowerInput.includes('vision chain') || lowerInput.includes('비전체인')) {
-                const contextTag = `[CONTEXT: {"name": "Vision Chain Daily Content", "content": "Daily social media strategy for Vision Chain focusing on 2026 tech trends and community engagement."}]`;
+            // Dynamic Project-based Simulator Logic
+            const hasProjectMention = lowerInput.includes(projectName.toLowerCase()) ||
+                (contentLang === 'ko' && lowerInput.includes('프로젝트'));
+
+            if (hasProjectMention || lowerInput.includes('전략') || lowerInput.includes('strategy')) {
+                const contextTag = `[CONTEXT: {"name": "${projectName} Strategy", "content": "Comprehensive content strategy for ${projectName} focusing on current market trends and core values."}]`;
 
                 if (!isQuestion) {
                     simulatorResponse = `${contextTag}
                     
-${t('studio.log.orchestrator')}: Vision Chain 프로젝트를 위한 데일리 포스팅 계획을 수립했습니다. 
+${t('studio.log.orchestrator')}: ${projectName} 프로젝트를 위한 전용 전략 계획을 수립했습니다. 
 현재 준비된 컨텍스트:
-- 주제: 2026 테크 트렌드 및 커뮤니티 소통
-- 채널: X (Twitter), LinkedIn
+- 주제: 브랜드 코어 가치 및 시장 트렌드 통합
+- 채널: ${state.targetChannels.join(', ').toUpperCase()}
 
-준비가 되셨다면 아래 '선택한 컨텍스트로 시작' 버튼을 눌러 에이전트 팀을 가동해 보세요! [SEARCH: "2026 블록체인 트렌드"]`;
-                } else {
-                    // Prepend context extraction to the question response if not already answered by "where is chip"
-                    if (!simulatorResponse.includes('[CONTEXT:')) {
-                        simulatorResponse = contextTag + "\n\n" + simulatorResponse;
-                    }
+준비가 되셨다면 아래 '선택한 컨텍스트로 시작' 버튼을 눌러 에이전트 팀을 가동해 보세요! [SEARCH: "${projectName} 관련 최신 트렌드"]`;
+                } else if (!simulatorResponse) {
+                    simulatorResponse = contextTag + "\n\n" + `${projectName} 프로젝트의 세부 전략에 대해 말씀해 주시면 더 정교한 분석이 가능합니다.`;
                 }
             } else if (!isQuestion && !simulatorResponse) {
                 simulatorResponse = `[CONTEXT: {"name": "Demo Context", "content": "${text}"}]
@@ -979,7 +983,7 @@ function showMarketResearchDetails(query) {
     const cleanTitle = query.replace(/<svg[^>]*>.*?<\/svg>/g, '').replace(/"/g, '').trim();
     title.textContent = `${t('studio.log.marketResearch')}: ${cleanTitle}`;
 
-    // SIMULATED DATA (In production, this would come from a database or agent result)
+    // SIMULATED DATA
     let simulationHtml = "";
     const isKorean = (localStorage.getItem('zynk-main-language') === 'ko' || localStorage.getItem('zynk-language') === 'ko');
 
@@ -1015,10 +1019,11 @@ function showMarketResearchDetails(query) {
                 <span style="background: rgba(0,255,163,0.1); color: #00FFA3; padding: 4px 10px; border-radius: 20px; font-size: 12px;">#BlockchainScaling</span>
             </div>
             
-            <div style="margin-top: 25px; padding: 15px; background: rgba(0,255,163,0.05); border-radius: 10px; font-size: 13px; color: #fff;">
+            <div id="research-result-summary" style="margin-top: 25px; padding: 15px; background: rgba(0,255,163,0.05); border-radius: 10px; font-size: 13px; color: #fff;">
                 <strong style="color: #00FFA3;">에이전트 제안:</strong> 위 데이터를 바탕으로 '보안성'과 '사용자 중심의 확장'을 핵심 테마로 설정하여 주간 포스팅을 구성하는 것을 추천합니다.
             </div>
         `;
+        state.lastResearchSummary = `### 시장 리서치: ${cleanTitle}\n- 타겟: 테크 얼리어답터 (20-30대)\n- 여론: 긍정적 기대감 (보안/확장성)\n- 키워드: #VisionChain2026, #Web3Innovation\n- 제안: 보안성과 사용자 중심 확장을 핵심 테마로 설정.`;
     } else {
         simulationHtml = `
             <div style="margin-bottom: 20px; border-left: 3px solid #00FFA3; padding-left: 15px;">
@@ -1032,7 +1037,6 @@ function showMarketResearchDetails(query) {
                     <ul style="padding-left: 20px; font-size: 13px; margin: 0;">
                         <li>Tech Early Adopters (20s-30s)</li>
                         <li>Blockchain Investors & Developers</li>
-                        <li>Entrepreneurs focused on innovation</li>
                     </ul>
                 </div>
                 <div style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 10px;">
@@ -1048,18 +1052,17 @@ function showMarketResearchDetails(query) {
             <div style="display: flex; flex-wrap: wrap; gap: 8px;">
                 <span style="background: rgba(0,255,163,0.1); color: #00FFA3; padding: 4px 10px; border-radius: 20px; font-size: 12px;">#VisionChain2026</span>
                 <span style="background: rgba(0,255,163,0.1); color: #00FFA3; padding: 4px 10px; border-radius: 20px; font-size: 12px;">#Web3Innovation</span>
-                <span style="background: rgba(0,255,163,0.1); color: #00FFA3; padding: 4px 10px; border-radius: 20px; font-size: 12px;">#BlockchainScaling</span>
             </div>
             
-            <div style="margin-top: 25px; padding: 15px; background: rgba(0,255,163,0.05); border-radius: 10px; font-size: 13px; color: #fff;">
-                <strong style="color: #00FFA3;">Agent Tip:</strong> We recommend focusing on "Security" and "User-centric Scaling" as core themes for your weekly posts.
+            <div id="research-result-summary" style="margin-top: 25px; padding: 15px; background: rgba(0,255,163,0.05); border-radius: 10px; font-size: 13px; color: #fff;">
+                <strong style="color: #00FFA3;">Agent Suggestion:</strong> Focus on "Security" and "User-centric Scaling" as core themes.
             </div>
         `;
+        state.lastResearchSummary = `### Market Research: ${cleanTitle}\n- Target: Tech Early Adopters\n- Sentiment: Positive expectations around security and scaling.\n- Keywords: #VisionChain2026, #Web3Innovation\n- Suggestion: Focus on security and user-centric scalability.`;
     }
 
     content.innerHTML = simulationHtml;
     modal.style.display = 'flex';
-    // Trigger animation frame to ensure display: flex is applied before adding .open
     requestAnimationFrame(() => {
         modal.classList.add('open');
     });
@@ -1069,7 +1072,15 @@ function closeMarketResearchModal() {
     const modal = document.getElementById('market-research-modal');
     if (modal) {
         modal.classList.remove('open');
-        // Wait for transition to finish before hiding
+
+        // Save research summary to Target Brief
+        if (state.lastResearchSummary) {
+            console.log('[Studio] Saving research summary to Target Brief...');
+            syncBriefingBoard('\n' + state.lastResearchSummary, 'append');
+            addLogEntry(t('studio.log.researchInsightsAddedToBrief') || '✅ 리서치 인사이트가 타겟 브리프에 추가되었습니다.', 'success');
+            state.lastResearchSummary = null;
+        }
+
         setTimeout(() => {
             if (!modal.classList.contains('open')) {
                 modal.style.display = 'none';
@@ -1480,7 +1491,7 @@ window.renderSingleChannelPreview = function (channel) {
                 ${formattedHTML}
             </div>
         </div>
-    `;
+        `;
 };
 
 // Get formatted preview based on platform

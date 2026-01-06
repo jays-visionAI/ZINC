@@ -4110,7 +4110,7 @@ const CREATIVE_CONFIGS = {
                     { value: 'product_announce', label: 'Product Launch', icon: 'fa-bullhorn', desc: 'Announcement' }
                 ]
             },
-            { id: 'topic', type: 'text', label: 'Headline / Title', placeholder: 'e.g., Vision Chain 2026 Summit, Summer Sale 50% OFF...' },
+            { id: 'topic', type: 'text', label: 'Headline / Title', placeholder: 'e.g., Summer Campaign, New Product Launch, Event Announcement...' },
             { id: 'campaignMessage', type: 'textarea', label: 'Subtext / Details', placeholder: 'e.g., January 15, 2026 | Grand Ballroom, Seoul\nKeynote by CEO John Smith' },
             {
                 id: 'templateStyle',

@@ -55,16 +55,6 @@
                 { step: 3, action: "generate_style", label: "Generate Style Guide", description: "Output visual specifications", color: "#8b5cf6" }
             ]
         },
-        {
-            id: "DSN-STR-ARCH", name: "Structure Architect", category: "Design", status: "active", currentProductionVersion: "1.0.0",
-            description: "Designs content structure and information architecture for optimal user experience.",
-            sourceFiles: ["services/agent-execution-service.js"],
-            procedures: [
-                { step: 1, action: "analyze_requirements", label: "Analyze Requirements", description: "Understand content goals and constraints", color: "#3b82f6" },
-                { step: 2, action: "design_structure", label: "Design Structure", description: "Create information hierarchy", color: "#10b981" },
-                { step: 3, action: "optimize_flow", label: "Optimize Flow", description: "Refine user journey through content", color: "#8b5cf6" }
-            ]
-        },
 
         // QA
         {
@@ -78,16 +68,6 @@
                 { step: 4, action: "generate_feedback", label: "Generate Feedback", description: "Output specific improvement suggestions", color: "#f43f5e" }
             ]
         },
-        {
-            id: "QA-REV-HND", name: "Revision Handler", category: "QA", status: "active", currentProductionVersion: "1.0.0",
-            description: "Processes feedback and manages content revisions.",
-            sourceFiles: ["services/agent-execution-service.js"],
-            procedures: [
-                { step: 1, action: "parse_feedback", label: "Parse Feedback", description: "Extract actionable items from feedback", color: "#3b82f6" },
-                { step: 2, action: "apply_revisions", label: "Apply Revisions", description: "Implement requested changes", color: "#10b981" },
-                { step: 3, action: "validate_changes", label: "Validate Changes", description: "Ensure revisions meet requirements", color: "#8b5cf6" }
-            ]
-        },
 
         // Strategy
         {
@@ -99,16 +79,6 @@
                 { step: 2, action: "structure_narrative", label: "Structure Pitch Narrative", description: "Apply investor-friendly storytelling framework", color: "#10b981" },
                 { step: 3, action: "generate_slides", label: "Generate Slide Content", description: "Create content for each slide type", color: "#8b5cf6" },
                 { step: 4, action: "optimize_flow", label: "Optimize Flow", description: "Ensure logical progression and impact", color: "#f43f5e" }
-            ]
-        },
-        {
-            id: "STG-ONE-PAGER", name: "One Pager Strategist", category: "Strategy", status: "active", currentProductionVersion: "1.0.0",
-            description: "Creates concise one-page summaries for various business purposes.",
-            sourceFiles: ["services/agent-execution-service.js"],
-            procedures: [
-                { step: 1, action: "gather_info", label: "Gather Information", description: "Collect key data points", color: "#3b82f6" },
-                { step: 2, action: "prioritize", label: "Prioritize Content", description: "Select most impactful information", color: "#10b981" },
-                { step: 3, action: "design_layout", label: "Design Layout", description: "Optimize for single-page format", color: "#8b5cf6" }
             ]
         },
 
@@ -174,7 +144,7 @@
     };
 
     function loadRegistry() {
-        const tbody = document.getElementById("profiles-table-body");
+        const tbody = document.getElementById("profiles-table-body"); // Reuse ID from template
         if (!tbody) return;
 
         tbody.innerHTML = '<tr><td colspan="7">Loading Registry...</td></tr>';
@@ -183,6 +153,7 @@
             registry = [];
             snap.forEach(doc => registry.push({ docId: doc.id, ...doc.data() }));
 
+            // Sort by Category then Name
             registry.sort((a, b) => {
                 if (a.category !== b.category) return a.category.localeCompare(b.category);
                 return a.name.localeCompare(b.name);
@@ -254,6 +225,7 @@
 
         currentQuickViewAgent = agent;
 
+        // Check if modal exists
         const modal = document.getElementById('agent-quick-view-modal');
         if (!modal) {
             console.error('[QuickView] Modal element not found!');
@@ -261,17 +233,21 @@
             return;
         }
 
+        // Update modal header (with null checks)
         const nameEl = document.getElementById('qv-agent-name');
         const idEl = document.getElementById('qv-agent-id');
         if (nameEl) nameEl.textContent = agent.name;
         if (idEl) idEl.textContent = agentId;
 
+        // Show modal
         modal.style.display = 'flex';
 
+        // Reset to prompt tab
         if (typeof switchQuickViewTab === 'function') {
             switchQuickViewTab('prompt');
         }
 
+        // Load production version data
         const promptEl = document.getElementById('qv-prompt-content');
         const proceduresEl = document.getElementById('qv-procedures-container');
         if (promptEl) promptEl.textContent = 'Loading...';
@@ -296,13 +272,16 @@
 
             currentQuickViewVersion = { id: versionsSnap.docs[0].id, ...versionsSnap.docs[0].data() };
 
+            // Update prompt tab
             if (versionEl) versionEl.textContent = currentQuickViewVersion.version || '1.0.0';
             if (promptEl) promptEl.textContent = currentQuickViewVersion.systemPrompt || '(No prompt defined)';
 
+            // Update procedures tab
             if (typeof renderQuickViewProcedures === 'function') {
                 renderQuickViewProcedures(currentQuickViewVersion.procedures || []);
             }
 
+            // Update source files tab
             if (typeof renderQuickViewSourceFiles === 'function') {
                 renderQuickViewSourceFiles(agent.sourceFiles || []);
             }
@@ -314,13 +293,13 @@
     };
 
     window.closeQuickViewModal = function () {
-        const modal = document.getElementById('agent-quick-view-modal');
-        if (modal) modal.style.display = 'none';
+        document.getElementById('agent-quick-view-modal').style.display = 'none';
         currentQuickViewAgent = null;
         currentQuickViewVersion = null;
     };
 
     window.switchQuickViewTab = function (tabName) {
+        // Update tab buttons
         document.querySelectorAll('.qv-tab').forEach(tab => {
             tab.style.color = 'rgba(255,255,255,0.6)';
             tab.style.borderBottomColor = 'transparent';
@@ -333,6 +312,7 @@
             activeTab.style.fontWeight = '600';
         }
 
+        // Show/hide content
         document.querySelectorAll('.qv-content').forEach(content => {
             content.style.display = 'none';
         });
@@ -344,11 +324,11 @@
 
     function renderQuickViewProcedures(procedures) {
         const container = document.getElementById('qv-procedures-container');
-        if (!container) return;
 
         if (!procedures || procedures.length === 0) {
             container.innerHTML = `
                 <div style="text-align: center; padding: 40px;">
+                    <i class="fas fa-exclamation-circle" style="font-size: 32px; color: #f59e0b; margin-bottom: 12px;"></i>
                     <p style="color: rgba(255,255,255,0.6);">No procedures defined for this agent.</p>
                 </div>
             `;
@@ -380,9 +360,9 @@
     function renderQuickViewSourceFiles(sourceFiles) {
         const container = document.getElementById('qv-source-files');
         const contentArea = document.getElementById('qv-source-content');
-        if (!container) return;
 
-        const files = sourceFiles && sourceFiles.length > 0 ? sourceFiles : [
+        // Default source files if none specified
+        const files = sourceFiles.length > 0 ? sourceFiles : [
             'services/agent-execution-service.js',
             'services/agent-runtime-service.js'
         ];
@@ -395,6 +375,7 @@
             </button>
         `).join('');
 
+        // Load first file by default
         if (files.length > 0) {
             loadQuickViewSource(files[0]);
         }
@@ -402,8 +383,8 @@
 
     window.loadQuickViewSource = async function (filePath, btnElement) {
         const contentArea = document.getElementById('qv-source-content');
-        if (!contentArea) return;
 
+        // Update button styles
         document.querySelectorAll('.qv-source-btn').forEach(btn => {
             btn.style.background = '#21262d';
             btn.style.color = '#c9d1d9';
@@ -422,6 +403,7 @@
             const code = await response.text();
             const lines = code.split('\n');
 
+            // Render with line numbers
             let html = '';
             lines.forEach((line, i) => {
                 const lineNum = i + 1;
@@ -443,6 +425,7 @@
         }
     };
 
+
     // --- Client-Side Seeding Logic ---
     window.seedRegistry = async function () {
         if (!confirm("Are you sure you want to seed the default ZYNK Core Agents? This will create new records if they don't exist.")) return;
@@ -456,6 +439,7 @@
             let count = 0;
 
             for (const agent of coreAgentsSeed) {
+                // Create/Update Registry Entry (includes sourceFiles)
                 const regRef = db.collection("agentRegistry").doc(agent.id);
                 batch.set(regRef, {
                     id: agent.id,
@@ -469,6 +453,7 @@
                     updatedAt: timestamp
                 }, { merge: true });
 
+                // Create/Update Initial Version with Procedures
                 const initVerRef = db.collection("agentVersions").doc(`${agent.id}-v1-0-0`);
                 batch.set(initVerRef, {
                     agentId: agent.id,
@@ -487,6 +472,7 @@
 
             await batch.commit();
             alert(`✅ Successfully seeded ${count} agents!`);
+            // loadRegistry() will auto-update via listener
 
         } catch (e) {
             console.error(e);
@@ -551,26 +537,17 @@
                     </div>
                     <button onclick="closeAgentDesigner()" style="background: none; border: none; color: rgba(255,255,255,0.6); font-size: 28px; cursor: pointer;">&times;</button>
                 </div>
-
+                
                 <div style="padding: 24px; overflow-y: auto; flex: 1;">
                     <!-- Step 1: Describe -->
                     <div id="designer-step-describe">
-                        <div style="margin-bottom: 20px;">
-                            <label style="display: block; margin-bottom: 8px; font-size: 14px; color: #4ecdc4; font-weight: 600;">설계에 사용할 LLM 모델</label>
-                            <select id="designer-llm-model" style="width: 100%; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; color: #fff; font-size: 14px; box-sizing: border-box; cursor: pointer;">
-                                <option value="deepseek-chat" selected>DeepSeek V3 (추천 - 빠른 설계)</option>
-                                <option value="deepseek-reasoner">DeepSeek R1 (깊은 사고 - 정교한 절차 설계)</option>
-                                <option value="gpt-4o">GPT-4o (표준)</option>
-                            </select>
-                        </div>
-
-                        <div style="margin-bottom: 20px;">
+                        <div style="margin-bottom: 16px;">
                             <label style="display: block; margin-bottom: 8px; font-size: 14px; color: #4ecdc4; font-weight: 600;">어떤 에이전트가 필요하신가요?</label>
                             <textarea id="agent-requirement" rows="4" placeholder="예: 인스타그램 캡션을 작성하는 에이전트가 필요해요. 브랜드 톤앤매너를 반영하고, 해시태그 추천과 이모지도 적절히 사용해야 해요." style="width: 100%; padding: 16px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; color: #fff; font-size: 14px; resize: none; box-sizing: border-box; line-height: 1.6;"></textarea>
                         </div>
-
+                        
                         <button onclick="designAgent()" id="design-btn" style="width: 100%; padding: 14px; background: linear-gradient(135deg, #4ecdc4 0%, #44a3aa 100%); border: none; border-radius: 10px; color: #0d1117; font-weight: 700; font-size: 15px; cursor: pointer;">🧠 AI로 에이전트 설계하기</button>
-
+                        
                         <div id="overlap-detection" style="display: none; margin-top: 20px;">
                             <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 10px; padding: 16px;">
                                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
@@ -581,61 +558,35 @@
                             </div>
                         </div>
                     </div>
-
+                    
                     <!-- Step 2: Review -->
                     <div id="designer-step-review" style="display: none;">
                         <button onclick="backToDescribe()" style="padding: 8px 16px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #fff; cursor: pointer; font-size: 13px; margin-bottom: 16px;">← 다시 설명하기</button>
-
+                        
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
                             <div>
                                 <label style="display: block; margin-bottom: 6px; font-size: 12px; color: rgba(255,255,255,0.6);">Agent Name</label>
-                                <input type="text" id="designed-name" oninput="updateDesignedId()" style="width: 100%; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: #fff; font-size: 14px; box-sizing: border-box;">
+                                <input type="text" id="designed-name" onchange="updateDesignedId()" style="width: 100%; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: #fff; font-size: 14px; box-sizing: border-box;">
                             </div>
                             <div>
                                 <label style="display: block; margin-bottom: 6px; font-size: 12px; color: rgba(255,255,255,0.6);">Agent ID (자동 생성)</label>
                                 <input type="text" id="designed-id" readonly style="width: 100%; padding: 12px; background: rgba(78, 205, 196, 0.1); border: 1px solid rgba(78, 205, 196, 0.3); border-radius: 8px; color: #4ecdc4; font-size: 14px; font-family: monospace; box-sizing: border-box;">
                             </div>
                         </div>
-
+                        
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
-                            <div>
-                                <label style="display: block; margin-bottom: 6px; font-size: 12px; color: rgba(255,255,255,0.6);">Category</label>
-                                <select id="designed-category" onchange="updateDesignedId()" style="width: 100%; padding: 12px; background: #1a1a2e; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: #fff; box-sizing: border-box;">
-                                    <option value="Intelligence">Intelligence</option>
-                                    <option value="Design">Design</option>
-                                    <option value="Strategy">Strategy</option>
-                                    <option value="QA">QA</option>
-                                    <option value="Studio">Studio</option>
-                                    <option value="Growth">Growth</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label style="display: block; margin-bottom: 6px; font-size: 12px; color: rgba(255,255,255,0.6);">LLM Model</label>
-                                <select id="designed-model" style="width: 100%; padding: 12px; background: #1a1a2e; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: #fff; box-sizing: border-box;">
-                                    <option value="deepseek-reasoner">DeepSeek R1</option>
-                                    <option value="deepseek-chat">DeepSeek V3</option>
-                                    <option value="gpt-4o">GPT-4o</option>
-                                </select>
-                            </div>
+                            <div><label style="display: block; margin-bottom: 6px; font-size: 12px; color: rgba(255,255,255,0.6);">Category</label><select id="designed-category" onchange="updateDesignedId()" style="width: 100%; padding: 12px; background: #1a1a2e; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: #fff; box-sizing: border-box;"><option value="Intelligence">Intelligence</option><option value="Design">Design</option><option value="Strategy">Strategy</option><option value="QA">QA</option><option value="Studio">Studio</option><option value="Growth">Growth</option></select></div>
+                            <div><label style="display: block; margin-bottom: 6px; font-size: 12px; color: rgba(255,255,255,0.6);">LLM Model</label><select id="designed-model" style="width: 100%; padding: 12px; background: #1a1a2e; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: #fff; box-sizing: border-box;"><option value="deepseek-reasoner">DeepSeek R1</option><option value="deepseek-chat">DeepSeek V3</option><option value="gpt-4o">GPT-4o</option></select></div>
                         </div>
-
-                        <div style="margin-bottom: 16px;">
-                            <label style="display: block; margin-bottom: 6px; font-size: 12px; color: rgba(255,255,255,0.6);">Description</label>
-                            <textarea id="designed-description" rows="2" style="width: 100%; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: #fff; font-size: 14px; resize: none; box-sizing: border-box;"></textarea>
-                        </div>
-
-                        <div style="margin-bottom: 16px;">
-                            <label style="display: block; margin-bottom: 6px; font-size: 12px; color: rgba(255,255,255,0.6);">System Prompt</label>
-                            <textarea id="designed-prompt" rows="10" style="width: 100%; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: #fff; font-size: 13px; font-family: monospace; resize: vertical; box-sizing: border-box;"></textarea>
-                        </div>
-
-                        <div>
-                            <label style="display: block; margin-bottom: 6px; font-size: 12px; color: rgba(255,255,255,0.6);">Procedures (AI 생성)</label>
-                            <div id="designed-procedures" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 12px;"></div>
-                        </div>
+                        
+                        <div style="margin-bottom: 16px;"><label style="display: block; margin-bottom: 6px; font-size: 12px; color: rgba(255,255,255,0.6);">Description</label><textarea id="designed-description" rows="2" style="width: 100%; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: #fff; font-size: 14px; resize: none; box-sizing: border-box;"></textarea></div>
+                        
+                        <div style="margin-bottom: 16px;"><label style="display: block; margin-bottom: 6px; font-size: 12px; color: rgba(255,255,255,0.6);">System Prompt</label><textarea id="designed-prompt" rows="10" style="width: 100%; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: #fff; font-size: 13px; font-family: monospace; resize: vertical; box-sizing: border-box;"></textarea></div>
+                        
+                        <div><label style="display: block; margin-bottom: 6px; font-size: 12px; color: rgba(255,255,255,0.6);">Procedures (AI 생성)</label><div id="designed-procedures" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 12px;"></div></div>
                     </div>
                 </div>
-
+                
                 <div style="padding: 16px 24px; background: #161b22; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: flex-end; gap: 12px;">
                     <button onclick="closeAgentDesigner()" style="padding: 12px 24px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #fff; cursor: pointer;">Cancel</button>
                     <button onclick="createDesignedAgent()" id="create-designed-btn" style="display: none; padding: 12px 24px; background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); border: none; border-radius: 8px; color: #fff; cursor: pointer; font-weight: 600;">✅ Create Agent</button>
@@ -661,16 +612,12 @@
         designedAgent = null;
     };
 
+    window.closeDynamicModal = closeAgentDesigner;
     window.closeCreateAgentModal = closeAgentDesigner;
 
     window.designAgent = async function () {
         const requirement = document.getElementById('agent-requirement')?.value.trim();
-        const selectedModel = document.getElementById('designer-llm-model')?.value || 'deepseek-chat';
-
-        if (!requirement) {
-            alert('에이전트에 대한 설명을 입력해주세요.');
-            return;
-        }
+        if (!requirement) { alert('에이전트에 대한 설명을 입력해주세요.'); return; }
 
         const btn = document.getElementById('design-btn');
         btn.innerHTML = '<span style="animation: spin 1s linear infinite; display: inline-block;">⏳</span> AI가 설계 중...';
@@ -680,18 +627,16 @@
             // Check overlaps
             checkOverlappingAgents(requirement);
 
-            const existingAgents = registry.map(a => `${a.name}: ${a.description || ''}`).join('\n');
+            const existingAgents = registry.map(a => `${a.name}: ${a.description || ''}`).join('\\n');
 
             const response = await firebase.functions().httpsCallable('generateLLMResponse')({
-                provider: selectedModel.includes('gpt') ? 'openai' : 'deepseek',
-                model: selectedModel,
-                systemPrompt: `You are an AI agent designer. Design a new AI agent based on user requirements.
+                provider: 'openai', model: 'gpt-4o',
+                systemPrompt: \`You are an AI agent designer. Design a new AI agent based on user requirements.
 
-Existing agents:
-${existingAgents}
+Existing agents: ${existingAgents}
 
 Output ONLY valid JSON (no markdown):
-{"name":"English Name","category":"Design|Intelligence|Strategy|QA|Studio|Growth","description":"Korean description","systemPrompt":"Complete English system prompt with role, responsibilities, guidelines","procedures":[{"action":"action_code","label":"Step","description":"Description"}]}`,
+{"name":"English Name","category":"Design|Intelligence|Strategy|QA|Studio|Growth","description":"Korean description","systemPrompt":"Complete English system prompt with role, responsibilities, guidelines","procedures":[{"action":"action_code","label":"Step","description":"Description"}]}\`,
                 userMessage: requirement,
                 temperature: 0.7,
                 source: 'agent_designer'
@@ -701,19 +646,17 @@ Output ONLY valid JSON (no markdown):
 
             let design;
             try {
-                const jsonStr = response.data.response.replace(/```json\n?|\n?```/g, '').trim();
+                const jsonStr = response.data.response.replace(/\`\`\`json\\n?|\\n?\`\`\`/g, '').trim();
                 design = JSON.parse(jsonStr);
-            } catch (e) {
-                throw new Error('AI 응답 파싱 실패. 다시 시도해주세요.');
-            }
+            } catch (e) { throw new Error('AI 응답 파싱 실패. 다시 시도해주세요.'); }
 
             designedAgent = design;
 
             // Generate ID
-            const prefixes = { 'Intelligence': 'INT', 'Design': 'DSN', 'Strategy': 'STG', 'QA': 'QA', 'Studio': 'STU', 'Growth': 'GRW' };
+            const prefixes = {'Intelligence':'INT','Design':'DSN','Strategy':'STG','QA':'QA','Studio':'STU','Growth':'GRW'};
             const prefix = prefixes[design.category] || 'AGT';
             const namePart = design.name.toUpperCase().replace(/[^A-Z0-9]/g, '-').substring(0, 15);
-            designedAgent.id = `${prefix}-${namePart}`;
+            designedAgent.id = \`\${prefix}-\${namePart}\`;
 
             // Show review
             document.getElementById('designer-step-describe').style.display = 'none';
@@ -727,73 +670,47 @@ Output ONLY valid JSON (no markdown):
             document.getElementById('designed-prompt').value = design.systemPrompt;
 
             const procContainer = document.getElementById('designed-procedures');
-            if (design.procedures && design.procedures.length > 0) {
-                const colors = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b'];
-                procContainer.innerHTML = design.procedures.map((p, i) => `
-                    <div style="display:flex;align-items:center;gap:12px;padding:8px 0;${i > 0 ? 'border-top:1px solid rgba(255,255,255,0.05);' : ''}">
-                        <span style="background:${colors[i % colors.length]};color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;">${i + 1}</span>
-                        <div>
-                            <div style="color:#fff;font-size:13px;">${p.label}</div>
-                            <div style="color:rgba(255,255,255,0.5);font-size:11px;">${p.description}</div>
-                        </div>
-                    </div>
-                `).join('');
-            } else {
-                procContainer.innerHTML = '<div style="color:rgba(255,255,255,0.4);">No procedures</div>';
-            }
+            if (design.procedures?.length) {
+                const colors = ['#3b82f6','#10b981','#8b5cf6','#f59e0b'];
+                procContainer.innerHTML = design.procedures.map((p,i) => \`<div style="display:flex;align-items:center;gap:12px;padding:8px 0;\${i>0?'border-top:1px solid rgba(255,255,255,0.05);':''}"><span style="background:\${colors[i%colors.length]};color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;">\${i+1}</span><div><div style="color:#fff;font-size:13px;">\${p.label}</div><div style="color:rgba(255,255,255,0.5);font-size:11px;">\${p.description}</div></div></div>\`).join('');
+            } else { procContainer.innerHTML = '<div style="color:rgba(255,255,255,0.4);">No procedures</div>'; }
 
-        } catch (error) {
-            alert('설계 오류: ' + error.message);
-        } finally {
-            btn.innerHTML = '🧠 AI로 에이전트 설계하기';
-            btn.disabled = false;
-        }
+        } catch (error) { alert('설계 오류: ' + error.message); }
+        finally { btn.innerHTML = '🧠 AI로 에이전트 설계하기'; btn.disabled = false; }
     };
 
     function checkOverlappingAgents(requirement) {
-        const keywords = requirement.toLowerCase().split(/\s+/);
+        const keywords = requirement.toLowerCase().split(/\\s+/);
         const overlaps = registry.filter(a => {
-            const text = `${a.name} ${a.description || ''}`.toLowerCase();
+            const text = \`\${a.name} \${a.description||''}\`.toLowerCase();
             return keywords.filter(k => k.length > 3 && text.includes(k)).length >= 2;
         });
-
         const container = document.getElementById('overlap-detection');
         const list = document.getElementById('overlap-agents-list');
-
-        if (overlaps.length > 0) {
+        if (overlaps.length) {
             container.style.display = 'block';
-            list.innerHTML = overlaps.map(a => `
-                <div style="background:rgba(0,0,0,0.2);padding:10px;border-radius:6px;display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-                    <span style="color:#fff;">${a.name} <span style="color:rgba(255,255,255,0.5);font-size:12px;">${a.category}</span></span>
-                    <button onclick="window.location.hash='registry-detail/${a.id}';closeAgentDesigner();" style="padding:4px 10px;background:rgba(78,205,196,0.2);border:1px solid rgba(78,205,196,0.4);border-radius:4px;color:#4ecdc4;cursor:pointer;font-size:11px;">View</button>
-                </div>
-            `).join('');
-        } else {
-            container.style.display = 'none';
-        }
+            list.innerHTML = overlaps.map(a => \`<div style="background:rgba(0,0,0,0.2);padding:10px;border-radius:6px;display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;"><span style="color:#fff;">\${a.name} <span style="color:rgba(255,255,255,0.5);font-size:12px;">\${a.category}</span></span><button onclick="window.location.hash='registry-detail/\${a.id}';closeAgentDesigner();" style="padding:4px 10px;background:rgba(78,205,196,0.2);border:1px solid rgba(78,205,196,0.4);border-radius:4px;color:#4ecdc4;cursor:pointer;font-size:11px;">View</button></div>\`).join('');
+        } else { container.style.display = 'none'; }
     }
 
-    window.updateDesignedId = function () {
+    window.updateDesignedId = function() {
         if (!designedAgent) return;
         const name = document.getElementById('designed-name')?.value || '';
         const cat = document.getElementById('designed-category')?.value || 'Design';
-        const prefixes = { 'Intelligence': 'INT', 'Design': 'DSN', 'Strategy': 'STG', 'QA': 'QA', 'Studio': 'STU', 'Growth': 'GRW' };
-        document.getElementById('designed-id').value = `${prefixes[cat] || 'AGT'}-${name.toUpperCase().replace(/[^A-Z0-9]/g, '-').substring(0, 15)}`;
+        const prefixes = {'Intelligence':'INT','Design':'DSN','Strategy':'STG','QA':'QA','Studio':'STU','Growth':'GRW'};
+        document.getElementById('designed-id').value = \`\${prefixes[cat]||'AGT'}-\${name.toUpperCase().replace(/[^A-Z0-9]/g,'-').substring(0,15)}\`;
     };
 
-    window.backToDescribe = function () {
+    window.backToDescribe = function() {
         document.getElementById('designer-step-describe').style.display = 'block';
         document.getElementById('designer-step-review').style.display = 'none';
         document.getElementById('create-designed-btn').style.display = 'none';
     };
 
-    window.createDesignedAgent = async function () {
+    window.createDesignedAgent = async function() {
         if (!designedAgent) return;
-
         const btn = document.getElementById('create-designed-btn');
-        btn.innerHTML = '⏳ Creating...';
-        btn.disabled = true;
-
+        btn.innerHTML = '⏳ Creating...'; btn.disabled = true;
         try {
             const agentId = document.getElementById('designed-id').value;
             const name = document.getElementById('designed-name').value.trim();
@@ -802,55 +719,429 @@ Output ONLY valid JSON (no markdown):
             const description = document.getElementById('designed-description').value.trim();
             const prompt = document.getElementById('designed-prompt').value.trim();
 
-            if (registry.find(a => a.id === agentId)) {
-                throw new Error(`ID "${agentId}" already exists!`);
-            }
+            if (registry.find(a => a.id === agentId)) throw new Error(\`ID "\${agentId}" already exists!\`);
 
             const batch = db.batch();
             const ts = firebase.firestore.FieldValue.serverTimestamp();
-
-            // Determine source files based on category
-            let sourceFiles = ['services/agent-execution-service.js'];
-            if (category === 'Strategy') sourceFiles.push('services/market-analysis-service.js');
-            if (category === 'Intelligence') sourceFiles.push('services/knowledge-base-service.js');
-            if (category === 'Design') sourceFiles.push('services/asset-generation-service.js');
-
-            batch.set(db.collection('agentRegistry').doc(agentId), {
-                id: agentId,
-                name,
-                category,
-                description,
-                status: 'active',
-                currentProductionVersion: '1.0.0',
-                sourceFiles: sourceFiles,
-                createdAt: ts,
-                updatedAt: ts
-            });
-
-            batch.set(db.collection('agentVersions').doc(`${agentId}-v1-0-0`), {
-                agentId,
-                version: '1.0.0',
-                isProduction: true,
-                status: 'production',
-                config: { model, temperature: 0.7, maxTokens: 4096 },
-                systemPrompt: prompt,
-                procedures: designedAgent.procedures || [],
-                changelog: 'Created via AI Agent Designer',
-                createdAt: ts
-            });
-
+            batch.set(db.collection('agentRegistry').doc(agentId), {id:agentId,name,category,description,status:'active',currentProductionVersion:'1.0.0',sourceFiles:['services/agent-execution-service.js'],createdAt:ts,updatedAt:ts});
+            batch.set(db.collection('agentVersions').doc(\`\${agentId}-v1-0-0\`), {agentId,version:'1.0.0',isProduction:true,status:'production',config:{model,temperature:0.7,maxTokens:4096},systemPrompt:prompt,procedures:designedAgent.procedures||[],changelog:'Created via AI Agent Designer',createdAt:ts});
             await batch.commit();
 
-            alert(`✅ Agent "${name}" created!\nID: ${agentId}`);
+            alert(\`✅ Agent "\${name}" created!\\nID: \${agentId}\`);
             closeAgentDesigner();
-            window.location.hash = `registry-detail/${agentId}`;
+            window.location.hash = \`registry-detail/\${agentId}\`;
+        } catch (error) { alert('Error: ' + error.message); }
+        finally { btn.innerHTML = '✅ Create Agent'; btn.disabled = false; }
+    };
 
-        } catch (error) {
-            alert('Error: ' + error.message);
-        } finally {
-            btn.innerHTML = '✅ Create Agent';
-            btn.disabled = false;
-        }
+    // Keep old functions for tab switching (can be removed later)
+    let currentCreateTab = 'basic';
+    let newAgentProcedures = [];
+
+    window.switchCreateTab = function (tabName) {
+        currentCreateTab = tabName;
+        // Tab switching logic (kept for backward compatibility)
     };
 
 })();
+                            <label style="display: block; margin-bottom: 8px; font-size: 13px; color: rgba(255,255,255,0.7);">Category</label>
+                            <select id="dyn-category" style="width: 100%; padding: 10px 12px; background: #1a1a2e; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #fff; font-size: 14px; box-sizing: border-box;">
+                                <option value="Intelligence">Intelligence - 데이터 분석</option>
+                                <option value="Design" selected>Design - 콘텐츠 생성</option>
+                                <option value="Strategy">Strategy - 전략 수립</option>
+                                <option value="QA">QA - 품질 검증</option>
+                                <option value="Studio">Studio - 스튜디오</option>
+                                <option value="Growth">Growth - 성장</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 8px; font-size: 13px; color: rgba(255,255,255,0.7);">LLM Model</label>
+                            <select id="dyn-model" style="width: 100%; padding: 10px 12px; background: #1a1a2e; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #fff; font-size: 14px; box-sizing: border-box;">
+                                <option value="deepseek-reasoner" selected>DeepSeek R1 (Reasoner)</option>
+                                <option value="deepseek-chat">DeepSeek V3</option>
+                                <option value="gpt-4o">GPT-4o</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 16px;">
+                        <label style="display: block; margin-bottom: 8px; font-size: 13px; color: rgba(255,255,255,0.7);">Description <span style="color: #ef4444;">*</span></label>
+                        <textarea id="dyn-description" rows="2" placeholder="What does this agent do?" style="width: 100%; padding: 10px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #fff; font-size: 14px; resize: vertical; box-sizing: border-box;"></textarea>
+                    </div>
+                    
+                    <div style="margin-top: 16px;">
+                        <label style="display: block; margin-bottom: 8px; font-size: 13px; color: rgba(255,255,255,0.7);">System Prompt <span style="color: #ef4444;">*</span></label>
+                        <textarea id="dyn-prompt" rows="10" placeholder="You are [Agent Name], an AI agent specialized in...
+
+Your responsibilities:
+1. ...
+2. ...
+
+Guidelines:
+- ..." style="width: 100%; padding: 10px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #fff; font-size: 13px; font-family: monospace; resize: vertical; box-sizing: border-box;"></textarea>
+                    </div>
+                </div>
+                
+                <div style="padding: 20px 24px; background: #161b22; border-top: 1px solid #30363d; display: flex; justify-content: flex-end; gap: 12px;">
+                    <button onclick="closeDynamicModal()" style="padding: 10px 20px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #fff; cursor: pointer; font-size: 14px;">Cancel</button>
+                    <button onclick="submitDynamicAgent()" style="padding: 10px 20px; background: linear-gradient(135deg, #059669 0%, #047857 100%); border: none; border-radius: 8px; color: #fff; cursor: pointer; font-weight: 600; font-size: 14px;">✅ Create Agent</button>
+                </div>
+            </div>
+        `;
+
+            document.body.appendChild(modal);
+            console.log('[CreateAgent] Dynamic modal created');
+        };
+
+        window.closeDynamicModal = function () {
+            const modal = document.getElementById('dynamic-create-modal');
+            if (modal) modal.remove();
+            // Restore background scrolling
+            document.body.style.overflow = '';
+        };
+
+        window.submitDynamicAgent = async function () {
+            const agentId = document.getElementById('dyn-agent-id')?.value.trim().toUpperCase();
+            const name = document.getElementById('dyn-agent-name')?.value.trim();
+            const category = document.getElementById('dyn-category')?.value;
+            const model = document.getElementById('dyn-model')?.value;
+            const description = document.getElementById('dyn-description')?.value.trim();
+            const prompt = document.getElementById('dyn-prompt')?.value.trim();
+
+            if (!agentId || !name || !description || !prompt) {
+                alert('Please fill in all required fields');
+                return;
+            }
+
+            if (!/^[A-Z]+-[A-Z0-9-]+$/.test(agentId)) {
+                alert('Agent ID must be in format PREFIX-NAME (e.g. MKT-COPY-WRITER)');
+                return;
+            }
+
+            try {
+                const batch = db.batch();
+                const timestamp = firebase.firestore.FieldValue.serverTimestamp();
+
+                const regRef = db.collection('agentRegistry').doc(agentId);
+                batch.set(regRef, {
+                    id: agentId,
+                    name: name,
+                    category: category,
+                    description: description,
+                    status: 'active',
+                    currentProductionVersion: '1.0.0',
+                    sourceFiles: ['services/agent-execution-service.js'],
+                    createdAt: timestamp,
+                    updatedAt: timestamp
+                });
+
+                const verRef = db.collection('agentVersions').doc(`${agentId}-v1-0-0`);
+                batch.set(verRef, {
+                    agentId: agentId,
+                    version: '1.0.0',
+                    isProduction: true,
+                    status: 'production',
+                    config: { model: model, temperature: 0.7, maxTokens: 4096 },
+                    systemPrompt: prompt,
+                    procedures: [],
+                    changelog: 'Initial creation via Admin UI',
+                    createdAt: timestamp
+                });
+
+                await batch.commit();
+
+                alert(`✅ Agent "${name}" created successfully!\n\nID: ${agentId}`);
+                closeDynamicModal();
+                window.location.hash = `registry-detail/${agentId}`;
+
+            } catch (error) {
+                console.error('Create agent error:', error);
+                alert('Error: ' + error.message);
+            }
+        };
+
+        window.closeCreateAgentModal = function () {
+            closeDynamicModal();
+        };
+
+        window.switchCreateTab = function (tabName) {
+            currentCreateTab = tabName;
+
+            // Update tab buttons
+            document.querySelectorAll('.create-tab').forEach(tab => {
+                tab.style.color = 'rgba(255,255,255,0.6)';
+                tab.style.borderBottomColor = 'transparent';
+                tab.style.fontWeight = '400';
+            });
+            const activeTab = document.getElementById(`create-tab-${tabName}`);
+            if (activeTab) {
+                activeTab.style.color = '#fff';
+                activeTab.style.borderBottomColor = '#4ecdc4';
+                activeTab.style.fontWeight = '600';
+            }
+
+            // Show/hide content
+            document.querySelectorAll('.create-content').forEach(content => {
+                content.style.display = 'none';
+            });
+            const activeContent = document.getElementById(`create-content-${tabName}`);
+            if (activeContent) {
+                activeContent.style.display = tabName === 'prompt' ? 'flex' : 'block';
+            }
+
+            // Update navigation buttons
+            updateCreateNavButtons();
+        };
+
+        function updateCreateNavButtons() {
+            const prevBtn = document.getElementById('create-prev-btn');
+            const nextBtn = document.getElementById('create-next-btn');
+            const submitBtn = document.getElementById('create-submit-btn');
+
+            if (currentCreateTab === 'basic') {
+                prevBtn.style.display = 'none';
+                nextBtn.style.display = 'block';
+                submitBtn.style.display = 'none';
+            } else if (currentCreateTab === 'prompt') {
+                prevBtn.style.display = 'block';
+                nextBtn.style.display = 'block';
+                submitBtn.style.display = 'none';
+            } else if (currentCreateTab === 'procedures') {
+                prevBtn.style.display = 'block';
+                nextBtn.style.display = 'none';
+                submitBtn.style.display = 'block';
+            }
+        }
+
+        window.nextCreateTab = function () {
+            if (currentCreateTab === 'basic') {
+                // Validate basic info
+                const id = document.getElementById('create-agent-id').value.trim();
+                const name = document.getElementById('create-agent-name').value.trim();
+                const desc = document.getElementById('create-description').value.trim();
+
+                if (!id) return alert('Agent ID is required');
+                if (!name) return alert('Agent Name is required');
+                if (!desc) return alert('Description is required');
+                if (!/^[A-Z]+-[A-Z0-9-]+$/.test(id.toUpperCase())) {
+                    return alert('Agent ID must be in format PREFIX-NAME (e.g. MKT-COPY-WRITER)');
+                }
+
+                switchCreateTab('prompt');
+            } else if (currentCreateTab === 'prompt') {
+                const prompt = document.getElementById('create-prompt').value.trim();
+                if (!prompt) return alert('System Prompt is required');
+                switchCreateTab('procedures');
+            }
+        };
+
+        window.prevCreateTab = function () {
+            if (currentCreateTab === 'prompt') {
+                switchCreateTab('basic');
+            } else if (currentCreateTab === 'procedures') {
+                switchCreateTab('prompt');
+            }
+        };
+
+        // Procedures Editor for Create Modal
+        function renderCreateProcedures() {
+            const container = document.getElementById('create-procedures-list');
+            if (!container) return;
+
+            if (newAgentProcedures.length === 0) {
+                container.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.4); background: rgba(0,0,0,0.2); border-radius: 8px;">
+                    <p>아직 정의된 단계가 없습니다.</p>
+                    <button class="admin-btn-secondary" onclick="addNewProcedureStep()">+ Add First Step</button>
+                </div>
+            `;
+                return;
+            }
+
+            const colors = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#f43f5e'];
+            container.innerHTML = newAgentProcedures.map((proc, i) => `
+            <div style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 8px; border-left: 4px solid ${colors[i % colors.length]};">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <span style="font-weight: 600; color: #4ecdc4;">Step ${i + 1}</span>
+                    <button class="admin-btn-secondary" style="padding: 4px 8px; font-size: 11px; color: #f85149;" onclick="removeNewProcedureStep(${i})">✕ Remove</button>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div>
+                        <label style="font-size: 11px; color: rgba(255,255,255,0.5);">Action Code</label>
+                        <input type="text" class="admin-form-input" value="${proc.action || ''}" 
+                            onchange="updateNewProcedure(${i}, 'action', this.value)"
+                            style="font-size: 12px;" placeholder="e.g. analyze_data">
+                    </div>
+                    <div>
+                        <label style="font-size: 11px; color: rgba(255,255,255,0.5);">Label</label>
+                        <input type="text" class="admin-form-input" value="${proc.label || ''}"
+                            onchange="updateNewProcedure(${i}, 'label', this.value)"
+                            style="font-size: 12px;" placeholder="e.g. Analyze Data">
+                    </div>
+                </div>
+                <div style="margin-top: 12px;">
+                    <label style="font-size: 11px; color: rgba(255,255,255,0.5);">Description</label>
+                    <input type="text" class="admin-form-input" value="${proc.description || ''}"
+                        onchange="updateNewProcedure(${i}, 'description', this.value)"
+                        style="font-size: 12px;" placeholder="Brief description of this step">
+                </div>
+            </div>
+        `).join('');
+        }
+
+        window.addNewProcedureStep = function () {
+            const colors = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#f43f5e'];
+            newAgentProcedures.push({
+                step: newAgentProcedures.length + 1,
+                action: 'new_action',
+                label: 'New Step',
+                description: '',
+                color: colors[newAgentProcedures.length % colors.length]
+            });
+            renderCreateProcedures();
+        };
+
+        window.removeNewProcedureStep = function (index) {
+            newAgentProcedures.splice(index, 1);
+            newAgentProcedures.forEach((p, i) => p.step = i + 1);
+            renderCreateProcedures();
+        };
+
+        window.updateNewProcedure = function (index, field, value) {
+            if (newAgentProcedures[index]) {
+                newAgentProcedures[index][field] = value;
+            }
+        };
+
+        // AI Prompt Generation
+        window.generatePromptWithAI = async function () {
+            const name = document.getElementById('create-agent-name').value.trim();
+            const description = document.getElementById('create-description').value.trim();
+            const category = document.getElementById('create-category').value;
+
+            if (!name || !description) {
+                alert('Please fill in Agent Name and Description first (in Basic Info tab)');
+                return;
+            }
+
+            const btn = event.target;
+            btn.innerHTML = '⏳ Generating...';
+            btn.disabled = true;
+
+            try {
+                const response = await firebase.functions().httpsCallable('generateLLMResponse')({
+                    provider: 'openai',
+                    model: 'gpt-4o',
+                    systemPrompt: `You are an expert AI agent designer. Generate a detailed system prompt for an AI agent based on the following specifications.
+
+The prompt should include:
+1. Clear role definition
+2. Specific responsibilities (3-5 items)
+3. Input format expectations
+4. Output format specifications
+5. Guidelines and constraints
+
+Output ONLY the system prompt text, no explanations.`,
+                    userMessage: `Create a system prompt for an AI agent with these specs:
+- Name: ${name}
+- Category: ${category}
+- Description: ${description}`,
+                    temperature: 0.7,
+                    source: 'agent_prompt_generation'
+                });
+
+                if (response.data.success) {
+                    document.getElementById('create-prompt').value = response.data.response;
+                } else {
+                    throw new Error(response.data.error || 'Generation failed');
+                }
+            } catch (error) {
+                console.error('Prompt generation error:', error);
+                alert('Error generating prompt: ' + error.message);
+            } finally {
+                btn.innerHTML = '🤖 AI로 생성하기';
+                btn.disabled = false;
+            }
+        };
+
+        // Submit New Agent
+        window.submitNewAgent = async function () {
+            const agentId = document.getElementById('create-agent-id').value.trim().toUpperCase();
+            const name = document.getElementById('create-agent-name').value.trim();
+            const category = document.getElementById('create-category').value;
+            const model = document.getElementById('create-model').value;
+            const description = document.getElementById('create-description').value.trim();
+            const prompt = document.getElementById('create-prompt').value.trim();
+
+            // Final validation
+            if (!agentId || !name || !description || !prompt) {
+                alert('Please fill in all required fields');
+                return;
+            }
+
+            // Check if agent ID already exists
+            const existing = registry.find(a => a.id === agentId);
+            if (existing) {
+                alert(`Agent with ID "${agentId}" already exists!`);
+                return;
+            }
+
+            const submitBtn = document.getElementById('create-submit-btn');
+            submitBtn.innerHTML = '⏳ Creating...';
+            submitBtn.disabled = true;
+
+            try {
+                const batch = db.batch();
+                const timestamp = firebase.firestore.FieldValue.serverTimestamp();
+
+                // 1. Create Agent in Registry
+                const regRef = db.collection('agentRegistry').doc(agentId);
+                batch.set(regRef, {
+                    id: agentId,
+                    name: name,
+                    category: category,
+                    description: description,
+                    status: 'active',
+                    currentProductionVersion: '1.0.0',
+                    sourceFiles: ['services/agent-execution-service.js'],
+                    createdAt: timestamp,
+                    updatedAt: timestamp
+                });
+
+                // 2. Create Initial Version
+                const verRef = db.collection('agentVersions').doc(`${agentId}-v1-0-0`);
+                batch.set(verRef, {
+                    agentId: agentId,
+                    version: '1.0.0',
+                    isProduction: true,
+                    status: 'production',
+                    config: {
+                        model: model,
+                        temperature: 0.7,
+                        maxTokens: 4096
+                    },
+                    systemPrompt: prompt,
+                    procedures: newAgentProcedures,
+                    changelog: 'Initial creation via Admin UI',
+                    createdAt: timestamp
+                });
+
+                await batch.commit();
+
+                alert(`✅ Agent "${name}" created successfully!\n\nID: ${agentId}\nVersion: v1.0.0 (Production)`);
+                closeCreateAgentModal();
+
+                // Navigate to the new agent's detail page
+                window.location.hash = `registry-detail/${agentId}`;
+
+            } catch (error) {
+                console.error('Create agent error:', error);
+                alert('Error creating agent: ' + error.message);
+            } finally {
+                submitBtn.innerHTML = '✅ Create Agent';
+                submitBtn.disabled = false;
+            }
+        };
+
+    }) ();
+

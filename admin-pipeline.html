@@ -350,85 +350,194 @@
         </div>
     </div>
 
-    <div class="admin-section-divider mt-8 mb-8"></div>
-    <!-- Agent: Studio Orchestrator -->
-    <div class="agent-setting-group">
-        <div class="flex-between mb-4">
-            <h4 style="color: var(--color-cyan);">Studio Orchestrator (orchestrator)</h4>
-            <span class="status-badge success">Master Controller</span>
-        </div>
-        <div class="form-grid">
-            <div class="form-group">
-                <label>Orchestration Model (Reasoning)</label>
-                <select id="agent-orchestrator-model" class="admin-input">
-                    <option value="gpt-4o">GPT-4o (High Quality)</option>
-                    <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
-                    <option value="deepseek-reasoner">DeepSeek R1 (Deep Reasoning)</option>
-                    <option value="o1-preview">OpenAI o1-preview</option>
-                </select>
+    <!-- 4. Studio Tab -->
+    <div id="tab-studio" class="admin-tab-content">
+        <div class="admin-card">
+            <div class="admin-card-header">
+                <h3>4. Studio: Final Content Production</h3>
+                <p>Configure the orchestrator and production agents for final visual and text output.</p>
             </div>
-            <div class="form-group">
-                <label>Orchestration Temp</label>
-                <input type="range" id="agent-orchestrator-temp" min="0" max="1" step="0.1" value="0.5">
-                <span id="label-orchestrator-temp">0.5</span>
-            </div>
-        </div>
-        <div class="form-group mt-4">
-            <label>Behavioral Basis & Persona (Master Prompt)</label>
-            <textarea id="agent-orchestrator-prompt" class="admin-input prompt-textarea"
-                placeholder="You are the Studio Orchestrator. Your goal is to analyze user goals and coordinate the agent team..."></textarea>
-        </div>
-        <div class="form-group mt-4 flex items-center gap-4">
-            <div class="flex items-center gap-2">
-                <input type="checkbox" id="orchestrator-complexity-routing" checked>
-                <label for="orchestrator-complexity-routing" style="font-size: 13px; color: #aaa;">Enable 5-Tier
-                    Complexity Routing</label>
-            </div>
-            <div class="flex items-center gap-2">
-                <input type="checkbox" id="orchestrator-brand-sync" checked>
-                <label for="orchestrator-brand-sync" style="font-size: 13px; color: #aaa;">Auto-Sync Brand Context
-                    (Layer 3)</label>
-            </div>
-        </div>
-    </div>
+            <div class="admin-section-divider"></div>
 
-    <div class="admin-actions mt-8">
-        <button id="save-studio-settings" class="admin-btn-primary">Save Studio Settings</button>
-    </div>
-</div>
-</div>
-
-<!-- 5. Growth Tab -->
-<div id="tab-growth" class="admin-tab-content">
-    <div class="admin-card">
-        <div class="admin-card-header">
-            <h3>5. The Growth: Optimization & Analytics Agents</h3>
-            <p>Configure agents that monitor performance and ROI.</p>
-        </div>
-        <div class="admin-section-divider"></div>
-        <!-- Agent: Evaluation Manager -->
-        <div class="agent-setting-group">
-            <h4>Evaluation Manager (manager)</h4>
-            <div class="form-grid">
-                <div class="form-group"><label>Model</label><select id="agent-manager-model" class="admin-input">
-                        <option value="gpt-4o">GPT-4o (High Quality)</option>
-                        <option value="gpt-4o-mini">GPT-4o Mini (Fast)</option>
-                        <option value="deepseek-chat">DeepSeek V3 (Economical)</option>
-                        <option value="deepseek-reasoner">DeepSeek R1 (Reasoning)</option>
-                    </select></div>
-                <div class="form-group">
-                    <label>Temp</label>
-                    <input type="range" id="agent-manager-temp" min="0" max="1" step="0.1" value="0.2">
-                    <span id="label-manager-temp">0.2</span>
+            <!-- Agent: Visual Creator (creator) -->
+            <div class="agent-setting-group">
+                <div class="flex-between mb-4">
+                    <h4>Agent: Visual Creator (creator)</h4>
+                    <span class="status-badge success">Active</span>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Production Model</label>
+                        <select id="agent-creator-model" class="admin-input">
+                            <option value="gpt-4o" selected>GPT-4o (High Quality)</option>
+                            <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
+                            <option value="deepseek-chat">DeepSeek V3 (Economical)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Temperature</label>
+                        <input type="range" id="agent-creator-temp" min="0" max="1" step="0.1" value="0.7">
+                        <span id="label-creator-temp">0.7</span>
+                    </div>
+                </div>
+                <div class="form-group mt-4">
+                    <label>Creative Direction Prompt</label>
+                    <textarea id="agent-creator-prompt" class="admin-input prompt-textarea tiny"
+                        placeholder="Focus on visual composition and rendering instructions..."></textarea>
                 </div>
             </div>
-            <textarea id="agent-manager-prompt" class="admin-input prompt-textarea tiny mt-2"></textarea>
-        </div>
-        <div class="admin-actions mt-8">
-            <button id="save-growth-settings" class="admin-btn-primary">Save Growth Settings</button>
+
+            <div class="admin-section-divider mt-8 mb-8"></div>
+
+            <!-- Agent: Text Producer (text) -->
+            <div class="agent-setting-group">
+                <div class="flex-between mb-4">
+                    <h4>Agent: Text Producer (text)</h4>
+                    <span class="status-badge success">Active</span>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Copywriting Model</label>
+                        <select id="agent-text-model" class="admin-input">
+                            <option value="gpt-4o" selected>GPT-4o (High Quality)</option>
+                            <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
+                            <option value="deepseek-chat">DeepSeek V3 (Economical)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Temperature</label>
+                        <input type="range" id="agent-text-temp" min="0" max="1" step="0.1" value="0.8">
+                        <span id="label-text-temp">0.8</span>
+                    </div>
+                </div>
+                <div class="form-group mt-4">
+                    <label>Text Finalization Prompt</label>
+                    <textarea id="agent-text-prompt" class="admin-input prompt-textarea tiny"
+                        placeholder="Focus on tone, grammar, and platform-specific formatting..."></textarea>
+                </div>
+            </div>
+
+            <div class="admin-section-divider mt-8 mb-8"></div>
+
+            <!-- Agent: Studio Orchestrator (orchestrator) -->
+            <div class="agent-setting-group">
+                <div class="flex-between mb-4">
+                    <h4 style="color: var(--color-cyan);">Studio Orchestrator (orchestrator)</h4>
+                    <span class="status-badge success">Master Controller</span>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Orchestration Model (Reasoning)</label>
+                        <select id="agent-orchestrator-model" class="admin-input">
+                            <option value="gpt-4o">GPT-4o (High Quality)</option>
+                            <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
+                            <option value="deepseek-reasoner">DeepSeek R1 (Deep Reasoning)</option>
+                            <option value="o1-preview">OpenAI o1-preview</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Orchestration Temp</label>
+                        <input type="range" id="agent-orchestrator-temp" min="0" max="1" step="0.1" value="0.5">
+                        <span id="label-orchestrator-temp">0.5</span>
+                    </div>
+                </div>
+                <div class="form-group mt-4">
+                    <label>Behavioral Basis & Persona (Master Prompt)</label>
+                    <textarea id="agent-orchestrator-prompt" class="admin-input prompt-textarea tiny"
+                        placeholder="You are the Studio Orchestrator. Your goal is to analyze user goals and coordinate the agent team..."></textarea>
+                </div>
+                <div class="form-group mt-4 flex items-center gap-4">
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="orchestrator-complexity-routing" checked>
+                        <label for="orchestrator-complexity-routing" style="font-size: 13px; color: #aaa;">Enable 5-Tier
+                            Complexity Routing</label>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="orchestrator-brand-sync" checked>
+                        <label for="orchestrator-brand-sync" style="font-size: 13px; color: #aaa;">Auto-Sync Brand
+                            Context
+                            (Layer 3)</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="admin-actions mt-8">
+                <button id="save-studio-settings" class="admin-btn-primary">Save Studio Settings</button>
+            </div>
         </div>
     </div>
-</div>
+
+    <!-- 5. Growth Tab -->
+    <div id="tab-growth" class="admin-tab-content">
+        <div class="admin-card">
+            <div class="admin-card-header">
+                <h3>5. The Growth: Optimization & Analytics Agents</h3>
+                <p>Configure agents that monitor performance and ROI.</p>
+            </div>
+            <div class="admin-section-divider"></div>
+            <!-- Agent: Evaluation Manager -->
+            <div class="agent-setting-group">
+                <div class="flex-between mb-2">
+                    <h4>Evaluation Manager (manager)</h4>
+                    <span class="status-badge success">Active</span>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Review Model</label>
+                        <select id="agent-manager-model" class="admin-input">
+                            <option value="gpt-4o" selected>GPT-4o (High Quality)</option>
+                            <option value="gpt-4o-mini">GPT-4o Mini (Fast)</option>
+                            <option value="deepseek-chat">DeepSeek V3 (Economical)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Temperature</label>
+                        <input type="range" id="agent-manager-temp" min="0" max="1" step="0.1" value="0.2">
+                        <span id="label-manager-temp">0.2</span>
+                    </div>
+                </div>
+                <div class="form-group mt-4">
+                    <label>Manager System Prompt</label>
+                    <textarea id="agent-manager-prompt" class="admin-input prompt-textarea tiny"
+                        placeholder="Focus on post-production evaluation and performance metrics..."></textarea>
+                </div>
+            </div>
+
+            <div class="admin-section-divider mt-8 mb-8"></div>
+
+            <!-- Agent: Reasoner Model -->
+            <div class="agent-setting-group">
+                <div class="flex-between mb-2">
+                    <h4 style="color: var(--color-cyan);">Strategy Reasoner (reasoner)</h4>
+                    <span class="status-badge info">Deep Discovery</span>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Reasoning Model</label>
+                        <select id="agent-reasoner-model" class="admin-input">
+                            <option value="deepseek-reasoner" selected>DeepSeek R1 (Deep Thinking)</option>
+                            <option value="o1-preview">OpenAI o1-preview</option>
+                            <option value="gpt-4o">GPT-4o (Standard Reasoning)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Reasoning Temp</label>
+                        <input type="range" id="agent-reasoner-temp" min="0" max="1" step="0.1" value="0.1">
+                        <span id="label-reasoner-temp">0.1</span>
+                    </div>
+                </div>
+                <div class="form-group mt-4">
+                    <label>Reasoner Master Prompt</label>
+                    <textarea id="agent-reasoner-prompt" class="admin-input prompt-textarea tiny"
+                        placeholder="Focus on high-level strategy, pattern recognition, and future trend analysis..."></textarea>
+                </div>
+            </div>
+
+            <div class="admin-actions mt-8">
+                <button id="save-growth-settings" class="admin-btn-primary">Save Growth Pipeline Settings</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <style>
