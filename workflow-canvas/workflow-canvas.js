@@ -2504,9 +2504,21 @@ const WorkflowCanvas = (function () {
             }));
 
             // Also try direct function call as fallback
+            console.log('[WorkflowCanvas] Checking for refreshPipelineWorkflows:', typeof window.refreshPipelineWorkflows);
             if (typeof window.refreshPipelineWorkflows === 'function') {
                 console.log('[WorkflowCanvas] Calling refreshPipelineWorkflows directly');
                 window.refreshPipelineWorkflows(state.pipelineContext);
+            } else {
+                // Try with delay in case script hasn't loaded yet
+                console.log('[WorkflowCanvas] refreshPipelineWorkflows not found, trying with delay...');
+                setTimeout(() => {
+                    if (typeof window.refreshPipelineWorkflows === 'function') {
+                        console.log('[WorkflowCanvas] Delayed call to refreshPipelineWorkflows');
+                        window.refreshPipelineWorkflows(state.pipelineContext);
+                    } else {
+                        console.warn('[WorkflowCanvas] refreshPipelineWorkflows still not available');
+                    }
+                }, 500);
             }
 
         } catch (err) {
