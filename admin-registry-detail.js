@@ -61,6 +61,9 @@
 
             // Automatically show Agent Logic on load
             const autoLoadLogic = () => {
+                // Stop retry loop if we are no longer on the registry-detail page
+                if (!window.location.hash.includes('registry-detail')) return;
+
                 const selector = document.getElementById('source-file-selector');
                 const prodVer = agentVersions.find(v => v.isProduction) || agentVersions[0];
 
@@ -95,6 +98,11 @@
         const updatedEl = document.getElementById('agent-updated');
 
         if (!nameEl) {
+            // Stop retry loop if we are no longer on the registry-detail page
+            if (!window.location.hash.includes('registry-detail')) {
+                console.log('[RegistryDetail] Stopped retry loop as page changed.');
+                return;
+            }
             console.error('[RegistryDetail] Required DOM elements not found, retrying in 100ms...');
             setTimeout(renderAgentDetail, 100);
             return;
@@ -211,15 +219,15 @@
                                 style="background: rgba(255, 255, 255, 0.1); color: #fff; border: 1px solid rgba(255, 255, 255, 0.2); padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
                             <i class="fas fa-download"></i> 다운로드 (JSON)
                         </button>
-                         ${!isProd ? `
-                        <button type="button" class="btn-promote" onclick="event.stopPropagation(); promoteToProduction('${ver.id}', '${ver.version}')"
-                                style="background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4); padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;">
-                            🚀 Promote
-                        </button>` : `
                         <button type="button" class="btn-edit-actual" onclick="event.stopPropagation(); openPromptEditor('${ver.id}')"
                                 style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;">
                             <i class="fas fa-edit"></i> Edit Prompt
-                        </button>`}
+                        </button>
+                         ${!isProd ? `
+                        <button type="button" class="btn-activate" onclick="event.stopPropagation(); promoteToProduction('${ver.id}', '${ver.version}')"
+                                style="background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4); padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;">
+                            ✅ Activate
+                        </button>` : ''}
                     </div>
                 </div>
             </div>
@@ -295,20 +303,32 @@
         if (section) section.style.display = 'block';
     };
 
-    window.openPromptEditor = async function (versionId) {
-        if (!confirm(`Are you sure you want to promote v${versionStr} to PRODUCTION? \n\nThis will instantly affect all users relying on the 'Production' tag.`)) return;
+    // Activate (Promote) a draft version to production
+    window.promoteToProduction = async function (versionId, versionStr) {
+        if (!confirm(`v${versionStr}을(를) Production으로 활성화하시겠습니까?\n\n이 작업은 즉시 적용되며 모든 사용자에게 영향을 미칩니다.`)) return;
 
         try {
             const batch = db.batch();
 
-            // 1. Update Registry Pointer
+            // 1. Demote current production versions
+            const prodVersions = agentVersions.filter(v => v.isProduction);
+            prodVersions.forEach(pv => {
+                const pvRef = db.collection('agentVersions').doc(pv.id);
+                batch.update(pvRef, {
+                    isProduction: false,
+                    status: 'archived',
+                    archivedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            });
+
+            // 2. Update Registry Pointer
             const regRef = db.collection('agentRegistry').doc(currentAgentId);
             batch.update(regRef, {
                 currentProductionVersion: versionStr,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
 
-            // 2. Mark this version as production
+            // 3. Mark this version as production
             const verRef = db.collection('agentVersions').doc(versionId);
             batch.update(verRef, {
                 isProduction: true,
@@ -317,11 +337,11 @@
             });
 
             await batch.commit();
-            alert(`✅ v${versionStr} is now Live!`);
+            alert(`✅ v${versionStr}이(가) 활성화되었습니다!`);
             loadAgentDetail();
         } catch (e) {
             console.error(e);
-            alert('Error promoting: ' + e.message);
+            alert('활성화 중 오류 발생: ' + e.message);
         }
     };
 

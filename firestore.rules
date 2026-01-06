@@ -290,6 +290,14 @@ service cloud.firestore {
     //   allow write: if isAdmin();
     // }
 
+    // Workflow Definitions (5-Step Pipeline workflows)
+    match /workflowDefinitions/{workflowId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (resource.data.createdBy == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
+    }
+
     // Agent Set Templates (Root): Admin can write, authenticated users can read
     match /agentSetTemplates/{templateId} {
       allow read: if isAuthenticated();

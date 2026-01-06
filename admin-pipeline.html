@@ -1253,10 +1253,10 @@
     }
 
     function editWorkflow(workflowId, context) {
-        console.log('Editing workflow:', workflowId);
+        console.log('Editing workflow:', workflowId, 'in context:', context);
         if (typeof WorkflowCanvas !== 'undefined') {
-            // TODO: Load workflow data and open in canvas
-            WorkflowCanvas.open(context);
+            // Pass workflowId to load the existing definition
+            WorkflowCanvas.open(context, null, workflowId);
         }
     }
 
@@ -1274,24 +1274,85 @@
     async function loadAllPipelineWorkflows() {
         const contexts = ['market', 'brand', 'knowledge', 'studio', 'growth'];
 
+        // Wait for Firebase to be ready
+        if (typeof firebase === 'undefined' || !firebase.firestore) {
+            console.log('[Pipeline] Waiting for Firebase...');
+            setTimeout(loadAllPipelineWorkflows, 500);
+            return;
+        }
+
+        const db = firebase.firestore();
+
         for (const context of contexts) {
             try {
-                // TODO: Replace with actual Firestore query
-                // const workflows = await firebase.firestore()
-                //     .collection('workflowDefinitions')
-                //     .where('pipelineContext', '==', context)
-                //     .orderBy('createdAt', 'desc')
-                //     .limit(6)
-                //     .get();
+                const snapshot = await db.collection('workflowDefinitions')
+                    .where('pipelineContext', '==', context)
+                    .orderBy('createdAt', 'desc')
+                    .limit(6)
+                    .get();
 
-                // For now, render empty state
-                renderWorkflowCards(context, []);
+                const workflows = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                console.log(`[Pipeline] Loaded ${workflows.length} workflows for ${context}`);
+                renderWorkflowCards(context, workflows);
             } catch (err) {
                 console.error(`Failed to load workflows for ${context}:`, err);
-                renderWorkflowCards(context, []);
+                // Check if it's a missing index error
+                if (err.code === 'failed-precondition' && err.message.includes('index')) {
+                    console.warn(`[Pipeline] Missing index for ${context}. Loading without orderBy.`);
+                    try {
+                        const snapshot = await db.collection('workflowDefinitions')
+                            .where('pipelineContext', '==', context)
+                            .limit(6)
+                            .get();
+
+                        const workflows = snapshot.docs.map(doc => ({
+                            id: doc.id,
+                            ...doc.data()
+                        }));
+                        renderWorkflowCards(context, workflows);
+                    } catch (fallbackErr) {
+                        renderWorkflowCards(context, []);
+                    }
+                } else {
+                    renderWorkflowCards(context, []);
+                }
             }
         }
     }
+
+    // Load workflows for a single context (for refresh)
+    async function loadPipelineWorkflows(context) {
+        if (typeof firebase === 'undefined' || !firebase.firestore) return;
+
+        const db = firebase.firestore();
+        try {
+            const snapshot = await db.collection('workflowDefinitions')
+                .where('pipelineContext', '==', context)
+                .orderBy('createdAt', 'desc')
+                .limit(6)
+                .get();
+
+            const workflows = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+
+            renderWorkflowCards(context, workflows);
+        } catch (err) {
+            console.error(`Refresh failed for ${context}:`, err);
+        }
+    }
+
+    // Listen for workflow saved events
+    window.addEventListener('workflowSaved', (e) => {
+        const { context } = e.detail;
+        console.log('[Pipeline] Workflow saved, refreshing:', context);
+        loadPipelineWorkflows(context);
+    });
 
     // Initialize when pipeline page loads
     if (document.readyState === 'loading') {
