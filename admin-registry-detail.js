@@ -704,6 +704,7 @@ Be specific and maintain the agent's core purpose while applying the requested c
     function getStatusBadge(status) {
         const badges = {
             active: '<span style="background: rgba(34, 197, 94, 0.2); color: #22c55e; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">✅ Active</span>',
+            inactive: '<span style="background: rgba(148, 163, 184, 0.2); color: #94a3b8; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">⏸️ Inactive</span>',
             deprecated: '<span style="background: rgba(239, 68, 68, 0.2); color: #ef4444; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">❌ Deprecated</span>'
         };
         return badges[status] || status;
@@ -1377,6 +1378,174 @@ module.exports = {
 
         return highlighted;
     }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 🔄 AGENT STATUS TOGGLE (Activate/Deactivate)
+    // ═══════════════════════════════════════════════════════════════
+    window.toggleAgentStatus = async function () {
+        if (!currentAgent) return;
+
+        const currentStatus = currentAgent.status || 'active';
+        const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+        const actionText = newStatus === 'active' ? '활성화' : '비활성화';
+
+        if (!confirm(`이 에이전트를 ${actionText}하시겠습니까?\n\n에이전트: ${currentAgent.name}\n새 상태: ${newStatus.toUpperCase()}`)) {
+            return;
+        }
+
+        try {
+            await db.collection('agentRegistry').doc(currentAgentId).update({
+                status: newStatus,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            // Update local state
+            currentAgent.status = newStatus;
+
+            // Update UI
+            const statusEl = document.getElementById('agent-status');
+            if (statusEl) statusEl.innerHTML = getStatusBadge(newStatus);
+
+            updateToggleButton(newStatus);
+
+            alert(`✅ 에이전트가 ${actionText}되었습니다.`);
+        } catch (error) {
+            console.error('Error toggling status:', error);
+            alert('상태 변경 실패: ' + error.message);
+        }
+    };
+
+    function updateToggleButton(status) {
+        const btn = document.getElementById('btn-toggle-status');
+        const textSpan = document.getElementById('toggle-status-text');
+        if (!btn || !textSpan) return;
+
+        if (status === 'active') {
+            textSpan.textContent = 'Deactivate';
+            btn.style.background = 'rgba(245, 158, 11, 0.1)';
+            btn.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+            btn.style.color = '#f59e0b';
+        } else {
+            textSpan.textContent = 'Activate';
+            btn.style.background = 'rgba(34, 197, 94, 0.1)';
+            btn.style.borderColor = 'rgba(34, 197, 94, 0.3)';
+            btn.style.color = '#22c55e';
+        }
+    }
+
+    // Initialize toggle button state when agent loads
+    const originalRenderAgentDetail = renderAgentDetail;
+    renderAgentDetail = function () {
+        originalRenderAgentDetail();
+        if (currentAgent) {
+            updateToggleButton(currentAgent.status || 'active');
+        }
+    };
+
+    // ═══════════════════════════════════════════════════════════════
+    // 🗑️ DELETE AGENT
+    // ═══════════════════════════════════════════════════════════════
+    window.confirmDeleteAgent = async function () {
+        if (!currentAgent) return;
+
+        const confirmText = prompt(
+            `⚠️ 경고: 이 작업은 되돌릴 수 없습니다!\n\n` +
+            `에이전트 "${currentAgent.name}"와 모든 버전 기록이 영구적으로 삭제됩니다.\n\n` +
+            `삭제를 확인하려면 에이전트 ID를 정확히 입력하세요:\n${currentAgent.id}`
+        );
+
+        if (confirmText !== currentAgent.id) {
+            if (confirmText !== null) {
+                alert('ID가 일치하지 않습니다. 삭제가 취소되었습니다.');
+            }
+            return;
+        }
+
+        try {
+            const batch = db.batch();
+
+            // 1. Delete all versions
+            const versionsSnapshot = await db.collection('agentVersions')
+                .where('agentId', '==', currentAgentId)
+                .get();
+
+            versionsSnapshot.forEach(doc => {
+                batch.delete(doc.ref);
+            });
+
+            // 2. Delete the agent registry entry
+            batch.delete(db.collection('agentRegistry').doc(currentAgentId));
+
+            await batch.commit();
+
+            alert(`✅ 에이전트 "${currentAgent.name}"가 삭제되었습니다.`);
+
+            // Redirect to registry list
+            window.location.hash = 'registry';
+        } catch (error) {
+            console.error('Error deleting agent:', error);
+            alert('삭제 실패: ' + error.message);
+        }
+    };
+
+    // ═══════════════════════════════════════════════════════════════
+    // ✏️ RENAME AGENT
+    // ═══════════════════════════════════════════════════════════════
+    window.openRenameModal = function () {
+        if (!currentAgent) return;
+
+        document.getElementById('rename-agent-name').value = currentAgent.name || '';
+        document.getElementById('rename-agent-description').value = currentAgent.description || '';
+
+        const modal = document.getElementById('rename-agent-modal');
+        modal.style.display = 'flex';
+        void modal.offsetWidth;
+        modal.classList.add('open');
+
+        // Focus on name input
+        setTimeout(() => {
+            document.getElementById('rename-agent-name').focus();
+            document.getElementById('rename-agent-name').select();
+        }, 100);
+    };
+
+    window.closeRenameModal = function () {
+        const modal = document.getElementById('rename-agent-modal');
+        modal.classList.remove('open');
+        setTimeout(() => { modal.style.display = 'none'; }, 300);
+    };
+
+    window.saveAgentRename = async function () {
+        const newName = document.getElementById('rename-agent-name').value.trim();
+        const newDescription = document.getElementById('rename-agent-description').value.trim();
+
+        if (!newName) {
+            alert('에이전트 이름을 입력해주세요.');
+            return;
+        }
+
+        try {
+            await db.collection('agentRegistry').doc(currentAgentId).update({
+                name: newName,
+                description: newDescription,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            // Update local state
+            currentAgent.name = newName;
+            currentAgent.description = newDescription;
+
+            // Update UI
+            document.getElementById('agent-name').textContent = newName;
+            document.getElementById('agent-description').textContent = newDescription;
+
+            closeRenameModal();
+            alert(`✅ 에이전트 정보가 수정되었습니다.\n\n새 이름: ${newName}`);
+        } catch (error) {
+            console.error('Error renaming agent:', error);
+            alert('저장 실패: ' + error.message);
+        }
+    };
 
 })();
 

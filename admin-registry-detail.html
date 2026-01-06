@@ -7,6 +7,11 @@
                     <a href="#registry"
                         style="text-decoration: none; color: rgba(255,255,255,0.5); font-size: 20px;">&larr;</a>
                     <h2 id="agent-name" style="margin: 0; font-size: 24px;">Loading...</h2>
+                    <button id="btn-edit-name" onclick="openRenameModal()"
+                        style="background: transparent; border: 1px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.6); padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px;"
+                        title="에이전트 이름 변경">
+                        <i class="fas fa-pencil-alt"></i>
+                    </button>
                     <span id="agent-version"
                         style="background: rgba(22, 224, 189, 0.2); padding: 6px 12px; border-radius: 6px; font-weight: 600; font-size: 14px;"></span>
                     <span id="agent-status"></span>
@@ -19,9 +24,17 @@
                 </div>
             </div>
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button id="btn-toggle-status" class="admin-btn-secondary" onclick="toggleAgentStatus()"
+                    style="font-size: 12px; background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.3); color: #f59e0b;">
+                    <i class="fas fa-power-off"></i> <span id="toggle-status-text">Deactivate</span>
+                </button>
                 <button class="admin-btn-secondary" onclick="openCloneModal()"
                     style="font-size: 12px; background: rgba(78, 205, 196, 0.1); border-color: rgba(78, 205, 196, 0.3); color: #4ecdc4;">
                     <i class="fas fa-copy"></i> Clone Agent
+                </button>
+                <button class="admin-btn-secondary" onclick="confirmDeleteAgent()"
+                    style="font-size: 12px; background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.3); color: #ef4444;">
+                    <i class="fas fa-trash-alt"></i> Delete
                 </button>
             </div>
         </div>
@@ -380,6 +393,48 @@
             <button type="button" class="admin-btn-secondary" onclick="closeCloneModal()">Cancel</button>
             <button type="button" class="admin-btn-primary" onclick="executeClone()" style="background: #059669;">
                 📋 Create Clone
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Rename Agent Modal -->
+<div id="rename-agent-modal" class="admin-modal" style="display: none;">
+    <div class="admin-modal-content" style="max-width: 500px;">
+        <div class="admin-modal-header" style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);">
+            <h3 class="admin-modal-title">
+                <span style="margin-right: 8px;">✏️</span>
+                에이전트 정보 수정
+            </h3>
+            <button class="admin-modal-close" onclick="closeRenameModal()">&times;</button>
+        </div>
+
+        <div class="admin-modal-body" style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="admin-form-group">
+                <label class="admin-form-label">에이전트 이름</label>
+                <input type="text" id="rename-agent-name" class="admin-form-input" placeholder="새 에이전트 이름">
+                <small style="color: rgba(255,255,255,0.4); font-size: 11px;">간결하고 명확한 이름을 사용하세요 (예: Text Creator, SEO
+                    Watcher)</small>
+            </div>
+
+            <div class="admin-form-group">
+                <label class="admin-form-label">설명</label>
+                <textarea id="rename-agent-description" class="admin-form-input" rows="3"
+                    placeholder="에이전트 설명"></textarea>
+            </div>
+
+            <div
+                style="background: rgba(59, 130, 246, 0.1); padding: 12px; border-radius: 8px; border-left: 3px solid #3b82f6;">
+                <div style="font-size: 12px; color: #60a5fa;">
+                    ℹ️ 에이전트 ID는 변경할 수 없습니다. 이름과 설명만 수정됩니다.
+                </div>
+            </div>
+        </div>
+
+        <div class="admin-modal-footer" style="background: #161b22; border-top: 1px solid #30363d;">
+            <button type="button" class="admin-btn-secondary" onclick="closeRenameModal()">Cancel</button>
+            <button type="button" class="admin-btn-primary" onclick="saveAgentRename()" style="background: #3b82f6;">
+                💾 저장
             </button>
         </div>
     </div>
