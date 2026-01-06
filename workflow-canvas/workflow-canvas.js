@@ -422,10 +422,12 @@ const WorkflowCanvas = (function () {
     // Public API
     // ============================================
     function open(context = 'market', projectId = null, workflowId = null) {
+        console.log('[WorkflowCanvas] open() called with context:', context);
         state.pipelineContext = context;
         state.projectId = projectId;
         state.workflowId = workflowId;
         state.isOpen = true;
+        console.log('[WorkflowCanvas] state.pipelineContext set to:', state.pipelineContext);
 
         if (!elements.modal) {
             init().then(() => {
