@@ -299,6 +299,21 @@
     <script src="admin.js?v=20251126"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="admin-monitoring.js"></script>
+
+    <!-- Workflow Canvas Builder Module -->
+    <link rel="stylesheet" href="/workflow-canvas/workflow-canvas.css">
+    <script src="/workflow-canvas/workflow-canvas.js"></script>
+    <script>
+        // Global function to open Workflow Canvas from any page
+        function openWorkflowCanvas(context) {
+            if (typeof WorkflowCanvas !== 'undefined') {
+                WorkflowCanvas.open(context);
+            } else {
+                console.error('WorkflowCanvas module not loaded');
+                alert('워크플로우 캔버스를 로드하는 중입니다. 잠시 후 다시 시도해주세요.');
+            }
+        }
+    </script>
 </body>
 
 </html>

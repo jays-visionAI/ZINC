@@ -1,0 +1,279 @@
+<!-- ============================================
+     Workflow Canvas Builder - HTML Template
+     ============================================ -->
+
+<div id="workflow-canvas-modal" class="workflow-canvas-modal">
+    <!-- Header -->
+    <header class="wf-header">
+        <div class="wf-header-left">
+            <button class="wf-back-btn" onclick="WorkflowCanvas.close()">
+                <span>←</span>
+                <span>Back to Pipeline</span>
+            </button>
+            <h1 class="wf-title">🔧 Workflow Canvas Builder</h1>
+        </div>
+        <div class="wf-header-right">
+            <button class="wf-btn wf-btn-secondary" onclick="WorkflowCanvas.reset()">
+                <span>🔄</span>
+                <span>Reset</span>
+            </button>
+            <button class="wf-btn wf-btn-secondary" onclick="WorkflowCanvas.saveAsDraft()">
+                <span>💾</span>
+                <span>Save Draft</span>
+            </button>
+            <button class="wf-btn wf-btn-primary" onclick="WorkflowCanvas.saveAndRun()">
+                <span>▶️</span>
+                <span>Save & Run</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Step Tabs -->
+    <nav class="wf-steps">
+        <button class="wf-step-tab active" data-step="1" onclick="WorkflowCanvas.goToStep(1)">
+            <span class="wf-step-number">1</span>
+            <span>Prompt</span>
+        </button>
+        <button class="wf-step-tab" data-step="2" onclick="WorkflowCanvas.goToStep(2)">
+            <span class="wf-step-number">2</span>
+            <span>Canvas</span>
+        </button>
+        <button class="wf-step-tab" data-step="3" onclick="WorkflowCanvas.goToStep(3)">
+            <span class="wf-step-number">3</span>
+            <span>Code</span>
+        </button>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="wf-main">
+        <!-- Step 1: Prompt Input -->
+        <div id="wf-step-1" class="wf-step-content active">
+            <div class="wf-prompt-container">
+                <div class="wf-prompt-card">
+                    <div class="wf-prompt-icon">✨</div>
+                    <h2 class="wf-prompt-title">워크플로우를 자연어로 설명해주세요</h2>
+                    <p class="wf-prompt-subtitle">
+                        AI가 분석하여 최적의 에이전트 워크플로우를 자동으로 구성합니다.<br>
+                        복잡한 조건이나 병렬 처리도 자연스럽게 설명해보세요.
+                    </p>
+
+                    <textarea id="wf-prompt-input" class="wf-prompt-textarea"
+                        placeholder="예: 먼저 시장 트렌드를 분석하고, 결과가 유의미하면 콘텐츠 기획을 진행하고, 아니면 추가 리서치를 해줘. 기획이 끝나면 글 작성과 이미지 생성을 동시에 진행해줘."></textarea>
+
+                    <div class="wf-prompt-actions">
+                        <button class="wf-btn wf-btn-primary" onclick="WorkflowCanvas.analyzePrompt()">
+                            <span>🔮</span>
+                            <span>AI로 워크플로우 생성</span>
+                        </button>
+                        <button class="wf-btn wf-btn-secondary" onclick="WorkflowCanvas.showTemplates()">
+                            <span>📋</span>
+                            <span>템플릿에서 선택</span>
+                        </button>
+                    </div>
+
+                    <!-- AI Analysis Result -->
+                    <div id="wf-analysis-result" class="wf-analysis-result">
+                        <div class="wf-analysis-header">
+                            <span>🤖</span>
+                            <h4>AI 분석 결과</h4>
+                        </div>
+                        <div id="wf-detected-agents" class="wf-detected-agents">
+                            <!-- Filled by JS -->
+                        </div>
+                        <div id="wf-flow-description" class="wf-flow-description">
+                            <!-- Filled by JS -->
+                        </div>
+                        <div class="wf-analysis-actions">
+                            <button class="wf-btn wf-btn-primary" onclick="WorkflowCanvas.applyToCanvas()">
+                                <span>✨</span>
+                                <span>캔버스에 적용</span>
+                            </button>
+                            <button class="wf-btn wf-btn-secondary" onclick="WorkflowCanvas.refineAnalysis()">
+                                <span>✏️</span>
+                                <span>수정 요청</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Available Agents -->
+                    <div class="wf-available-agents">
+                        <h5>사용 가능한 에이전트</h5>
+                        <div id="wf-agent-chips" class="wf-agent-chips">
+                            <!-- Filled by JS based on pipeline context -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: Canvas Editor -->
+        <div id="wf-step-2" class="wf-step-content">
+            <div class="wf-canvas-container">
+                <!-- Canvas Area -->
+                <div class="wf-canvas-area" id="wf-canvas-area">
+                    <!-- Zoom Controls -->
+                    <div class="wf-zoom-controls">
+                        <button class="wf-zoom-btn" onclick="WorkflowCanvas.zoomIn()">+</button>
+                        <button class="wf-zoom-btn" onclick="WorkflowCanvas.zoomOut()">−</button>
+                        <button class="wf-zoom-btn" onclick="WorkflowCanvas.zoomReset()">⟲</button>
+                    </div>
+
+                    <!-- Canvas Viewport -->
+                    <div class="wf-canvas-viewport" id="wf-canvas-viewport">
+                        <!-- SVG for connections -->
+                        <svg class="wf-connections-svg" id="wf-connections-svg"></svg>
+
+                        <!-- Nodes container -->
+                        <div class="wf-nodes-container" id="wf-nodes-container">
+                            <!-- Nodes inserted here by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Minimap -->
+                    <div class="wf-minimap" id="wf-minimap">
+                        <div class="wf-minimap-viewport" id="wf-minimap-viewport"></div>
+                    </div>
+
+                    <!-- Agent Palette -->
+                    <div class="wf-agent-palette" id="wf-agent-palette">
+                        <div class="wf-palette-item" draggable="true" data-type="start">
+                            <span class="wf-palette-icon">▶️</span>
+                            <span>Start</span>
+                        </div>
+                        <div class="wf-palette-item" draggable="true" data-type="agent">
+                            <span class="wf-palette-icon">🤖</span>
+                            <span>Agent</span>
+                        </div>
+                        <div class="wf-palette-item" draggable="true" data-type="condition">
+                            <span class="wf-palette-icon">🔀</span>
+                            <span>Condition</span>
+                        </div>
+                        <div class="wf-palette-item" draggable="true" data-type="parallel">
+                            <span class="wf-palette-icon">⚡</span>
+                            <span>Parallel</span>
+                        </div>
+                        <div class="wf-palette-item" draggable="true" data-type="end">
+                            <span class="wf-palette-icon">⏹️</span>
+                            <span>End</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Properties Panel -->
+                <aside class="wf-properties-panel" id="wf-properties-panel">
+                    <div class="wf-properties-header">
+                        <h3>📝 Node Properties</h3>
+                    </div>
+                    <div class="wf-properties-body" id="wf-properties-body">
+                        <!-- No selection state -->
+                        <div id="wf-no-selection" class="wf-no-selection">
+                            <div class="wf-no-selection-icon">🖱️</div>
+                            <p>노드를 선택하여<br>속성을 편집하세요</p>
+                        </div>
+
+                        <!-- Properties form (hidden by default) -->
+                        <div id="wf-properties-form" style="display: none;">
+                            <!-- Node Type -->
+                            <div class="wf-property-group">
+                                <label class="wf-property-label">Node Type</label>
+                                <input type="text" id="wf-prop-type" class="wf-property-input" readonly>
+                            </div>
+
+                            <!-- Node Name -->
+                            <div class="wf-property-group">
+                                <label class="wf-property-label">Name</label>
+                                <input type="text" id="wf-prop-name" class="wf-property-input" placeholder="Node name">
+                            </div>
+
+                            <!-- Agent Selector (for agent nodes) -->
+                            <div class="wf-property-group" id="wf-prop-agent-group" style="display: none;">
+                                <label class="wf-property-label">Agent</label>
+                                <select id="wf-prop-agent" class="wf-property-select">
+                                    <option value="">Select Agent...</option>
+                                </select>
+                            </div>
+
+                            <!-- Model Selector -->
+                            <div class="wf-property-group" id="wf-prop-model-group" style="display: none;">
+                                <label class="wf-property-label">Model</label>
+                                <select id="wf-prop-model" class="wf-property-select">
+                                    <option value="gpt-4o">GPT-4o (High Quality)</option>
+                                    <option value="gpt-4o-mini">GPT-4o Mini (Fast)</option>
+                                    <option value="deepseek-chat">DeepSeek V3 (Economical)</option>
+                                    <option value="deepseek-reasoner">DeepSeek R1 (Reasoning)</option>
+                                    <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
+                                </select>
+                            </div>
+
+                            <!-- Temperature -->
+                            <div class="wf-property-group" id="wf-prop-temp-group" style="display: none;">
+                                <label class="wf-property-label">
+                                    Temperature
+                                    <span id="wf-prop-temp-value" class="wf-property-range-value">0.7</span>
+                                </label>
+                                <input type="range" id="wf-prop-temp" class="wf-property-range" min="0" max="1"
+                                    step="0.1" value="0.7">
+                            </div>
+
+                            <!-- Condition Expression -->
+                            <div class="wf-property-group" id="wf-prop-condition-group" style="display: none;">
+                                <label class="wf-property-label">Condition Expression</label>
+                                <textarea id="wf-prop-condition" class="wf-property-input wf-property-textarea"
+                                    placeholder="e.g., output.score > 0.8"></textarea>
+                            </div>
+
+                            <!-- Input Mapping -->
+                            <div class="wf-property-group" id="wf-prop-input-group" style="display: none;">
+                                <label class="wf-property-label">Input Mapping</label>
+                                <textarea id="wf-prop-input-mapping" class="wf-property-input wf-property-textarea"
+                                    placeholder='{"topic": "{{prev.output.topic}}"}'></textarea>
+                            </div>
+
+                            <!-- Delete Button -->
+                            <div class="wf-property-group"
+                                style="margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--wf-border);">
+                                <button class="wf-btn wf-btn-secondary"
+                                    style="width: 100%; justify-content: center; color: var(--wf-red);"
+                                    onclick="WorkflowCanvas.deleteSelectedNode()">
+                                    <span>🗑️</span>
+                                    <span>Delete Node</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </aside>
+            </div>
+        </div>
+
+        <!-- Step 3: Code Preview -->
+        <div id="wf-step-3" class="wf-step-content">
+            <div class="wf-code-container">
+                <!-- JSON Definition -->
+                <div class="wf-code-panel">
+                    <div class="wf-code-panel-header">
+                        <h4>📄 Workflow Definition (JSON)</h4>
+                        <button class="wf-code-copy-btn" onclick="WorkflowCanvas.copyJSON()">
+                            📋 Copy
+                        </button>
+                    </div>
+                    <div class="wf-code-content">
+                        <pre id="wf-json-output"><code>// Generate workflow on Canvas first</code></pre>
+                    </div>
+                </div>
+
+                <!-- Execution Code -->
+                <div class="wf-code-panel">
+                    <div class="wf-code-panel-header">
+                        <h4>⚡ Execution Code (JavaScript)</h4>
+                        <button class="wf-code-copy-btn" onclick="WorkflowCanvas.copyJS()">
+                            📋 Copy
+                        </button>
+                    </div>
+                    <div class="wf-code-content">
+                        <pre id="wf-js-output"><code>// Generate workflow on Canvas first</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>

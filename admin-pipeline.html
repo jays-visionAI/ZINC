@@ -10,6 +10,32 @@
     <!-- 1. Market Pulse Tab -->
     <div id="tab-market" class="admin-tab-content">
         <div class="admin-card">
+            <!-- Workflow Builder Button -->
+            <div class="workflow-builder-trigger">
+                <button class="workflow-btn" onclick="openWorkflowCanvas('market')">
+                    <span class="workflow-btn-icon">🚀</span>
+                    <span class="workflow-btn-text">Workflow 생성하기</span>
+                    <span class="workflow-btn-badge">AI</span>
+                </button>
+                <p class="workflow-btn-desc">자연어로 에이전트 워크플로우를 설계하고 자동 코드를 생성하세요</p>
+            </div>
+
+            <!-- Workflow Cards List -->
+            <div class="workflow-list-section" id="workflow-list-market">
+                <div class="workflow-list-header">
+                    <h4>📂 저장된 워크플로우 <span class="workflow-count" id="workflow-count-market">(0)</span></h4>
+                    <button class="workflow-view-all-btn" onclick="viewAllWorkflows('market')">전체보기 →</button>
+                </div>
+                <div class="workflow-cards-container" id="workflow-cards-market">
+                    <!-- Cards will be rendered by JS -->
+                    <div class="workflow-empty-state">
+                        <span class="workflow-empty-icon">📭</span>
+                        <p>저장된 워크플로우가 없습니다</p>
+                        <span class="workflow-empty-hint">위의 버튼을 클릭하여 새 워크플로우를 생성하세요</span>
+                    </div>
+                </div>
+            </div>
+
             <div class="admin-card-header">
                 <h3>1. Market Pulse: Trend & Research Agents</h3>
                 <p>Configure agents for real-time market sentiment, trend analysis, and SEO research.</p>
@@ -81,6 +107,31 @@
     <!-- 2. Brand Brain Tab -->
     <div id="tab-brand" class="admin-tab-content">
         <div class="admin-card">
+            <!-- Workflow Builder Button -->
+            <div class="workflow-builder-trigger">
+                <button class="workflow-btn" onclick="openWorkflowCanvas('brand')">
+                    <span class="workflow-btn-icon">🚀</span>
+                    <span class="workflow-btn-text">Workflow 생성하기</span>
+                    <span class="workflow-btn-badge">AI</span>
+                </button>
+                <p class="workflow-btn-desc">자연어로 에이전트 워크플로우를 설계하고 자동 코드를 생성하세요</p>
+            </div>
+
+            <!-- Workflow Cards List -->
+            <div class="workflow-list-section" id="workflow-list-brand">
+                <div class="workflow-list-header">
+                    <h4>📂 저장된 워크플로우 <span class="workflow-count" id="workflow-count-brand">(0)</span></h4>
+                    <button class="workflow-view-all-btn" onclick="viewAllWorkflows('brand')">전체보기 →</button>
+                </div>
+                <div class="workflow-cards-container" id="workflow-cards-brand">
+                    <div class="workflow-empty-state">
+                        <span class="workflow-empty-icon">📭</span>
+                        <p>저장된 워크플로우가 없습니다</p>
+                        <span class="workflow-empty-hint">위의 버튼을 클릭하여 새 워크플로우를 생성하세요</span>
+                    </div>
+                </div>
+            </div>
+
             <div class="admin-card-header">
                 <h3>2. Brand Brain: Strategic Planning Agent</h3>
                 <p>Configure the lead agent responsible for project mission, vision, and core strategy.</p>
@@ -122,6 +173,31 @@
     <!-- 3. Knowledge Hub Tab -->
     <div id="tab-knowledge" class="admin-tab-content">
         <div class="admin-card">
+            <!-- Workflow Builder Button -->
+            <div class="workflow-builder-trigger">
+                <button class="workflow-btn" onclick="openWorkflowCanvas('knowledge')">
+                    <span class="workflow-btn-icon">🚀</span>
+                    <span class="workflow-btn-text">Workflow 생성하기</span>
+                    <span class="workflow-btn-badge">AI</span>
+                </button>
+                <p class="workflow-btn-desc">자연어로 에이전트 워크플로우를 설계하고 자동 코드를 생성하세요</p>
+            </div>
+
+            <!-- Workflow Cards List -->
+            <div class="workflow-list-section" id="workflow-list-knowledge">
+                <div class="workflow-list-header">
+                    <h4>📂 저장된 워크플로우 <span class="workflow-count" id="workflow-count-knowledge">(0)</span></h4>
+                    <button class="workflow-view-all-btn" onclick="viewAllWorkflows('knowledge')">전체보기 →</button>
+                </div>
+                <div class="workflow-cards-container" id="workflow-cards-knowledge">
+                    <div class="workflow-empty-state">
+                        <span class="workflow-empty-icon">📭</span>
+                        <p>저장된 워크플로우가 없습니다</p>
+                        <span class="workflow-empty-hint">위의 버튼을 클릭하여 새 워크플로우를 생성하세요</span>
+                    </div>
+                </div>
+            </div>
+
             <div class="admin-card-header">
                 <h3>3. Knowledge Hub: Brand Intelligence Agents</h3>
                 <p>Configure specialized agents for document analysis and deep reporting.</p>
@@ -353,6 +429,31 @@
     <!-- 4. Studio Tab -->
     <div id="tab-studio" class="admin-tab-content">
         <div class="admin-card">
+            <!-- Workflow Builder Button -->
+            <div class="workflow-builder-trigger">
+                <button class="workflow-btn" onclick="openWorkflowCanvas('studio')">
+                    <span class="workflow-btn-icon">🚀</span>
+                    <span class="workflow-btn-text">Workflow 생성하기</span>
+                    <span class="workflow-btn-badge">AI</span>
+                </button>
+                <p class="workflow-btn-desc">자연어로 에이전트 워크플로우를 설계하고 자동 코드를 생성하세요</p>
+            </div>
+
+            <!-- Workflow Cards List -->
+            <div class="workflow-list-section" id="workflow-list-studio">
+                <div class="workflow-list-header">
+                    <h4>📂 저장된 워크플로우 <span class="workflow-count" id="workflow-count-studio">(0)</span></h4>
+                    <button class="workflow-view-all-btn" onclick="viewAllWorkflows('studio')">전체보기 →</button>
+                </div>
+                <div class="workflow-cards-container" id="workflow-cards-studio">
+                    <div class="workflow-empty-state">
+                        <span class="workflow-empty-icon">📭</span>
+                        <p>저장된 워크플로우가 없습니다</p>
+                        <span class="workflow-empty-hint">위의 버튼을 클릭하여 새 워크플로우를 생성하세요</span>
+                    </div>
+                </div>
+            </div>
+
             <div class="admin-card-header">
                 <h3>4. Studio: Final Content Production</h3>
                 <p>Configure the orchestrator and production agents for final visual and text output.</p>
@@ -470,6 +571,31 @@
     <!-- 5. Growth Tab -->
     <div id="tab-growth" class="admin-tab-content">
         <div class="admin-card">
+            <!-- Workflow Builder Button -->
+            <div class="workflow-builder-trigger">
+                <button class="workflow-btn" onclick="openWorkflowCanvas('growth')">
+                    <span class="workflow-btn-icon">🚀</span>
+                    <span class="workflow-btn-text">Workflow 생성하기</span>
+                    <span class="workflow-btn-badge">AI</span>
+                </button>
+                <p class="workflow-btn-desc">자연어로 에이전트 워크플로우를 설계하고 자동 코드를 생성하세요</p>
+            </div>
+
+            <!-- Workflow Cards List -->
+            <div class="workflow-list-section" id="workflow-list-growth">
+                <div class="workflow-list-header">
+                    <h4>📂 저장된 워크플로우 <span class="workflow-count" id="workflow-count-growth">(0)</span></h4>
+                    <button class="workflow-view-all-btn" onclick="viewAllWorkflows('growth')">전체보기 →</button>
+                </div>
+                <div class="workflow-cards-container" id="workflow-cards-growth">
+                    <div class="workflow-empty-state">
+                        <span class="workflow-empty-icon">📭</span>
+                        <p>저장된 워크플로우가 없습니다</p>
+                        <span class="workflow-empty-hint">위의 버튼을 클릭하여 새 워크플로우를 생성하세요</span>
+                    </div>
+                </div>
+            </div>
+
             <div class="admin-card-header">
                 <h3>5. The Growth: Optimization & Analytics Agents</h3>
                 <p>Configure agents that monitor performance and ROI.</p>
@@ -599,4 +725,578 @@
         grid-template-columns: 1fr 1fr;
         gap: 20px;
     }
+
+    /* Workflow Builder Trigger Button */
+    .workflow-builder-trigger {
+        margin-bottom: 24px;
+        padding: 20px;
+        background: linear-gradient(135deg, rgba(0, 240, 255, 0.08) 0%, rgba(168, 85, 247, 0.08) 100%);
+        border: 1px solid rgba(0, 240, 255, 0.2);
+        border-radius: 16px;
+        text-align: center;
+    }
+
+    .workflow-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 28px;
+        background: linear-gradient(135deg, #00f0ff 0%, #0099ff 100%);
+        border: none;
+        border-radius: 12px;
+        color: #000;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .workflow-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+        transition: left 0.5s;
+    }
+
+    .workflow-btn:hover::before {
+        left: 100%;
+    }
+
+    .workflow-btn:hover {
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 0 0 30px rgba(0, 240, 255, 0.5), 0 10px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .workflow-btn:active {
+        transform: translateY(-1px) scale(0.98);
+    }
+
+    .workflow-btn-icon {
+        font-size: 20px;
+    }
+
+    .workflow-btn-text {
+        letter-spacing: -0.3px;
+    }
+
+    .workflow-btn-badge {
+        padding: 4px 10px;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+    }
+
+    .workflow-btn-desc {
+        margin-top: 12px;
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 13px;
+    }
+
+    /* ========================================
+       Workflow Cards List Styles
+       ======================================== */
+    .workflow-list-section {
+        margin-bottom: 32px;
+        padding: 24px;
+        background: rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 16px;
+    }
+
+    .workflow-list-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .workflow-list-header h4 {
+        font-size: 16px;
+        font-weight: 600;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .workflow-count {
+        color: rgba(255, 255, 255, 0.5);
+        font-weight: 400;
+    }
+
+    .workflow-view-all-btn {
+        background: transparent;
+        border: none;
+        color: var(--color-cyan, #00f0ff);
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .workflow-view-all-btn:hover {
+        color: #fff;
+        text-decoration: underline;
+    }
+
+    .workflow-cards-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 20px;
+    }
+
+    /* Empty State */
+    .workflow-empty-state {
+        grid-column: 1 / -1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 48px 24px;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px dashed rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        text-align: center;
+    }
+
+    .workflow-empty-icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+        opacity: 0.5;
+    }
+
+    .workflow-empty-state p {
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 15px;
+        margin-bottom: 8px;
+    }
+
+    .workflow-empty-hint {
+        color: rgba(255, 255, 255, 0.4);
+        font-size: 13px;
+    }
+
+    /* Workflow Card */
+    .workflow-card {
+        background: rgba(20, 30, 50, 0.6);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        padding: 20px;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .workflow-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #00f0ff, #a855f7);
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+
+    .workflow-card:hover {
+        border-color: rgba(0, 240, 255, 0.3);
+        transform: translateY(-4px);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3), 0 0 30px rgba(0, 240, 255, 0.1);
+    }
+
+    .workflow-card:hover::before {
+        opacity: 1;
+    }
+
+    .workflow-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 16px;
+    }
+
+    .workflow-card-status {
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .workflow-card-status.active {
+        background: rgba(16, 185, 129, 0.2);
+        color: #10b981;
+        border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .workflow-card-status.draft {
+        background: rgba(245, 158, 11, 0.2);
+        color: #f59e0b;
+        border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .workflow-card-status.archived {
+        background: rgba(107, 114, 128, 0.2);
+        color: #6b7280;
+        border: 1px solid rgba(107, 114, 128, 0.3);
+    }
+
+    .workflow-card-menu {
+        background: transparent;
+        border: none;
+        color: rgba(255, 255, 255, 0.4);
+        cursor: pointer;
+        padding: 4px 8px;
+        font-size: 18px;
+        transition: color 0.2s;
+    }
+
+    .workflow-card-menu:hover {
+        color: #fff;
+    }
+
+    .workflow-card-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 8px;
+    }
+
+    .workflow-card-title-icon {
+        font-size: 24px;
+    }
+
+    .workflow-card-title h5 {
+        font-size: 16px;
+        font-weight: 700;
+        color: #fff;
+        margin: 0;
+        flex: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .workflow-card-meta {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 16px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .workflow-card-time {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 12px;
+    }
+
+    /* Temperature Gauge */
+    .workflow-card-temp {
+        margin-bottom: 16px;
+    }
+
+    .workflow-card-temp-label {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.6);
+    }
+
+    .workflow-card-temp-value {
+        color: #00f0ff;
+        font-weight: 700;
+    }
+
+    .workflow-card-temp-bar {
+        height: 6px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 3px;
+        overflow: hidden;
+    }
+
+    .workflow-card-temp-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #00f0ff, #0099ff);
+        border-radius: 3px;
+        transition: width 0.3s ease;
+    }
+
+    /* Stats */
+    .workflow-card-stats {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    .workflow-card-stat {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 12px;
+        transition: all 0.2s;
+    }
+
+    .workflow-card-stat:hover {
+        background: rgba(0, 240, 255, 0.05);
+        border-color: rgba(0, 240, 255, 0.2);
+    }
+
+    .workflow-card-stat-icon {
+        font-size: 18px;
+        margin-bottom: 4px;
+    }
+
+    .workflow-card-stat-value {
+        font-size: 24px;
+        font-weight: 800;
+        color: #fff;
+        line-height: 1;
+    }
+
+    .workflow-card-stat-label {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.5);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-top: 4px;
+    }
+
+    /* Action Buttons */
+    .workflow-card-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .workflow-card-action {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .workflow-card-action.primary {
+        background: linear-gradient(135deg, #00f0ff 0%, #0099ff 100%);
+        border: none;
+        color: #000;
+    }
+
+    .workflow-card-action.primary:hover {
+        box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
+        transform: translateY(-2px);
+    }
+
+    .workflow-card-action.secondary {
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        color: rgba(255, 255, 255, 0.7);
+    }
+
+    .workflow-card-action.secondary:hover {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(255, 255, 255, 0.3);
+        color: #fff;
+    }
 </style>
+
+<!-- Workflow Canvas Scripts -->
+<link rel="stylesheet" href="/workflow-canvas/workflow-canvas.css">
+<script src="/workflow-canvas/workflow-canvas.js"></script>
+<script>
+    // Global function to open workflow canvas
+    function openWorkflowCanvas(context) {
+        if (typeof WorkflowCanvas !== 'undefined') {
+            WorkflowCanvas.open(context);
+        } else {
+            console.error('WorkflowCanvas not loaded');
+            alert('워크플로우 캔버스를 로드하는 중 오류가 발생했습니다.');
+        }
+    }
+
+    // View all workflows
+    function viewAllWorkflows(context) {
+        // TODO: Navigate to full workflow list page
+        console.log('View all workflows for:', context);
+        alert(`${context} 워크플로우 전체 목록 페이지는 곧 제공될 예정입니다.`);
+    }
+
+    // Render workflow cards for a specific pipeline context
+    function renderWorkflowCards(context, workflows) {
+        const container = document.getElementById(`workflow-cards-${context}`);
+        const countEl = document.getElementById(`workflow-count-${context}`);
+
+        if (!container) return;
+
+        if (!workflows || workflows.length === 0) {
+            container.innerHTML = `
+                <div class="workflow-empty-state">
+                    <span class="workflow-empty-icon">📭</span>
+                    <p>저장된 워크플로우가 없습니다</p>
+                    <span class="workflow-empty-hint">위의 버튼을 클릭하여 새 워크플로우를 생성하세요</span>
+                </div>
+            `;
+            if (countEl) countEl.textContent = '(0)';
+            return;
+        }
+
+        if (countEl) countEl.textContent = `(${workflows.length})`;
+
+        container.innerHTML = workflows.map(wf => `
+            <div class="workflow-card" data-workflow-id="${wf.id}">
+                <div class="workflow-card-header">
+                    <span class="workflow-card-status ${wf.status || 'draft'}">${wf.status || 'Draft'}</span>
+                    <button class="workflow-card-menu" onclick="showWorkflowMenu('${wf.id}')">⋮</button>
+                </div>
+                
+                <div class="workflow-card-title">
+                    <span class="workflow-card-title-icon">📋</span>
+                    <h5>${wf.name || 'Untitled Workflow'}</h5>
+                </div>
+                
+                <div class="workflow-card-meta">
+                    <span class="workflow-card-time">
+                        <span>🕐</span>
+                        <span>${formatRelativeTime(wf.createdAt)}</span>
+                    </span>
+                </div>
+                
+                <div class="workflow-card-temp">
+                    <div class="workflow-card-temp-label">
+                        <span>🌡️ Temperature</span>
+                        <span class="workflow-card-temp-value">${wf.temperature || 0.7}</span>
+                    </div>
+                    <div class="workflow-card-temp-bar">
+                        <div class="workflow-card-temp-fill" style="width: ${(wf.temperature || 0.7) * 100}%"></div>
+                    </div>
+                </div>
+                
+                <div class="workflow-card-stats">
+                    <div class="workflow-card-stat">
+                        <span class="workflow-card-stat-icon">👥</span>
+                        <span class="workflow-card-stat-value">${wf.agentCount || 0}</span>
+                        <span class="workflow-card-stat-label">Agents</span>
+                    </div>
+                    <div class="workflow-card-stat">
+                        <span class="workflow-card-stat-icon">📄</span>
+                        <span class="workflow-card-stat-value">${wf.contentCount || 0}</span>
+                        <span class="workflow-card-stat-label">Contents</span>
+                    </div>
+                </div>
+                
+                <div class="workflow-card-actions">
+                    <button class="workflow-card-action primary" onclick="runWorkflow('${wf.id}')">
+                        <span>▶</span>
+                        <span>실행</span>
+                    </button>
+                    <button class="workflow-card-action secondary" onclick="editWorkflow('${wf.id}', '${context}')">
+                        <span>✏️</span>
+                        <span>편집</span>
+                    </button>
+                    <button class="workflow-card-action secondary" onclick="duplicateWorkflow('${wf.id}')">
+                        <span>📋</span>
+                        <span>복제</span>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // Format relative time
+    function formatRelativeTime(timestamp) {
+        if (!timestamp) return '방금 전';
+
+        const now = new Date();
+        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMins / 60);
+        const diffDays = Math.floor(diffHours / 24);
+
+        if (diffMins < 1) return '방금 전';
+        if (diffMins < 60) return `${diffMins}분 전`;
+        if (diffHours < 24) return `${diffHours}시간 전`;
+        if (diffDays < 7) return `${diffDays}일 전`;
+        return date.toLocaleDateString('ko-KR');
+    }
+
+    // Workflow actions
+    function runWorkflow(workflowId) {
+        console.log('Running workflow:', workflowId);
+        alert('워크플로우 실행 기능은 곧 제공될 예정입니다.');
+    }
+
+    function editWorkflow(workflowId, context) {
+        console.log('Editing workflow:', workflowId);
+        if (typeof WorkflowCanvas !== 'undefined') {
+            // TODO: Load workflow data and open in canvas
+            WorkflowCanvas.open(context);
+        }
+    }
+
+    function duplicateWorkflow(workflowId) {
+        console.log('Duplicating workflow:', workflowId);
+        alert('워크플로우 복제 기능은 곧 제공될 예정입니다.');
+    }
+
+    function showWorkflowMenu(workflowId) {
+        console.log('Show menu for:', workflowId);
+        // TODO: Implement context menu
+    }
+
+    // Load workflows for all pipeline contexts
+    async function loadAllPipelineWorkflows() {
+        const contexts = ['market', 'brand', 'knowledge', 'studio', 'growth'];
+
+        for (const context of contexts) {
+            try {
+                // TODO: Replace with actual Firestore query
+                // const workflows = await firebase.firestore()
+                //     .collection('workflowDefinitions')
+                //     .where('pipelineContext', '==', context)
+                //     .orderBy('createdAt', 'desc')
+                //     .limit(6)
+                //     .get();
+
+                // For now, render empty state
+                renderWorkflowCards(context, []);
+            } catch (err) {
+                console.error(`Failed to load workflows for ${context}:`, err);
+                renderWorkflowCards(context, []);
+            }
+        }
+    }
+
+    // Initialize when pipeline page loads
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', loadAllPipelineWorkflows);
+    } else {
+        loadAllPipelineWorkflows();
+    }
+</script>

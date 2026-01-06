@@ -662,7 +662,8 @@ Be specific and maintain the agent's core purpose while applying the requested c
         const maxTokens = parseInt(document.getElementById('edit-max-tokens')?.value) || 4096;
 
         if (!nextVersion) return alert("Version number is required");
-        if (!changelog) return alert("Changelog is required");
+        // Changelog is optional - auto-generate if empty
+        const finalChangelog = changelog || `Updated to v${nextVersion}`;
 
         // Check if version exists (Quick check locally)
         if (agentVersions.find(v => v.version === nextVersion)) {
@@ -685,7 +686,7 @@ Be specific and maintain the agent's core purpose while applying the requested c
                 },
                 systemPrompt: prompt,
                 procedures: editingProcedures, // Save procedures
-                changelog: changelog,
+                changelog: finalChangelog,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                 ancestorId: document.getElementById('edit-source-id').value
             });
