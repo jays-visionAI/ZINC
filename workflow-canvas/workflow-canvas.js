@@ -2478,19 +2478,25 @@ const WorkflowCanvas = (function () {
         try {
             const db = firebase.firestore();
 
+            console.log('[WorkflowCanvas] Saving workflow with context:', state.pipelineContext);
+            console.log('[WorkflowCanvas] Workflow data:', workflowData);
+
             if (state.workflowId) {
                 // Update existing
                 await db.collection('workflowDefinitions').doc(state.workflowId).update(workflowData);
+                console.log('[WorkflowCanvas] Updated workflow:', state.workflowId);
                 notify('워크플로우가 업데이트되었습니다.', 'success');
             } else {
                 // Create new
                 workflowData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
                 const docRef = await db.collection('workflowDefinitions').add(workflowData);
                 state.workflowId = docRef.id;
+                console.log('[WorkflowCanvas] Created new workflow:', docRef.id, 'with context:', state.pipelineContext);
                 notify('워크플로우가 저장되었습니다.', 'success');
             }
 
             // Dispatch event to refresh the list in admin-pipeline
+            console.log('[WorkflowCanvas] Dispatching workflowSaved event for context:', state.pipelineContext);
             window.dispatchEvent(new CustomEvent('workflowSaved', {
                 detail: { context: state.pipelineContext }
             }));
