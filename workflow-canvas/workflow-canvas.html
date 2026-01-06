@@ -236,6 +236,35 @@
                                 </svg></span>
                             <span>Start</span>
                         </div>
+                        <div class="wf-palette-item wf-palette-data" draggable="true" data-type="input">
+                            <span class="wf-palette-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" style="width:18px;height:18px;">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                    <polyline points="17 8 12 3 7 8" />
+                                    <line x1="12" y1="3" x2="12" y2="15" />
+                                </svg></span>
+                            <span>Input</span>
+                        </div>
+                        <div class="wf-palette-item wf-palette-data" draggable="true" data-type="firestore">
+                            <span class="wf-palette-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" style="width:18px;height:18px;">
+                                    <ellipse cx="12" cy="5" rx="9" ry="3" />
+                                    <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+                                    <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+                                </svg></span>
+                            <span>Firestore</span>
+                        </div>
+                        <div class="wf-palette-item wf-palette-data" draggable="true" data-type="transform">
+                            <span class="wf-palette-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" style="width:18px;height:18px;">
+                                    <polyline points="16 3 21 3 21 8" />
+                                    <line x1="4" y1="20" x2="21" y2="3" />
+                                    <polyline points="21 16 21 21 16 21" />
+                                    <line x1="15" y1="15" x2="21" y2="21" />
+                                    <line x1="4" y1="4" x2="9" y2="9" />
+                                </svg></span>
+                            <span>Transform</span>
+                        </div>
                         <div class="wf-palette-item" draggable="true" data-type="agent">
                             <span class="wf-palette-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                     stroke-width="2" style="width:18px;height:18px;">
@@ -414,6 +443,160 @@
                                 </div>
                             </div>
 
+                            <!-- INPUT NODE Settings -->
+                            <div class="wf-property-group" id="wf-prop-input-node-group" style="display: none;">
+                                <label class="wf-property-label">📥 Data Source (입력 데이터)</label>
+                                <select id="wf-prop-input-source" class="wf-property-select"
+                                    onchange="WorkflowCanvas.updateInputSourceUI(this.value)">
+                                    <option value="">Select Source...</option>
+                                    <option value="knowledge_hub">Knowledge Hub Sources</option>
+                                    <option value="project_brief">Project Brief</option>
+                                    <option value="brand_brain">Brand Brain Context</option>
+                                    <option value="firestore_query">Firestore Query</option>
+                                    <option value="manual_json">Manual JSON Input</option>
+                                </select>
+
+                                <div id="wf-input-knowledge-options" class="wf-output-sub-options"
+                                    style="display: none; margin-top: 10px;">
+                                    <label class="wf-property-label" style="font-size: 11px;">Filter by Status</label>
+                                    <select id="wf-prop-input-kh-status" class="wf-property-select"
+                                        style="font-size: 12px;">
+                                        <option value="active">Active Only (isActive: true)</option>
+                                        <option value="completed">Completed Only</option>
+                                        <option value="all">All Sources</option>
+                                    </select>
+                                </div>
+
+                                <div id="wf-input-firestore-options" class="wf-output-sub-options"
+                                    style="display: none; margin-top: 10px;">
+                                    <label class="wf-property-label" style="font-size: 11px;">Collection Path</label>
+                                    <input type="text" id="wf-prop-input-fs-collection" class="wf-property-input"
+                                        placeholder="e.g., projects/{{projectId}}/knowledgeSources">
+                                    <label class="wf-property-label" style="font-size: 11px; margin-top: 8px;">Where
+                                        Clause (Optional)</label>
+                                    <input type="text" id="wf-prop-input-fs-where" class="wf-property-input"
+                                        placeholder="e.g., status == 'completed'">
+                                </div>
+
+                                <div id="wf-input-manual-options" class="wf-output-sub-options"
+                                    style="display: none; margin-top: 10px;">
+                                    <label class="wf-property-label" style="font-size: 11px;">JSON Data</label>
+                                    <textarea id="wf-prop-input-manual-json"
+                                        class="wf-property-input wf-property-textarea"
+                                        placeholder='{"topic": "AI trends", "keywords": ["GPT", "Claude"]}'></textarea>
+                                </div>
+                            </div>
+
+                            <!-- FIRESTORE NODE Settings -->
+                            <div class="wf-property-group" id="wf-prop-firestore-group" style="display: none;">
+                                <label class="wf-property-label">🔥 Firestore Operation</label>
+                                <select id="wf-prop-fs-operation" class="wf-property-select"
+                                    onchange="WorkflowCanvas.updateFirestoreOpUI(this.value)">
+                                    <option value="read">Read (Query)</option>
+                                    <option value="write">Write (Add/Set)</option>
+                                    <option value="update">Update (Merge)</option>
+                                </select>
+
+                                <label class="wf-property-label" style="margin-top: 12px;">Collection Path</label>
+                                <input type="text" id="wf-prop-fs-collection" class="wf-property-input"
+                                    placeholder="projects/{{projectId}}/brandSummaries">
+                                <p class="wf-property-hint">Use {{variable}} for dynamic paths</p>
+
+                                <div id="wf-fs-read-options" style="margin-top: 12px;">
+                                    <label class="wf-property-label" style="font-size: 11px;">Where Clause</label>
+                                    <input type="text" id="wf-prop-fs-where" class="wf-property-input"
+                                        placeholder="status == 'active'">
+                                    <label class="wf-property-label" style="font-size: 11px; margin-top: 8px;">Order
+                                        By</label>
+                                    <input type="text" id="wf-prop-fs-orderby" class="wf-property-input"
+                                        placeholder="createdAt desc">
+                                    <label class="wf-property-label"
+                                        style="font-size: 11px; margin-top: 8px;">Limit</label>
+                                    <input type="number" id="wf-prop-fs-limit" class="wf-property-input" value="50"
+                                        min="1" max="500">
+                                </div>
+
+                                <div id="wf-fs-write-options" style="display: none; margin-top: 12px;">
+                                    <label class="wf-property-label" style="font-size: 11px;">Document ID
+                                        (Optional)</label>
+                                    <input type="text" id="wf-prop-fs-docid" class="wf-property-input"
+                                        placeholder="Leave blank for auto-ID">
+                                    <label class="wf-property-label" style="font-size: 11px; margin-top: 8px;">Data
+                                        Template</label>
+                                    <textarea id="wf-prop-fs-write-template"
+                                        class="wf-property-input wf-property-textarea"
+                                        placeholder='{"title": "{{input.title}}", "content": "{{prev.output}}"}'></textarea>
+                                </div>
+                            </div>
+
+                            <!-- TRANSFORM NODE Settings -->
+                            <div class="wf-property-group" id="wf-prop-transform-group" style="display: none;">
+                                <label class="wf-property-label">⚡ Transform Operation</label>
+                                <select id="wf-prop-transform-type" class="wf-property-select"
+                                    onchange="WorkflowCanvas.updateTransformUI(this.value)">
+                                    <option value="filter">Filter (Keep matching items)</option>
+                                    <option value="map">Map (Transform each item)</option>
+                                    <option value="reduce">Reduce (Aggregate to single value)</option>
+                                    <option value="sort">Sort (Order items)</option>
+                                    <option value="slice">Slice (First N items)</option>
+                                    <option value="merge">Merge (Combine with context)</option>
+                                </select>
+
+                                <div id="wf-transform-filter-options" style="margin-top: 12px;">
+                                    <label class="wf-property-label" style="font-size: 11px;">Filter Expression</label>
+                                    <input type="text" id="wf-prop-transform-filter-expr" class="wf-property-input"
+                                        placeholder="item.isActive === true && item.status === 'completed'">
+                                    <p class="wf-property-hint">JavaScript expression. 'item' refers to each element.
+                                    </p>
+                                </div>
+
+                                <div id="wf-transform-map-options" style="display: none; margin-top: 12px;">
+                                    <label class="wf-property-label" style="font-size: 11px;">Map Template</label>
+                                    <textarea id="wf-prop-transform-map-template"
+                                        class="wf-property-input wf-property-textarea"
+                                        placeholder='{ "id": item.id, "text": item.summary || item.content }'></textarea>
+                                </div>
+
+                                <div id="wf-transform-reduce-options" style="display: none; margin-top: 12px;">
+                                    <label class="wf-property-label" style="font-size: 11px;">Reduce Expression</label>
+                                    <input type="text" id="wf-prop-transform-reduce-expr" class="wf-property-input"
+                                        placeholder="acc + item.wordCount">
+                                    <label class="wf-property-label" style="font-size: 11px; margin-top: 8px;">Initial
+                                        Value</label>
+                                    <input type="text" id="wf-prop-transform-reduce-init" class="wf-property-input"
+                                        placeholder="0">
+                                </div>
+
+                                <div id="wf-transform-sort-options" style="display: none; margin-top: 12px;">
+                                    <label class="wf-property-label" style="font-size: 11px;">Sort Key</label>
+                                    <input type="text" id="wf-prop-transform-sort-key" class="wf-property-input"
+                                        placeholder="importance">
+                                    <label class="wf-property-label"
+                                        style="font-size: 11px; margin-top: 8px;">Order</label>
+                                    <select id="wf-prop-transform-sort-order" class="wf-property-select"
+                                        style="font-size: 12px;">
+                                        <option value="desc">Descending (High → Low)</option>
+                                        <option value="asc">Ascending (Low → High)</option>
+                                    </select>
+                                </div>
+
+                                <div id="wf-transform-slice-options" style="display: none; margin-top: 12px;">
+                                    <label class="wf-property-label" style="font-size: 11px;">Take First N Items</label>
+                                    <input type="number" id="wf-prop-transform-slice-n" class="wf-property-input"
+                                        value="10" min="1">
+                                </div>
+
+                                <div id="wf-transform-merge-options" style="display: none; margin-top: 12px;">
+                                    <label class="wf-property-label" style="font-size: 11px;">Merge With</label>
+                                    <select id="wf-prop-transform-merge-source" class="wf-property-select"
+                                        style="font-size: 12px;">
+                                        <option value="project_context">Project Context</option>
+                                        <option value="brand_brain">Brand Brain</option>
+                                        <option value="custom_json">Custom JSON</option>
+                                    </select>
+                                </div>
+                            </div>
+
                             <!-- Input Mapping -->
                             <div class="wf-property-group" id="wf-prop-input-group" style="display: none;">
                                 <label class="wf-property-label">Input Mapping (Variable Binding)</label>
@@ -449,12 +632,26 @@
                                     <p class="wf-property-hint">현재 파이프라인의 스튜디오 세션으로 생성됩니다.</p>
                                 </div>
 
-                                <!-- Firestore Options -->
+                                <!-- Firestore Options (Enhanced) -->
                                 <div id="wf-output-firestore-options" class="wf-output-sub-options"
                                     style="display: none; margin-top: 10px;">
-                                    <label class="wf-property-label" style="font-size: 11px;">Collection Name</label>
+                                    <label class="wf-property-label" style="font-size: 11px;">Collection Path</label>
                                     <input type="text" id="wf-prop-output-collection" class="wf-property-input"
-                                        placeholder="e.g., generated_posts">
+                                        placeholder="projects/{{projectId}}/brandSummaries">
+                                    <p class="wf-property-hint">Use {{projectId}}, {{userId}}, {{timestamp}} for dynamic
+                                        paths</p>
+
+                                    <label class="wf-property-label" style="font-size: 11px; margin-top: 10px;">Document
+                                        ID (Optional)</label>
+                                    <input type="text" id="wf-prop-output-doc-id" class="wf-property-input"
+                                        placeholder="Leave blank for auto-generated ID">
+
+                                    <label class="wf-property-label" style="font-size: 11px; margin-top: 10px;">Data
+                                        Template</label>
+                                    <textarea id="wf-prop-output-data-template"
+                                        class="wf-property-input wf-property-textarea"
+                                        placeholder='{ "title": "Summary - {{timestamp}}", "content": "{{lastNode.output}}", "createdBy": "{{userId}}" }'></textarea>
+                                    <p class="wf-property-hint">Map workflow output to Firestore document fields</p>
                                 </div>
 
                                 <!-- Webhook Options -->

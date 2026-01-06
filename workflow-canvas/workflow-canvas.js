@@ -44,7 +44,9 @@ const WorkflowCanvas = (function () {
         reset: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>`,
         magic: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 4V2"/><path d="M15 16v-2"/><path d="M8 9h2"/><path d="M20 9h2"/><path d="M17.8 5.2l-1.4 1.4"/><path d="M17.8 12.8l-1.4-1.4"/><path d="M12.2 5.2l1.4 1.4"/><path d="M12.2 12.8l-1.4-1.4"/><path d="M9 14l-6 6"/><path d="M6 14l-3 3"/><path d="M9 17l-3 3"/></svg>`,
         sparkles: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v1"/><path d="M12 20v1"/><path d="M3 12h1"/><path d="M20 12h1"/><path d="M18.364 5.636l-.707.707"/><path d="M18.364 18.364l-.707-.707"/><path d="M5.636 5.636l-.707.707"/><path d="M5.636 18.364l-.707-.707"/></svg>`,
-        clipboard: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>`
+        clipboard: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>`,
+        upload: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`,
+        filter: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>`
     };
 
     // ============================================
@@ -778,7 +780,10 @@ const WorkflowCanvas = (function () {
             end: 'End',
             agent: 'Agent',
             condition: 'Condition',
-            parallel: 'Parallel'
+            parallel: 'Parallel',
+            input: 'Data Input',
+            firestore: 'Firestore',
+            transform: 'Transform'
         };
         return names[type] || 'Node';
     }
@@ -789,7 +794,10 @@ const WorkflowCanvas = (function () {
             end: SVG_ICONS.stop,
             agent: SVG_ICONS.agent,
             condition: SVG_ICONS.condition,
-            parallel: SVG_ICONS.parallel
+            parallel: SVG_ICONS.parallel,
+            input: SVG_ICONS.upload,
+            firestore: SVG_ICONS.database,
+            transform: SVG_ICONS.filter
         };
         return icons[type] || SVG_ICONS.database;
     }
@@ -960,6 +968,59 @@ const WorkflowCanvas = (function () {
         <div class="wf-node-parallel-inner">
             <span class="wf-node-icon">${SVG_ICONS.parallel}</span>
             <span>PARALLEL</span>
+        </div>
+        <div class="wf-port wf-port-input" data-node-id="${node.id}" data-port-type="input"></div>
+        <div class="wf-port wf-port-output" data-node-id="${node.id}" data-port-type="output"></div>
+        <div class="wf-port-add-btn" data-node-id="${node.id}">${SVG_ICONS.plus}</div>
+        `;
+                break;
+
+            case 'input':
+                el.classList.add('wf-node-data');
+                el.innerHTML = `
+        <div class="wf-node-data-inner wf-node-input">
+            <div class="wf-node-data-header">
+                <span class="wf-node-data-icon">${SVG_ICONS.upload}</span>
+                <span class="wf-node-data-name">${node.data.name || 'Data Input'}</span>
+            </div>
+            <div class="wf-node-data-body">
+                <span class="wf-node-data-tag">${node.data.inputSource || 'Select Source'}</span>
+            </div>
+        </div>
+        <div class="wf-port wf-port-output" data-node-id="${node.id}" data-port-type="output"></div>
+        <div class="wf-port-add-btn" data-node-id="${node.id}">${SVG_ICONS.plus}</div>
+        `;
+                break;
+
+            case 'firestore':
+                el.classList.add('wf-node-data');
+                el.innerHTML = `
+        <div class="wf-node-data-inner wf-node-firestore">
+            <div class="wf-node-data-header">
+                <span class="wf-node-data-icon">${SVG_ICONS.database}</span>
+                <span class="wf-node-data-name">${node.data.name || 'Firestore'}</span>
+            </div>
+            <div class="wf-node-data-body">
+                <span class="wf-node-data-tag">${node.data.fsOperation || 'read'}</span>
+            </div>
+        </div>
+        <div class="wf-port wf-port-input" data-node-id="${node.id}" data-port-type="input"></div>
+        <div class="wf-port wf-port-output" data-node-id="${node.id}" data-port-type="output"></div>
+        <div class="wf-port-add-btn" data-node-id="${node.id}">${SVG_ICONS.plus}</div>
+        `;
+                break;
+
+            case 'transform':
+                el.classList.add('wf-node-data');
+                el.innerHTML = `
+        <div class="wf-node-data-inner wf-node-transform">
+            <div class="wf-node-data-header">
+                <span class="wf-node-data-icon">${SVG_ICONS.filter}</span>
+                <span class="wf-node-data-name">${node.data.name || 'Transform'}</span>
+            </div>
+            <div class="wf-node-data-body">
+                <span class="wf-node-data-tag">${node.data.transformType || 'filter'}</span>
+            </div>
         </div>
         <div class="wf-port wf-port-input" data-node-id="${node.id}" data-port-type="input"></div>
         <div class="wf-port wf-port-output" data-node-id="${node.id}" data-port-type="output"></div>
@@ -1464,6 +1525,9 @@ const WorkflowCanvas = (function () {
         const inputGroup = document.getElementById('wf-prop-input-group');
         const outputGroup = document.getElementById('wf-prop-output-group');
         const mcpGroup = document.getElementById('wf-prop-mcp-group');
+        const inputNodeGroup = document.getElementById('wf-prop-input-node-group');
+        const firestoreGroup = document.getElementById('wf-prop-firestore-group');
+        const transformGroup = document.getElementById('wf-prop-transform-group');
 
         agentGroup.style.display = node.type === 'agent' ? 'block' : 'none';
         modelGroup.style.display = node.type === 'agent' ? 'block' : 'none';
@@ -1472,6 +1536,84 @@ const WorkflowCanvas = (function () {
         inputGroup.style.display = node.type === 'agent' ? 'block' : 'none';
         outputGroup.style.display = node.type === 'end' ? 'block' : 'none';
         mcpGroup.style.display = node.type === 'agent' ? 'block' : 'none';
+        inputNodeGroup.style.display = node.type === 'input' ? 'block' : 'none';
+        firestoreGroup.style.display = node.type === 'firestore' ? 'block' : 'none';
+        transformGroup.style.display = node.type === 'transform' ? 'block' : 'none';
+
+        // INPUT NODE handling
+        if (node.type === 'input') {
+            const sourceSelect = document.getElementById('wf-prop-input-source');
+            sourceSelect.value = node.data.inputSource || '';
+            updateInputSourceUI(node.data.inputSource || '');
+
+            const khStatus = document.getElementById('wf-prop-input-kh-status');
+            if (khStatus) khStatus.value = node.data.khStatus || 'active';
+
+            const fsCollection = document.getElementById('wf-prop-input-fs-collection');
+            if (fsCollection) fsCollection.value = node.data.fsCollection || '';
+
+            const fsWhere = document.getElementById('wf-prop-input-fs-where');
+            if (fsWhere) fsWhere.value = node.data.fsWhere || '';
+
+            const manualJson = document.getElementById('wf-prop-input-manual-json');
+            if (manualJson) manualJson.value = node.data.manualJson || '';
+        }
+
+        // FIRESTORE NODE handling
+        if (node.type === 'firestore') {
+            const opSelect = document.getElementById('wf-prop-fs-operation');
+            opSelect.value = node.data.fsOperation || 'read';
+            updateFirestoreOpUI(node.data.fsOperation || 'read');
+
+            const fsCollection = document.getElementById('wf-prop-fs-collection');
+            if (fsCollection) fsCollection.value = node.data.fsCollection || '';
+
+            const fsWhere = document.getElementById('wf-prop-fs-where');
+            if (fsWhere) fsWhere.value = node.data.fsWhere || '';
+
+            const fsOrderBy = document.getElementById('wf-prop-fs-orderby');
+            if (fsOrderBy) fsOrderBy.value = node.data.fsOrderBy || '';
+
+            const fsLimit = document.getElementById('wf-prop-fs-limit');
+            if (fsLimit) fsLimit.value = node.data.fsLimit || 50;
+
+            const fsDocId = document.getElementById('wf-prop-fs-docid');
+            if (fsDocId) fsDocId.value = node.data.fsDocId || '';
+
+            const fsWriteTemplate = document.getElementById('wf-prop-fs-write-template');
+            if (fsWriteTemplate) fsWriteTemplate.value = node.data.fsWriteTemplate || '';
+        }
+
+        // TRANSFORM NODE handling
+        if (node.type === 'transform') {
+            const typeSelect = document.getElementById('wf-prop-transform-type');
+            typeSelect.value = node.data.transformType || 'filter';
+            updateTransformUI(node.data.transformType || 'filter');
+
+            const filterExpr = document.getElementById('wf-prop-transform-filter-expr');
+            if (filterExpr) filterExpr.value = node.data.filterExpr || '';
+
+            const mapTemplate = document.getElementById('wf-prop-transform-map-template');
+            if (mapTemplate) mapTemplate.value = node.data.mapTemplate || '';
+
+            const reduceExpr = document.getElementById('wf-prop-transform-reduce-expr');
+            if (reduceExpr) reduceExpr.value = node.data.reduceExpr || '';
+
+            const reduceInit = document.getElementById('wf-prop-transform-reduce-init');
+            if (reduceInit) reduceInit.value = node.data.reduceInit || '0';
+
+            const sortKey = document.getElementById('wf-prop-transform-sort-key');
+            if (sortKey) sortKey.value = node.data.sortKey || '';
+
+            const sortOrder = document.getElementById('wf-prop-transform-sort-order');
+            if (sortOrder) sortOrder.value = node.data.sortOrder || 'desc';
+
+            const sliceN = document.getElementById('wf-prop-transform-slice-n');
+            if (sliceN) sliceN.value = node.data.sliceN || 10;
+
+            const mergeSource = document.getElementById('wf-prop-transform-merge-source');
+            if (mergeSource) mergeSource.value = node.data.mergeSource || 'project_context';
+        }
 
         if (node.type === 'agent') {
             // Populate agent selector
@@ -1615,6 +1757,38 @@ const WorkflowCanvas = (function () {
         document.querySelectorAll('.wf-mcp-mode-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.mode === mode);
         });
+    }
+
+    // ============================================
+    // Input Node UI Handlers
+    // ============================================
+    function updateInputSourceUI(source) {
+        document.getElementById('wf-input-knowledge-options').style.display = source === 'knowledge_hub' ? 'block' : 'none';
+        document.getElementById('wf-input-firestore-options').style.display = source === 'firestore_query' ? 'block' : 'none';
+        document.getElementById('wf-input-manual-options').style.display = source === 'manual_json' ? 'block' : 'none';
+        updateNodeProperty('inputSource', source);
+    }
+
+    // ============================================
+    // Firestore Node UI Handlers
+    // ============================================
+    function updateFirestoreOpUI(operation) {
+        document.getElementById('wf-fs-read-options').style.display = operation === 'read' ? 'block' : 'none';
+        document.getElementById('wf-fs-write-options').style.display = ['write', 'update'].includes(operation) ? 'block' : 'none';
+        updateNodeProperty('fsOperation', operation);
+    }
+
+    // ============================================
+    // Transform Node UI Handlers
+    // ============================================
+    function updateTransformUI(type) {
+        document.getElementById('wf-transform-filter-options').style.display = type === 'filter' ? 'block' : 'none';
+        document.getElementById('wf-transform-map-options').style.display = type === 'map' ? 'block' : 'none';
+        document.getElementById('wf-transform-reduce-options').style.display = type === 'reduce' ? 'block' : 'none';
+        document.getElementById('wf-transform-sort-options').style.display = type === 'sort' ? 'block' : 'none';
+        document.getElementById('wf-transform-slice-options').style.display = type === 'slice' ? 'block' : 'none';
+        document.getElementById('wf-transform-merge-options').style.display = type === 'merge' ? 'block' : 'none';
+        updateNodeProperty('transformType', type);
     }
 
     function populateInputVariablePicker(nodeId) {
@@ -2511,6 +2685,11 @@ const WorkflowCanvas = (function () {
         setMCPMode,
         toggleMCPTool,
         updateOutputUI,
+
+        // Data Node Handlers
+        updateInputSourceUI,
+        updateFirestoreOpUI,
+        updateTransformUI,
 
         // Expose state for debugging
         getState: () => state

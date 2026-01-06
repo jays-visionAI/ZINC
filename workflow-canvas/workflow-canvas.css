@@ -1321,6 +1321,105 @@
     bottom: -8px;
 }
 
+/* Data Node Styling (Canvas Nodes) */
+.wf-node-data {
+    min-width: 180px;
+}
+
+.wf-node-data-inner {
+    background: linear-gradient(145deg, rgba(168, 85, 247, 0.15), rgba(139, 92, 246, 0.1));
+    border: 1px solid rgba(168, 85, 247, 0.4);
+    border-radius: 14px;
+    padding: 16px;
+    transition: all 0.25s ease;
+}
+
+.wf-node-data:hover .wf-node-data-inner {
+    border-color: rgba(168, 85, 247, 0.7);
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.2);
+}
+
+.wf-node-data.selected .wf-node-data-inner {
+    border-color: #a855f7;
+    box-shadow: 0 0 25px rgba(168, 85, 247, 0.4);
+}
+
+.wf-node-data-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.wf-node-data-icon {
+    width: 28px;
+    height: 28px;
+    background: rgba(168, 85, 247, 0.3);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #a855f7;
+}
+
+.wf-node-data-icon svg {
+    width: 16px;
+    height: 16px;
+}
+
+.wf-node-data-name {
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--wf-text-primary);
+}
+
+.wf-node-data-body {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.wf-node-data-tag {
+    padding: 4px 10px;
+    background: rgba(168, 85, 247, 0.2);
+    border-radius: 6px;
+    font-size: 11px;
+    color: #c084fc;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+/* Individual Node Type Accents */
+.wf-node-input .wf-node-data-inner {
+    background: linear-gradient(145deg, rgba(34, 197, 94, 0.15), rgba(16, 185, 129, 0.1));
+    border-color: rgba(34, 197, 94, 0.4);
+}
+
+.wf-node-input .wf-node-data-icon {
+    background: rgba(34, 197, 94, 0.3);
+    color: #22c55e;
+}
+
+.wf-node-input .wf-node-data-tag {
+    background: rgba(34, 197, 94, 0.2);
+    color: #4ade80;
+}
+
+.wf-node-firestore .wf-node-data-inner {
+    background: linear-gradient(145deg, rgba(251, 146, 60, 0.15), rgba(249, 115, 22, 0.1));
+    border-color: rgba(251, 146, 60, 0.4);
+}
+
+.wf-node-firestore .wf-node-data-icon {
+    background: rgba(251, 146, 60, 0.3);
+    color: #fb923c;
+}
+
+.wf-node-firestore .wf-node-data-tag {
+    background: rgba(251, 146, 60, 0.2);
+    color: #fdba74;
+}
+
 /* ============================================
    AGENT POPUP
    ============================================ */
@@ -1794,6 +1893,22 @@ input:checked+.wf-slider:before {
 
 .wf-palette-icon {
     font-size: 20px;
+}
+
+/* Data Node Styling (Input, Firestore, Transform) */
+.wf-palette-item.wf-palette-data {
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(139, 92, 246, 0.05));
+    border-color: rgba(168, 85, 247, 0.3);
+}
+
+.wf-palette-item.wf-palette-data:hover {
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(139, 92, 246, 0.1));
+    border-color: rgba(168, 85, 247, 0.5);
+    color: #a855f7;
+}
+
+.wf-palette-item.wf-palette-data .wf-palette-icon {
+    color: #a855f7;
 }
 
 /* ============================================
