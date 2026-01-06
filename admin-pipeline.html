@@ -1126,6 +1126,18 @@
     }
 </style>
 
+<!-- Pre-define global function before WorkflowCanvas loads -->
+<script>
+    // Pre-define refreshPipelineWorkflows so WorkflowCanvas can call it
+    // The actual implementation will be assigned later
+    window._pendingWorkflowRefreshContext = null;
+    window.refreshPipelineWorkflows = function (context) {
+        console.log('[Pipeline] refreshPipelineWorkflows called (pre-init), context:', context);
+        // Store the context to refresh once the actual function is ready
+        window._pendingWorkflowRefreshContext = context;
+    };
+</script>
+
 <!-- Workflow Canvas Scripts -->
 <link rel="stylesheet" href="/workflow-canvas/workflow-canvas.css">
 <script src="/workflow-canvas/workflow-canvas.js"></script>
@@ -1378,11 +1390,18 @@
         loadPipelineWorkflows(context);
     });
 
-    // Global function for direct call from WorkflowCanvas
+    // Re-define the global function now that loadPipelineWorkflows is available
     window.refreshPipelineWorkflows = function (context) {
-        console.log('[Pipeline] 🔄 refreshPipelineWorkflows called directly for:', context);
+        console.log('[Pipeline] 🔄 refreshPipelineWorkflows called (real impl) for:', context);
         loadPipelineWorkflows(context);
     };
+
+    // Check for pending refresh that was called before this script loaded
+    if (window._pendingWorkflowRefreshContext) {
+        console.log('[Pipeline] Processing pending refresh for:', window._pendingWorkflowRefreshContext);
+        loadPipelineWorkflows(window._pendingWorkflowRefreshContext);
+        window._pendingWorkflowRefreshContext = null;
+    }
 
     // Initialize when pipeline page loads
     if (document.readyState === 'loading') {
