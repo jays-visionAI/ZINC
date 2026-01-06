@@ -277,6 +277,7 @@ const WorkflowCanvas = (function () {
 
             // Reconstruct availableAgents based on Categories
             state.availableAgents = {
+                all: allAgents, // Full list for reference
                 market: allAgents.filter(a => a.category === 'Intelligence'),
                 brand: allAgents.filter(a => a.category === 'Design'),
                 knowledge: allAgents.filter(a => ['Intelligence', 'Design', 'QA'].includes(a.category)),
@@ -296,7 +297,7 @@ const WorkflowCanvas = (function () {
         } catch (err) {
             console.error('[WorkflowCanvas] Failed to sync Agent Registry:', err);
             // Fallback to minimal default if firestore fails
-            state.availableAgents = { market: [], brand: [], knowledge: [], studio: [], growth: [] };
+            state.availableAgents = { all: [], market: [], brand: [], knowledge: [], studio: [], growth: [] };
         }
     }
 
@@ -742,12 +743,12 @@ const WorkflowCanvas = (function () {
     // Step 2: Canvas Operations
     // ============================================
     function renderAgentChips() {
-        const agents = state.availableAgents[state.pipelineContext] || [];
+        const agents = state.availableAgents.all || state.availableAgents[state.pipelineContext] || [];
         if (elements.agentChips) {
             elements.agentChips.innerHTML = agents.map(agent => `
                 <div class="wf-agent-chip" data-agent-id="${agent.id}">
                     <span class="wf-agent-chip-icon">${SVG_ICONS[agent.icon] || SVG_ICONS.agent}</span>
-                    <span>${agent.name}</span>
+                    <span>${agent.name} (${agent.id})</span>
                 </div>
             `).join('');
         }
@@ -1616,11 +1617,11 @@ const WorkflowCanvas = (function () {
         }
 
         if (node.type === 'agent') {
-            // Populate agent selector
+            // Populate agent selector - show all agents with name(id) format
             const agentSelect = document.getElementById('wf-prop-agent');
-            const agents = state.availableAgents[state.pipelineContext] || [];
+            const agents = state.availableAgents.all || state.availableAgents[state.pipelineContext] || [];
             agentSelect.innerHTML = '<option value="">Select Agent...</option>' +
-                agents.map(a => `<option value="${a.id}" ${a.id === node.data.agentId ? 'selected' : ''}>${SVG_ICONS[a.icon] ? '●' : ''} ${a.name}</option>`).join('');
+                agents.map(a => `<option value="${a.id}" ${a.id === node.data.agentId ? 'selected' : ''}>● ${a.name} (${a.id})</option>`).join('');
 
             // Get agent's capability for model filtering
             const selectedAgent = agents.find(a => a.id === node.data.agentId);
