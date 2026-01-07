@@ -2513,7 +2513,7 @@ window.WorkflowCanvas = (function () {
         renderAllEdges();
     }
 
-    function deleteSelectedNodes() {
+    function deleteSelectedNode() {
         if (state.selectedNodeIds.length === 0) return;
         const count = state.selectedNodeIds.length;
         if (!confirm(`${count}개의 노드를 삭제하시겠습니까?`)) return;
