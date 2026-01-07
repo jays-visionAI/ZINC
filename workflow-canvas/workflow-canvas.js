@@ -106,12 +106,13 @@ const WorkflowCanvas = (function () {
                 { id: 'claude-3-haiku', name: 'Claude 3 Haiku', provider: 'anthropic', tier: 'economy', description: 'Fast responses' },
                 { id: 'deepseek-reasoner', name: 'DeepSeek R1', provider: 'deepseek', tier: 'premium', description: 'Advanced reasoning' },
                 { id: 'deepseek-chat', name: 'DeepSeek Chat', provider: 'deepseek', tier: 'economy', description: 'Cost-effective' },
-                { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'google', tier: 'standard', description: 'Multimodal capable' }
+                { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash (Nano Banana)', provider: 'google', tier: 'standard', description: 'Multimodal capable' },
+                { id: 'gemini-3.0-pro', name: 'Gemini 3 pro (Nano Banana Pro)', provider: 'google', tier: 'premium', description: 'Advanced multi-tasking' }
             ],
             image: [
                 { id: 'imagen-3', name: 'Imagen 3', provider: 'google', tier: 'premium', description: 'Photorealistic images' },
-                { id: 'gemini-2.5-flash-image', name: 'Gemini 2.5 Flash Image', provider: 'google', tier: 'standard', description: 'Fast image generation' },
-                { id: 'gemini-3.0-pro', name: 'Gemini 3.0 Pro', provider: 'google', tier: 'premium', description: 'Advanced image synthesis' },
+                { id: 'gemini-2.5-flash-image', name: 'Gemini 2.5 Flash Image (Nano Banana)', provider: 'google', tier: 'standard', description: 'Fast image generation' },
+                { id: 'gemini-3.0-pro', name: 'Gemini 3 pro image (Nano Banana Pro)', provider: 'google', tier: 'premium', description: 'Advanced image synthesis' },
                 { id: 'stable-diffusion-xl', name: 'Stable Diffusion XL', provider: 'stability', tier: 'standard', description: 'Open source, customizable' },
                 { id: 'midjourney-v6', name: 'Midjourney v6', provider: 'midjourney', tier: 'premium', description: 'Artistic style' }
             ],
