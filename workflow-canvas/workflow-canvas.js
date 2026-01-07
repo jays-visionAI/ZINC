@@ -109,7 +109,6 @@ const WorkflowCanvas = (function () {
                 { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'google', tier: 'standard', description: 'Multimodal capable' }
             ],
             image: [
-                { id: 'dall-e-3', name: 'DALL-E 3', provider: 'openai', tier: 'premium', description: 'High quality images' },
                 { id: 'imagen-3', name: 'Imagen 3', provider: 'google', tier: 'premium', description: 'Photorealistic images' },
                 { id: 'gemini-2.5-flash-image', name: 'Gemini 2.5 Flash Image', provider: 'google', tier: 'standard', description: 'Fast image generation' },
                 { id: 'gemini-3.0-pro', name: 'Gemini 3.0 Pro', provider: 'google', tier: 'premium', description: 'Advanced image synthesis' },
