@@ -488,11 +488,17 @@ const WorkflowCanvas = (function () {
             }
 
             // Update ID counters to avoid collisions
-            const maxNodeId = Math.max(...state.nodes.map(n => parseInt(n.id.replace('node-', ''))), 0);
-            nodeIdCounter = maxNodeId + 1;
+            const maxNodeId = state.nodes.reduce((max, n) => {
+                const num = parseInt(n.id.replace(/^\D+/g, ''));
+                return !isNaN(num) ? Math.max(max, num) : max;
+            }, 0);
+            nodeIdCounter = maxNodeId;
 
-            const maxEdgeId = Math.max(...state.edges.map(e => parseInt(e.id.replace('edge-', ''))), 0);
-            edgeIdCounter = maxEdgeId + 1;
+            const maxEdgeId = state.edges.reduce((max, e) => {
+                const num = parseInt(e.id.replace(/^\D+/g, ''));
+                return !isNaN(num) ? Math.max(max, num) : max;
+            }, 0);
+            edgeIdCounter = maxEdgeId;
 
             // Render everything
             renderAllNodes();
@@ -1687,17 +1693,19 @@ const WorkflowCanvas = (function () {
     // Node Selection & Properties
     // ============================================
     function selectNode(nodeId) {
-        // Deselect previous
-        if (state.selectedNodeId) {
-            const prevEl = document.getElementById(state.selectedNodeId);
-            if (prevEl) prevEl.classList.remove('selected');
-        }
+        // Deselect ALL nodes in DOM
+        document.querySelectorAll('.wf-node').forEach(el => el.classList.remove('selected'));
 
         state.selectedNodeId = nodeId;
-        const newEl = document.getElementById(nodeId);
-        if (newEl) newEl.classList.add('selected');
 
-        showPropertiesForm(nodeId);
+        // Add selected class to the new node
+        if (nodeId) {
+            const newEl = document.getElementById(nodeId);
+            if (newEl) newEl.classList.add('selected');
+            showPropertiesForm(nodeId);
+        } else {
+            hidePropertiesForm();
+        }
     }
 
     function showPropertiesForm(nodeId) {
@@ -2214,7 +2222,7 @@ const WorkflowCanvas = (function () {
         if (exprEl) exprEl.value = node.data.expression;
 
         // Update the visual appearance on canvas if needed
-        renderNode(node.id);
+        renderAllNodes();
     }
 
     function renderConditionRules(nodeId) {
@@ -2281,7 +2289,8 @@ const WorkflowCanvas = (function () {
         node.data[key] = value;
 
         // Update visual if needed
-        if (key === 'name' || key === 'model' || key === 'temperature' || key === 'agentId') {
+        const uiAffectingKeys = ['name', 'model', 'temperature', 'agentId', 'icon', 'inputSource', 'fsOperation', 'transformType'];
+        if (uiAffectingKeys.includes(key)) {
             renderAllNodes();
             selectNode(state.selectedNodeId);
         }
@@ -2337,14 +2346,9 @@ const WorkflowCanvas = (function () {
     }
 
     function handleCanvasMouseDown(e) {
-        if (e.target === elements.canvasArea || e.target === elements.canvasViewport) {
-            // Deselect when clicking on canvas
-            if (state.selectedNodeId) {
-                const el = document.getElementById(state.selectedNodeId);
-                if (el) el.classList.remove('selected');
-                state.selectedNodeId = null;
-                hidePropertiesForm();
-            }
+        if (e.target === elements.canvasArea || e.target === elements.canvasViewport || e.target === elements.connectionsSvg) {
+            // Deselect when clicking on canvas background or connections backdrop
+            selectNode(null);
         }
     }
 
