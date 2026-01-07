@@ -445,6 +445,11 @@ window.WorkflowCanvas = (function () {
         if (propOutputDest) propOutputDest.addEventListener('change', (e) => updateNodeProperty('outputDestination', e.target.value));
         if (propOutputColl) propOutputColl.addEventListener('input', (e) => updateNodeProperty('outputCollection', e.target.value));
         if (propOutputWebhook) propOutputWebhook.addEventListener('input', (e) => updateNodeProperty('outputWebhook', e.target.value));
+
+        const propOutputDocId = document.getElementById('wf-prop-output-doc-id');
+        const propOutputTemplate = document.getElementById('wf-prop-output-data-template');
+        if (propOutputDocId) propOutputDocId.addEventListener('input', (e) => updateNodeProperty('outputDocId', e.target.value));
+        if (propOutputTemplate) propOutputTemplate.addEventListener('input', (e) => updateNodeProperty('outputDataTemplate', e.target.value));
     }
 
     // ============================================
@@ -2085,6 +2090,8 @@ window.WorkflowCanvas = (function () {
             document.getElementById('wf-prop-output-studio-context').value = state.pipelineContext;
             document.getElementById('wf-prop-output-collection').value = node.data.outputCollection || '';
             document.getElementById('wf-prop-output-webhook').value = node.data.outputWebhook || '';
+            document.getElementById('wf-prop-output-doc-id').value = node.data.outputDocId || '';
+            document.getElementById('wf-prop-output-data-template').value = node.data.outputDataTemplate || '';
 
             updateOutputUI(destSelect.value);
         }
@@ -2513,7 +2520,7 @@ window.WorkflowCanvas = (function () {
         }
 
         // Update visual if needed
-        const uiAffectingKeys = ['model', 'temperature', 'agentId', 'icon', 'inputSource', 'fsOperation', 'transformType'];
+        const uiAffectingKeys = ['model', 'temperature', 'agentId', 'icon', 'inputSource', 'fsOperation', 'transformType', 'outputDestination'];
         if (uiAffectingKeys.includes(key) && !state.isSyncingUI) {
             renderAllNodes();
             selectNode(state.selectedNodeId);
