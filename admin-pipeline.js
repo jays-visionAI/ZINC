@@ -94,7 +94,17 @@ function renderWorkflowCards(context, workflows) {
         <div class="workflow-card" data-workflow-id="${wf.id}">
             <div class="workflow-card-header">
                 <span class="workflow-card-status ${wf.status || 'draft'}">${wf.status || 'Draft'}</span>
-                <button class="workflow-card-menu" onclick="showWorkflowMenu('${wf.id}')">⋮</button>
+                <div class="workflow-card-header-actions">
+                    <button class="workflow-card-delete" onclick="deleteWorkflow('${wf.id}', '${wf.name || 'Untitled'}', '${context}')" title="삭제">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3,6 5,6 21,6"></polyline>
+                            <path d="M19,6v14a2,2 0 0,1 -2,2H7a2,2 0 0,1 -2,-2V6m3,0V4a2,2 0 0,1 2,-2h4a2,2 0 0,1 2,2v2"></path>
+                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                        </svg>
+                    </button>
+                    <button class="workflow-card-menu" onclick="showWorkflowMenu('${wf.id}')">⋮</button>
+                </div>
             </div>
             <div class="workflow-card-title">
                 <span class="workflow-card-title-icon">📋</span>
@@ -175,6 +185,47 @@ window.editWorkflow = function (workflowId, context) {
     console.log('Editing workflow:', workflowId, 'in context:', context);
     if (typeof WorkflowCanvas !== 'undefined') {
         WorkflowCanvas.open(context, null, workflowId);
+    }
+};
+
+window.deleteWorkflow = async function (workflowId, workflowName, context) {
+    console.log('Delete requested for workflow:', workflowId);
+
+    // 확인 절차 - 2단계 확인
+    const confirmed = confirm(`정말로 "${workflowName}" 워크플로우를 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.`);
+
+    if (!confirmed) {
+        console.log('Delete cancelled by user');
+        return;
+    }
+
+    // 2차 확인 (실수 방지)
+    const doubleConfirmed = confirm(`삭제를 진행합니다.\n\n"${workflowName}" 워크플로우가 영구적으로 삭제됩니다.\n계속하시겠습니까?`);
+
+    if (!doubleConfirmed) {
+        console.log('Delete cancelled at second confirmation');
+        return;
+    }
+
+    try {
+        const db = firebase.firestore();
+        await db.collection('workflowDefinitions').doc(workflowId).delete();
+
+        console.log('[Pipeline] Workflow deleted successfully:', workflowId);
+
+        // 알림 표시
+        if (window.showNotification) {
+            window.showNotification('워크플로우가 삭제되었습니다.', 'success');
+        } else {
+            alert('워크플로우가 삭제되었습니다.');
+        }
+
+        // 목록 새로고침
+        await loadPipelineWorkflows(context);
+
+    } catch (err) {
+        console.error('[Pipeline] Failed to delete workflow:', err);
+        alert('워크플로우 삭제 중 오류가 발생했습니다: ' + err.message);
     }
 };
 

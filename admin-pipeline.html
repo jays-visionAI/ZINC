@@ -952,6 +952,34 @@
         border: 1px solid rgba(107, 114, 128, 0.3);
     }
 
+    .workflow-card-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .workflow-card-delete {
+        background: transparent;
+        border: none;
+        color: rgba(255, 255, 255, 0.3);
+        cursor: pointer;
+        padding: 6px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+    }
+
+    .workflow-card-delete:hover {
+        color: #ef4444;
+        background: rgba(239, 68, 68, 0.1);
+    }
+
+    .workflow-card-delete svg {
+        display: block;
+    }
+
     .workflow-card-menu {
         background: transparent;
         border: none;
