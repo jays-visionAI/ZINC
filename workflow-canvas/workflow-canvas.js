@@ -575,22 +575,36 @@ const WorkflowCanvas = (function () {
         elements.flowDescription.innerHTML = '';
 
         try {
-            // Call LLM for analysis (mock for now, will integrate with backend)
-            const analysis = await mockAnalyzePrompt(prompt);
+            // Smart analysis that detects data nodes, transforms, and agents
+            const analysis = await smartAnalyzePrompt(prompt);
             state.analysisResult = analysis;
 
-            // Render detected agents
-            elements.detectedAgents.innerHTML = analysis.detectedAgents.map(agent => `
+            // Render detected data nodes first
+            let detectedHtml = '';
+            if (analysis.detectedDataNodes && analysis.detectedDataNodes.length > 0) {
+                detectedHtml += analysis.detectedDataNodes.map(dn => `
+                    <div class="wf-detected-agent wf-detected-data">
+                        <span class="wf-detected-check">${SVG_ICONS[dn.icon] || SVG_ICONS.database}</span>
+                        <span>${dn.name}</span>
+                        <span class="wf-detected-type">${dn.type}</span>
+                    </div>
+                `).join('');
+            }
+
+            // Then render detected agents
+            detectedHtml += analysis.detectedAgents.map(agent => `
                 <div class="wf-detected-agent">
                     <span class="wf-detected-check">${SVG_ICONS.check}</span>
                     <span>${agent.name}</span>
                 </div>
             `).join('');
 
+            elements.detectedAgents.innerHTML = detectedHtml || '<p>감지된 노드가 없습니다. 더 구체적으로 설명해주세요.</p>';
+
             // Render flow description
             elements.flowDescription.innerHTML = `
                 <strong>감지된 흐름:</strong><br>
-                ${analysis.flowDescription}
+                <pre style="white-space: pre-wrap; font-family: inherit; margin: 8px 0;">${analysis.flowDescription}</pre>
             `;
         } catch (err) {
             console.error('Analysis failed:', err);
@@ -598,68 +612,189 @@ const WorkflowCanvas = (function () {
         }
     }
 
-    // Mock analysis (to be replaced with real LLM call)
-    async function mockAnalyzePrompt(prompt) {
-        await new Promise(resolve => setTimeout(resolve, 1500));
+    // Smart analysis that infers data nodes, transforms, and agents
+    async function smartAnalyzePrompt(prompt) {
+        await new Promise(resolve => setTimeout(resolve, 800));
 
-        // Flatten all agents across all contexts to allow cross-functional workflows
+        const keywords = prompt.toLowerCase();
+        const analysis = {
+            detectedAgents: [],
+            detectedDataNodes: [],  // Input, Firestore, Transform nodes
+            flowDescription: '',
+            hasCondition: false,
+            hasParallel: false,
+            hasDataInput: false,
+            hasFirestoreRead: false,
+            hasFirestoreWrite: false,
+            hasTransform: false,
+            confidence: 0.85
+        };
+
+        // ========================================
+        // 1. Detect Data Input requirements
+        // ========================================
+        const inputKeywords = {
+            knowledgeHub: ['knowledge hub', '지식', '소스', 'source', '문서', 'document', 'rag'],
+            projectBrief: ['프로젝트', 'project', 'brief', '브리프'],
+            brandBrain: ['브랜드', 'brand', 'brain', '브레인'],
+            firestoreQuery: ['firestore', '데이터베이스', 'db', '컬렉션', 'collection', '저장된', '불러와', '조회'],
+            manualJson: ['json', 'manual', '수동', '직접 입력']
+        };
+
+        for (const [source, keys] of Object.entries(inputKeywords)) {
+            if (keys.some(k => keywords.includes(k))) {
+                analysis.hasDataInput = true;
+                analysis.detectedDataNodes.push({
+                    type: 'input',
+                    subtype: source,
+                    name: getInputSourceName(source),
+                    icon: 'upload',
+                    description: `${getInputSourceName(source)}에서 데이터 로드`
+                });
+                break; // Only one input source typically
+            }
+        }
+
+        // ========================================
+        // 2. Detect Firestore Read/Write
+        // ========================================
+        const readKeywords = ['읽어', '가져와', '조회', '불러', 'read', 'fetch', 'query', 'get', '검색'];
+        const writeKeywords = ['저장', '기록', 'save', 'write', 'store', '업데이트', 'update'];
+
+        if (readKeywords.some(k => keywords.includes(k)) && !analysis.hasDataInput) {
+            analysis.hasFirestoreRead = true;
+            analysis.detectedDataNodes.push({
+                type: 'firestore',
+                operation: 'read',
+                name: 'Firestore 조회',
+                icon: 'database',
+                description: 'Firestore에서 데이터 조회'
+            });
+        }
+
+        if (writeKeywords.some(k => keywords.includes(k))) {
+            analysis.hasFirestoreWrite = true;
+        }
+
+        // ========================================
+        // 3. Detect Transform requirements
+        // ========================================
+        const transformKeywords = {
+            filter: ['필터', 'filter', '활성', 'active', '조건', '만족'],
+            map: ['변환', 'transform', 'map', '매핑', '형식'],
+            reduce: ['집계', 'reduce', '합계', '평균', 'sum', 'aggregate'],
+            sort: ['정렬', 'sort', 'order', '순서'],
+            slice: ['상위', 'top', '처음', 'first', 'limit', '개만'],
+            merge: ['병합', 'merge', '합치', 'combine', '결합']
+        };
+
+        for (const [transformType, keys] of Object.entries(transformKeywords)) {
+            if (keys.some(k => keywords.includes(k))) {
+                analysis.hasTransform = true;
+                analysis.detectedDataNodes.push({
+                    type: 'transform',
+                    subtype: transformType,
+                    name: `데이터 ${getTransformName(transformType)}`,
+                    icon: 'filter',
+                    description: `${getTransformName(transformType)} 처리`
+                });
+                break; // One main transform
+            }
+        }
+
+        // ========================================
+        // 4. Detect required Agents
+        // ========================================
         const allAgents = Object.values(state.availableAgents).flat();
-        // Remove duplicates based on ID
         const uniqueAgents = Array.from(new Map(allAgents.map(a => [a.id, a])).values());
 
-        const detectedAgents = [];
-        const keywords = prompt.toLowerCase();
-
-        // Standard tags for mapping intent to registry
         const intentMap = [
-            { id: 'rag', keywords: ['지식', '문서', 'rag', 'knowledge', 'search', '검색'] },
-            { id: 'scout', keywords: ['트렌드', '분석', '리서치', '시장', 'research', 'trend'] },
-            { id: 'design', keywords: ['요약', '기획', '전략', 'designer', 'narrative', 'story', '배치'] },
-            { id: 'visual', keywords: ['이미지', '비주얼', '디자인', '인포그래픽', 'visual', 'image', 'picture'] },
-            { id: 'growth', keywords: ['성장', '성과', 'growth', 'manage'] }
+            { id: 'rag', keywords: ['지식', 'rag', 'knowledge', 'search', '검색', '요약', 'summary'] },
+            { id: 'scout', keywords: ['트렌드', '분석', '리서치', '시장', 'research', 'trend', 'market'] },
+            { id: 'design', keywords: ['기획', '전략', 'designer', 'narrative', 'story', '스토리', '콘텐츠'] },
+            { id: 'visual', keywords: ['이미지', '비주얼', '디자인', '인포그래픽', 'visual', 'image'] },
+            { id: 'growth', keywords: ['성장', '성과', 'growth', 'manage', '관리'] },
+            { id: 'curator', keywords: ['큐레이션', 'curator', '정리', '브랜드'] }
         ];
 
         intentMap.forEach(intent => {
             if (intent.keywords.some(k => keywords.includes(k))) {
-                // Find matching agent by ID or Name/Description
                 const agent = uniqueAgents.find(a =>
                     a.id.toLowerCase().includes(intent.id) ||
-                    intent.keywords.some(k => a.name.toLowerCase().includes(k) || (a.description && a.description.toLowerCase().includes(k)))
+                    intent.keywords.some(k => a.name.toLowerCase().includes(k))
                 );
-                if (agent && !detectedAgents.some(da => da.id === agent.id)) {
-                    detectedAgents.push(agent);
+                if (agent && !analysis.detectedAgents.some(da => da.id === agent.id)) {
+                    analysis.detectedAgents.push(agent);
                 }
             }
         });
 
-        // If no agents detected, suggest first agent from current context as default
+        // Default agent if none detected
         const contextAgents = state.availableAgents[state.pipelineContext] || [];
-        const validAgents = detectedAgents.length > 0 ? detectedAgents : [contextAgents[0]].filter(Boolean);
-
-        // Generate flow description
-        const hasCondition = keywords.includes('만약') || keywords.includes('결과') || keywords.includes('유의미') || keywords.includes('if') || keywords.includes('condition');
-        const hasParallel = keywords.includes('동시') || keywords.includes('병렬') || keywords.includes('함께') || keywords.includes('parallel');
-
-        let flowDescription = '';
-        if (validAgents.length > 0) {
-            flowDescription = `• 순차 실행: ${validAgents.map(a => a.name).join(' → ')}`;
-            if (hasCondition) {
-                flowDescription += '\n• 조건 분기 포함: 결과에 따라 다음 단계 결정';
-            }
-            if (hasParallel) {
-                flowDescription += '\n• 병렬 처리 포함: 일부 작업 동시 진행';
-            }
-        } else {
-            flowDescription = '• 워크플로우 흐름을 더 구체적으로 설명해주세요.';
+        if (analysis.detectedAgents.length === 0 && contextAgents.length > 0) {
+            analysis.detectedAgents.push(contextAgents[0]);
         }
 
-        return {
-            detectedAgents: validAgents,
-            flowDescription,
-            hasCondition,
-            hasParallel,
-            confidence: 0.85
+        // ========================================
+        // 5. Detect flow patterns
+        // ========================================
+        analysis.hasCondition = ['만약', '결과', '유의미', 'if', 'condition', '조건'].some(k => keywords.includes(k));
+        analysis.hasParallel = ['동시', '병렬', '함께', 'parallel'].some(k => keywords.includes(k));
+
+        // ========================================
+        // 6. Generate flow description
+        // ========================================
+        let flowSteps = [];
+
+        if (analysis.detectedDataNodes.length > 0) {
+            analysis.detectedDataNodes.forEach(dn => {
+                flowSteps.push(`📥 ${dn.name}`);
+            });
+        }
+
+        if (analysis.detectedAgents.length > 0) {
+            flowSteps.push(`🤖 ${analysis.detectedAgents.map(a => a.name).join(' → ')}`);
+        }
+
+        if (analysis.hasFirestoreWrite) {
+            flowSteps.push('💾 Firestore에 결과 저장');
+        } else {
+            flowSteps.push('📤 결과 출력');
+        }
+
+        analysis.flowDescription = flowSteps.map((s, i) => `${i + 1}. ${s}`).join('\n');
+
+        if (analysis.hasCondition) {
+            analysis.flowDescription += '\n\n⚡ 조건 분기: 결과에 따라 다음 단계 결정';
+        }
+        if (analysis.hasParallel) {
+            analysis.flowDescription += '\n\n🔀 병렬 처리: 일부 작업 동시 진행';
+        }
+
+        return analysis;
+    }
+
+    function getInputSourceName(source) {
+        const names = {
+            knowledgeHub: 'Knowledge Hub',
+            projectBrief: 'Project Brief',
+            brandBrain: 'Brand Brain',
+            firestoreQuery: 'Firestore Query',
+            manualJson: 'Manual JSON'
         };
+        return names[source] || source;
+    }
+
+    function getTransformName(type) {
+        const names = {
+            filter: '필터링',
+            map: '변환',
+            reduce: '집계',
+            sort: '정렬',
+            slice: '슬라이스',
+            merge: '병합'
+        };
+        return names[type] || type;
     }
 
     function applyToCanvas() {
@@ -671,7 +806,7 @@ const WorkflowCanvas = (function () {
         if (elements.nodesContainer) elements.nodesContainer.innerHTML = '';
         if (elements.connectionsSvg) elements.connectionsSvg.innerHTML = '';
 
-        const { detectedAgents, hasCondition, hasParallel } = state.analysisResult;
+        const { detectedAgents, detectedDataNodes, hasCondition, hasParallel, hasFirestoreWrite } = state.analysisResult;
 
         // Create Start node
         const startNode = createNode('start', 100, 250);
@@ -680,7 +815,40 @@ const WorkflowCanvas = (function () {
         let xPos = 250;
         const yBase = 250;
 
-        // Create agent nodes
+        // ========================================
+        // 1. Create Data Input/Transform nodes first
+        // ========================================
+        if (detectedDataNodes && detectedDataNodes.length > 0) {
+            detectedDataNodes.forEach(dn => {
+                let newNode;
+                if (dn.type === 'input') {
+                    newNode = createNode('input', xPos, yBase, {
+                        name: dn.name,
+                        inputSource: dn.subtype || 'knowledgeHub'
+                    });
+                } else if (dn.type === 'firestore') {
+                    newNode = createNode('firestore', xPos, yBase, {
+                        name: dn.name,
+                        fsOperation: dn.operation || 'read'
+                    });
+                } else if (dn.type === 'transform') {
+                    newNode = createNode('transform', xPos, yBase, {
+                        name: dn.name,
+                        transformType: dn.subtype || 'filter'
+                    });
+                }
+
+                if (newNode) {
+                    createEdge(lastNodeId, newNode.id);
+                    lastNodeId = newNode.id;
+                    xPos += 200;
+                }
+            });
+        }
+
+        // ========================================
+        // 2. Create Agent nodes
+        // ========================================
         detectedAgents.forEach((agent, idx) => {
             if (hasParallel && idx === detectedAgents.length - 2 && detectedAgents.length >= 2) {
                 // Create parallel nodes for last two agents
@@ -695,7 +863,10 @@ const WorkflowCanvas = (function () {
                 createEdge(lastNodeId, parallel2.id);
 
                 // End node connects to both
-                const endNode = createNode('end', xPos + 280, yBase);
+                xPos += 280;
+                const endNode = createNode('end', xPos, yBase, {
+                    outputType: hasFirestoreWrite ? 'firestore' : 'return'
+                });
                 createEdge(parallel1.id, endNode.id);
                 createEdge(parallel2.id, endNode.id);
 
@@ -723,8 +894,12 @@ const WorkflowCanvas = (function () {
             }
         });
 
-        // Create End node
-        const endNode = createNode('end', xPos, yBase);
+        // ========================================
+        // 3. Create End node with Firestore write if detected
+        // ========================================
+        const endNode = createNode('end', xPos, yBase, {
+            outputType: hasFirestoreWrite ? 'firestore' : 'return'
+        });
         createEdge(lastNodeId, endNode.id);
 
         renderAllNodes();

@@ -21,7 +21,7 @@ async function loadPipelineWorkflows(context) {
         const snapshot = await db.collection('workflowDefinitions')
             .where('pipelineContext', '==', context)
             .orderBy('createdAt', 'desc')
-            .limit(6)
+            .limit(20)
             .get();
 
         const workflows = snapshot.docs.map(doc => ({
@@ -39,7 +39,7 @@ async function loadPipelineWorkflows(context) {
             try {
                 const snapshot = await db.collection('workflowDefinitions')
                     .where('pipelineContext', '==', context)
-                    .limit(6)
+                    .limit(20)
                     .get();
                 const workflows = snapshot.docs.map(doc => ({
                     id: doc.id,
