@@ -168,8 +168,8 @@ function formatRelativeTime(timestamp) {
 
 // Global workflow action functions
 window.openWorkflowCanvas = function (context) {
-    if (typeof WorkflowCanvas !== 'undefined') {
-        WorkflowCanvas.open(context);
+    if (window.WorkflowCanvas) {
+        window.WorkflowCanvas.open(context);
     } else {
         console.error('WorkflowCanvas not loaded');
         alert('워크플로우 캔버스를 로드하는 중 오류가 발생했습니다.');
@@ -183,8 +183,11 @@ window.runWorkflow = function (workflowId) {
 
 window.editWorkflow = function (workflowId, context) {
     console.log('Editing workflow:', workflowId, 'in context:', context);
-    if (typeof WorkflowCanvas !== 'undefined') {
-        WorkflowCanvas.open(context, null, workflowId);
+    if (window.WorkflowCanvas) {
+        window.WorkflowCanvas.open(context, null, workflowId);
+    } else {
+        console.error('WorkflowCanvas not loaded');
+        alert('워크플로우 캔버스를 로드하는 중 오류가 발생했습니다.');
     }
 };
 

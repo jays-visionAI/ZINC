@@ -7,7 +7,7 @@
  * Supports: Prompt-based generation, Canvas editing, Code export
  */
 
-const WorkflowCanvas = (function () {
+window.WorkflowCanvas = (function () {
     'use strict';
 
     // ============================================
@@ -3369,5 +3369,27 @@ const WorkflowCanvas = (function () {
 
 // Auto-initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    WorkflowCanvas.init();
+    if (window.WorkflowCanvas) {
+        window.WorkflowCanvas.init();
+    }
 });
+
+// Global helpers for pipeline
+window.editWorkflow = function (workflowId, context) {
+    console.log('Editing workflow:', workflowId, 'in context:', context);
+    if (window.WorkflowCanvas) {
+        window.WorkflowCanvas.open(context, null, workflowId);
+    } else {
+        console.error('WorkflowCanvas not loaded');
+        alert('워크플로우 캔버스를 로드하는 중 오류가 발생했습니다.');
+    }
+};
+
+window.openWorkflowCanvas = function (context) {
+    if (window.WorkflowCanvas) {
+        window.WorkflowCanvas.open(context);
+    } else {
+        console.error('WorkflowCanvas not loaded');
+        alert('워크플로우 캔버스를 로드하는 중 오류가 발생했습니다.');
+    }
+};
