@@ -847,60 +847,76 @@ const WorkflowCanvas = (function () {
         }
 
         // ========================================
-        // 2. Create Agent nodes
+        // 2. Create Agent nodes (with Parallel support)
         // ========================================
-        detectedAgents.forEach((agent, idx) => {
-            if (hasParallel && idx === detectedAgents.length - 2 && detectedAgents.length >= 2) {
-                // Create parallel nodes for last two agents
-                const parallel1 = createNode('agent', xPos, yBase - 80, { agentId: agent.id, name: agent.name, icon: agent.icon });
-                const parallel2 = createNode('agent', xPos, yBase + 80, {
-                    agentId: detectedAgents[idx + 1].id,
-                    name: detectedAgents[idx + 1].name,
-                    icon: detectedAgents[idx + 1].icon
-                });
+        if (hasParallel && detectedAgents.length >= 2) {
+            // Create a dedicated Parallel Node
+            const parallelNode = createNode('parallel', xPos, yBase, {
+                name: '병렬 처리',
+                description: '동시 작업 수행'
+            });
+            createEdge(lastNodeId, parallelNode.id);
+            xPos += 180;
 
-                createEdge(lastNodeId, parallel1.id);
-                createEdge(lastNodeId, parallel2.id);
+            // Create parallel branches
+            const branches = [];
+            const yOffsets = [-100, 100, 0]; // Max 3 for now in auto-gen
 
-                // End node connects to both
-                xPos += 280;
-                const endNode = createNode('end', xPos, yBase, {
-                    outputType: hasFirestoreWrite ? 'firestore' : 'return'
-                });
-                createEdge(parallel1.id, endNode.id);
-                createEdge(parallel2.id, endNode.id);
+            detectedAgents.forEach((agent, idx) => {
+                if (idx < 3) { // Limit auto-gen parallel branches to 3
+                    const yOffset = yOffsets[idx];
+                    const agentNode = createNode('agent', xPos, yBase + yOffset, {
+                        agentId: agent.id,
+                        name: agent.name,
+                        icon: agent.icon
+                    });
+                    createEdge(parallelNode.id, agentNode.id);
+                    branches.push(agentNode);
+                }
+            });
 
-                renderAllNodes();
-                renderAllEdges();
-                goToStep(2);
-                return;
-            }
+            // Update state for end node connection
+            lastNodeId = 'parallel_group'; // Special marker
+            state._tempParallelBranches = branches; // Store to connect at the end
+            xPos += 280;
+        } else {
+            // Normal Sequential Agents
+            detectedAgents.forEach((agent, idx) => {
+                if (hasCondition && idx === 0) {
+                    // Add condition after first agent
+                    const agentNode = createNode('agent', xPos, yBase, { agentId: agent.id, name: agent.name, icon: agent.icon });
+                    createEdge(lastNodeId, agentNode.id);
+                    xPos += 280;
 
-            if (hasCondition && idx === 0) {
-                // Add condition after first agent
-                const agentNode = createNode('agent', xPos, yBase, { agentId: agent.id, name: agent.name, icon: agent.icon });
-                createEdge(lastNodeId, agentNode.id);
-                xPos += 280;
-
-                const condNode = createNode('condition', xPos, yBase, { expression: 'output.confidence > 0.7' });
-                createEdge(agentNode.id, condNode.id);
-                lastNodeId = condNode.id;
-                xPos += 160;
-            } else if (!hasParallel || idx < detectedAgents.length - 2) {
-                const agentNode = createNode('agent', xPos, yBase, { agentId: agent.id, name: agent.name, icon: agent.icon });
-                createEdge(lastNodeId, agentNode.id);
-                lastNodeId = agentNode.id;
-                xPos += 280;
-            }
-        });
+                    const condNode = createNode('condition', xPos, yBase, { expression: 'output.confidence > 0.7' });
+                    createEdge(agentNode.id, condNode.id);
+                    lastNodeId = condNode.id;
+                    xPos += 160;
+                } else {
+                    const agentNode = createNode('agent', xPos, yBase, { agentId: agent.id, name: agent.name, icon: agent.icon });
+                    createEdge(lastNodeId, agentNode.id);
+                    lastNodeId = agentNode.id;
+                    xPos += 280;
+                }
+            });
+        }
 
         // ========================================
-        // 3. Create End node with Firestore write if detected
+        // 3. Create End node
         // ========================================
         const endNode = createNode('end', xPos, yBase, {
             outputType: hasFirestoreWrite ? 'firestore' : 'return'
         });
-        createEdge(lastNodeId, endNode.id);
+
+        if (lastNodeId === 'parallel_group') {
+            // Connect all parallel branches to end node
+            state._tempParallelBranches.forEach(branch => {
+                createEdge(branch.id, endNode.id);
+            });
+            delete state._tempParallelBranches;
+        } else {
+            createEdge(lastNodeId, endNode.id);
+        }
 
         renderAllNodes();
         renderAllEdges();
@@ -1843,6 +1859,19 @@ const WorkflowCanvas = (function () {
         if (node.type === 'condition') {
             document.getElementById('wf-prop-condition').value = node.data.expression || '';
 
+            // Logic operator logic
+            const logicSelect = document.getElementById('wf-prop-condition-logic');
+            if (logicSelect) {
+                logicSelect.value = node.data.logic || 'AND';
+                logicSelect.onchange = () => {
+                    node.data.logic = logicSelect.value;
+                    updateExpressionFromRules(node);
+                };
+            }
+
+            // Render rules
+            renderConditionRules(node.id);
+
             // DEFAULT route options
             const onMissing = document.getElementById('wf-default-on-missing');
             const onError = document.getElementById('wf-default-on-error');
@@ -2113,6 +2142,137 @@ const WorkflowCanvas = (function () {
         elements.noSelection.style.display = 'flex';
         elements.propertiesForm.style.display = 'none';
     }
+    // ============================================
+    // Visual Condition Builder Handlers
+    // ============================================
+    function addConditionRule() {
+        if (!state.selectedNodeId) return;
+        const node = state.nodes.find(n => n.id === state.selectedNodeId);
+        if (!node || node.type !== 'condition') return;
+
+        if (!node.data.rules) node.data.rules = [];
+
+        node.data.rules.push({
+            id: 'rule_' + Date.now(),
+            field: 'output.confidence',
+            operator: '>',
+            value: '0.7'
+        });
+
+        renderConditionRules(node.id);
+        updateExpressionFromRules(node);
+    }
+
+    function removeConditionRule(ruleId) {
+        if (!state.selectedNodeId) return;
+        const node = state.nodes.find(n => n.id === state.selectedNodeId);
+        if (!node || !node.data.rules) return;
+
+        node.data.rules = node.data.rules.filter(r => r.id !== ruleId);
+        renderConditionRules(node.id);
+        updateExpressionFromRules(node);
+    }
+
+    function updateConditionRule(ruleId, key, value) {
+        if (!state.selectedNodeId) return;
+        const node = state.nodes.find(n => n.id === state.selectedNodeId);
+        if (!node || !node.data.rules) return;
+
+        const rule = node.data.rules.find(r => r.id === ruleId);
+        if (rule) {
+            rule[key] = value;
+            updateExpressionFromRules(node);
+        }
+    }
+
+    function updateExpressionFromRules(node) {
+        if (!node.data.rules || node.data.rules.length === 0) {
+            node.data.expression = '';
+        } else {
+            const logic = document.getElementById('wf-prop-condition-logic')?.value || 'AND';
+            const separator = logic === 'OR' ? ' || ' : ' && ';
+
+            node.data.expression = node.data.rules.map(r => {
+                let val = r.value;
+                // Quote strings if not numeric
+                if (isNaN(val) && val !== 'true' && val !== 'false') {
+                    val = `"${val}"`;
+                }
+
+                let op = r.operator;
+                if (op === 'contains') return `${r.field}.includes(${val})`;
+                if (op === 'not_contains') return `!${r.field}.includes(${val})`;
+                if (op === 'starts_with') return `${r.field}.startsWith(${val})`;
+                if (op === 'ends_with') return `${r.field}.endsWith(${val})`;
+
+                return `${r.field} ${op} ${val}`;
+            }).join(separator);
+        }
+
+        // Update the textual preview
+        const exprEl = document.getElementById('wf-prop-condition');
+        if (exprEl) exprEl.value = node.data.expression;
+
+        // Update the visual appearance on canvas if needed
+        renderNode(node.id);
+    }
+
+    function renderConditionRules(nodeId) {
+        const node = state.nodes.find(n => n.id === nodeId);
+        if (!node || node.type !== 'condition') return;
+
+        const container = document.getElementById('wf-condition-rules-container');
+        const logicGroup = document.getElementById('wf-logic-operator-group');
+
+        if (!container) return;
+
+        const rules = node.data.rules || [];
+        if (rules.length > 1) {
+            logicGroup.style.display = 'block';
+            document.getElementById('wf-prop-condition-logic').value = node.data.logic || 'AND';
+        } else {
+            logicGroup.style.display = 'none';
+        }
+
+        container.innerHTML = rules.map(rule => `
+            <div class="wf-condition-rule" data-rule-id="${rule.id}">
+                <div class="wf-rule-remove" onclick="WorkflowCanvas.removeConditionRule('${rule.id}')">×</div>
+                <div class="wf-condition-rule-row">
+                    <select class="wf-rule-select wf-rule-field" onchange="WorkflowCanvas.updateConditionRule('${rule.id}', 'field', this.value)">
+                        <optgroup label="Node Output">
+                            <option value="output.text" ${rule.field === 'output.text' ? 'selected' : ''}>output.text</option>
+                            <option value="output.confidence" ${rule.field === 'output.confidence' ? 'selected' : ''}>output.confidence</option>
+                            <option value="output.length" ${rule.field === 'output.length' ? 'selected' : ''}>output.length</option>
+                            <option value="output.status" ${rule.field === 'output.status' ? 'selected' : ''}>output.status</option>
+                        </optgroup>
+                        <optgroup label="Context">
+                            <option value="context.pipeline" ${rule.field === 'context.pipeline' ? 'selected' : ''}>context.pipeline</option>
+                            <option value="context.userRole" ${rule.field === 'context.userRole' ? 'selected' : ''}>context.userRole</option>
+                        </optgroup>
+                    </select>
+                    <select class="wf-rule-select wf-rule-op" onchange="WorkflowCanvas.updateConditionRule('${rule.id}', 'operator', this.value)">
+                        <option value=">" ${rule.operator === '>' ? 'selected' : ''}>></option>
+                        <option value="<" ${rule.operator === '<' ? 'selected' : ''}><</option>
+                        <option value="==" ${rule.operator === '==' ? 'selected' : ''}>==</option>
+                        <option value="!=" ${rule.operator === '!=' ? 'selected' : ''}>!=</option>
+                        <option value="contains" ${rule.operator === 'contains' ? 'selected' : ''}>Contains</option>
+                        <option value="not_contains" ${rule.operator === 'not_contains' ? 'selected' : ''}>Not Contains</option>
+                    </select>
+                </div>
+                <div class="wf-condition-rule-row">
+                    <input type="text" class="wf-rule-input wf-rule-value" 
+                        value="${rule.value}" 
+                        placeholder="Value..."
+                        onchange="WorkflowCanvas.updateConditionRule('${rule.id}', 'value', this.value)">
+                </div>
+            </div>
+        `).join('');
+
+        if (rules.length === 0) {
+            container.innerHTML = '<p style="font-size: 11px; opacity: 0.5; text-align: center; padding: 10px;">No rules defined. Click +Add Rule.</p>';
+        }
+    }
+
 
     function updateNodeProperty(key, value) {
         const node = state.nodes.find(n => n.id === state.selectedNodeId);
@@ -2121,7 +2281,7 @@ const WorkflowCanvas = (function () {
         node.data[key] = value;
 
         // Update visual if needed
-        if (key === 'name' || key === 'model' || key === 'temperature') {
+        if (key === 'name' || key === 'model' || key === 'temperature' || key === 'agentId') {
             renderAllNodes();
             selectNode(state.selectedNodeId);
         }
@@ -2892,6 +3052,11 @@ const WorkflowCanvas = (function () {
         updateInputSourceUI,
         updateFirestoreOpUI,
         updateTransformUI,
+
+        // Condition Builder Handlers
+        addConditionRule,
+        removeConditionRule,
+        updateConditionRule,
 
         // Expose state for debugging
         getState: () => state

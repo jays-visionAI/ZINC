@@ -418,13 +418,39 @@
                             </div>
 
                             <!-- Condition Expression -->
+                            <!-- Condition Expression (Visual Builder) -->
                             <div class="wf-property-group" id="wf-prop-condition-group" style="display: none;">
-                                <label class="wf-property-label">Condition Expression</label>
-                                <textarea id="wf-prop-condition" class="wf-property-input wf-property-textarea"
-                                    placeholder="e.g., output.score > 0.8"></textarea>
+                                <div class="wf-prop-header-with-action">
+                                    <label class="wf-property-label">Visual Logic Builder</label>
+                                    <button class="wf-add-rule-btn" onclick="WorkflowCanvas.addConditionRule()">+ Add
+                                        Rule</button>
+                                </div>
+
+                                <div id="wf-condition-rules-container" class="wf-condition-rules-container">
+                                    <!-- Dynamic rules added here -->
+                                </div>
+
+                                <div class="wf-logic-operator-group" style="margin-top: 12px; display: none;"
+                                    id="wf-logic-operator-group">
+                                    <label class="wf-property-label" style="font-size: 11px;">Logic Relationship</label>
+                                    <select id="wf-prop-condition-logic" class="wf-property-select"
+                                        style="font-size: 11px;">
+                                        <option value="AND">AND (모든 조건 만족 시)</option>
+                                        <option value="OR">OR (하나라도 만족 시)</option>
+                                    </select>
+                                </div>
+
+                                <div style="margin-top: 16px;">
+                                    <label class="wf-property-label" style="font-size: 11px; opacity: 0.6;">Raw
+                                        Expression (Preview)</label>
+                                    <textarea id="wf-prop-condition" class="wf-property-input wf-property-textarea"
+                                        readonly
+                                        style="height: 60px; font-size: 11px; background: rgba(0,0,0,0.2);"></textarea>
+                                </div>
 
                                 <!-- DEFAULT Policy -->
-                                <div class="wf-default-policy" style="margin-top: 12px;">
+                                <div class="wf-default-policy"
+                                    style="margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;">
                                     <label class="wf-property-label" style="font-size: 11px;">DEFAULT 경로 실행 조건</label>
                                     <div class="wf-checkbox-group">
                                         <label class="wf-checkbox-label">
