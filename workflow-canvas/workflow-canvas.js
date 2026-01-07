@@ -340,10 +340,20 @@ const WorkflowCanvas = (function () {
             elements.canvasArea.addEventListener('wheel', handleCanvasWheel);
         }
 
-        // Palette drag
+        // Palette drag & click
         document.querySelectorAll('.wf-palette-item').forEach(item => {
             item.addEventListener('dragstart', handlePaletteDragStart);
             item.addEventListener('dragend', handlePaletteDragEnd);
+            item.addEventListener('click', () => {
+                const type = item.dataset.type;
+                // Add to center of viewport
+                const rect = elements.canvasArea.getBoundingClientRect();
+                const x = (rect.width / 2) / state.zoom;
+                const y = (rect.height / 2) / state.zoom;
+                const node = createNode(type, x, y);
+                renderNode(node);
+                selectNode(node.id);
+            });
         });
 
         // Canvas drop zone
@@ -1247,6 +1257,7 @@ const WorkflowCanvas = (function () {
         ports.forEach(port => {
             port.addEventListener('click', (e) => {
                 e.stopPropagation();
+                selectNode(node.id); // Also select the node when interacting with its ports
                 const portType = port.dataset.portType; // input, output, output-true, etc.
                 showAgentPopup(node.id, e, portType);
             });
@@ -1256,6 +1267,7 @@ const WorkflowCanvas = (function () {
         if (addBtn) {
             addBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
+                selectNode(node.id); // Also select the node when clicking + button
                 showAgentPopup(node.id, e, 'output'); // Bottom button defaults to output
             });
         }
@@ -1693,6 +1705,7 @@ const WorkflowCanvas = (function () {
     // Node Selection & Properties
     // ============================================
     function selectNode(nodeId) {
+        console.log(`[WorkflowCanvas] selectNode: ${state.selectedNodeId} -> ${nodeId}`);
         // Deselect ALL nodes in DOM
         document.querySelectorAll('.wf-node').forEach(el => el.classList.remove('selected'));
 
@@ -1701,7 +1714,12 @@ const WorkflowCanvas = (function () {
         // Add selected class to the new node
         if (nodeId) {
             const newEl = document.getElementById(nodeId);
-            if (newEl) newEl.classList.add('selected');
+            if (newEl) {
+                newEl.classList.add('selected');
+                console.log(`[WorkflowCanvas] Added 'selected' class to ${nodeId}`);
+            } else {
+                console.warn(`[WorkflowCanvas] Could not find element for ${nodeId} in DOM`);
+            }
             showPropertiesForm(nodeId);
         } else {
             hidePropertiesForm();
@@ -2223,6 +2241,7 @@ const WorkflowCanvas = (function () {
 
         // Update the visual appearance on canvas if needed
         renderAllNodes();
+        selectNode(node.id); // Maintain selection after re-render
     }
 
     function renderConditionRules(nodeId) {
