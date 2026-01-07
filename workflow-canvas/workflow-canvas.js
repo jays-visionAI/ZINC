@@ -1187,15 +1187,15 @@ window.WorkflowCanvas = (function () {
             </div>
         </div>
         <div class="wf-port wf-port-input" data-node-id="${node.id}" data-port-type="input"></div>
-        <div class="wf-port wf-port-output wf-port-output-true" style="top: 15%; right: -7px;" data-node-id="${node.id}" data-port-type="output-true">
-            <span class="wf-port-label wf-port-label-true">TRUE</span>
-        </div>
-        <div class="wf-port wf-port-output wf-port-output-false" style="top: 50%; right: -7px;" data-node-id="${node.id}" data-port-type="output-false">
-            <span class="wf-port-label wf-port-label-false">FALSE</span>
-        </div>
-        <div class="wf-port wf-port-output wf-port-output-default" style="top: 85%; right: -7px;" data-node-id="${node.id}" data-port-type="output-default">
-            <span class="wf-port-label wf-port-label-default">DEFAULT</span>
-        </div>
+        <div class="wf-port wf-port-output wf-port-output-true" style="top: 25%; right: -7px;" data-node-id="${node.id}" data-port-type="output-true"></div>
+        <span class="wf-port-label wf-port-label-true" style="top: 25%; right: 15px;">TRUE</span>
+        
+        <div class="wf-port wf-port-output wf-port-output-false" style="top: 50%; right: -7px;" data-node-id="${node.id}" data-port-type="output-false"></div>
+        <span class="wf-port-label wf-port-label-false" style="top: 50%; right: 15px;">FALSE</span>
+        
+        <div class="wf-port wf-port-output wf-port-output-default" style="top: 75%; right: -7px;" data-node-id="${node.id}" data-port-type="output-default"></div>
+        <span class="wf-port-label wf-port-label-default" style="top: 75%; right: 15px;">DEFAULT</span>
+        
         <div class="wf-port-add-btn" data-node-id="${node.id}">${SVG_ICONS.plus}</div>
         `;
                 break;
@@ -1224,6 +1224,7 @@ window.WorkflowCanvas = (function () {
                 <span class="wf-node-data-tag">${node.data.inputSource || 'Select Source'}</span>
             </div>
         </div>
+        <div class="wf-port wf-port-input" data-node-id="${node.id}" data-port-type="input"></div>
         <div class="wf-port wf-port-output" data-node-id="${node.id}" data-port-type="output"></div>
         <div class="wf-port-add-btn" data-node-id="${node.id}">${SVG_ICONS.plus}</div>
         `;
@@ -1700,16 +1701,27 @@ window.WorkflowCanvas = (function () {
             const port = nodeEl.querySelector(selector);
             if (!port) return null;
 
+            const node = state.nodes.find(n => n.id === nodeId);
+            if (!node) return null;
+
+            // Get port center relative to node element
             const pRect = port.getBoundingClientRect();
-            const vRect = elements.canvasViewport.getBoundingClientRect();
+            const nRect = nodeEl.getBoundingClientRect();
 
             return {
-                x: (pRect.left + pRect.width / 2 - vRect.left) / state.zoom,
-                y: (pRect.top + pRect.height / 2 - vRect.top) / state.zoom
+                x: node.x + (pRect.left + pRect.width / 2 - nRect.left) / state.zoom,
+                y: node.y + (pRect.top + pRect.height / 2 - nRect.top) / state.zoom
             };
         };
 
-        const sourceCenter = getPortCenter(edge.source, '.wf-port-output, .wf-port-output-true, .wf-port-output-false, .wf-port-output-default');
+        let sourceSelector = '.wf-port-output';
+        if (sourceNode && sourceNode.type === 'condition') {
+            if (edge.label === 'TRUE') sourceSelector = '.wf-port-output-true';
+            else if (edge.label === 'FALSE') sourceSelector = '.wf-port-output-false';
+            else if (edge.label === 'DEFAULT') sourceSelector = '.wf-port-output-default';
+        }
+
+        const sourceCenter = getPortCenter(edge.source, sourceSelector);
         const targetCenter = getPortCenter(edge.target, '.wf-port-input');
 
         if (!sourceCenter || !targetCenter) return;
@@ -2087,7 +2099,14 @@ window.WorkflowCanvas = (function () {
             const destSelect = document.getElementById('wf-prop-output-dest');
             destSelect.value = node.data.outputDestination || 'none';
 
-            document.getElementById('wf-prop-output-studio-context').value = state.pipelineContext;
+            const ctxInput = document.getElementById('wf-prop-output-studio-context');
+            ctxInput.value = state.pipelineContext;
+            ctxInput.onchange = (e) => {
+                state.pipelineContext = e.target.value;
+                updateNodeProperty('pipelineContext', e.target.value);
+            };
+            // Remove readonly if user wants to change context
+            ctxInput.readOnly = false;
             document.getElementById('wf-prop-output-collection').value = node.data.outputCollection || '';
             document.getElementById('wf-prop-output-webhook').value = node.data.outputWebhook || '';
             document.getElementById('wf-prop-output-doc-id').value = node.data.outputDocId || '';
@@ -2506,6 +2525,11 @@ window.WorkflowCanvas = (function () {
         const node = state.nodes.find(n => n.id === state.selectedNodeId);
         if (!node) return;
 
+        if (key === 'pipelineContext') {
+            state.pipelineContext = value;
+            return;
+        }
+
         node.data[key] = value;
 
         // Optimized Update: For 'name', update DOM directly to avoid focus loss and flickering during typing
@@ -2553,6 +2577,7 @@ window.WorkflowCanvas = (function () {
     // Canvas Event Handlers
     // ============================================
     function handleNodeMouseDown(e, nodeId) {
+        e.stopPropagation(); // Stop background click from firing
         const isShift = e.shiftKey;
 
         // If the node isn't part of current selection, update selection
@@ -2566,7 +2591,7 @@ window.WorkflowCanvas = (function () {
                 state.isConnecting = true;
                 state.connectionSource = {
                     nodeId: nodeId,
-                    Port: e.target.dataset.portType || 'output',
+                    portType: e.target.dataset.portType || 'output',
                     x: e.clientX,
                     y: e.clientY
                 };
@@ -2653,7 +2678,7 @@ window.WorkflowCanvas = (function () {
         if (!sourceNode) return;
 
         const nodeEl = document.getElementById(source.nodeId);
-        const port = nodeEl.querySelector(`.wf-port[data-port-type="${source.Port}"]`) || nodeEl.querySelector('.wf-port-output');
+        const port = nodeEl.querySelector(`.wf-port[data-port-type="${source.portType}"]`) || nodeEl.querySelector('.wf-port-output');
         if (!port) return;
 
         const pRect = port.getBoundingClientRect();
@@ -2679,9 +2704,10 @@ window.WorkflowCanvas = (function () {
                 const targetNodeId = targetPort.closest('.wf-node').id;
                 if (targetNodeId !== state.connectionSource.nodeId) {
                     let label = '';
-                    if (state.connectionSource.portType === 'output-true') label = 'TRUE';
-                    else if (state.connectionSource.portType === 'output-false') label = 'FALSE';
-                    else if (state.connectionSource.portType === 'output-default') label = 'DEFAULT';
+                    const pt = state.connectionSource.portType;
+                    if (pt === 'output-true') label = 'TRUE';
+                    else if (pt === 'output-false') label = 'FALSE';
+                    else if (pt === 'output-default') label = 'DEFAULT';
 
                     createEdge(state.connectionSource.nodeId, targetNodeId, label);
                 }
