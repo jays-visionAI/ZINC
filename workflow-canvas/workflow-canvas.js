@@ -59,6 +59,7 @@ window.WorkflowCanvas = (function () {
         projectId: null,
         workflowId: null,
         name: null,
+        isSyncingUI: false, // Flag to prevent infinite recursion during property form loading
 
         // Canvas state
         nodes: [],
@@ -939,7 +940,7 @@ window.WorkflowCanvas = (function () {
         // 3. Create End node
         // ========================================
         const endNode = createNode('end', xPos, yBase, {
-            outputType: hasFirestoreWrite ? 'firestore' : 'return'
+            outputDestination: hasFirestoreWrite ? 'firestore' : 'none'
         });
 
         if (lastNodeId === 'parallel_group') {
@@ -1606,8 +1607,12 @@ window.WorkflowCanvas = (function () {
                 errors.push(`Firestore 노드 "${d.name}" 의 컬렉션 경로가 비어있습니다.`);
                 failedNodeIds.add(node.id);
             }
-            if (node.type === 'end' && (d.outputType === 'firestore' && !d.fsCollection)) {
-                errors.push(`End 노드 "${d.name}" 의 저장 경로가 설정되지 않았습니다.`);
+            if (node.type === 'end' && (d.outputDestination === 'firestore' && !d.outputCollection)) {
+                errors.push(`End 노드 "${d.name}" 의 저장 경로(Firestore Collection)가 설정되지 않았습니다.`);
+                failedNodeIds.add(node.id);
+            }
+            if (node.type === 'end' && (d.outputDestination === 'webhook' && !d.outputWebhook)) {
+                errors.push(`End 노드 "${d.name}" 의 Webhook URL이 설정되지 않았습니다.`);
                 failedNodeIds.add(node.id);
             }
 
@@ -1879,6 +1884,8 @@ window.WorkflowCanvas = (function () {
         const node = state.nodes.find(n => n.id === nodeId);
         if (!node) return;
 
+        state.isSyncingUI = true; // Lock UI updates
+
         elements.noSelection.style.display = 'none';
         elements.propertiesForm.style.display = 'block';
 
@@ -2081,6 +2088,8 @@ window.WorkflowCanvas = (function () {
 
             updateOutputUI(destSelect.value);
         }
+
+        state.isSyncingUI = false; // Unlock UI updates
     }
 
     function updateOutputUI(dest) {
@@ -2505,7 +2514,7 @@ window.WorkflowCanvas = (function () {
 
         // Update visual if needed
         const uiAffectingKeys = ['model', 'temperature', 'agentId', 'icon', 'inputSource', 'fsOperation', 'transformType'];
-        if (uiAffectingKeys.includes(key)) {
+        if (uiAffectingKeys.includes(key) && !state.isSyncingUI) {
             renderAllNodes();
             selectNode(state.selectedNodeId);
         }
