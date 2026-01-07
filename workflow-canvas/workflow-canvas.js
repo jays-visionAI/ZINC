@@ -1691,11 +1691,11 @@ window.WorkflowCanvas = (function () {
             if (!port) return null;
 
             const pRect = port.getBoundingClientRect();
-            const aRect = elements.canvasArea.getBoundingClientRect();
+            const vRect = elements.canvasViewport.getBoundingClientRect();
 
             return {
-                x: (pRect.left + pRect.width / 2 - aRect.left) / state.zoom,
-                y: (pRect.top + pRect.height / 2 - aRect.top) / state.zoom
+                x: (pRect.left + pRect.width / 2 - vRect.left) / state.zoom,
+                y: (pRect.top + pRect.height / 2 - vRect.top) / state.zoom
             };
         };
 
@@ -2641,12 +2641,12 @@ window.WorkflowCanvas = (function () {
         if (!port) return;
 
         const pRect = port.getBoundingClientRect();
-        const aRect = elements.canvasArea.getBoundingClientRect();
+        const vRect = elements.canvasViewport.getBoundingClientRect();
 
-        const x1 = (pRect.left + pRect.width / 2 - aRect.left) / state.zoom;
-        const y1 = (pRect.top + pRect.height / 2 - aRect.top) / state.zoom;
-        const x2 = (mouseX - aRect.left) / state.zoom;
-        const y2 = (mouseY - aRect.top) / state.zoom;
+        const x1 = (pRect.left + pRect.width / 2 - vRect.left) / state.zoom;
+        const y1 = (pRect.top + pRect.height / 2 - vRect.top) / state.zoom;
+        const x2 = (mouseX - vRect.left) / state.zoom;
+        const y2 = (mouseY - vRect.top) / state.zoom;
 
         const midX = (x1 + x2) / 2;
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
