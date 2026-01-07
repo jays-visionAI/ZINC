@@ -119,6 +119,20 @@
                     "order": "DESCENDING"
                 }
             ]
+        },
+        {
+            "collectionGroup": "workflowDefinitions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "pipelineContext",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "createdAt",
+                    "order": "DESCENDING"
+                }
+            ]
         }
     ],
     "fieldOverrides": []
