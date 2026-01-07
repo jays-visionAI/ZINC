@@ -351,7 +351,8 @@ const WorkflowCanvas = (function () {
                 const x = (rect.width / 2) / state.zoom;
                 const y = (rect.height / 2) / state.zoom;
                 const node = createNode(type, x, y);
-                renderNode(node);
+                renderAllNodes(); // Consistency: Refresh everything
+                renderAllEdges();
                 selectNode(node.id);
             });
         });
@@ -955,7 +956,7 @@ const WorkflowCanvas = (function () {
         const agents = state.availableAgents.all || state.availableAgents[state.pipelineContext] || [];
         if (elements.agentChips) {
             elements.agentChips.innerHTML = agents.map(agent => `
-                <div class="wf-agent-chip" data-agent-id="${agent.id}">
+                <div class="wf-agent-chip" data-agent-id="${agent.id}" onclick="WorkflowCanvas.addAgentToCanvas('${agent.id}')">
                     <span class="wf-agent-chip-icon">${SVG_ICONS[agent.icon] || SVG_ICONS.agent}</span>
                     <span>${agent.name} (${agent.id})</span>
                 </div>
@@ -1406,6 +1407,32 @@ const WorkflowCanvas = (function () {
         selectNode(newNode.id);
     }
 
+    function addAgentToCanvas(agentId) {
+        const agents = state.availableAgents.all || state.availableAgents[state.pipelineContext] || [];
+        const agent = agents.find(a => a.id === agentId);
+        if (!agent) return;
+
+        // Add to a visible place on canvas
+        const x = 300 + (state.nodes.length * 40);
+        const y = 300 + (state.nodes.length * 20);
+
+        const newNode = createNode('agent', x, y, {
+            agentId: agent.id,
+            name: agent.name,
+            icon: agent.icon,
+            capability: agent.capability
+        });
+
+        renderAllNodes();
+        renderAllEdges();
+        selectNode(newNode.id);
+
+        // Switch to Canvas tab if we're in Prompt tab
+        if (state.currentStep === 1) {
+            goToStep(2);
+        }
+    }
+
     // ============================================
     // Workflow Test Execution
     // ============================================
@@ -1706,24 +1733,30 @@ const WorkflowCanvas = (function () {
     // ============================================
     function selectNode(nodeId) {
         console.log(`[WorkflowCanvas] selectNode: ${state.selectedNodeId} -> ${nodeId}`);
-        // Deselect ALL nodes in DOM
-        document.querySelectorAll('.wf-node').forEach(el => el.classList.remove('selected'));
+        // Deselect ALL nodes in DOM first
+        document.querySelectorAll('.wf-node').forEach(el => {
+            el.classList.remove('selected');
+            el.style.zIndex = '10';
+        });
 
         state.selectedNodeId = nodeId;
 
-        // Add selected class to the new node
-        if (nodeId) {
-            const newEl = document.getElementById(nodeId);
-            if (newEl) {
-                newEl.classList.add('selected');
-                console.log(`[WorkflowCanvas] Added 'selected' class to ${nodeId}`);
+        // Use a small timeout to ensure DOM is ready (especially after a full render)
+        setTimeout(() => {
+            if (nodeId) {
+                const newEl = document.getElementById(nodeId);
+                if (newEl) {
+                    newEl.classList.add('selected');
+                    newEl.style.zIndex = '1000'; // Bring selected node to top
+                    console.log(`[WorkflowCanvas] Successfully highlighted node: ${nodeId}`);
+                } else {
+                    console.warn(`[WorkflowCanvas] Target node ${nodeId} not found in DOM`);
+                }
+                showPropertiesForm(nodeId);
             } else {
-                console.warn(`[WorkflowCanvas] Could not find element for ${nodeId} in DOM`);
+                hidePropertiesForm();
             }
-            showPropertiesForm(nodeId);
-        } else {
-            hidePropertiesForm();
-        }
+        }, 0);
     }
 
     function showPropertiesForm(nodeId) {
@@ -2307,8 +2340,19 @@ const WorkflowCanvas = (function () {
 
         node.data[key] = value;
 
+        // Optimized Update: For 'name', update DOM directly to avoid focus loss and flickering during typing
+        if (key === 'name') {
+            const nodeEl = document.getElementById(node.id);
+            if (nodeEl) {
+                // Find name element in agent nodes or data nodes
+                const nameText = nodeEl.querySelector('.wf-node-agent-name, .wf-node-data-name');
+                if (nameText) nameText.textContent = value;
+            }
+            return;
+        }
+
         // Update visual if needed
-        const uiAffectingKeys = ['name', 'model', 'temperature', 'agentId', 'icon', 'inputSource', 'fsOperation', 'transformType'];
+        const uiAffectingKeys = ['model', 'temperature', 'agentId', 'icon', 'inputSource', 'fsOperation', 'transformType'];
         if (uiAffectingKeys.includes(key)) {
             renderAllNodes();
             selectNode(state.selectedNodeId);
@@ -2337,6 +2381,8 @@ const WorkflowCanvas = (function () {
     // Canvas Event Handlers
     // ============================================
     function handleNodeMouseDown(e, nodeId) {
+        selectNode(nodeId); // Select node immediately on mouse down
+
         if (e.target.classList.contains('wf-port')) {
             // Start connection dragging from output port
             if (e.target.classList.contains('wf-port-output') || e.target.classList.contains('wf-port-output-true') || e.target.classList.contains('wf-port-output-false') || e.target.classList.contains('wf-port-output-default')) {
@@ -2470,7 +2516,8 @@ const WorkflowCanvas = (function () {
         const y = (e.clientY - rect.top) / state.zoom;
 
         const node = createNode(type, x, y);
-        renderNode(node);
+        renderAllNodes();
+        renderAllEdges();
         selectNode(node.id);
     }
 
@@ -3058,6 +3105,7 @@ const WorkflowCanvas = (function () {
         saveAndRun,
         copyJSON,
         copyJS,
+        addAgentToCanvas,
 
         // Trigger functions
         updateTriggerType,
