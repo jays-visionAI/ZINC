@@ -317,6 +317,8 @@
     flex: 1;
     display: flex;
     overflow: hidden;
+    min-height: 0;
+    /* Important for inner flex scrolling */
     background:
         radial-gradient(ellipse at 20% 20%, rgba(0, 240, 255, 0.03) 0%, transparent 50%),
         radial-gradient(ellipse at 80% 80%, rgba(168, 85, 247, 0.03) 0%, transparent 50%),
@@ -338,14 +340,18 @@
    ============================================ */
 .wf-prompt-container {
     flex: 1;
+    height: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
     padding: 40px;
-    padding-bottom: 80px;
+    padding-bottom: 150px;
+    /* Increased bottom padding for better scroll room */
     overflow-y: auto;
     overflow-x: hidden;
+    box-sizing: border-box;
+    -webkit-overflow-scrolling: touch;
 }
 
 .wf-prompt-card {
@@ -357,10 +363,12 @@
     border: 1px solid var(--wf-border);
     border-radius: 24px;
     padding: 56px 48px;
+    margin-bottom: 40px;
+    /* Added bottom margin */
     text-align: center;
     box-shadow: var(--wf-shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.05);
     position: relative;
-    overflow: hidden;
+    /* Removed overflow:hidden to allow card to grow and shadow to show */
 }
 
 /* Decorative gradient orbs */
@@ -473,11 +481,15 @@
 .wf-analysis-result {
     display: none;
     margin-top: 40px;
+    margin-bottom: 20px;
+    /* Space after result */
     text-align: left;
     background: rgba(0, 0, 0, 0.4);
     border: 1px solid rgba(0, 240, 255, 0.2);
     border-radius: 16px;
     padding: 28px;
+    padding-bottom: 32px;
+    /* Extra bottom padding for buttons */
     position: relative;
     z-index: 1;
 }
@@ -2516,4 +2528,84 @@ input:checked+.wf-slider:before {
 .wf-logic-operator-group {
     padding-top: 12px;
     border-top: 1px dotted rgba(255, 255, 255, 0.2);
+}
+/* Red Glow Effect for Failed Nodes */
+.wf-node.test-failed-glow {
+    z-index: 200 !important;
+}
+
+.wf-node.test-failed-glow .wf-node-start-inner,
+.wf-node.test-failed-glow .wf-node-end-inner,
+.wf-node.test-failed-glow .wf-node-agent-inner,
+.wf-node.test-failed-glow .wf-node-data-inner,
+.wf-node.test-failed-glow .wf-node-condition-inner,
+.wf-node.test-failed-glow .wf-node-parallel-inner {
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 30px rgba(239, 68, 68, 0.8), inset 0 0 15px rgba(239, 68, 68, 0.4) !important;
+    animation: failedGlowPulse 1.5s ease-in-out infinite !important;
+}
+
+@keyframes failedGlowPulse {
+    0% {
+        box-shadow: 0 0 20px rgba(239, 68, 68, 0.6), inset 0 0 10px rgba(239, 68, 68, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 45px rgba(239, 68, 68, 1.0), inset 0 0 20px rgba(239, 68, 68, 0.5);
+    }
+    100% {
+        box-shadow: 0 0 20px rgba(239, 68, 68, 0.6), inset 0 0 10px rgba(239, 68, 68, 0.3);
+    }
+}
+
+/* Capability Picker Chips */
+.wf-capability-chips {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.wf-cap-chip {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 6px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--wf-text-secondary);
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.wf-cap-chip:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
+}
+
+.wf-cap-chip.active {
+    background: rgba(0, 240, 255, 0.1);
+    border-color: var(--wf-cyan);
+    color: var(--wf-cyan);
+    box-shadow: 0 0 15px rgba(0, 240, 255, 0.1);
+}
+
+.wf-cap-chip[data-cap="image"].active {
+    background: rgba(16, 185, 129, 0.1);
+    border-color: var(--wf-green);
+    color: var(--wf-green);
+}
+
+.wf-cap-chip[data-cap="video"].active {
+    background: rgba(168, 85, 247, 0.1);
+    border-color: #a855f7;
+    color: #a855f7;
+}
+
+.wf-cap-icon {
+    font-size: 14px;
 }

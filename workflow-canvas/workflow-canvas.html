@@ -348,19 +348,32 @@
                             <div class="wf-property-group" id="wf-prop-model-group" style="display: none;">
                                 <label class="wf-property-label"
                                     style="display: flex; align-items: center; justify-content: space-between;">
-                                    <span>Model</span>
+                                    <span>Model Capability</span>
                                     <span id="wf-capability-badge" class="wf-capability-badge">🔤 TEXT</span>
                                 </label>
+
+                                <!-- Capability Filter Chips -->
+                                <div class="wf-capability-chips" id="wf-capability-chips">
+                                    <div class="wf-cap-chip active" data-cap="text"
+                                        onclick="WorkflowCanvas.switchCapability('text')">
+                                        <span class="wf-cap-icon">🔤</span> Text
+                                    </div>
+                                    <div class="wf-cap-chip" data-cap="image"
+                                        onclick="WorkflowCanvas.switchCapability('image')">
+                                        <span class="wf-cap-icon">🖼️</span> Image
+                                    </div>
+                                    <div class="wf-cap-chip" data-cap="video"
+                                        onclick="WorkflowCanvas.switchCapability('video')">
+                                        <span class="wf-cap-icon">🎬</span> Video
+                                    </div>
+                                </div>
+
+                                <label class="wf-property-label"
+                                    style="font-size: 10px; margin-top: 12px; opacity: 0.6;">Select Model</label>
                                 <select id="wf-prop-model" class="wf-property-select">
-                                    <optgroup label="🔤 Text Models">
-                                        <option value="gpt-4o">⭐ GPT-4o (openai)</option>
-                                        <option value="gpt-4o-mini">GPT-4o Mini (openai)</option>
-                                        <option value="claude-3-5-sonnet">⭐ Claude 3.5 Sonnet (anthropic)</option>
-                                        <option value="deepseek-reasoner">⭐ DeepSeek R1 (deepseek)</option>
-                                        <option value="deepseek-chat">💰 DeepSeek Chat (deepseek)</option>
-                                    </optgroup>
+                                    <!-- Options filled by JS -->
                                 </select>
-                                <p class="wf-property-hint">Agent's capability determines available models</p>
+                                <p class="wf-property-hint">선택한 역량에 최적화된 모델들이 우선적으로 표시됩니다.</p>
                             </div>
 
                             <!-- Temperature -->
@@ -720,14 +733,16 @@
                                 </div>
                             </div>
                             <div class="wf-property-group">
-                                <label class="wf-property-label">Trigger Type</label>
+                                <label class="wf-property-label">Trigger Type (실행 트리거)</label>
                                 <select id="wf-trigger-type" class="wf-property-select"
                                     onchange="WorkflowCanvas.updateTriggerType(this.value)">
-                                    <option value="manual">Manual (수동 실행)</option>
-                                    <option value="schedule">Schedule (스케줄)</option>
-                                    <option value="firestore">Firestore Event</option>
-                                    <option value="webhook">Webhook</option>
+                                    <option value="automatic">Automatic (이전 노드 완료 시 자동)</option>
+                                    <option value="manual">Manual (수동 호출 대기)</option>
+                                    <option value="schedule">Schedule (정기 스케줄)</option>
+                                    <option value="firestore">Firestore Event (DB 변경 감지)</option>
+                                    <option value="webhook">Webhook (API 호출)</option>
                                 </select>
+                                <p id="wf-trigger-desc" class="wf-property-hint">이전 노드가 성공적으로 완료되면 즉시 실행됩니다.</p>
                             </div>
 
                             <!-- Schedule Options -->

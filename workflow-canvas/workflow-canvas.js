@@ -63,7 +63,8 @@ const WorkflowCanvas = (function () {
         // Canvas state
         nodes: [],
         edges: [],
-        selectedNodeId: null,
+        selectedNodeIds: [], // Multiple selection support
+        selectedNodeId: null, // Primary selected node (compatibility)
 
         // Viewport state
         zoom: 1,
@@ -74,6 +75,10 @@ const WorkflowCanvas = (function () {
         isDragging: false,
         dragNodeId: null,
         dragOffset: { x: 0, y: 0 },
+
+        // Pan state
+        isPanning: false,
+        panStart: { x: 0, y: 0 },
 
         // Connection state
         isConnecting: false,
@@ -378,6 +383,19 @@ const WorkflowCanvas = (function () {
         const propCondition = document.getElementById('wf-prop-condition');
 
         if (propName) propName.addEventListener('input', (e) => updateNodeProperty('name', e.target.value));
+
+        // Trigger Settings Listeners
+        const triggerInputs = [
+            'wf-trigger-cron', 'wf-trigger-timezone', 'wf-trigger-collection',
+            'wf-trigger-event', 'wf-trigger-field-condition'
+        ];
+        triggerInputs.forEach(id => {
+            const input = document.getElementById(id);
+            if (input) {
+                input.addEventListener('input', () => getTriggerConfig());
+                input.addEventListener('change', () => getTriggerConfig());
+            }
+        });
 
         // Agent change - update capability and model
         if (propAgent) {
@@ -978,6 +996,9 @@ const WorkflowCanvas = (function () {
                 model: data.model || 'gpt-4o',
                 temperature: data.temperature || 0.7,
                 expression: data.expression || '',
+                triggerConfig: data.triggerConfig || {
+                    type: type === 'start' ? 'manual' : 'automatic'
+                },
                 ...data
             }
         };
@@ -1101,7 +1122,7 @@ const WorkflowCanvas = (function () {
         el.style.left = `${node.x}px`;
         el.style.top = `${node.y}px`;
 
-        if (node.id === state.selectedNodeId) {
+        if (state.selectedNodeIds.includes(node.id)) {
             el.classList.add('selected');
         }
 
@@ -1438,34 +1459,45 @@ const WorkflowCanvas = (function () {
     // ============================================
     async function runWorkflowTest() {
         if (state.isTesting) return;
-        if (state.nodes.length < 2) {
-            alert('테스트할 노드가 없습니다.');
+
+        // 1. Perform Structural & Data Validation
+        const validation = validateWorkflow();
+        if (!validation.valid) {
+            const errorMsg = validation.errors.join('\n');
+            alert('워크플로우 설정 오류가 발견되었습니다:\n\n' + errorMsg);
+
+            // Mark failed nodes visually
+            validation.failedNodeIds.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('test-failed-glow');
+            });
+
+            showTestResult('failed', validation.errors[0]);
             return;
         }
 
         state.isTesting = true;
 
-        // Get ordered nodes (simple linear order for now)
+        // Get ordered nodes (for simulation, we follow the primary path)
         const startNode = state.nodes.find(n => n.type === 'start');
-        if (!startNode) {
-            alert('Start 노드가 없습니다.');
-            state.isTesting = false;
-            return;
-        }
 
-        // Build execution order
+        // Build execution order (Breadth-first to show parallel as well)
         const executionOrder = [];
-        let currentNodeId = startNode.id;
+        const queue = [startNode.id];
         const visited = new Set();
 
-        while (currentNodeId && !visited.has(currentNodeId)) {
-            visited.add(currentNodeId);
-            const node = state.nodes.find(n => n.id === currentNodeId);
+        while (queue.length > 0) {
+            const nodeId = queue.shift();
+            if (visited.has(nodeId)) continue;
+            visited.add(nodeId);
+
+            const node = state.nodes.find(n => n.id === nodeId);
             executionOrder.push(node);
 
-            // Find next node
-            const edge = state.edges.find(e => e.source === currentNodeId);
-            currentNodeId = edge ? edge.target : null;
+            const outgoingEdges = state.edges.filter(e => e.source === nodeId);
+            outgoingEdges.forEach(e => {
+                if (!visited.has(e.target)) queue.push(e.target);
+            });
         }
 
         // Clear previous test classes
@@ -1476,7 +1508,7 @@ const WorkflowCanvas = (function () {
             el.classList.remove('testing');
         });
 
-        // Show testing status in properties panel
+        // Show testing status
         showTestResult('testing');
 
         try {
@@ -1485,34 +1517,25 @@ const WorkflowCanvas = (function () {
                 const node = executionOrder[i];
                 const nodeEl = document.getElementById(node.id);
 
-                // Add testing class to node
-                if (nodeEl) {
-                    nodeEl.classList.add('testing');
-                }
+                if (nodeEl) nodeEl.classList.add('testing');
 
-                // Add testing class to edge leading to this node
-                if (i > 0) {
-                    const prevNode = executionOrder[i - 1];
-                    const edge = state.edges.find(e => e.source === prevNode.id && e.target === node.id);
-                    if (edge) {
-                        const edgeEl = document.getElementById(edge.id);
-                        if (edgeEl) {
-                            edgeEl.classList.add('testing');
-                        }
-                    }
-                }
+                // Add testing class to edges leading to this node
+                const incomingEdges = state.edges.filter(e => e.target === node.id);
+                incomingEdges.forEach(edge => {
+                    const edgeEl = document.getElementById(edge.id);
+                    if (edgeEl) edgeEl.classList.add('testing');
+                });
 
                 // Simulate execution time
-                await delay(800);
+                await delay(600);
 
-                // Mark as success
                 if (nodeEl) {
                     nodeEl.classList.remove('testing');
                     nodeEl.classList.add('test-success');
                 }
             }
 
-            // All nodes completed successfully
+            // All nodes in flow completed
             showTestResult('success');
 
         } catch (error) {
@@ -1520,20 +1543,91 @@ const WorkflowCanvas = (function () {
             showTestResult('failed');
         } finally {
             state.isTesting = false;
-
-            // Clean up after 3 seconds
             setTimeout(() => {
                 document.querySelectorAll('.wf-node').forEach(el => {
-                    el.classList.remove('test-success', 'test-failed');
+                    el.classList.remove('test-success', 'test-failed', 'test-failed-glow');
                 });
                 document.querySelectorAll('.wf-connection-line').forEach(el => {
                     el.classList.remove('testing');
                 });
-            }, 3000);
+            }, 6000);
         }
     }
 
-    function showTestResult(status) {
+    /**
+     * Comprehensive workflow validation
+     */
+    function validateWorkflow() {
+        const errors = [];
+        const failedNodeIds = new Set();
+
+        if (state.nodes.length < 2) {
+            errors.push('워크플로우에는 최소 2개 이상의 노드가 필요합니다.');
+        }
+
+        const startNode = state.nodes.find(n => n.type === 'start');
+        if (!startNode) {
+            errors.push('Start 노드가 배치되어야 합니다.');
+        }
+
+        const endNodes = state.nodes.filter(n => n.type === 'end');
+        if (endNodes.length === 0) {
+            errors.push('최소 하나 이상의 End 노드가 필요합니다.');
+        }
+
+        // 1. Connectivity Check (Reachable from Start)
+        const reachable = new Set();
+        if (startNode) {
+            const stack = [startNode.id];
+            while (stack.length > 0) {
+                const id = stack.pop();
+                if (reachable.has(id)) continue;
+                reachable.add(id);
+                state.edges.filter(e => e.source === id).forEach(e => stack.push(e.target));
+            }
+        }
+
+        state.nodes.forEach(node => {
+            if (!reachable.has(node.id)) {
+                errors.push(`노드 "${node.data.name}" (ID: ${node.id}) 가 시작 흐름에 연결되어 있지 않습니다.`);
+                failedNodeIds.add(node.id);
+            }
+
+            // 2. Specific Config Check
+            const d = node.data;
+            if (node.type === 'agent' && !d.agentId) {
+                errors.push(`에이전트 노드 "${d.name}" 에 선택된 에이전트가 없습니다.`);
+                failedNodeIds.add(node.id);
+            }
+            if (node.type === 'input' && !d.inputSource) {
+                errors.push(`데이터 입력 노드 "${d.name}" 의 소스가 설정되지 않았습니다.`);
+                failedNodeIds.add(node.id);
+            }
+            if (node.type === 'firestore' && !d.fsCollection) {
+                errors.push(`Firestore 노드 "${d.name}" 의 컬렉션 경로가 비어있습니다.`);
+                failedNodeIds.add(node.id);
+            }
+            if (node.type === 'end' && (d.outputType === 'firestore' && !d.fsCollection)) {
+                errors.push(`End 노드 "${d.name}" 의 저장 경로가 설정되지 않았습니다.`);
+                failedNodeIds.add(node.id);
+            }
+
+            // 3. Flow Check (Terminating types)
+            const hasOutgoing = state.edges.some(e => e.source === node.id);
+            if (!hasOutgoing && node.type !== 'end') {
+                errors.push(`노드 "${d.name}" 이후의 다음 단계가 연결되지 않았습니다 (End 노드여야 함).`);
+                failedNodeIds.add(node.id);
+            }
+        });
+
+        return {
+            valid: errors.length === 0,
+            errors,
+            failedNodeIds: Array.from(failedNodeIds)
+        };
+    }
+
+    function showTestResult(status, message = null) {
         const resultEl = document.getElementById('wf-test-result') || createTestResultElement();
 
         resultEl.className = 'wf-test-result show ' + status;
@@ -1541,17 +1635,19 @@ const WorkflowCanvas = (function () {
         if (status === 'testing') {
             resultEl.innerHTML = `
                 <div class="wf-spinner" style="width: 24px; height: 24px; margin: 0 auto 8px;"></div>
-                <div>Testing...</div>
+                <div style="font-size: 13px;">Verifying Flow...</div>
             `;
         } else if (status === 'success') {
             resultEl.innerHTML = `
-                <div style="color: #10b981;">${SVG_ICONS.check}</div>
-                <div>Test : Success</div>
+                <div style="color: #10b981; font-size: 20px; margin-bottom: 5px;">${SVG_ICONS.check}</div>
+                <div style="font-weight: 700;">Validation Success</div>
+                <div style="font-size: 11px; opacity: 0.7; margin-top: 4px;">All connections & data valid</div>
             `;
         } else if (status === 'failed') {
             resultEl.innerHTML = `
-                <div style="color: #ef4444;">${SVG_ICONS.x}</div>
-                <div>Test : Failed</div>
+                <div style="color: #ef4444; font-size: 20px; margin-bottom: 5px;">${SVG_ICONS.x}</div>
+                <div style="font-weight: 700;">Validation Failed</div>
+                <div style="font-size: 11px; color: #ef4444; margin-top: 4px; padding: 0 10px;">${message || 'Errors detected in workflow'}</div>
             `;
         }
     }
@@ -1588,19 +1684,31 @@ const WorkflowCanvas = (function () {
         const targetNode = state.nodes.find(n => n.id === edge.target);
         if (!sourceNode || !targetNode) return;
 
-        // Calculate port positions
-        const sourceEl = document.getElementById(sourceNode.id);
-        const targetEl = document.getElementById(targetNode.id);
-        if (!sourceEl || !targetEl) return;
+        // Calculate center points in canvas space
+        const getPortCenter = (nodeId, selector) => {
+            const nodeEl = document.getElementById(nodeId);
+            if (!nodeEl) return null;
+            const port = nodeEl.querySelector(selector);
+            if (!port) return null;
 
-        const sourceRect = sourceEl.getBoundingClientRect();
-        const targetRect = targetEl.getBoundingClientRect();
+            const pRect = port.getBoundingClientRect();
+            const aRect = elements.canvasArea.getBoundingClientRect();
 
-        // Constants for positions
-        const x1 = sourceNode.x + sourceRect.width;
-        const y1 = sourceNode.y + sourceRect.height / 2;
-        const x2 = targetNode.x;
-        const y2 = targetNode.y + targetRect.height / 2;
+            return {
+                x: (pRect.left + pRect.width / 2 - aRect.left) / state.zoom,
+                y: (pRect.top + pRect.height / 2 - aRect.top) / state.zoom
+            };
+        };
+
+        const sourceCenter = getPortCenter(edge.source, '.wf-port-output, .wf-port-output-true, .wf-port-output-false, .wf-port-output-default');
+        const targetCenter = getPortCenter(edge.target, '.wf-port-input');
+
+        if (!sourceCenter || !targetCenter) return;
+
+        const x1 = sourceCenter.x;
+        const y1 = sourceCenter.y;
+        const x2 = targetCenter.x;
+        const y2 = targetCenter.y;
 
         // Create bezier curve
         const midX = (x1 + x2) / 2;
@@ -1731,32 +1839,41 @@ const WorkflowCanvas = (function () {
     // ============================================
     // Node Selection & Properties
     // ============================================
-    function selectNode(nodeId) {
-        console.log(`[WorkflowCanvas] selectNode: ${state.selectedNodeId} -> ${nodeId}`);
-        // Deselect ALL nodes in DOM first
+    function selectNode(nodeId, isShift = false) {
+        console.log(`[WorkflowCanvas] selectNode: ${nodeId} (Shift: ${isShift})`);
+
+        if (!isShift) {
+            // Normal click: Clear all and select single
+            state.selectedNodeIds = nodeId ? [nodeId] : [];
+        } else if (nodeId) {
+            // Shift click: Toggle selection
+            const index = state.selectedNodeIds.indexOf(nodeId);
+            if (index > -1) {
+                state.selectedNodeIds.splice(index, 1);
+            } else {
+                state.selectedNodeIds.push(nodeId);
+            }
+        }
+
+        // Set primary selected node for properties panel
+        state.selectedNodeId = state.selectedNodeIds.length > 0 ? state.selectedNodeIds[state.selectedNodeIds.length - 1] : null;
+
+        // Visual update
         document.querySelectorAll('.wf-node').forEach(el => {
-            el.classList.remove('selected');
-            el.style.zIndex = '10';
+            if (state.selectedNodeIds.includes(el.id)) {
+                el.classList.add('selected');
+                el.style.zIndex = '1000';
+            } else {
+                el.classList.remove('selected');
+                el.style.zIndex = '10';
+            }
         });
 
-        state.selectedNodeId = nodeId;
-
-        // Use a small timeout to ensure DOM is ready (especially after a full render)
-        setTimeout(() => {
-            if (nodeId) {
-                const newEl = document.getElementById(nodeId);
-                if (newEl) {
-                    newEl.classList.add('selected');
-                    newEl.style.zIndex = '1000'; // Bring selected node to top
-                    console.log(`[WorkflowCanvas] Successfully highlighted node: ${nodeId}`);
-                } else {
-                    console.warn(`[WorkflowCanvas] Target node ${nodeId} not found in DOM`);
-                }
-                showPropertiesForm(nodeId);
-            } else {
-                hidePropertiesForm();
-            }
-        }, 0);
+        if (state.selectedNodeId) {
+            showPropertiesForm(state.selectedNodeId);
+        } else {
+            hidePropertiesForm();
+        }
     }
 
     function showPropertiesForm(nodeId) {
@@ -1792,6 +1909,15 @@ const WorkflowCanvas = (function () {
         inputNodeGroup.style.display = node.type === 'input' ? 'block' : 'none';
         firestoreGroup.style.display = node.type === 'firestore' ? 'block' : 'none';
         transformGroup.style.display = node.type === 'transform' ? 'block' : 'none';
+
+        // Update Trigger UI for the selected node
+        if (node.data.triggerConfig) {
+            syncTriggerUI(node.data.triggerConfig);
+        } else {
+            // Default config if missing
+            node.data.triggerConfig = { type: node.type === 'start' ? 'manual' : 'automatic' };
+            syncTriggerUI(node.data.triggerConfig);
+        }
 
         // INPUT NODE handling
         if (node.type === 'input') {
@@ -1881,7 +2007,12 @@ const WorkflowCanvas = (function () {
             node.data.capability = capability;
 
             // Populate model selector based on capability
-            populateModelSelector(capability, node.data.model);
+            populateModelSelector(capability, node.data.model || 'gpt-4o');
+
+            // Highlight active capability chip
+            document.querySelectorAll('.wf-cap-chip').forEach(chip => {
+                chip.classList.toggle('active', chip.dataset.cap === capability);
+            });
 
             document.getElementById('wf-prop-temp').value = node.data.temperature || 0.7;
             document.getElementById('wf-prop-temp-value').textContent = node.data.temperature || 0.7;
@@ -2136,49 +2267,71 @@ const WorkflowCanvas = (function () {
 
     function populateModelSelector(capability, currentModel) {
         const modelSelect = document.getElementById('wf-prop-model');
-        const models = state.modelCatalog[capability] || state.modelCatalog.text;
+        if (!modelSelect) return;
 
-        // Group icon based on capability
-        const capabilityIcon = {
-            text: SVG_ICONS.text,
-            image: SVG_ICONS.image,
-            video: SVG_ICONS.video,
-            code: SVG_ICONS.code
-        }[capability] || SVG_ICONS.text;
+        // Sync Chips
+        document.querySelectorAll('.wf-cap-chip').forEach(chip => {
+            chip.classList.toggle('active', chip.dataset.cap === capability);
+        });
 
-        const capabilityLabel = {
+        let optionsHTML = '';
+
+        // Group models by capability
+        const capabilities = ['text', 'image', 'video', 'code'];
+        const labels = {
             text: '🔤 Text Models',
             image: '🖼️ Image Models',
             video: '🎬 Video Models',
             code: '💻 Code Models'
-        }[capability] || '🔤 Text Models';
+        };
 
-        let optionsHTML = `<optgroup label="${capabilityLabel}">`;
+        // Put current capability groups first
+        const sortedCaps = [capability, ...capabilities.filter(c => c !== capability)];
 
-        models.forEach(m => {
-            const tierBadge = m.tier === 'premium' ? '⭐' : m.tier === 'economy' ? '💰' : '';
-            const disabled = m.disabled ? 'disabled' : '';
-            const selected = m.id === currentModel ? 'selected' : '';
-            optionsHTML += `<option value="${m.id}" ${selected} ${disabled}>${tierBadge} ${m.name} (${m.provider})</option>`;
+        sortedCaps.forEach(cap => {
+            const models = state.modelCatalog[cap] || [];
+            if (models.length === 0) return;
+
+            optionsHTML += `<optgroup label="${labels[cap]}">`;
+            models.forEach(m => {
+                const tierBadge = m.tier === 'premium' ? '⭐' : m.tier === 'economy' ? '💰' : '';
+                const disabled = m.disabled ? 'disabled' : '';
+                const selected = (m.id === currentModel) ? 'selected' : '';
+                optionsHTML += `<option value="${m.id}" ${selected} ${disabled}>${tierBadge} ${m.name} (${m.provider})</option>`;
+            });
+            optionsHTML += `</optgroup>`;
         });
 
-        optionsHTML += '</optgroup>';
-
-        // Add cross-capability models if needed (e.g., GPT-4o for vision tasks)
-        if (capability === 'image') {
+        // Add multimodal as fallback/alternative for image tasks
+        if (capability === 'image' && !optionsHTML.includes('gpt-4o')) {
             optionsHTML += `
-                <optgroup label="🔤 Text + Vision">
-                    <option value="gpt-4o" ${currentModel === 'gpt-4o' ? 'selected' : ''}>GPT-4o (Vision capable)</option>
-                    <option value="gemini-2.5-flash-image" ${currentModel === 'gemini-2.5-flash-image' ? 'selected' : ''}>Gemini 2.5 Flash Image (Multimodal)</option>
-                    <option value="gemini-3.0-pro" ${currentModel === 'gemini-3.0-pro' ? 'selected' : ''}>Gemini 3.0 Pro (Advanced)</option>
+                <optgroup label="✨ Multimodal (Vision)">
+                    <option value="gpt-4o" ${currentModel === 'gpt-4o' ? 'selected' : ''}>GPT-4o (Vision supported)</option>
+                    <option value="gemini-2.0-flash" ${currentModel === 'gemini-2.0-flash' ? 'selected' : ''}>Gemini 2.0 Flash</option>
                 </optgroup>
             `;
         }
 
         modelSelect.innerHTML = optionsHTML;
 
-        // Update capability indicator
+        // Update capability indicator/badge
         updateCapabilityBadge(capability);
+    }
+
+    function switchCapability(capability) {
+        const node = state.nodes.find(n => n.id === state.selectedNodeId);
+        if (!node || node.type !== 'agent') return;
+
+        node.data.capability = capability;
+
+        // Pick first model of this capability as default if current one isn't compatible
+        const compatibleModels = state.modelCatalog[capability] || [];
+        if (compatibleModels.length > 0) {
+            node.data.model = compatibleModels[0].id;
+        }
+
+        populateModelSelector(capability, node.data.model);
+        renderAllNodes(); // Refresh icon on canvas
     }
 
     function updateCapabilityBadge(capability) {
@@ -2361,15 +2514,19 @@ const WorkflowCanvas = (function () {
         renderAllEdges();
     }
 
-    function deleteSelectedNode() {
-        if (!state.selectedNodeId) return;
-        if (!confirm('이 노드를 삭제하시겠습니까?')) return;
+    function deleteSelectedNodes() {
+        if (state.selectedNodeIds.length === 0) return;
+        const count = state.selectedNodeIds.length;
+        if (!confirm(`${count}개의 노드를 삭제하시겠습니까?`)) return;
 
-        // Remove edges connected to this node
-        state.edges = state.edges.filter(e => e.source !== state.selectedNodeId && e.target !== state.selectedNodeId);
+        state.selectedNodeIds.forEach(id => {
+            // Remove edges connected to this node
+            state.edges = state.edges.filter(e => e.source !== id && e.target !== id);
+            // Remove node
+            state.nodes = state.nodes.filter(n => n.id !== id);
+        });
 
-        // Remove node
-        state.nodes = state.nodes.filter(n => n.id !== state.selectedNodeId);
+        state.selectedNodeIds = [];
         state.selectedNodeId = null;
 
         renderAllNodes();
@@ -2381,7 +2538,12 @@ const WorkflowCanvas = (function () {
     // Canvas Event Handlers
     // ============================================
     function handleNodeMouseDown(e, nodeId) {
-        selectNode(nodeId); // Select node immediately on mouse down
+        const isShift = e.shiftKey;
+
+        // If the node isn't part of current selection, update selection
+        if (!state.selectedNodeIds.includes(nodeId)) {
+            selectNode(nodeId, isShift);
+        }
 
         if (e.target.classList.contains('wf-port')) {
             // Start connection dragging from output port
@@ -2389,7 +2551,7 @@ const WorkflowCanvas = (function () {
                 state.isConnecting = true;
                 state.connectionSource = {
                     nodeId: nodeId,
-                    portType: e.target.dataset.portType || 'output',
+                    Port: e.target.dataset.portType || 'output',
                     x: e.clientX,
                     y: e.clientY
                 };
@@ -2403,36 +2565,64 @@ const WorkflowCanvas = (function () {
         state.isDragging = true;
         state.dragNodeId = nodeId;
 
-        const node = state.nodes.find(n => n.id === nodeId);
-        state.dragOffset = {
-            x: e.clientX - node.x,
-            y: e.clientY - node.y
-        };
+        // Store drag offsets for ALL selected nodes
+        state.dragNodeOffsets = {};
+        state.selectedNodeIds.forEach(id => {
+            const node = state.nodes.find(n => n.id === id);
+            if (node) {
+                state.dragNodeOffsets[id] = {
+                    x: (e.clientX / state.zoom) - node.x,
+                    y: (e.clientY / state.zoom) - node.y
+                };
+            }
+        });
     }
 
     function handleCanvasMouseDown(e) {
-        if (e.target === elements.canvasArea || e.target === elements.canvasViewport || e.target === elements.connectionsSvg) {
-            // Deselect when clicking on canvas background or connections backdrop
+        // If clicking on background (not a node or port)
+        if (!e.target.closest('.wf-node') && !e.target.closest('.wf-agent-popup') && !e.target.closest('.wf-edge-add-group')) {
+            // Deselect when clicking on canvas background
             selectNode(null);
+
+            // Start panning
+            state.isPanning = true;
+            state.panStart = { x: e.clientX, y: e.clientY };
+            if (elements.canvasArea) elements.canvasArea.style.cursor = 'grabbing';
         }
     }
 
     function handleCanvasMouseMove(e) {
-        // Handle node dragging
-        if (state.isDragging && state.dragNodeId) {
-            const node = state.nodes.find(n => n.id === state.dragNodeId);
-            if (!node) return;
+        // Handle multi-node dragging
+        if (state.isDragging && state.selectedNodeIds.length > 0) {
+            state.selectedNodeIds.forEach(id => {
+                const node = state.nodes.find(n => n.id === id);
+                const offset = state.dragNodeOffsets[id];
+                if (!node || !offset) return;
 
-            node.x = e.clientX - state.dragOffset.x;
-            node.y = e.clientY - state.dragOffset.y;
+                node.x = (e.clientX / state.zoom) - offset.x;
+                node.y = (e.clientY / state.zoom) - offset.y;
 
-            const el = document.getElementById(state.dragNodeId);
-            if (el) {
-                el.style.left = `${node.x}px`;
-                el.style.top = `${node.y}px`;
-            }
+                const el = document.getElementById(id);
+                if (el) {
+                    el.style.left = `${node.x}px`;
+                    el.style.top = `${node.y}px`;
+                }
+            });
 
             renderAllEdges();
+            return;
+        }
+
+        // Handle canvas panning
+        if (state.isPanning) {
+            const dx = e.clientX - state.panStart.x;
+            const dy = e.clientY - state.panStart.y;
+
+            state.panX += dx;
+            state.panY += dy;
+            state.panStart = { x: e.clientX, y: e.clientY };
+
+            updateViewportTransform();
             return;
         }
 
@@ -2447,14 +2637,17 @@ const WorkflowCanvas = (function () {
         const sourceNode = state.nodes.find(n => n.id === source.nodeId);
         if (!sourceNode) return;
 
-        const sourceEl = document.getElementById(source.nodeId);
-        const rect = sourceEl.getBoundingClientRect();
+        const nodeEl = document.getElementById(source.nodeId);
+        const port = nodeEl.querySelector(`.wf-port[data-port-type="${source.Port}"]`) || nodeEl.querySelector('.wf-port-output');
+        if (!port) return;
 
-        const x1 = sourceNode.x + rect.width;
-        const y1 = sourceNode.y + rect.height / 2;
+        const pRect = port.getBoundingClientRect();
+        const aRect = elements.canvasArea.getBoundingClientRect();
 
-        const x2 = mouseX - elements.canvasArea.getBoundingClientRect().left;
-        const y2 = mouseY - elements.canvasArea.getBoundingClientRect().top;
+        const x1 = (pRect.left + pRect.width / 2 - aRect.left) / state.zoom;
+        const y1 = (pRect.top + pRect.height / 2 - aRect.top) / state.zoom;
+        const x2 = (mouseX - aRect.left) / state.zoom;
+        const y2 = (mouseY - aRect.top) / state.zoom;
 
         const midX = (x1 + x2) / 2;
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -2482,19 +2675,26 @@ const WorkflowCanvas = (function () {
 
         state.isDragging = false;
         state.dragNodeId = null;
+        state.dragNodeOffsets = null;
         state.isConnecting = false;
         state.connectionSource = null;
+        state.isPanning = false;
+        if (elements.canvasArea) elements.canvasArea.style.cursor = 'default';
         renderAllEdges();
     }
 
     function handleCanvasWheel(e) {
         e.preventDefault();
-        const delta = e.deltaY > 0 ? -0.1 : 0.1;
-        const newZoom = Math.max(0.5, Math.min(2, state.zoom + delta));
+        const delta = e.deltaY > 0 ? -0.05 : 0.05; // Reduced sensitivity from 0.1 to 0.05
+        const newZoom = Math.max(0.3, Math.min(3, state.zoom + delta));
         state.zoom = newZoom;
 
+        updateViewportTransform();
+    }
+
+    function updateViewportTransform() {
         if (elements.canvasViewport) {
-            elements.canvasViewport.style.transform = `scale(${state.zoom})`;
+            elements.canvasViewport.style.transform = `translate(${state.panX}px, ${state.panY}px) scale(${state.zoom})`;
         }
     }
 
@@ -2845,9 +3045,13 @@ const WorkflowCanvas = (function () {
             return;
         }
 
-        const workflowName = prompt('워크플로우 이름을 입력하세요:', state.name || 'My Workflow');
-        if (!workflowName) return;
-        state.name = workflowName;
+        // Only prompt for name if it doesn't exist
+        let workflowName = state.name;
+        if (!workflowName) {
+            workflowName = prompt('워크플로우 이름을 입력하세요:', 'My Workflow');
+            if (!workflowName) return;
+            state.name = workflowName;
+        }
 
         // Calculate agent count from nodes
         const agentCount = state.nodes.filter(n => n.type === 'agent').length;
@@ -2875,7 +3079,8 @@ const WorkflowCanvas = (function () {
                 target: e.target,
                 label: e.label || ''
             })),
-            trigger: getTriggerConfig(),
+            // Use START node's trigger as main workflow trigger
+            trigger: state.nodes.find(n => n.type === 'start')?.data.triggerConfig || { type: 'manual' },
             temperature: parseFloat(avgTemp.toFixed(2)),
             agentCount: agentCount,
             contentCount: 0,
@@ -2987,7 +3192,25 @@ const WorkflowCanvas = (function () {
     // Trigger Settings
     // ============================================
     function updateTriggerType(type) {
-        state.triggerConfig.type = type;
+        const node = state.nodes.find(n => n.id === state.selectedNodeId);
+        if (node) {
+            if (!node.data.triggerConfig) node.data.triggerConfig = {};
+            node.data.triggerConfig.type = type;
+        } else {
+            state.triggerConfig.type = type;
+        }
+
+        // Update description hint
+        const descHint = document.getElementById('wf-trigger-desc');
+        if (descHint) {
+            switch (type) {
+                case 'automatic': descHint.textContent = '이전 노드가 성공적으로 완료되면 즉시 실행됩니다.'; break;
+                case 'manual': descHint.textContent = '이전 노드가 완료되어도 외부 실행 신호가 올 때까지 대기합니다.'; break;
+                case 'schedule': descHint.textContent = '정해진 시간에 따라 실행됩니다.'; break;
+                case 'firestore': descHint.textContent = '데이터베이스의 특정 경로에 변화가 생기면 실행됩니다.'; break;
+                case 'webhook': descHint.textContent = '외부 API 호출을 통해 실행됩니다.'; break;
+            }
+        }
 
         // Hide all options
         const scheduleOpts = document.getElementById('wf-trigger-schedule-options');
@@ -3029,8 +3252,12 @@ const WorkflowCanvas = (function () {
     }
 
     function getTriggerConfig() {
+        // Return config for selected node if exists
+        const node = state.nodes.find(n => n.id === state.selectedNodeId);
+        const sourceConfig = node ? node.data.triggerConfig : state.triggerConfig;
+
         const config = {
-            type: state.triggerConfig.type
+            type: sourceConfig?.type || 'automatic'
         };
 
         switch (config.type) {
@@ -3048,37 +3275,41 @@ const WorkflowCanvas = (function () {
                 break;
         }
 
+        // Save back to node if it's node-bound
+        if (node) node.data.triggerConfig = config;
+
         return config;
     }
 
-    function syncTriggerUI() {
-        const config = state.triggerConfig;
+    function syncTriggerUI(specificConfig = null) {
+        const config = specificConfig || state.triggerConfig;
         if (!config) return;
 
         // Update trigger type select
         const typeSelect = document.getElementById('wf-trigger-type');
         if (typeSelect) {
-            typeSelect.value = config.type;
-            updateTriggerType(config.type);
+            typeSelect.value = config.type || 'automatic';
+            updateTriggerType(config.type || 'automatic');
         }
 
         // Update specific fields
-        if (config.type === 'schedule') {
-            const cronInput = document.getElementById('wf-trigger-cron');
-            if (cronInput) cronInput.value = config.cron || '0 9 * * *';
-            const tzInput = document.getElementById('wf-trigger-timezone');
-            if (tzInput) tzInput.value = config.timezone || 'Asia/Seoul';
-        } else if (config.type === 'firestore') {
-            const collInput = document.getElementById('wf-trigger-collection');
-            if (collInput) collInput.value = config.collection || '';
-            const eventSelect = document.getElementById('wf-trigger-event');
-            if (eventSelect) eventSelect.value = config.event || 'onUpdate';
-            const condInput = document.getElementById('wf-trigger-field-condition');
-            if (condInput) condInput.value = config.fieldCondition || '';
-        } else if (config.type === 'webhook') {
-            const urlInput = document.getElementById('wf-trigger-webhook-url');
-            if (urlInput) urlInput.value = config.webhookUrl || '';
-        }
+        const cronInput = document.getElementById('wf-trigger-cron');
+        if (cronInput) cronInput.value = config.cron || '0 9 * * *';
+
+        const tzInput = document.getElementById('wf-trigger-timezone');
+        if (tzInput) tzInput.value = config.timezone || 'Asia/Seoul';
+
+        const collInput = document.getElementById('wf-trigger-collection');
+        if (collInput) collInput.value = config.collection || '';
+
+        const eventSelect = document.getElementById('wf-trigger-event');
+        if (eventSelect) eventSelect.value = config.event || 'onUpdate';
+
+        const condInput = document.getElementById('wf-trigger-field-condition');
+        if (condInput) condInput.value = config.fieldCondition || '';
+
+        const urlInput = document.getElementById('wf-trigger-webhook-url');
+        if (urlInput) urlInput.value = config.webhookUrl || '';
     }
 
     // ============================================
@@ -3128,6 +3359,9 @@ const WorkflowCanvas = (function () {
         addConditionRule,
         removeConditionRule,
         updateConditionRule,
+
+        // Capability Handler
+        switchCapability,
 
         // Expose state for debugging
         getState: () => state
