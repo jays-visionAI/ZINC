@@ -2598,7 +2598,7 @@ input:checked+.wf-slider:before {
 }
 
 /* ============================================
-   CANVAS FOOTER - 하나의 통합 컨테이너
+   CANVAS FOOTER - 노드 팔레트 컨테이너
    ============================================ */
 .wf-canvas-footer-container {
     position: absolute;
@@ -2608,18 +2608,6 @@ input:checked+.wf-slider:before {
     z-index: 5000;
     pointer-events: all;
     animation: footerSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-
-    /* Flexbox - 2개 Row 세로 배치 */
-    display: flex;
-    flex-direction: column;
-
-    /* 하나의 통합 박스 스타일 */
-    background: rgba(13, 20, 32, 0.92);
-    backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 20px;
-    box-shadow: 0 15px 50px rgba(0, 0, 0, 0.5);
-    overflow: hidden;
 }
 
 @keyframes footerSlideUp {
@@ -2634,18 +2622,21 @@ input:checked+.wf-slider:before {
     }
 }
 
-/* Row 1: 노드 팔레트 */
+/* 노드 팔레트 */
 .wf-agent-palette {
     display: flex;
     justify-content: center;
+    align-items: center;
     gap: 8px;
-    padding: 12px 16px;
-    background: transparent;
-    border: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 14px 20px;
+    background: rgba(13, 20, 32, 0.92);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 20px;
+    box-shadow: 0 15px 50px rgba(0, 0, 0, 0.5);
 }
 
-/* Row 2: 프롬프트 입력창 */
+/* 프롬프트 입력창 (현재 미사용) */
 .wf-canvas-command-bar {
     width: 100%;
 }
