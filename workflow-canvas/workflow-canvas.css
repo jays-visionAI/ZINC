@@ -2614,21 +2614,23 @@ input:checked+.wf-slider:before {
 }
 
 /* ============================================
-   AI COMMAND BAR (AI COPILOT)
+   CANVAS FOOTER (PALETTE + COMMAND BAR)
    ============================================ */
-.wf-canvas-command-bar {
+.wf-canvas-footer-container {
     position: absolute;
     bottom: 24px;
     left: 45%;
     transform: translateX(-50%);
-    width: 100%;
-    max-width: 650px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
     z-index: 5000;
     pointer-events: none;
-    animation: barSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: footerSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@keyframes barSlideUp {
+@keyframes footerSlideUp {
     from {
         transform: translate(-50%, 40px);
         opacity: 0;
@@ -2640,47 +2642,67 @@ input:checked+.wf-slider:before {
     }
 }
 
+.wf-agent-palette {
+    display: flex;
+    gap: 10px;
+    padding: 10px;
+    background: rgba(13, 20, 32, 0.85);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px 16px 8px 8px;
+    /* 위쪽 둥글게, 아래쪽 완만하게 */
+    pointer-events: all;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.wf-canvas-command-bar {
+    width: 650px;
+    pointer-events: none;
+    margin-top: -4px;
+    /* 팔레트와 밀착 */
+}
+
 .wf-command-inner {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 10px 14px;
-    background: rgba(13, 20, 32, 0.85);
+    padding: 8px 14px;
+    background: rgba(13, 20, 32, 0.9);
     backdrop-filter: blur(16px);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 100px;
-    box-shadow:
-        0 10px 40px rgba(0, 0, 0, 0.4),
-        0 0 20px rgba(0, 240, 255, 0.05);
+    border-radius: 8px 8px 24px 24px;
+    /* 위쪽 완만하게, 아래쪽 둥글게 */
+    box-shadow: 0 15px 50px rgba(0, 0, 0, 0.5);
     pointer-events: all;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* 개별 팔레트 아이템 크기 축소 */
+.wf-palette-item {
+    padding: 8px 12px;
+    font-size: 13px;
+    border-radius: 10px;
+}
+
+/* 나머지 스타일 유지 */
 .wf-command-inner:focus-within {
     border-color: var(--wf-cyan);
     background: rgba(15, 23, 42, 0.95);
     box-shadow:
         0 8px 32px rgba(0, 0, 0, 0.5),
         0 0 0 4px rgba(0, 240, 255, 0.08);
-    max-width: 700px;
 }
 
 .wf-command-ai-icon {
-    width: 36px;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    width: 32px;
+    height: 32px;
     background: var(--wf-gradient-cyan);
     border-radius: 50%;
     color: #fff;
-    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     box-shadow: 0 4px 12px rgba(0, 240, 255, 0.3);
-}
-
-.wf-command-ai-icon svg {
-    width: 20px;
-    height: 20px;
 }
 
 .wf-command-input {
@@ -2689,41 +2711,24 @@ input:checked+.wf-slider:before {
     border: none;
     color: #fff;
     font-size: 14px;
-    font-weight: 500;
-    padding: 8px 0;
-    outline: none !important;
-}
-
-.wf-command-input::placeholder {
-    color: rgba(255, 255, 255, 0.4);
+    padding: 6px 0;
+    outline: none;
 }
 
 .wf-command-send {
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
     background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 50%;
     color: var(--wf-text-secondary);
     cursor: pointer;
     transition: all 0.2s ease;
 }
 
-.wf-command-send svg {
-    width: 18px;
-    height: 18px;
-}
-
 .wf-command-send:hover {
     background: var(--wf-cyan);
     color: #000;
-    border-color: var(--wf-cyan);
-    transform: scale(1.1) rotate(-10deg);
-}
-
-.wf-command-send:active {
-    transform: scale(0.95);
 }
