@@ -611,12 +611,12 @@
                                 <label class="wf-property-label">⚡ Transform Operation</label>
                                 <select id="wf-prop-transform-type" class="wf-property-select"
                                     onchange="WorkflowCanvas.updateTransformUI(this.value)">
-                                    <option value="filter">Filter (Keep matching items)</option>
-                                    <option value="map">Map (Transform each item)</option>
-                                    <option value="reduce">Reduce (Aggregate to single value)</option>
-                                    <option value="sort">Sort (Order items)</option>
-                                    <option value="slice">Slice (First N items)</option>
-                                    <option value="merge">Merge (Combine with context)</option>
+                                    <option value="aggregate">Aggregate (이전 모든 데이터 합치기)</option>
+                                    <option value="filter">Filter (데이터 선별)</option>
+                                    <option value="map">Map (데이터 개별 수정)</option>
+                                    <option value="reduce">Reduce (데이터 요약/통계)</option>
+                                    <option value="sort">Sort (데이터 정렬)</option>
+                                    <option value="slice">Slice (데이터 일부 자르기)</option>
                                 </select>
 
                                 <div id="wf-transform-filter-options" style="margin-top: 12px;">
@@ -663,14 +663,11 @@
                                         value="10" min="1">
                                 </div>
 
-                                <div id="wf-transform-merge-options" style="display: none; margin-top: 12px;">
-                                    <label class="wf-property-label" style="font-size: 11px;">Merge With</label>
-                                    <select id="wf-prop-transform-merge-source" class="wf-property-select"
-                                        style="font-size: 12px;">
-                                        <option value="project_context">Project Context</option>
-                                        <option value="brand_brain">Brand Brain</option>
-                                        <option value="custom_json">Custom JSON</option>
-                                    </select>
+                                <div id="wf-transform-aggregate-options"
+                                    style="display: none; margin-top: 12px; padding: 10px; background: rgba(0, 240, 255, 0.05); border-radius: 4px; border: 1px dashed rgba(0, 240, 255, 0.2);">
+                                    <p class="wf-property-hint" style="color: var(--wf-cyan); margin: 0;">
+                                        선행된 모든 노드의 데이터를 하나로 수집(Merge From)합니다. 추가 설정이 필요 없습니다.
+                                    </p>
                                 </div>
                             </div>
 

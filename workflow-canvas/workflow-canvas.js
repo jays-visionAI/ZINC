@@ -3028,7 +3028,7 @@ window.WorkflowCanvas = (function () {
         document.getElementById('wf-transform-reduce-options').style.display = type === 'reduce' ? 'block' : 'none';
         document.getElementById('wf-transform-sort-options').style.display = type === 'sort' ? 'block' : 'none';
         document.getElementById('wf-transform-slice-options').style.display = type === 'slice' ? 'block' : 'none';
-        document.getElementById('wf-transform-merge-options').style.display = type === 'merge' ? 'block' : 'none';
+        document.getElementById('wf-transform-aggregate-options').style.display = type === 'aggregate' ? 'block' : 'none';
         updateNodeProperty('transformType', type);
     }
 
@@ -4272,6 +4272,10 @@ window.WorkflowCanvas = (function () {
                     break;
                 case 'slice':
                     output = inputData.slice(0, node.data.sliceN || 10);
+                    break;
+                case 'aggregate':
+                    // Merge From logic: inputData already combines all previous node results
+                    output = inputData;
                     break;
                 default:
                     output = inputData;
