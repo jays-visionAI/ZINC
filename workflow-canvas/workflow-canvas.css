@@ -2598,20 +2598,24 @@ input:checked+.wf-slider:before {
 }
 
 /* ============================================
-   CANVAS FOOTER (PALETTE + COMMAND BAR)
+   CANVAS FOOTER - 하나의 통합 컨테이너
    ============================================ */
 .wf-canvas-footer-container {
     position: absolute;
     bottom: 24px;
     left: 50%;
     transform: translateX(-50%);
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0;
     z-index: 5000;
-    pointer-events: none;
+    pointer-events: all;
     animation: footerSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+
+    /* 하나의 통합 박스 스타일 */
+    background: rgba(13, 20, 32, 0.92);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 20px;
+    box-shadow: 0 15px 50px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
 }
 
 @keyframes footerSlideUp {
@@ -2626,23 +2630,20 @@ input:checked+.wf-slider:before {
     }
 }
 
+/* Row 1: 노드 팔레트 */
 .wf-agent-palette {
     display: flex;
     justify-content: center;
-    gap: 10px;
-    padding: 10px 14px;
-    background: rgba(13, 20, 32, 0.92);
-    backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-bottom: none;
-    border-radius: 20px 20px 0 0;
-    pointer-events: all;
-    box-shadow: 0 -5px 30px rgba(0, 0, 0, 0.3);
+    gap: 8px;
+    padding: 12px 16px;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+/* Row 2: 프롬프트 입력창 */
 .wf-canvas-command-bar {
     width: 100%;
-    pointer-events: none;
 }
 
 .wf-command-inner {
@@ -2650,14 +2651,10 @@ input:checked+.wf-slider:before {
     align-items: flex-end;
     gap: 12px;
     padding: 10px 14px;
-    background: rgba(13, 20, 32, 0.92);
-    backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 0 0 20px 20px;
-    box-shadow: 0 15px 50px rgba(0, 0, 0, 0.5);
-    pointer-events: all;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
 }
 
 /* 개별 팔레트 아이템 크기 축소 */
