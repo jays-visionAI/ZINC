@@ -744,98 +744,88 @@ window.WorkflowCanvas = (function () {
         let addedCount = 0;
         let removedCount = 0;
 
-        // Helper: Find node by name or type
-        function findNodeByName(name) {
-            const cleanName = name.replace(/\s/g, '').toLowerCase();
-            return state.nodes.find(n => {
-                const nodeName = (n.data.name || n.type || '').replace(/\s/g, '').toLowerCase();
-                return nodeName.includes(cleanName);
-            });
+        // 1. Determine node type to create
+        let newNodeType = null;
+        let newNodeProps = {};
+
+        if (keywords.includes('input') || keywords.includes('정보') || keywords.includes('입력') || keywords.includes('브리프') || keywords.includes('brief') || keywords.includes('지식')) {
+            newNodeType = 'input';
+            let inputType = 'knowledge_hub';
+            let inputName = 'Knowledge Hub';
+            if (keywords.includes('브리프') || keywords.includes('brief')) {
+                inputType = 'project_brief';
+                inputName = 'Project Brief';
+            } else if (keywords.includes('브랜드') || keywords.includes('brand')) {
+                inputType = 'brand_brain';
+                inputName = 'Brand Brain';
+            }
+            newNodeProps = { inputSource: inputType, name: inputName };
+        } else if (keywords.includes('조건') || keywords.includes('분기')) {
+            newNodeType = 'condition';
+            newNodeProps = { expression: 'output.success == true', name: 'Check Condition' };
+        } else if (keywords.includes('에이전트')) {
+            newNodeType = 'agent';
+            const agents = state.availableAgents[state.pipelineContext] || [];
+            const agent = agents[0] || { id: 'market_scout', name: 'Market Scout', icon: 'search' };
+            newNodeProps = { agentId: agent.id, name: agent.name, icon: agent.icon };
+        } else if (keywords.includes('병렬') && !keywords.includes('전달') && !keywords.includes('구조')) {
+            newNodeType = 'parallel';
         }
 
-        // Detect node type to add
-        const isAdd = ['추가', '넣어', 'add', '생성', '만들어', '붙여'].some(k => keywords.includes(k));
-
-        if (isAdd || keywords.length > 5) {
-            // 1. Detect target node if mentioned ("~에", "~로", "~다음에")
-            let targetNode = null;
+        if (newNodeType) {
+            // 2. Identify Source (Parent)
+            let sourceNode = null;
             if (keywords.includes('시작') || keywords.includes('start')) {
-                targetNode = state.nodes.find(n => n.type === 'start');
+                sourceNode = state.nodes.find(n => n.type === 'start');
             } else {
-                // Try to find mentioned node name
+                // Try to find mentioned node name as source
                 state.nodes.forEach(n => {
                     const nName = (n.data.name || '').toLowerCase();
-                    if (nName && nName.length > 1 && keywords.includes(nName)) {
-                        targetNode = n;
+                    if (nName && nName.length > 1 && keywords.split('다음')[0].includes(nName)) {
+                        sourceNode = n;
                     }
                 });
             }
+            if (!sourceNode) sourceNode = state.nodes.filter(n => n.type !== 'end').pop();
 
-            // 2. Determine node type to create
-            let newNodeType = null;
-            let newNodeProps = {};
+            // 3. Calculate Smart Position (Avoid Overlapping)
+            let targetX = sourceNode.x + 200;
+            let targetY = sourceNode.y;
 
-            if (keywords.includes('input') || keywords.includes('정보') || keywords.includes('입력') || keywords.includes('브리프') || keywords.includes('brief') || keywords.includes('지식')) {
-                newNodeType = 'input';
-                let inputType = 'knowledge_hub';
-                let inputName = 'Knowledge Hub';
-                if (keywords.includes('브리프') || keywords.includes('brief')) {
-                    inputType = 'project_brief';
-                    inputName = 'Project Brief';
-                } else if (keywords.includes('브랜드') || keywords.includes('brand')) {
-                    inputType = 'brand_brain';
-                    inputName = 'Brand Brain';
-                }
-                newNodeProps = { inputSource: inputType, name: inputName };
-            } else if (keywords.includes('조건') || keywords.includes('분기')) {
-                newNodeType = 'condition';
-                newNodeProps = { expression: 'output.success == true' };
-            } else if (keywords.includes('에이전트')) {
-                newNodeType = 'agent';
-                const agents = state.availableAgents[state.pipelineContext] || [];
-                const agent = agents[0] || { id: 'market_scout', name: 'Market Scout', icon: 'search' };
-                newNodeProps = { agentId: agent.id, name: agent.name, icon: agent.icon };
-            } else if (keywords.includes('병렬') && !keywords.includes('전달')) {
-                // Only create PARALLEL node if it's explicitly asked as a node, not a connection style
-                newNodeType = 'parallel';
+            // Check if a node already exists at this X (parallel detection)
+            const nodesAtTargetX = state.nodes.filter(n => Math.abs(n.x - targetX) < 50);
+            if (nodesAtTargetX.length > 0) {
+                // Current position occupied, move down
+                const maxY = Math.max(...nodesAtTargetX.map(n => n.y));
+                targetY = maxY + 120;
             }
 
-            if (newNodeType) {
-                // Calculate position based on target
-                const refNode = targetNode || state.nodes.filter(n => n.type !== 'end').pop();
-                const x = refNode ? refNode.x + 200 : 300;
-                const y = refNode ? refNode.y : 300;
+            // 4. Create Node
+            const node = createNode(newNodeType, targetX, targetY, newNodeProps);
+            addedCount++;
+            description += `• ${newNodeProps.name || newNodeType} 노드 추가됨\n`;
 
-                const node = createNode(newNodeType, x, y, newNodeProps);
-                addedCount++;
+            // 5. Connect Source -> New Node
+            createEdge(sourceNode.id, node.id);
+            description += `• ${sourceNode.data.name || sourceNode.type} → ${newNodeProps.name} 연결됨\n`;
 
-                // Handle connections
-                if (targetNode) {
-                    createEdge(targetNode.id, node.id);
-                    description += `• ${targetNode.data.name || targetNode.type} 노드 다음에 ${newNodeProps.name || newNodeType} 추가됨\n`;
-                } else {
-                    const lastNode = state.nodes.filter(n => n.id !== node.id && n.type !== 'end').pop();
-                    if (lastNode) createEdge(lastNode.id, node.id);
-                    description += `• ${newNodeProps.name || newNodeType} 노드 추가됨\n`;
+            // 6. Identify and Connect to Destination (Child)
+            const destPart = keywords.split('전달')[0]; // Look for name BEFORE "전달"
+            state.nodes.forEach(n => {
+                // IMPORTANT: Don't connect to self or source node
+                if (n.id === node.id || n.id === sourceNode.id) return;
+
+                const nName = (n.data.name || '').toLowerCase();
+                // Check if any node name is mentioned in the prompt (excluding newest node)
+                if (nName && nName.length > 1 && prompt.toLowerCase().includes(nName) && nName !== (newNodeProps.name || '').toLowerCase()) {
+                    createEdge(node.id, n.id);
+                    description += `• ${newNodeProps.name} → ${n.data.name} 연결됨\n`;
                 }
-
-                // 3. Special: Check destination ("~로 전달")
-                const toIndex = keywords.indexOf('전달');
-                if (toIndex > 0) {
-                    const destPart = keywords.substring(0, toIndex);
-                    state.nodes.forEach(n => {
-                        const nName = (n.data.name || '').toLowerCase();
-                        if (nName && nName.length > 1 && destPart.includes(nName)) {
-                            createEdge(node.id, n.id);
-                            description += `• ${newNodeProps.name || newNodeType} → ${n.data.name} 연결 추가됨\n`;
-                        }
-                    });
-                }
-            }
+            });
         }
 
         if (addedCount === 0 && removedCount === 0) {
-            description = '요청을 분석했으나 명확한 실행 동작을 결정하지 못했습니다. 좀 더 구체적인 노드 명칭을 사용해주세요.';
+            description = '요청을 분석했으나 명확한 수정 사항을 찾지 못했습니다. 노드 이름이나 타입을 명확히 해주세요.';
         }
 
         return {
