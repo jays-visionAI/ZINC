@@ -14,6 +14,17 @@
                 <span>Back to Pipeline</span>
             </button>
             <h1 class="wf-title">Workflow Canvas Builder</h1>
+            <div class="wf-project-context-selector">
+                <span class="wf-context-label">Context:</span>
+                <select id="wf-project-select" class="wf-project-dropdown"
+                    onchange="WorkflowCanvas.updateProjectContext(this.value)">
+                    <option value="">Select Test Project...</option>
+                </select>
+                <div class="wf-context-status" id="wf-context-indicator">
+                    <span class="wf-status-dot"></span>
+                    <span id="wf-context-name">Default Context</span>
+                </div>
+            </div>
         </div>
         <div class="wf-header-right">
             <button class="wf-btn wf-btn-secondary" onclick="WorkflowCanvas.reset()">

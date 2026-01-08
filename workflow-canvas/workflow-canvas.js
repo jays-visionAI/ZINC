@@ -181,7 +181,7 @@ window.WorkflowCanvas = (function () {
     // Initialization
     // ============================================
     async function init() {
-        console.log('%c[WorkflowCanvas] Loaded v20260108_32', 'color: #00ff00; font-weight: bold;');
+        console.log('%c[WorkflowCanvas] Loaded v20260108_33', 'color: #00ff00; font-weight: bold;');
         // Load HTML template if not already present
         if (!document.getElementById('workflow-canvas-modal')) {
             await loadTemplate();
@@ -195,6 +195,9 @@ window.WorkflowCanvas = (function () {
         await syncMCPServers();
 
         console.log('[WorkflowCanvas] initialized with dynamic Agent Registry & MCP');
+
+        // Load project list for context selector
+        await loadProjectList();
     }
 
     async function syncMCPServers() {
@@ -480,6 +483,11 @@ window.WorkflowCanvas = (function () {
         state.workflowId = workflowId;
         state.isOpen = true;
         console.log('[WorkflowCanvas] state.pipelineContext set to:', state.pipelineContext);
+
+        // Pre-select project if ID provided
+        if (projectId) {
+            updateProjectContext(projectId);
+        }
 
         if (!elements.modal) {
             init().then(() => {
@@ -2682,15 +2690,14 @@ window.WorkflowCanvas = (function () {
                 // Query Knowledge Hub - actually query if possible
                 const khStatus = node.data.khStatus || 'active';
                 try {
-                    // Try to get actual Knowledge Hub data
-                    const projectId = state.pipelineContext;
-                    const isReserved = ['market', 'brand', 'knowledge', 'studio', 'growth', 'all'].includes(projectId);
+                    // Priority 1: state.projectId, Priority 2: state.pipelineContext
+                    const targetId = (state.projectId && state.projectId !== '') ? state.projectId : state.pipelineContext;
+                    const isReserved = ['market', 'brand', 'knowledge', 'studio', 'growth', 'all'].includes(targetId);
 
-                    if (projectId && !isReserved && typeof db !== 'undefined') {
+                    if (targetId && !isReserved && typeof db !== 'undefined') {
                         const snapshot = await db.collection('knowledgeHub')
-                            .where('projectId', '==', projectId)
+                            .where('projectId', '==', targetId)
                             .where('status', '==', khStatus)
-                            .limit(5)
                             .get();
 
                         const items = [];
@@ -2717,11 +2724,11 @@ window.WorkflowCanvas = (function () {
             case 'project_brief':
                 // Get Project Brief
                 try {
-                    const projectId = state.pipelineContext;
-                    const isReserved = ['market', 'brand', 'knowledge', 'studio', 'growth', 'all'].includes(projectId);
+                    const targetId = (state.projectId && state.projectId !== '') ? state.projectId : state.pipelineContext;
+                    const isReserved = ['market', 'brand', 'knowledge', 'studio', 'growth', 'all'].includes(targetId);
 
-                    if (projectId && !isReserved && typeof db !== 'undefined') {
-                        const projectDoc = await db.collection('projects').doc(projectId).get();
+                    if (targetId && !isReserved && typeof db !== 'undefined') {
+                        const projectDoc = await db.collection('projects').doc(targetId).get();
                         if (projectDoc.exists) {
                             const p = projectDoc.data();
                             data = {
@@ -2745,11 +2752,11 @@ window.WorkflowCanvas = (function () {
             case 'brand_brain':
                 // Get Brand Brain Context
                 try {
-                    const projectId = state.pipelineContext;
-                    const isReserved = ['market', 'brand', 'knowledge', 'studio', 'growth', 'all'].includes(projectId);
+                    const targetId = (state.projectId && state.projectId !== '') ? state.projectId : state.pipelineContext;
+                    const isReserved = ['market', 'brand', 'knowledge', 'studio', 'growth', 'all'].includes(targetId);
 
-                    if (projectId && !isReserved && typeof db !== 'undefined') {
-                        const brandDoc = await db.collection('brandBrain').doc(projectId).get();
+                    if (targetId && !isReserved && typeof db !== 'undefined') {
+                        const brandDoc = await db.collection('brandBrain').doc(targetId).get();
                         if (brandDoc.exists) {
                             data = { source: 'Brand Brain', ...brandDoc.data() };
                         } else {
@@ -4567,6 +4574,64 @@ window.WorkflowCanvas = (function () {
     // ============================================
     // Return Public API
     // ============================================
+    /**
+     * Update project context for testing
+     */
+    function updateProjectContext(projectId) {
+        state.projectId = projectId;
+        console.log('[WorkflowCanvas] Project context updated:', projectId);
+
+        const select = document.getElementById('wf-project-select');
+        if (select) select.value = projectId || '';
+
+        const indicator = document.getElementById('wf-context-indicator');
+        const nameEl = document.getElementById('wf-context-name');
+
+        if (projectId && projectId !== '') {
+            indicator.classList.add('active');
+            if (select && select.selectedOptions[0]) {
+                nameEl.textContent = select.selectedOptions[0].textContent;
+            } else {
+                nameEl.textContent = projectId;
+            }
+        } else {
+            indicator.classList.remove('active');
+            nameEl.textContent = 'Global Context';
+        }
+    }
+
+    /**
+     * Load project list from Firestore
+     */
+    async function loadProjectList() {
+        const select = document.getElementById('wf-project-select');
+        if (!select || typeof db === 'undefined') return;
+
+        try {
+            const snapshot = await db.collection('projects')
+                .orderBy('updatedAt', 'desc')
+                .limit(20)
+                .get();
+
+            select.innerHTML = '<option value="">Select Test Project...</option>';
+            snapshot.forEach(doc => {
+                const p = doc.data();
+                const option = document.createElement('option');
+                option.value = doc.id;
+                option.textContent = p.name || doc.id;
+                select.appendChild(option);
+            });
+
+            // Set initial value if state already has projectId
+            if (state.projectId) {
+                select.value = state.projectId;
+                updateProjectContext(state.projectId);
+            }
+        } catch (e) {
+            console.error('Failed to load projects:', e);
+        }
+    }
+
     return {
         init,
         open,
