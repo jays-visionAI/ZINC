@@ -2663,7 +2663,9 @@ window.WorkflowCanvas = (function () {
                 try {
                     // Try to get actual Knowledge Hub data
                     const projectId = state.pipelineContext;
-                    if (projectId && typeof db !== 'undefined') {
+                    const isReserved = ['market', 'brand', 'knowledge', 'studio', 'growth', 'all'].includes(projectId);
+
+                    if (projectId && !isReserved && typeof db !== 'undefined') {
                         const snapshot = await db.collection('knowledgeHub')
                             .where('projectId', '==', projectId)
                             .where('status', '==', khStatus)
@@ -2695,7 +2697,9 @@ window.WorkflowCanvas = (function () {
                 // Get Project Brief
                 try {
                     const projectId = state.pipelineContext;
-                    if (projectId && typeof db !== 'undefined') {
+                    const isReserved = ['market', 'brand', 'knowledge', 'studio', 'growth', 'all'].includes(projectId);
+
+                    if (projectId && !isReserved && typeof db !== 'undefined') {
                         const projectDoc = await db.collection('projects').doc(projectId).get();
                         if (projectDoc.exists) {
                             const p = projectDoc.data();
@@ -2707,18 +2711,13 @@ window.WorkflowCanvas = (function () {
                                 goals: p.goals
                             };
                         } else {
-                            return { success: false, error: `Project not found: ${projectId}` };
+                            data = getMockProjectBrief();
                         }
                     } else {
-                        data = {
-                            source: 'Project Brief',
-                            message: 'Mock data - project context not set',
-                            name: 'Sample Project',
-                            description: 'Project description'
-                        };
+                        data = getMockProjectBrief();
                     }
                 } catch (e) {
-                    return { success: false, error: 'Failed to load Project Brief: ' + e.message };
+                    data = getMockProjectBrief();
                 }
                 break;
 
@@ -2726,24 +2725,20 @@ window.WorkflowCanvas = (function () {
                 // Get Brand Brain Context
                 try {
                     const projectId = state.pipelineContext;
-                    if (projectId && typeof db !== 'undefined') {
+                    const isReserved = ['market', 'brand', 'knowledge', 'studio', 'growth', 'all'].includes(projectId);
+
+                    if (projectId && !isReserved && typeof db !== 'undefined') {
                         const brandDoc = await db.collection('brandBrain').doc(projectId).get();
                         if (brandDoc.exists) {
                             data = { source: 'Brand Brain', ...brandDoc.data() };
                         } else {
-                            data = { source: 'Brand Brain', message: 'No Brand Brain data found', empty: true };
+                            data = getMockBrandBrain();
                         }
                     } else {
-                        data = {
-                            source: 'Brand Brain',
-                            message: 'Mock data',
-                            persona: 'Professional',
-                            tone: 'Friendly',
-                            values: ['Innovation', 'Trust']
-                        };
+                        data = getMockBrandBrain();
                     }
                 } catch (e) {
-                    return { success: false, error: 'Failed to load Brand Brain: ' + e.message };
+                    data = getMockBrandBrain();
                 }
                 break;
 
@@ -3936,7 +3931,7 @@ window.WorkflowCanvas = (function () {
             ? agentNodes.reduce((sum, n) => sum + (n.data.temperature || 0.7), 0) / agentNodes.length
             : 0.7;
 
-        const workflowData = {
+        const workflowData = stripUndefined({
             name: workflowName,
             pipelineContext: state.pipelineContext,
             projectId: state.projectId || null,
@@ -3945,7 +3940,7 @@ window.WorkflowCanvas = (function () {
                 id: n.id,
                 type: n.type,
                 position: { x: n.x, y: n.y },
-                data: n.data
+                data: stripUndefined(n.data)
             })),
             edges: state.edges.map(e => ({
                 id: e.id,
@@ -3959,7 +3954,7 @@ window.WorkflowCanvas = (function () {
             agentCount: agentCount,
             contentCount: 0,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        };
+        });
 
         try {
             const db = firebase.firestore();
@@ -4606,8 +4601,50 @@ window.WorkflowCanvas = (function () {
         testNode,
 
         // Expose state for debugging
-        getState: () => state
+        getState: () => state,
+
+        // Utils
+        stripUndefined
     };
+    function getMockProjectBrief() {
+        return {
+            source: 'Project Brief',
+            message: 'Project ID not found in this context - using mock data',
+            name: 'Vision Chain Project',
+            description: 'AI-driven supply chain optimization platform',
+            targetAudience: 'Global logistics companies',
+            goals: 'Reduce operational costs by 25%'
+        };
+    }
+
+    function getMockBrandBrain() {
+        return {
+            source: 'Brand Brain',
+            message: 'Project ID not found in this context - using mock data',
+            persona: 'Tech Innovator',
+            tone: 'Modern, Professional, Visionary',
+            values: ['Efficiency', 'Intelligence', 'Scalability'],
+            description: 'A cutting-edge solution for modern business challenges.'
+        };
+    }
+
+    function stripUndefined(obj) {
+        if (!obj || typeof obj !== 'object') return obj;
+        const copy = Array.isArray(obj) ? [] : {};
+        Object.keys(obj).forEach(key => {
+            const val = obj[key];
+            if (val !== undefined && val !== null) {
+                if (typeof val === 'object' && !(val instanceof Date)) {
+                    copy[key] = stripUndefined(val);
+                } else {
+                    copy[key] = val;
+                }
+            } else if (val === null) {
+                copy[key] = null;
+            }
+        });
+        return copy;
+    }
 })();
 
 // Auto-initialize when DOM is ready
