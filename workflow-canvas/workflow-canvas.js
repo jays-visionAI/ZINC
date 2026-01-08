@@ -672,6 +672,12 @@ window.WorkflowCanvas = (function () {
                 console.log('[WorkflowCanvas] Refine mode - modifying existing workflow');
                 const refinement = await refineExistingWorkflow(prompt);
 
+                // Set refinement flag to let applyToCanvas know not to rebuild
+                state.analysisResult = {
+                    isRefinement: true,
+                    description: refinement.description
+                };
+
                 // Show refinement result
                 elements.detectedAgents.innerHTML = `
                     <div class="wf-detected-agent" style="background: rgba(0, 240, 255, 0.1); border-color: rgba(0, 240, 255, 0.3);">
@@ -782,6 +788,39 @@ window.WorkflowCanvas = (function () {
                 if (lastNonEndNode) createEdge(lastNonEndNode.id, node.id);
                 addedCount++;
                 description += '• 병렬(Parallel) 노드 추가됨\n';
+            }
+            if (keywords.includes('input') || keywords.includes('정보') || keywords.includes('입력') || keywords.includes('브리프') || keywords.includes('brief') || keywords.includes('지식') || keywords.includes('hub')) {
+                const lastNonEndNode = state.nodes.filter(n => n.type !== 'end').pop();
+                const x = (lastNonEndNode ? lastNonEndNode.x : 100) + 180;
+                const y = lastNonEndNode ? lastNonEndNode.y : 300;
+
+                let inputType = 'knowledge_hub';
+                let inputName = 'Knowledge Hub';
+                if (keywords.includes('브리프') || keywords.includes('brief')) {
+                    inputType = 'project_brief';
+                    inputName = 'Project Brief';
+                } else if (keywords.includes('브랜드') || keywords.includes('brand')) {
+                    inputType = 'brand_brain';
+                    inputName = 'Brand Brain';
+                }
+
+                const node = createNode('input', x, y, {
+                    inputSource: inputType,
+                    name: inputName
+                });
+
+                // If user specifies "after start" or "at start"
+                if (keywords.includes('start') || keywords.includes('시작')) {
+                    const startNode = state.nodes.find(n => n.type === 'start');
+                    if (startNode) {
+                        createEdge(startNode.id, node.id);
+                        description += `• START 노드 다음에 ${inputName} (Input) 노드 추가됨\n`;
+                    }
+                } else {
+                    if (lastNonEndNode) createEdge(lastNonEndNode.id, node.id);
+                    description += `• ${inputName} (Input) 노드 추가됨\n`;
+                }
+                addedCount++;
             }
         }
 
@@ -1000,6 +1039,14 @@ window.WorkflowCanvas = (function () {
     }
 
     function applyToCanvas() {
+        // In refine mode, changes are already applied to state.nodes/edges
+        // so we just need to transition to the canvas step.
+        const hasExistingWorkflow = state.nodes && state.nodes.length > 0;
+        if (hasExistingWorkflow && state.analysisResult?.isRefinement) {
+            goToStep(2);
+            return;
+        }
+
         if (!state.analysisResult) return;
 
         // Clear canvas
