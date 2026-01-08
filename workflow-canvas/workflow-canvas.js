@@ -181,7 +181,7 @@ window.WorkflowCanvas = (function () {
     // Initialization
     // ============================================
     async function init() {
-        console.log('%c[WorkflowCanvas] Loaded v20260108_30', 'color: #00ff00; font-weight: bold;');
+        console.log('%c[WorkflowCanvas] Loaded v20260108_31', 'color: #00ff00; font-weight: bold;');
         // Load HTML template if not already present
         if (!document.getElementById('workflow-canvas-modal')) {
             await loadTemplate();
@@ -2456,7 +2456,8 @@ window.WorkflowCanvas = (function () {
     function expandOutputData() {
         if (!state.selectedNodeOutputData) return;
 
-        const jsonStr = JSON.stringify(state.selectedNodeOutputData, null, 2);
+        const data = state.selectedNodeOutputData;
+        const jsonStr = JSON.stringify(data, null, 2);
 
         // Create modal
         const modal = document.createElement('div');
@@ -2465,26 +2466,37 @@ window.WorkflowCanvas = (function () {
             <div class="wf-output-modal">
                 <div class="wf-output-modal-header">
                     <h3>📄 Full Output Data</h3>
-                    <button class="wf-output-modal-close" onclick="this.closest('.wf-output-modal-overlay').remove()">✕</button>
+                    <button class="wf-output-modal-close" id="wf-output-close">✕</button>
                 </div>
                 <div class="wf-output-modal-body">
                     <pre>${escapeHtml(jsonStr)}</pre>
                 </div>
                 <div class="wf-output-modal-footer">
-                    <button class="wf-btn wf-btn-secondary" onclick="navigator.clipboard.writeText(\`${jsonStr.replace(/`/g, '\\`')}\`); this.textContent='✓ Copied!'">📋 Copy JSON</button>
+                    <button class="wf-btn wf-btn-secondary" id="wf-copy-json">📋 Copy JSON</button>
                 </div>
             </div>
         `;
         document.body.appendChild(modal);
 
+        // Attach listeners
+        const copyBtn = modal.querySelector('#wf-copy-json');
+        copyBtn.onclick = () => {
+            navigator.clipboard.writeText(jsonStr).then(() => {
+                copyBtn.textContent = '✓ Copied!';
+                setTimeout(() => { copyBtn.textContent = '📋 Copy JSON'; }, 2000);
+            }).catch(err => {
+                console.error('Copy failed:', err);
+                notify('복사 실패: ' + err.message, 'error');
+            });
+        };
+
+        const closeBtn = modal.querySelector('#wf-output-close');
+        closeBtn.onclick = () => modal.remove();
+
         // Close on overlay click
         modal.addEventListener('click', (e) => {
             if (e.target === modal) modal.remove();
         });
-    }
-
-    function escapeHtml(str) {
-        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
     /**
