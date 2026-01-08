@@ -2741,3 +2741,199 @@ input:checked+.wf-slider:before {
     color: #000;
     border-color: var(--wf-cyan);
 }
+
+/* ============================================
+   OUTPUT DATA SECTION
+   ============================================ */
+.wf-output-data-section {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.wf-output-data-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.wf-output-data-header h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--wf-text-primary);
+}
+
+.wf-output-data-status {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+.wf-output-data-status.success {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--wf-green);
+}
+
+.wf-output-data-status.pending {
+    background: rgba(251, 191, 36, 0.15);
+    color: #fbbf24;
+}
+
+.wf-output-data-status.error {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--wf-red);
+}
+
+.wf-output-data-content {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.wf-output-data-empty {
+    padding: 24px;
+    text-align: center;
+}
+
+.wf-output-data-empty p {
+    font-size: 12px;
+    color: var(--wf-text-muted);
+    line-height: 1.6;
+    margin: 0;
+}
+
+.wf-output-data-preview {
+    padding: 12px;
+}
+
+.wf-output-data-meta {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-size: 10px;
+    color: var(--wf-text-muted);
+}
+
+.wf-output-data-preview pre {
+    margin: 0;
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 8px;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    color: var(--wf-cyan);
+    max-height: 200px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.wf-output-data-preview pre::-webkit-scrollbar {
+    width: 4px;
+}
+
+.wf-output-data-preview pre::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+}
+
+.wf-output-data-expand {
+    width: 100%;
+    margin-top: 10px;
+    font-size: 11px;
+    padding: 8px;
+}
+
+/* Output Data Modal */
+.wf-output-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(8px);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+}
+
+.wf-output-modal {
+    background: var(--wf-bg-secondary);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 800px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5);
+}
+
+.wf-output-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.wf-output-modal-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--wf-text-primary);
+}
+
+.wf-output-modal-close {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: var(--wf-text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.wf-output-modal-close:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: var(--wf-red);
+    color: var(--wf-red);
+}
+
+.wf-output-modal-body {
+    flex: 1;
+    overflow: auto;
+    padding: 20px;
+}
+
+.wf-output-modal-body pre {
+    margin: 0;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 10px;
+    font-size: 12px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    color: var(--wf-cyan);
+    white-space: pre-wrap;
+    word-break: break-all;
+    line-height: 1.5;
+}
+
+.wf-output-modal-footer {
+    padding: 16px 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    justify-content: flex-end;
+}

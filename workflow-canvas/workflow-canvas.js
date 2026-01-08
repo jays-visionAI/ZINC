@@ -2355,6 +2355,107 @@ window.WorkflowCanvas = (function () {
         }
 
         state.isSyncingUI = false; // Unlock UI updates
+
+        // Show Output Data section if node has output
+        showNodeOutputData(node);
+    }
+
+    /**
+     * Display node's output data in the properties panel
+     */
+    function showNodeOutputData(node) {
+        const section = document.getElementById('wf-output-data-section');
+        const statusEl = document.getElementById('wf-output-data-status');
+        const emptyEl = document.getElementById('wf-output-data-empty');
+        const previewEl = document.getElementById('wf-output-data-preview');
+        const jsonEl = document.getElementById('wf-output-data-json');
+        const timestampEl = document.getElementById('wf-output-data-timestamp');
+        const sizeEl = document.getElementById('wf-output-data-size');
+
+        if (!section) return;
+
+        // Always show the section for non-start nodes
+        if (node.type === 'start') {
+            section.style.display = 'none';
+            return;
+        }
+
+        section.style.display = 'block';
+
+        // Check if node has output data
+        const outputData = node.data.outputData;
+
+        if (outputData && Object.keys(outputData).length > 0) {
+            // Show output data preview
+            emptyEl.style.display = 'none';
+            previewEl.style.display = 'block';
+
+            // Status badge
+            const status = node.data.executionStatus || 'success';
+            statusEl.className = 'wf-output-data-status ' + status;
+            statusEl.textContent = status === 'success' ? '✓ Completed' :
+                status === 'pending' ? '⏳ Running' : '✗ Error';
+
+            // Metadata
+            const timestamp = node.data.executedAt ? new Date(node.data.executedAt).toLocaleString('ko-KR') : 'N/A';
+            const dataStr = JSON.stringify(outputData);
+            const size = dataStr.length > 1024 ? `${(dataStr.length / 1024).toFixed(1)} KB` : `${dataStr.length} bytes`;
+
+            timestampEl.textContent = `🕐 ${timestamp}`;
+            sizeEl.textContent = `📦 ${size}`;
+
+            // JSON preview (truncated)
+            const jsonPreview = JSON.stringify(outputData, null, 2);
+            const truncated = jsonPreview.length > 500 ? jsonPreview.substring(0, 500) + '\n...' : jsonPreview;
+            jsonEl.querySelector('code').textContent = truncated;
+
+            // Store full data for expansion
+            state.selectedNodeOutputData = outputData;
+        } else {
+            // No output data yet
+            emptyEl.style.display = 'block';
+            previewEl.style.display = 'none';
+            statusEl.className = 'wf-output-data-status';
+            statusEl.textContent = '';
+            state.selectedNodeOutputData = null;
+        }
+    }
+
+    /**
+     * Expand output data in a modal
+     */
+    function expandOutputData() {
+        if (!state.selectedNodeOutputData) return;
+
+        const jsonStr = JSON.stringify(state.selectedNodeOutputData, null, 2);
+
+        // Create modal
+        const modal = document.createElement('div');
+        modal.className = 'wf-output-modal-overlay';
+        modal.innerHTML = `
+            <div class="wf-output-modal">
+                <div class="wf-output-modal-header">
+                    <h3>📄 Full Output Data</h3>
+                    <button class="wf-output-modal-close" onclick="this.closest('.wf-output-modal-overlay').remove()">✕</button>
+                </div>
+                <div class="wf-output-modal-body">
+                    <pre>${escapeHtml(jsonStr)}</pre>
+                </div>
+                <div class="wf-output-modal-footer">
+                    <button class="wf-btn wf-btn-secondary" onclick="navigator.clipboard.writeText(\`${jsonStr.replace(/`/g, '\\`')}\`); this.textContent='✓ Copied!'">📋 Copy JSON</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        // Close on overlay click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+    }
+
+    function escapeHtml(str) {
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
     function updateOutputUI(dest) {
@@ -3643,6 +3744,9 @@ window.WorkflowCanvas = (function () {
 
         // Capability Handler
         switchCapability,
+
+        // Output Data Viewer
+        expandOutputData,
 
         // Expose state for debugging
         getState: () => state

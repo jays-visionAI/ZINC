@@ -824,6 +824,42 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Output Data Section (Execution Results) -->
+                        <div id="wf-output-data-section" class="wf-output-data-section" style="display: none;">
+                            <div class="wf-output-data-header">
+                                <div style="display:flex;align-items:center;gap:10px;">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                        style="width:18px;height:18px;color:var(--wf-green);">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                        <polyline points="14 2 14 8 20 8" />
+                                        <line x1="16" y1="13" x2="8" y2="13" />
+                                        <line x1="16" y1="17" x2="8" y2="17" />
+                                        <polyline points="10 9 9 9 8 9" />
+                                    </svg>
+                                    <h4 style="margin:0;">Output Data</h4>
+                                </div>
+                                <span id="wf-output-data-status" class="wf-output-data-status">
+                                    <!-- Filled by JS -->
+                                </span>
+                            </div>
+                            <div id="wf-output-data-content" class="wf-output-data-content">
+                                <div id="wf-output-data-empty" class="wf-output-data-empty">
+                                    <p>아직 실행 결과가 없습니다.<br>워크플로우를 실행하면 각 노드의 출력 데이터를 확인할 수 있습니다.</p>
+                                </div>
+                                <div id="wf-output-data-preview" class="wf-output-data-preview" style="display: none;">
+                                    <div class="wf-output-data-meta">
+                                        <span id="wf-output-data-timestamp"></span>
+                                        <span id="wf-output-data-size"></span>
+                                    </div>
+                                    <pre id="wf-output-data-json"><code></code></pre>
+                                    <button class="wf-btn wf-btn-secondary wf-output-data-expand"
+                                        onclick="WorkflowCanvas.expandOutputData()">
+                                        🔍 View Full Data
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </aside>
             </div>
