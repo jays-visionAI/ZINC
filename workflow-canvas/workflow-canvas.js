@@ -737,63 +737,46 @@ window.WorkflowCanvas = (function () {
      * Refine existing workflow with additional prompt
      */
     async function refineExistingWorkflow(prompt) {
-        await new Promise(resolve => setTimeout(resolve, 1200));
+        await new Promise(resolve => setTimeout(resolve, 1500));
 
         const keywords = prompt.toLowerCase();
         let description = '';
         let addedCount = 0;
         let removedCount = 0;
 
-        // Parse intent from prompt
-        const addKeywords = ['추가', '넣어', 'add', '생성', '만들어', '붙여'];
-        const removeKeywords = ['삭제', '제거', 'remove', 'delete', '없애', '지워'];
-        const modifyKeywords = ['변경', '수정', 'change', 'modify', '바꿔'];
+        // Helper: Find node by name or type
+        function findNodeByName(name) {
+            const cleanName = name.replace(/\s/g, '').toLowerCase();
+            return state.nodes.find(n => {
+                const nodeName = (n.data.name || n.type || '').replace(/\s/g, '').toLowerCase();
+                return nodeName.includes(cleanName);
+            });
+        }
 
-        const isAdd = addKeywords.some(k => keywords.includes(k));
-        const isRemove = removeKeywords.some(k => keywords.includes(k));
-        const isModify = modifyKeywords.some(k => keywords.includes(k));
+        // Detect node type to add
+        const isAdd = ['추가', '넣어', 'add', '생성', '만들어', '붙여'].some(k => keywords.includes(k));
 
-        // Detect node type to add/remove
-        if (isAdd || (!isRemove && !isModify)) {
-            // Add nodes
-            if (keywords.includes('조건') || keywords.includes('분기') || keywords.includes('condition')) {
-                const lastNonEndNode = state.nodes.filter(n => n.type !== 'end').pop();
-                const x = lastNonEndNode ? lastNonEndNode.x + 200 : 300;
-                const y = lastNonEndNode ? lastNonEndNode.y : 300;
-                const node = createNode('condition', x, y, { expression: 'output.success == true' });
-                if (lastNonEndNode) createEdge(lastNonEndNode.id, node.id);
-                addedCount++;
-                description += '• 조건(Condition) 노드 추가됨\n';
-            }
-            if (keywords.includes('에이전트') || keywords.includes('agent')) {
-                const agents = state.availableAgents[state.pipelineContext] || [];
-                const agent = agents[0] || { id: 'market_scout', name: 'Market Scout', icon: 'search' };
-                const lastNonEndNode = state.nodes.filter(n => n.type !== 'end').pop();
-                const x = lastNonEndNode ? lastNonEndNode.x + 200 : 300;
-                const y = lastNonEndNode ? lastNonEndNode.y : 300;
-                const node = createNode('agent', x, y, {
-                    agentId: agent.id,
-                    name: agent.name,
-                    icon: agent.icon
+        if (isAdd || keywords.length > 5) {
+            // 1. Detect target node if mentioned ("~에", "~로", "~다음에")
+            let targetNode = null;
+            if (keywords.includes('시작') || keywords.includes('start')) {
+                targetNode = state.nodes.find(n => n.type === 'start');
+            } else {
+                // Try to find mentioned node name
+                state.nodes.forEach(n => {
+                    const nName = (n.data.name || '').toLowerCase();
+                    if (nName && nName.length > 1 && keywords.includes(nName)) {
+                        targetNode = n;
+                    }
                 });
-                if (lastNonEndNode) createEdge(lastNonEndNode.id, node.id);
-                addedCount++;
-                description += `• ${agent.name} 에이전트 추가됨\n`;
             }
-            if (keywords.includes('병렬') || keywords.includes('parallel')) {
-                const lastNonEndNode = state.nodes.filter(n => n.type !== 'end').pop();
-                const x = lastNonEndNode ? lastNonEndNode.x + 200 : 300;
-                const y = lastNonEndNode ? lastNonEndNode.y : 300;
-                const node = createNode('parallel', x, y, {});
-                if (lastNonEndNode) createEdge(lastNonEndNode.id, node.id);
-                addedCount++;
-                description += '• 병렬(Parallel) 노드 추가됨\n';
-            }
-            if (keywords.includes('input') || keywords.includes('정보') || keywords.includes('입력') || keywords.includes('브리프') || keywords.includes('brief') || keywords.includes('지식') || keywords.includes('hub')) {
-                const lastNonEndNode = state.nodes.filter(n => n.type !== 'end').pop();
-                const x = (lastNonEndNode ? lastNonEndNode.x : 100) + 180;
-                const y = lastNonEndNode ? lastNonEndNode.y : 300;
 
+            // 2. Determine node type to create
+            let newNodeType = null;
+            let newNodeProps = {};
+
+            if (keywords.includes('input') || keywords.includes('정보') || keywords.includes('입력') || keywords.includes('브리프') || keywords.includes('brief') || keywords.includes('지식')) {
+                newNodeType = 'input';
                 let inputType = 'knowledge_hub';
                 let inputName = 'Knowledge Hub';
                 if (keywords.includes('브리프') || keywords.includes('brief')) {
@@ -803,52 +786,60 @@ window.WorkflowCanvas = (function () {
                     inputType = 'brand_brain';
                     inputName = 'Brand Brain';
                 }
-
-                const node = createNode('input', x, y, {
-                    inputSource: inputType,
-                    name: inputName
-                });
-
-                // If user specifies "after start" or "at start"
-                if (keywords.includes('start') || keywords.includes('시작')) {
-                    const startNode = state.nodes.find(n => n.type === 'start');
-                    if (startNode) {
-                        createEdge(startNode.id, node.id);
-                        description += `• START 노드 다음에 ${inputName} (Input) 노드 추가됨\n`;
-                    }
-                } else {
-                    if (lastNonEndNode) createEdge(lastNonEndNode.id, node.id);
-                    description += `• ${inputName} (Input) 노드 추가됨\n`;
-                }
-                addedCount++;
+                newNodeProps = { inputSource: inputType, name: inputName };
+            } else if (keywords.includes('조건') || keywords.includes('분기')) {
+                newNodeType = 'condition';
+                newNodeProps = { expression: 'output.success == true' };
+            } else if (keywords.includes('에이전트')) {
+                newNodeType = 'agent';
+                const agents = state.availableAgents[state.pipelineContext] || [];
+                const agent = agents[0] || { id: 'market_scout', name: 'Market Scout', icon: 'search' };
+                newNodeProps = { agentId: agent.id, name: agent.name, icon: agent.icon };
+            } else if (keywords.includes('병렬') && !keywords.includes('전달')) {
+                // Only create PARALLEL node if it's explicitly asked as a node, not a connection style
+                newNodeType = 'parallel';
             }
-        }
 
-        if (isRemove) {
-            // Remove last non-start/end node
-            const removableNodes = state.nodes.filter(n => n.type !== 'start' && n.type !== 'end');
-            if (removableNodes.length > 0) {
-                const nodeToRemove = removableNodes[removableNodes.length - 1];
-                // Remove edges connected to this node
-                state.edges = state.edges.filter(e => e.source !== nodeToRemove.id && e.target !== nodeToRemove.id);
-                // Remove node
-                state.nodes = state.nodes.filter(n => n.id !== nodeToRemove.id);
-                // Remove from DOM
-                const el = document.getElementById(nodeToRemove.id);
-                if (el) el.remove();
-                removedCount++;
-                description += `• "${nodeToRemove.properties?.name || nodeToRemove.type}" 노드 삭제됨\n`;
+            if (newNodeType) {
+                // Calculate position based on target
+                const refNode = targetNode || state.nodes.filter(n => n.type !== 'end').pop();
+                const x = refNode ? refNode.x + 200 : 300;
+                const y = refNode ? refNode.y : 300;
+
+                const node = createNode(newNodeType, x, y, newNodeProps);
+                addedCount++;
+
+                // Handle connections
+                if (targetNode) {
+                    createEdge(targetNode.id, node.id);
+                    description += `• ${targetNode.data.name || targetNode.type} 노드 다음에 ${newNodeProps.name || newNodeType} 추가됨\n`;
+                } else {
+                    const lastNode = state.nodes.filter(n => n.id !== node.id && n.type !== 'end').pop();
+                    if (lastNode) createEdge(lastNode.id, node.id);
+                    description += `• ${newNodeProps.name || newNodeType} 노드 추가됨\n`;
+                }
+
+                // 3. Special: Check destination ("~로 전달")
+                const toIndex = keywords.indexOf('전달');
+                if (toIndex > 0) {
+                    const destPart = keywords.substring(0, toIndex);
+                    state.nodes.forEach(n => {
+                        const nName = (n.data.name || '').toLowerCase();
+                        if (nName && nName.length > 1 && destPart.includes(nName)) {
+                            createEdge(node.id, n.id);
+                            description += `• ${newNodeProps.name || newNodeType} → ${n.data.name} 연결 추가됨\n`;
+                        }
+                    });
+                }
             }
         }
 
         if (addedCount === 0 && removedCount === 0) {
-            description = '요청을 이해했으나 구체적인 노드 타입을 명시해주세요.\n예: "조건 노드 추가해줘", "마지막 에이전트 삭제해줘"';
+            description = '요청을 분석했으나 명확한 실행 동작을 결정하지 못했습니다. 좀 더 구체적인 노드 명칭을 사용해주세요.';
         }
 
         return {
             success: addedCount > 0 || removedCount > 0,
-            addedCount,
-            removedCount,
             description: description.trim()
         };
     }
