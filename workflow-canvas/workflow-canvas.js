@@ -2458,6 +2458,332 @@ window.WorkflowCanvas = (function () {
         return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
+    /**
+     * Test a single node (Unit Test)
+     * Executes the selected node independently and displays results
+     */
+    async function testNode() {
+        const node = state.nodes.find(n => n.id === state.selectedNodeId);
+        if (!node) {
+            notify('테스트할 노드를 선택해주세요.', 'error');
+            return;
+        }
+
+        // UI - Set loading state
+        const btn = document.getElementById('wf-test-node-btn');
+        const hint = document.getElementById('wf-test-node-hint');
+        btn.classList.add('loading');
+        btn.classList.remove('success', 'error');
+        hint.textContent = '실행 중...';
+
+        console.log(`[WorkflowCanvas] Testing node: ${node.id} (${node.type})`);
+
+        try {
+            let result;
+            const startTime = Date.now();
+
+            switch (node.type) {
+                case 'start':
+                    result = await testStartNode(node);
+                    break;
+                case 'agent':
+                    result = await testAgentNode(node);
+                    break;
+                case 'input':
+                    result = await testInputNode(node);
+                    break;
+                case 'firestore':
+                    result = await testFirestoreNode(node);
+                    break;
+                case 'transform':
+                    result = await testTransformNode(node);
+                    break;
+                case 'condition':
+                    result = await testConditionNode(node);
+                    break;
+                case 'parallel':
+                    result = { success: true, output: { message: 'Parallel node requires full workflow execution' } };
+                    break;
+                case 'end':
+                    result = { success: true, output: { message: 'End node - workflow complete' } };
+                    break;
+                default:
+                    result = { success: false, error: `Unsupported node type: ${node.type}` };
+            }
+
+            const duration = Date.now() - startTime;
+
+            // Update node with output data
+            node.data.outputData = result.output || result.error;
+            node.data.executionStatus = result.success ? 'success' : 'error';
+            node.data.executedAt = new Date().toISOString();
+            node.data.executionDuration = duration;
+
+            // UI - Show result in Output Data section
+            showNodeOutputData(node);
+
+            // UI - Update button state
+            btn.classList.remove('loading');
+            btn.classList.add(result.success ? 'success' : 'error');
+            hint.textContent = result.success
+                ? `✓ 완료 (${duration}ms)`
+                : `✗ 오류: ${result.error || 'Unknown error'}`;
+
+            // Re-render node to show status indicator
+            renderNodeStatus(node.id, result.success ? 'success' : 'error');
+
+            notify(result.success ? '노드 테스트 완료!' : '노드 테스트 실패', result.success ? 'success' : 'error');
+
+        } catch (error) {
+            console.error('[WorkflowCanvas] Test failed:', error);
+
+            node.data.outputData = { error: error.message };
+            node.data.executionStatus = 'error';
+            node.data.executedAt = new Date().toISOString();
+
+            showNodeOutputData(node);
+
+            btn.classList.remove('loading');
+            btn.classList.add('error');
+            hint.textContent = `✗ 오류: ${error.message}`;
+
+            notify('노드 테스트 실패: ' + error.message, 'error');
+        }
+    }
+
+    /**
+     * Test Agent Node - Call Cloud Function
+     */
+    async function testAgentNode(node) {
+        const agentId = node.data.agentId;
+        if (!agentId) {
+            return { success: false, error: 'Agent not selected' };
+        }
+
+        // Build context from previous nodes (mock for now)
+        const previousOutputs = getPreviousNodeOutputs(node.id);
+
+        // Get project context
+        const projectId = state.pipelineContext || 'test-project';
+        const runId = `test_${Date.now()}`;
+
+        console.log(`[testAgentNode] Calling executeSubAgent for: ${agentId}`);
+
+        // Call Cloud Function
+        const executeSubAgent = firebase.functions().httpsCallable('executeSubAgent');
+        const response = await executeSubAgent({
+            projectId,
+            teamId: 'test-team',
+            runId,
+            subAgentId: agentId,
+            systemPrompt: node.data.systemPrompt || `You are ${node.data.name || agentId}.`,
+            taskPrompt: node.data.taskPrompt || `Execute the task for ${node.data.name || agentId}.`,
+            previousOutputs,
+            provider: getProviderFromModel(node.data.model),
+            model: node.data.model || 'gpt-4o',
+            temperature: node.data.temperature || 0.7
+        });
+
+        if (response.data && response.data.success) {
+            return {
+                success: true,
+                output: {
+                    response: response.data.output,
+                    model: response.data.model,
+                    usage: response.data.usage,
+                    metadata: response.data.metadata
+                }
+            };
+        } else {
+            return { success: false, error: response.data?.error || 'Unknown error from Cloud Function' };
+        }
+    }
+
+    /**
+     * Test Start Node
+     */
+    async function testStartNode(node) {
+        return {
+            success: true,
+            output: {
+                message: 'Workflow started',
+                triggerType: node.data.triggerConfig?.type || 'manual',
+                timestamp: new Date().toISOString()
+            }
+        };
+    }
+
+    /**
+     * Test Input Node
+     */
+    async function testInputNode(node) {
+        const source = node.data.inputSource;
+        let data = null;
+
+        switch (source) {
+            case 'knowledgeHub':
+                // Query Knowledge Hub
+                const khStatus = node.data.khStatus || 'active';
+                data = { source: 'Knowledge Hub', filter: khStatus, items: ['Document 1', 'Document 2'] };
+                break;
+            case 'firestoreQuery':
+                const collection = node.data.fsCollection || 'projects';
+                data = { source: 'Firestore', collection, sampleData: { id: 'doc1', name: 'Sample' } };
+                break;
+            case 'manualJson':
+                try {
+                    data = JSON.parse(node.data.manualJson || '{}');
+                } catch (e) {
+                    return { success: false, error: 'Invalid JSON: ' + e.message };
+                }
+                break;
+            default:
+                data = { source: source || 'unknown', message: 'Input source not configured' };
+        }
+
+        return { success: true, output: data };
+    }
+
+    /**
+     * Test Firestore Node
+     */
+    async function testFirestoreNode(node) {
+        const operation = node.data.fsOperation || 'read';
+        const collection = node.data.fsCollection;
+
+        if (!collection) {
+            return { success: false, error: 'Collection path not specified' };
+        }
+
+        return {
+            success: true,
+            output: {
+                operation,
+                collection,
+                message: `Firestore ${operation} operation ready`,
+                mockData: operation === 'read' ? [{ id: 'doc1', data: 'sample' }] : { written: true }
+            }
+        };
+    }
+
+    /**
+     * Test Transform Node
+     */
+    async function testTransformNode(node) {
+        const transformType = node.data.transformType || 'filter';
+        const mockInput = [{ id: 1, value: 10 }, { id: 2, value: 20 }, { id: 3, value: 5 }];
+
+        let output;
+        switch (transformType) {
+            case 'filter':
+                output = mockInput.filter(item => item.value > 5);
+                break;
+            case 'map':
+                output = mockInput.map(item => ({ ...item, doubled: item.value * 2 }));
+                break;
+            case 'reduce':
+                output = { sum: mockInput.reduce((acc, item) => acc + item.value, 0) };
+                break;
+            case 'sort':
+                output = [...mockInput].sort((a, b) => b.value - a.value);
+                break;
+            case 'slice':
+                output = mockInput.slice(0, node.data.sliceN || 2);
+                break;
+            default:
+                output = mockInput;
+        }
+
+        return {
+            success: true,
+            output: {
+                transformType,
+                input: mockInput,
+                result: output
+            }
+        };
+    }
+
+    /**
+     * Test Condition Node
+     */
+    async function testConditionNode(node) {
+        const expression = node.data.expression || 'true';
+
+        // Mock evaluation
+        const mockContext = { output: { success: true, value: 100 } };
+        let result;
+
+        try {
+            // Simple evaluation (for testing purposes)
+            result = expression.includes('true') || expression.includes('success');
+        } catch (e) {
+            result = false;
+        }
+
+        return {
+            success: true,
+            output: {
+                expression,
+                evaluatedTo: result,
+                branch: result ? 'TRUE' : 'FALSE'
+            }
+        };
+    }
+
+    /**
+     * Get outputs from previous nodes (for context)
+     */
+    function getPreviousNodeOutputs(nodeId) {
+        const incomingEdges = state.edges.filter(e => e.target === nodeId);
+        const outputs = [];
+
+        incomingEdges.forEach(edge => {
+            const sourceNode = state.nodes.find(n => n.id === edge.source);
+            if (sourceNode && sourceNode.data.outputData) {
+                outputs.push({
+                    nodeId: sourceNode.id,
+                    role: sourceNode.data.name || sourceNode.type,
+                    content: JSON.stringify(sourceNode.data.outputData)
+                });
+            }
+        });
+
+        return outputs;
+    }
+
+    /**
+     * Extract provider from model name
+     */
+    function getProviderFromModel(model) {
+        if (!model) return 'openai';
+        if (model.includes('gpt')) return 'openai';
+        if (model.includes('gemini')) return 'google';
+        if (model.includes('claude')) return 'anthropic';
+        if (model.includes('deepseek')) return 'deepseek';
+        return 'openai';
+    }
+
+    /**
+     * Render node status indicator (success/error badge)
+     */
+    function renderNodeStatus(nodeId, status) {
+        const nodeEl = document.getElementById(nodeId);
+        if (!nodeEl) return;
+
+        // Remove existing status
+        nodeEl.classList.remove('wf-node-success', 'wf-node-error', 'wf-node-running');
+
+        // Add new status
+        if (status === 'success') {
+            nodeEl.classList.add('wf-node-success');
+        } else if (status === 'error') {
+            nodeEl.classList.add('wf-node-error');
+        } else if (status === 'running') {
+            nodeEl.classList.add('wf-node-running');
+        }
+    }
+
     function updateOutputUI(dest) {
         document.getElementById('wf-output-studio-options').style.display = dest === 'studio' ? 'block' : 'none';
         document.getElementById('wf-output-firestore-options').style.display = dest === 'firestore' ? 'block' : 'none';
@@ -3747,6 +4073,9 @@ window.WorkflowCanvas = (function () {
 
         // Output Data Viewer
         expandOutputData,
+
+        // Node Testing
+        testNode,
 
         // Expose state for debugging
         getState: () => state
