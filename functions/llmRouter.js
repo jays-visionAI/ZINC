@@ -209,7 +209,7 @@ class LLMRouter {
             routing: {
                 feature,
                 engineType,
-                runtimeProfileId,
+                ...(runtimeProfileId ? { runtimeProfileId } : {}),
                 provider,
                 model: finalModel,
                 creditMultiplier,
