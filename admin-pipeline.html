@@ -1284,6 +1284,18 @@
         border-color: rgba(255, 255, 255, 0.3);
         color: #fff;
     }
+
+    .workflow-card-action.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+
+    .workflow-card-status.active {
+        background: linear-gradient(135deg, rgba(22, 224, 189, 0.2) 0%, rgba(22, 224, 189, 0.1) 100%);
+        color: #16e0bd;
+        border: 1px solid rgba(22, 224, 189, 0.3);
+    }
 </style>
 
 <!-- Pre-define global function before WorkflowCanvas loads -->
@@ -1570,3 +1582,6 @@
         loadAllPipelineWorkflows();
     }
 </script>
+<script src="/scripts/seed-pro-workflows.js"></script>
+<script src="/scripts/seed-knowledge-workflow.js"></script>
+<script src="/scripts/seed-onepager-workflow.js"></script>

@@ -107,6 +107,8 @@ window.WorkflowCanvas = (function () {
                 { id: 'claude-3-haiku', name: 'Claude 3 Haiku', provider: 'anthropic', tier: 'economy', description: 'Fast responses' },
                 { id: 'deepseek-reasoner', name: 'DeepSeek R1', provider: 'deepseek', tier: 'premium', description: 'Advanced reasoning' },
                 { id: 'deepseek-chat', name: 'DeepSeek Chat', provider: 'deepseek', tier: 'economy', description: 'Cost-effective' },
+                { id: 'deepseek-v3.2', name: 'DeepSeek V3.2', provider: 'deepseek', tier: 'standard', description: 'Latest V3 model' },
+                { id: 'deepseek-v3.2-speciale', name: 'DeepSeek V3.2 Speciale', provider: 'deepseek', tier: 'premium', description: 'Enhanced V3 with special capabilities' },
                 { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'google', tier: 'standard', description: 'Multimodal capable' }
             ],
             image: [
@@ -181,7 +183,7 @@ window.WorkflowCanvas = (function () {
     // Initialization
     // ============================================
     async function init() {
-        console.log('%c[WorkflowCanvas] Loaded v20260108_34', 'color: #00ff00; font-weight: bold;');
+        console.log('%c[WorkflowCanvas] Loaded v20260108_37', 'color: #00ff00; font-weight: bold;');
         // Load HTML template if not already present
         if (!document.getElementById('workflow-canvas-modal')) {
             await loadTemplate();
@@ -262,7 +264,12 @@ window.WorkflowCanvas = (function () {
     async function syncAgentsWithRegistry() {
         try {
             console.log('[WorkflowCanvas] Syncing agents with Firestore Registry...');
-            const snap = await db.collection('agentRegistry').where('status', '==', 'active').get();
+            const firestore = window.db || (typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null);
+            if (!firestore) {
+                console.warn('[WorkflowCanvas] Firestore (db) not initialized yet. Skipping sync.');
+                return;
+            }
+            const snap = await firestore.collection('agentRegistry').where('status', '==', 'active').get();
             const allAgents = [];
             snap.forEach(doc => allAgents.push({ id: doc.id, ...doc.data() }));
 
@@ -1504,15 +1511,32 @@ window.WorkflowCanvas = (function () {
                 break;
 
             case 'input':
+            case 'knowledge_hub':
+            case 'project_brief':
+            case 'brand_brain':
                 el.classList.add('wf-node-data');
+                let dataIcon = SVG_ICONS.upload;
+                let dataTag = node.data.inputSource || 'Select Source';
+
+                if (node.type === 'knowledge_hub') {
+                    dataIcon = SVG_ICONS.database;
+                    dataTag = 'Knowledge Hub';
+                } else if (node.type === 'project_brief') {
+                    dataIcon = SVG_ICONS.document;
+                    dataTag = 'Project Brief';
+                } else if (node.type === 'brand_brain') {
+                    dataIcon = SVG_ICONS.brain;
+                    dataTag = 'Brand Brain';
+                }
+
                 el.innerHTML = `
-        <div class="wf-node-data-inner wf-node-input">
+        <div class="wf-node-data-inner wf-node-${node.type === 'input' ? 'input' : 'datasource'}">
             <div class="wf-node-data-header">
-                <span class="wf-node-data-icon">${SVG_ICONS.upload}</span>
-                <span class="wf-node-data-name">${node.data.name || 'Data Input'}</span>
+                <span class="wf-node-data-icon">${dataIcon}</span>
+                <span class="wf-node-data-name">${node.data.name || node.data.label || 'Data Input'}</span>
             </div>
             <div class="wf-node-data-body">
-                <span class="wf-node-data-tag">${node.data.inputSource || 'Select Source'}</span>
+                <span class="wf-node-data-tag">${dataTag}</span>
             </div>
         </div>
         <div class="wf-port wf-port-input" data-node-id="${node.id}" data-port-type="input"></div>
@@ -1563,9 +1587,18 @@ window.WorkflowCanvas = (function () {
         el.addEventListener('click', (e) => {
             e.stopPropagation();
 
-            // Handle Start node click for testing
+            // Handle Start node click for real execution or simulation
             if (node.type === 'start' && !state.isTesting) {
-                runWorkflowTest();
+                // If project is selected, we can run actual engine
+                if (state.projectId) {
+                    if (confirm('실제 프로젝트 데이터를 사용하여 워크플로우를 실행하시겠습니까? (결과가 DB에 반영됩니다)')) {
+                        saveAndRun();
+                    } else {
+                        runWorkflowTest();
+                    }
+                } else {
+                    runWorkflowTest();
+                }
                 return;
             }
             selectNode(node.id);
@@ -2707,19 +2740,28 @@ window.WorkflowCanvas = (function () {
                     const targetId = (state.projectId && state.projectId !== '') ? state.projectId : state.pipelineContext;
                     const isReserved = ['market', 'brand', 'knowledge', 'studio', 'growth', 'all'].includes(targetId);
 
-                    if (targetId && !isReserved && typeof db !== 'undefined') {
-                        const snapshot = await db.collection('knowledgeHub')
-                            .where('projectId', '==', targetId)
-                            .where('status', '==', khStatus)
+                    const firestore = window.db || (typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null);
+                    if (targetId && !isReserved && firestore) {
+                        // Correct path is projects/{id}/knowledgeSources
+                        const snapshot = await firestore.collection('projects').doc(targetId)
+                            .collection('knowledgeSources')
                             .get();
 
                         const items = [];
-                        snapshot.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
+                        snapshot.forEach(doc => {
+                            const d = doc.data();
+                            // Filter by status if needed
+                            if (khStatus === 'active' && d.isActive === false) return;
+                            if (khStatus === 'completed' && d.status !== 'completed') return;
+                            items.push({ id: doc.id, ...d });
+                        });
+
                         data = {
                             source: 'Knowledge Hub',
                             filter: khStatus,
                             count: items.length,
-                            items: items.map(i => ({ id: i.id, title: i.title || i.name || 'Untitled' }))
+                            items: items.map(i => ({ id: i.id, title: i.title || i.name || 'Untitled' })),
+                            rawText: items.map(i => `Title: ${i.title}\nContent: ${i.summary || i.content || i.description}`).join('\n\n')
                         };
                     } else {
                         data = {
@@ -2740,8 +2782,9 @@ window.WorkflowCanvas = (function () {
                     const targetId = (state.projectId && state.projectId !== '') ? state.projectId : state.pipelineContext;
                     const isReserved = ['market', 'brand', 'knowledge', 'studio', 'growth', 'all'].includes(targetId);
 
-                    if (targetId && !isReserved && typeof db !== 'undefined') {
-                        const projectDoc = await db.collection('projects').doc(targetId).get();
+                    const firestore = window.db || (typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null);
+                    if (targetId && !isReserved && firestore) {
+                        const projectDoc = await firestore.collection('projects').doc(targetId).get();
                         if (projectDoc.exists) {
                             const p = projectDoc.data();
                             data = {
@@ -2768,8 +2811,9 @@ window.WorkflowCanvas = (function () {
                     const targetId = (state.projectId && state.projectId !== '') ? state.projectId : state.pipelineContext;
                     const isReserved = ['market', 'brand', 'knowledge', 'studio', 'growth', 'all'].includes(targetId);
 
-                    if (targetId && !isReserved && typeof db !== 'undefined') {
-                        const brandDoc = await db.collection('brandBrain').doc(targetId).get();
+                    const firestore = window.db || (typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null);
+                    if (targetId && !isReserved && firestore) {
+                        const brandDoc = await firestore.collection('brandBrain').doc(targetId).get();
                         if (brandDoc.exists) {
                             data = { source: 'Brand Brain', ...brandDoc.data() };
                         } else {
@@ -2789,8 +2833,9 @@ window.WorkflowCanvas = (function () {
                     return { success: false, error: 'Firestore Collection 경로가 지정되지 않았습니다.' };
                 }
                 try {
-                    if (typeof db !== 'undefined') {
-                        const snapshot = await db.collection(collection).limit(5).get();
+                    const firestore = window.db || (typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null);
+                    if (firestore) {
+                        const snapshot = await firestore.collection(collection).limit(5).get();
                         const items = [];
                         snapshot.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
                         data = { source: 'Firestore Query', collection, count: items.length, items };
@@ -3946,20 +3991,76 @@ window.WorkflowCanvas = (function () {
             .replace(/"/g, '&quot;');
     }
 
+    // Name modal state
+    let nameModalResolve = null;
+
+    function showNameModal() {
+        return new Promise((resolve) => {
+            nameModalResolve = resolve;
+            const modal = document.getElementById('wf-name-modal');
+            const input = document.getElementById('wf-name-input');
+            if (modal && input) {
+                input.value = state.name || 'My Workflow';
+                modal.style.display = 'flex';
+                setTimeout(() => input.focus(), 100);
+                input.onkeydown = (e) => {
+                    if (e.key === 'Enter') confirmNameModal();
+                    if (e.key === 'Escape') cancelNameModal();
+                };
+            } else {
+                // Fallback to prompt if modal not found
+                const name = prompt('워크플로우 이름을 입력하세요:', 'My Workflow');
+                resolve(name);
+            }
+        });
+    }
+
+    function confirmNameModal() {
+        const modal = document.getElementById('wf-name-modal');
+        const input = document.getElementById('wf-name-input');
+        if (modal) modal.style.display = 'none';
+        if (nameModalResolve) {
+            nameModalResolve(input?.value || null);
+            nameModalResolve = null;
+        }
+    }
+
+    function cancelNameModal() {
+        const modal = document.getElementById('wf-name-modal');
+        if (modal) modal.style.display = 'none';
+        if (nameModalResolve) {
+            nameModalResolve(null);
+            nameModalResolve = null;
+        }
+    }
+
     // ============================================
     // Save Operations
     // ============================================
     async function saveAsDraft() {
+        console.log('[WorkflowCanvas] saveAsDraft called');
+
         if (!state.nodes.length) {
             alert('저장할 워크플로우가 없습니다.');
             return;
         }
 
-        // Only prompt for name if it doesn't exist
+        // Always prompt for name if it's a new workflow (no workflowId)
         let workflowName = state.name;
-        if (!workflowName) {
-            workflowName = prompt('워크플로우 이름을 입력하세요:', 'My Workflow');
-            if (!workflowName) return;
+        console.log('[WorkflowCanvas] Current name:', workflowName, 'workflowId:', state.workflowId);
+
+        if (!workflowName || !state.workflowId) {
+            console.log('[WorkflowCanvas] Showing name modal...');
+            try {
+                workflowName = await showNameModal();
+                console.log('[WorkflowCanvas] Modal returned:', workflowName);
+            } catch (e) {
+                console.error('[WorkflowCanvas] Modal error:', e);
+            }
+            if (!workflowName) {
+                console.log('[WorkflowCanvas] No name provided, cancelling save');
+                return;
+            }
             state.name = workflowName;
         }
 
@@ -3993,7 +4094,6 @@ window.WorkflowCanvas = (function () {
             trigger: state.nodes.find(n => n.type === 'start')?.data.triggerConfig || { type: 'manual' },
             temperature: parseFloat(avgTemp.toFixed(2)),
             agentCount: agentCount,
-            contentCount: 0,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
@@ -4011,6 +4111,7 @@ window.WorkflowCanvas = (function () {
             } else {
                 // Create new
                 workflowData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                workflowData.contentCount = 0; // Initialize counter
                 const docRef = await db.collection('workflowDefinitions').add(workflowData);
                 state.workflowId = docRef.id;
                 console.log('[WorkflowCanvas] Created new workflow:', docRef.id, 'with context:', state.pipelineContext);
@@ -4110,6 +4211,16 @@ window.WorkflowCanvas = (function () {
                         break;
                     case 'input':
                         result = await testInputNode(node);
+                        break;
+                    case 'knowledge_hub':
+                        // Map to testInputNode but force the source
+                        result = await testInputNode({ ...node, data: { ...node.data, inputSource: 'knowledge_hub' } });
+                        break;
+                    case 'project_brief':
+                        result = await testInputNode({ ...node, data: { ...node.data, inputSource: 'project_brief' } });
+                        break;
+                    case 'brand_brain':
+                        result = await testInputNode({ ...node, data: { ...node.data, inputSource: 'brand_brain' } });
                         break;
                     case 'firestore':
                         result = await testFirestoreNode(node);
@@ -4625,10 +4736,11 @@ window.WorkflowCanvas = (function () {
      */
     async function loadProjectList() {
         const select = document.getElementById('wf-project-select');
-        if (!select || typeof db === 'undefined') return;
+        const firestore = window.db || (typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null);
+        if (!select || !firestore) return;
 
         try {
-            const snapshot = await db.collection('projects')
+            const snapshot = await firestore.collection('projects')
                 .orderBy('updatedAt', 'desc')
                 .limit(20)
                 .get();
@@ -4706,6 +4818,10 @@ window.WorkflowCanvas = (function () {
 
         // Node Testing
         testNode,
+
+        // Name Modal Handlers
+        confirmNameModal,
+        cancelNameModal,
 
         // Expose state for debugging
         getState: () => state,

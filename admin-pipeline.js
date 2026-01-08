@@ -110,6 +110,26 @@ function filterWorkflowsByCategory(context, category) {
     // Update count display for the filtered view if needed, or handled by visibility
 }
 
+// Unified Seeding Function for UI
+window.seedProWorkflows = async function () {
+    try {
+        if (typeof seedProWorkflowsSet === 'function') await seedProWorkflowsSet();
+        if (typeof seedKnowledgeWorkflow === 'function') await seedKnowledgeWorkflow();
+        if (typeof seedOnePagerWorkflow === 'function') await seedOnePagerWorkflow();
+
+        showNotification('Professional workflows have been seeded successfully!', 'success');
+
+        // Refresh all lists
+        const contexts = ['market', 'brand', 'knowledge', 'studio', 'growth'];
+        for (const context of contexts) {
+            await loadPipelineWorkflows(context);
+        }
+    } catch (err) {
+        console.error('Seeding failed:', err);
+        showNotification('Failed to seed workflows: ' + err.message, 'error');
+    }
+};
+
 function renderWorkflowCards(context, workflows) {
     const container = document.getElementById(`workflow-cards-${context}`);
     const countEl = document.getElementById(`workflow-count-${context}`);
@@ -136,7 +156,7 @@ function renderWorkflowCards(context, workflows) {
         <div class="workflow-card" data-workflow-id="${wf.id}" data-category="${wf.category || '기타'}">
             <div class="workflow-card-header">
                 <div class="workflow-card-badges">
-                    <span class="workflow-card-status ${wf.status || 'draft'}">${wf.status || 'Draft'}</span>
+                    <span class="workflow-card-status ${wf.status || 'draft'}">${wf.status === 'active' ? 'ACTIVE' : (wf.status || 'DRAFT').toUpperCase()}</span>
                     ${wf.category ? `<span class="workflow-card-category-badge">${wf.category}</span>` : ''}
                 </div>
                 <div class="workflow-card-header-actions">
@@ -183,7 +203,7 @@ function renderWorkflowCards(context, workflows) {
                 </div>
             </div>
             <div class="workflow-card-actions">
-                <button class="workflow-card-action primary" onclick="runWorkflow('${wf.id}')">
+                <button class="workflow-card-action primary ${!pipelineGlobalProjectId ? 'disabled' : ''}" onclick="runWorkflow('${wf.id}')" ${!pipelineGlobalProjectId ? 'title="테스트 프로젝트를 먼저 선택하세요"' : ''}>
                     <span>▶</span>
                     <span>실행</span>
                 </button>
@@ -221,9 +241,51 @@ window.openWorkflowCanvas = function (context) {
     }
 };
 
-window.runWorkflow = function (workflowId) {
-    console.log('Running workflow:', workflowId);
-    alert('워크플로우 실행 기능은 곧 제공될 예정입니다.');
+window.runWorkflow = async function (workflowId) {
+    if (!pipelineGlobalProjectId) {
+        showNotification('워크플로우를 실행할 테스트 프로젝트를 먼저 선택해주세요.', 'warning');
+        return;
+    }
+
+    try {
+        showNotification('🚀 워크플로우 실행을 준비 중...', 'info');
+        console.log('[Pipeline] Running workflow:', workflowId, 'for project:', pipelineGlobalProjectId);
+
+        if (typeof WorkflowEngine === 'undefined') {
+            throw new Error('WorkflowEngine이 로드되지 않았습니다.');
+        }
+
+        // Fetch project context first
+        const db = firebase.firestore();
+        const projectDoc = await db.collection('projects').doc(pipelineGlobalProjectId).get();
+        if (!projectDoc.exists) throw new Error('프로젝트를 찾을 수 없습니다.');
+
+        const projectContext = { id: projectDoc.id, ...projectDoc.data() };
+
+        showNotification('🤖 AI 분석 에이전트 가동 중...', 'info');
+
+        const { outputs, workflowId: executedWfId } = await WorkflowEngine.executeById(workflowId, projectContext);
+        console.log('[Pipeline] Execution Results:', outputs);
+
+        // Increment content count
+        await WorkflowEngine.incrementContentCount(workflowId);
+
+        showNotification('✨ 워크플로우 실행 성공!', 'success');
+
+        // Refresh the cards to show updated counts
+        const workflowDoc = await db.collection('workflowDefinitions').doc(workflowId).get();
+        if (workflowDoc.exists) {
+            const wfData = workflowDoc.data();
+            refreshPipelineWorkflows(wfData.pipelineContext);
+        }
+
+        // If results contain a summary, we might want to alert or show it
+        // For now, just success notification is enough as it updates DB
+
+    } catch (err) {
+        console.error('[Pipeline] Execution failed:', err);
+        showNotification('❌ 실행 실패: ' + err.message, 'error');
+    }
 };
 
 window.editWorkflow = function (workflowId, context) {
@@ -236,22 +298,50 @@ window.editWorkflow = function (workflowId, context) {
     }
 };
 
+// Delete modal state
+let deleteModalResolve = null;
+let pendingDeleteData = null;
+
+window.showDeleteModal = function (workflowName) {
+    return new Promise((resolve) => {
+        deleteModalResolve = resolve;
+        const modal = document.getElementById('wf-delete-modal');
+        const nameEl = document.getElementById('delete-workflow-name');
+        if (modal && nameEl) {
+            nameEl.textContent = workflowName;
+            modal.style.display = 'flex';
+        } else {
+            // Fallback
+            resolve(confirm(`정말로 "${workflowName}" 워크플로우를 삭제하시겠습니까?`));
+        }
+    });
+};
+
+window.confirmDeleteModal = function () {
+    const modal = document.getElementById('wf-delete-modal');
+    if (modal) modal.style.display = 'none';
+    if (deleteModalResolve) {
+        deleteModalResolve(true);
+        deleteModalResolve = null;
+    }
+};
+
+window.cancelDeleteModal = function () {
+    const modal = document.getElementById('wf-delete-modal');
+    if (modal) modal.style.display = 'none';
+    if (deleteModalResolve) {
+        deleteModalResolve(false);
+        deleteModalResolve = null;
+    }
+};
+
 window.deleteWorkflow = async function (workflowId, workflowName, context) {
     console.log('Delete requested for workflow:', workflowId);
 
-    // 확인 절차 - 2단계 확인
-    const confirmed = confirm(`정말로 "${workflowName}" 워크플로우를 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.`);
+    const confirmed = await window.showDeleteModal(workflowName);
 
     if (!confirmed) {
         console.log('Delete cancelled by user');
-        return;
-    }
-
-    // 2차 확인 (실수 방지)
-    const doubleConfirmed = confirm(`삭제를 진행합니다.\n\n"${workflowName}" 워크플로우가 영구적으로 삭제됩니다.\n계속하시겠습니까?`);
-
-    if (!doubleConfirmed) {
-        console.log('Delete cancelled at second confirmation');
         return;
     }
 
@@ -261,14 +351,12 @@ window.deleteWorkflow = async function (workflowId, workflowName, context) {
 
         console.log('[Pipeline] Workflow deleted successfully:', workflowId);
 
-        // 알림 표시
         if (window.showNotification) {
             window.showNotification('워크플로우가 삭제되었습니다.', 'success');
         } else {
             alert('워크플로우가 삭제되었습니다.');
         }
 
-        // 목록 새로고침
         await loadPipelineWorkflows(context);
 
     } catch (err) {
@@ -712,4 +800,7 @@ window.updatePipelineGlobalProject = function (projectId) {
         badge.style.display = 'none';
         nameEl.textContent = 'No Project';
     }
+
+    // Refresh all cards to update run button state
+    loadAllPipelineWorkflows();
 };

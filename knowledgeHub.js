@@ -3077,33 +3077,51 @@ async function generateSummary() {
     const analysisLevel = document.getElementById('current-analysis-level')?.value || 'standard';
     const analysisFocus = document.getElementById('analysis-focus')?.value || 'general';
 
-    if (summaryTitle) summaryTitle.textContent = analysisLevel === 'depth' ? 'Generating Depth Report...' : 'Generating summary...';
-    if (summaryContent) summaryContent.textContent = 'Analyzing your documents...';
+    if (summaryTitle) summaryTitle.textContent = 'Executing Workflow...';
+    if (summaryContent) summaryContent.textContent = 'Running your custom brand intelligence workflow...';
     if (btnRegenerate) btnRegenerate.disabled = true;
 
     try {
-        // 0. Fetch Pipeline Settings from Firestore (via chatbotConfig workaround for rules)
-        console.log('[KnowledgeHub] Fetching Pipeline Settings...');
-        const settingsDoc = await db.collection('chatbotConfig').doc('pipeline_knowledge_hub').get();
-        const settings = settingsDoc.exists ? settingsDoc.data() : {};
+        console.log('[KnowledgeHub] Executing Workflow for Knowledge Hub...');
 
-        // Select Agent Config
-        const agentConfig = analysisLevel === 'depth' ? (settings.depth || {}) : (settings.standard || {});
+        // 1. Execute the workflow tagged for 'knowledge' context
+        // This will automatically pull the 'active' workflow for this step from the Admin-Pipeline
+        const projectContext = {
+            id: currentProjectId,
+            ...currentProject
+        };
 
-        // Finalize Prompts
-        let systemPrompt = agentConfig.systemPrompt || (analysisLevel === 'depth'
-            ? 'You are a Senior Strategic Brand Analyst. Generate a deep, A4-length report.'
-            : 'You are a Brand Intelligence AI. Generate a comprehensive brand summary.');
+        const { outputs, workflowId } = await WorkflowEngine.findAndExecuteByContext('knowledge', projectContext);
+        console.log('[KnowledgeHub] Workflow Execution Outputs:', outputs);
 
-        // Add focus if depth mode
-        if (analysisLevel === 'depth' && analysisFocus !== 'general') {
-            systemPrompt += `\n\n### FOCUS AREA: ${analysisFocus.toUpperCase()}\nPlease provide extra detail and strategic depth in this specific area while maintaining the overall report structure.`;
+        // Increment content count for the workflow
+        if (workflowId) {
+            WorkflowEngine.incrementContentCount(workflowId);
         }
 
-        // Prepare Context
-        // Calculate percentages
-        const totalPoints = activeSources.reduce((sum, s) => sum + (s.importance === 3 ? 3 : (s.importance === 1 ? 1 : 2)), 0);
+        // 2. Locate the primary analysis data from the workflow
+        // We look for a node that produced the summary/insights/questions structure
+        let parsedResult = null;
 
+        // Strategy: First look for a node named 'analyzer' (common in our templates)
+        // Then fallback to any node that has 'summary' in its output
+        if (outputs['analyzer']) {
+            parsedResult = outputs['analyzer'];
+        } else {
+            for (const nodeId in outputs) {
+                if (outputs[nodeId] && outputs[nodeId].summary) {
+                    parsedResult = outputs[nodeId];
+                    break;
+                }
+            }
+        }
+
+        if (!parsedResult) {
+            throw new Error('No summary output found in workflow results. Please check your workflow configuration.');
+        }
+
+        // 3. Keep Weight Distribution logic for UI consistency
+        const totalPoints = activeSources.reduce((sum, s) => sum + (s.importance === 3 ? 3 : (s.importance === 1 ? 1 : 2)), 0);
         const sourceWeights = activeSources.map(s => {
             const points = s.importance === 3 ? 3 : (s.importance === 1 ? 1 : 2);
             return {
@@ -3114,100 +3132,7 @@ async function generateSummary() {
             };
         });
 
-        // Determine Tier (Standard vs Boost)
-        const boostActiveEl = document.getElementById('main-summary-boost-active');
-        const boostActive = boostActiveEl ? boostActiveEl.value === 'true' : false;
-        const langLabels = {
-            'ko': 'Korean', 'en': 'English', 'zh': 'Chinese', 'hi': 'Hindi', 'es': 'Spanish',
-            'fr': 'French', 'ar': 'Arabic', 'bn': 'Bengali', 'ru': 'Russian', 'pt': 'Portuguese',
-            'ur': 'Urdu', 'id': 'Indonesian', 'de': 'German', 'ja': 'Japanese', 'vi': 'Vietnamese',
-            'tr': 'Turkish', 'it': 'Italian', 'th': 'Thai', 'tl': 'Tagalog', 'mr': 'Marathi',
-            'te': 'Telugu', 'ta': 'Tamil'
-        };
-        const labelText = langLabels[targetLanguage] || 'Default';
-
-        // Define qualityTier based on boost status
-        const qualityTier = boostActive ? 'boost' : 'standard';
-
-        const userPrompt = `Please analyze the following source documents and generate a comprehensive Brand Summary in ${labelText}.
-
-IMPORTANT: Generate a DETAILED summary with 3-4 paragraphs covering:
-1. Core business overview and mission
-2. Key products/services and unique value proposition  
-3. Market position and competitive advantages
-4. Strategic direction and growth opportunities
-
-Source Weights (Importance 1-3):
-${sourceWeights.map(s => `- ${s.title} (Importance: ${s.importance})`).join('\n')}
-
-Output Format (JSON):
-{
-    "summary": "A comprehensive 3-4 paragraph summary (minimum 300 words). Cover the full scope of the brand including mission, products, market position, and strategy. Be specific and insightful, not generic.",
-    "keyInsights": ["Insight 1 (specific and actionable)...", "Insight 2...", "Insight 3...", "Insight 4...", "Insight 5..."],
-    "suggestedQuestions": ["Question 1?", "Question 2?"],
-    "sourceNames": ["Source 1", "Source 2"]
-}
-
-Sources Content:
-${activeSources.map(s => `--- Source: ${s.title} ---\n${s.summary || s.content?.substring(0, 5000) || ''}`).join('\n\n')}`;
-
-        // Call LLM Router Cloud Function
-        const routeLLM = firebase.app().functions('us-central1').httpsCallable('routeLLM');
-
-        // Helper: Infer provider from model name
-        function inferProviderFromModel(model) {
-            if (!model) return 'openai';
-            const m = model.toLowerCase();
-            if (m.includes('deepseek')) return 'deepseek';
-            if (m.includes('claude')) return 'anthropic';
-            if (m.includes('gemini')) return 'google';
-            if (m.includes('gpt') || m.includes('o1') || m.includes('o3')) return 'openai';
-            return 'openai'; // Default fallback
-        }
-
-        // Get model from Admin Pipeline Settings
-        const selectedModel = agentConfig.model || (analysisLevel === 'depth' ? 'gpt-4o' : 'gpt-4o-mini');
-        // Infer provider from model name (since Admin UI only saves model, not provider)
-        const selectedProvider = agentConfig.provider || inferProviderFromModel(selectedModel);
-
-        console.log(`[KnowledgeHub] Using model from Pipeline: ${selectedProvider}/${selectedModel}`);
-
-        const result = await routeLLM({
-            feature: 'knowledge_hub.brand_summary',
-            qualityTier: qualityTier,
-            systemPrompt: systemPrompt,
-            userPrompt: userPrompt,
-            temperature: agentConfig.temperature || 0.2,
-            provider: selectedProvider,  // Pass provider from Admin settings
-            model: selectedModel,
-            projectId: currentProjectId
-        });
-
-        // Handle Response
-        if (!result.data.success) {
-            throw new Error(result.data.error || 'Unknown error from LLM Router');
-        }
-
-        let responseText = result.data.content;
-
-        // Log if failover occurred
-        if (result.data.routing?.failover) {
-            console.warn('⚠️ Auto-Failover triggered:', result.data.routing.originalError);
-            showNotification('Optimized route used for stability', 'info');
-        }
-
-        // Parse JSON
-        let parsedResult;
-        try {
-            // Clean markdown blocks if present (common with LLMs)
-            responseText = responseText.replace(/```json\n?|```/g, '');
-            parsedResult = JSON.parse(responseText);
-        } catch (e) {
-            console.error('JSON Parse Error:', e);
-            parsedResult = { summary: responseText, keyInsights: [], suggestedQuestions: [] };
-        }
-
-        // 6. Save & Update UI (Existing logic follows...)
+        // 4. Save & Update UI (Matching existing schema)
         const summaryData = {
             title: `Brand Summary - ${new Date().toLocaleDateString()}`,
             content: parsedResult.summary || "Summary generated.",
@@ -3236,13 +3161,13 @@ ${activeSources.map(s => `--- Source: ${s.title} ---\n${s.summary || s.content?.
         updateSummarySection();
         cleanupOldBrandSummaries();
 
-        showNotification(`Summary generated successfully! (${qualityTier})`, 'success');
+        showNotification(`Summary generated via Workflow!`, 'success');
 
     } catch (error) {
-        console.error('Error generating summary:', error);
-        if (summaryTitle) summaryTitle.textContent = 'Summary Failed';
-        if (summaryContent) summaryContent.textContent = `Failed to generate summary: ${error.message}`;
-        showNotification(`Generation Error: ${error.message}`, 'error');
+        console.error('Error generating summary via workflow:', error);
+        if (summaryTitle) summaryTitle.textContent = 'Workflow Failed';
+        if (summaryContent) summaryContent.textContent = `Failed to execute workflow: ${error.message}`;
+        showNotification(`Workflow Error: ${error.message}`, 'error');
     } finally {
         if (btnRegenerate) btnRegenerate.disabled = false;
     }
