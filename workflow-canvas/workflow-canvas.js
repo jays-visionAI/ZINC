@@ -181,6 +181,7 @@ window.WorkflowCanvas = (function () {
     // Initialization
     // ============================================
     async function init() {
+        console.log('%c[WorkflowCanvas] Loaded v20260108_30', 'color: #00ff00; font-weight: bold;');
         // Load HTML template if not already present
         if (!document.getElementById('workflow-canvas-modal')) {
             await loadTemplate();
@@ -3768,14 +3769,6 @@ window.WorkflowCanvas = (function () {
         renderAllNodes();
         renderAllEdges();
         console.log('[WorkflowCanvas] Workflow tidied up!');
-    }
-
-    function init() {
-        console.log('%c[WorkflowCanvas] Loaded v20260108_29', 'color: #00ff00; font-weight: bold;');
-        cacheElements();
-        setupEventListeners();
-        renderAllNodes();
-        renderAllEdges();
     }
 
     // ============================================
