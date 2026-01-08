@@ -181,7 +181,7 @@ window.WorkflowCanvas = (function () {
     // Initialization
     // ============================================
     async function init() {
-        console.log('%c[WorkflowCanvas] Loaded v20260108_31', 'color: #00ff00; font-weight: bold;');
+        console.log('%c[WorkflowCanvas] Loaded v20260108_32', 'color: #00ff00; font-weight: bold;');
         // Load HTML template if not already present
         if (!document.getElementById('workflow-canvas-modal')) {
             await loadTemplate();
@@ -619,6 +619,14 @@ window.WorkflowCanvas = (function () {
         // Generate code when going to step 3
         if (step === 3) {
             generateCode();
+        }
+
+        // Re-render edges when switching to canvas to fix coordinate alignment issues
+        if (step === 2) {
+            setTimeout(() => {
+                renderAllEdges();
+                updateMinimap();
+            }, 100);
         }
     }
 
@@ -2427,14 +2435,14 @@ window.WorkflowCanvas = (function () {
 
             // Metadata
             const timestamp = node.data.executedAt ? new Date(node.data.executedAt).toLocaleString('ko-KR') : 'N/A';
-            const dataStr = JSON.stringify(outputData);
+            const dataStr = safeJsonStringify(outputData);
             const size = dataStr.length > 1024 ? `${(dataStr.length / 1024).toFixed(1)} KB` : `${dataStr.length} bytes`;
 
             timestampEl.textContent = `🕐 ${timestamp}`;
             sizeEl.textContent = `📦 ${size}`;
 
             // JSON preview (truncated)
-            const jsonPreview = JSON.stringify(outputData, null, 2);
+            const jsonPreview = safeJsonStringify(outputData, 2);
             const truncated = jsonPreview.length > 500 ? jsonPreview.substring(0, 500) + '\n...' : jsonPreview;
             jsonEl.querySelector('code').textContent = truncated;
 
@@ -4096,7 +4104,7 @@ window.WorkflowCanvas = (function () {
                         result = await executeParallelBranches(node);
                         break;
                     case 'end':
-                        result = { success: true, output: { message: 'Workflow completed', results: executionResults } };
+                        result = { success: true, output: { message: 'Workflow completed', results: [...executionResults] } };
                         break;
                     default:
                         result = { success: false, error: `Unknown node type: ${node.type}` };
@@ -4658,6 +4666,20 @@ window.WorkflowCanvas = (function () {
             }
         });
         return copy;
+    }
+    function safeJsonStringify(obj, space = 0) {
+        try {
+            const cache = new Set();
+            return JSON.stringify(obj, (key, value) => {
+                if (typeof value === 'object' && value !== null) {
+                    if (cache.has(value)) return '[Circular]';
+                    cache.add(value);
+                }
+                return value;
+            }, space);
+        } catch (e) {
+            return String(obj);
+        }
     }
 })();
 
