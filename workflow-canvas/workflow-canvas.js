@@ -3770,6 +3770,14 @@ window.WorkflowCanvas = (function () {
         console.log('[WorkflowCanvas] Workflow tidied up!');
     }
 
+    function init() {
+        console.log('%c[WorkflowCanvas] Loaded v20260108_29', 'color: #00ff00; font-weight: bold;');
+        cacheElements();
+        setupEventListeners();
+        renderAllNodes();
+        renderAllEdges();
+    }
+
     // ============================================
     // Step 3: Code Generation
     // ============================================
@@ -4212,17 +4220,17 @@ window.WorkflowCanvas = (function () {
 
         const executeSubAgent = firebase.functions().httpsCallable('executeSubAgent');
         const response = await executeSubAgent({
-            projectId,
+            projectId: projectId || 'test-project',
             teamId: 'workflow-test',
-            runId,
+            runId: runId,
             subAgentId: agentId,
-            runtimeProfileId: null, // Explicitly pass null to avoid Firestore undefined error on backend
+            runtimeProfileId: 'default', // Explicitly set to 'default' to avoid Firestore undefined error
             systemPrompt: node.data.systemPrompt || `You are ${node.data.name || agentId}, an AI assistant.`,
-            taskPrompt,
-            previousOutputs,
-            provider: getProviderFromModel(node.data.model),
+            taskPrompt: taskPrompt,
+            previousOutputs: previousOutputs || [],
+            provider: getProviderFromModel(node.data.model) || 'openai',
             model: node.data.model || 'gpt-4o',
-            temperature: node.data.temperature || 0.7
+            temperature: parseFloat(node.data.temperature) || 0.7
         });
 
         if (response.data && response.data.success) {
