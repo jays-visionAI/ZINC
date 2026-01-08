@@ -998,11 +998,11 @@ window.WorkflowCanvas = (function () {
 
     function getInputSourceName(source) {
         const names = {
-            knowledgeHub: 'Knowledge Hub',
-            projectBrief: 'Project Brief',
-            brandBrain: 'Brand Brain',
-            firestoreQuery: 'Firestore Query',
-            manualJson: 'Manual JSON'
+            knowledge_hub: 'Knowledge Hub',
+            project_brief: 'Project Brief',
+            brand_brain: 'Brand Brain',
+            firestore_query: 'Firestore Query',
+            manual_json: 'Manual JSON'
         };
         return names[source] || source;
     }
@@ -1054,7 +1054,7 @@ window.WorkflowCanvas = (function () {
                 if (dn.type === 'input') {
                     newNode = createNode('input', xPos, yBase, {
                         name: dn.name,
-                        inputSource: dn.subtype || 'knowledgeHub'
+                        inputSource: dn.subtype || 'knowledge_hub'
                     });
                 } else if (dn.type === 'firestore') {
                     newNode = createNode('firestore', xPos, yBase, {
@@ -2657,7 +2657,7 @@ window.WorkflowCanvas = (function () {
         }
 
         switch (source) {
-            case 'knowledgeHub':
+            case 'knowledge_hub':
                 // Query Knowledge Hub - actually query if possible
                 const khStatus = node.data.khStatus || 'active';
                 try {
@@ -2691,7 +2691,7 @@ window.WorkflowCanvas = (function () {
                 }
                 break;
 
-            case 'projectBrief':
+            case 'project_brief':
                 // Get Project Brief
                 try {
                     const projectId = state.pipelineContext;
@@ -2722,7 +2722,7 @@ window.WorkflowCanvas = (function () {
                 }
                 break;
 
-            case 'brandBrain':
+            case 'brand_brain':
                 // Get Brand Brain Context
                 try {
                     const projectId = state.pipelineContext;
@@ -2747,7 +2747,7 @@ window.WorkflowCanvas = (function () {
                 }
                 break;
 
-            case 'firestoreQuery':
+            case 'firestore_query':
                 const collection = node.data.fsCollection;
                 if (!collection) {
                     return { success: false, error: 'Firestore Collection 경로가 지정되지 않았습니다.' };
@@ -2766,7 +2766,7 @@ window.WorkflowCanvas = (function () {
                 }
                 break;
 
-            case 'manualJson':
+            case 'manual_json':
                 const jsonInput = node.data.manualJson;
                 if (!jsonInput || jsonInput.trim() === '') {
                     return { success: false, error: 'Manual JSON 입력이 비어있습니다.' };
@@ -3046,11 +3046,11 @@ window.WorkflowCanvas = (function () {
         let html = '<div class="wf-variable-chips">';
         upstreamNodes.forEach(node => {
             const nodeName = node.data.name || node.id;
-            // Mock output schema based on agent type if not explicitly defined
-            const outputs = getAgentOutputs(node);
+            // Get outputs for this node type
+            const outputs = getNodeOutputs(node);
 
             outputs.forEach(opt => {
-                const varPath = `{{ ${node.id}.output.${opt}}}`;
+                const varPath = `{{${node.id}.output.${opt}}}`;
                 html += `
             <div class="wf-variable-chip"
                 title="${varPath}"
@@ -3060,7 +3060,7 @@ window.WorkflowCanvas = (function () {
                 <span class="wf-chip-node">${nodeName}</span>
                 <span class="wf-chip-var">${opt}</span>
             </div>
-            `;
+`;
             });
         });
         html += '</div>';
@@ -3081,15 +3081,38 @@ window.WorkflowCanvas = (function () {
     function getUpstreamNodes(nodeId) {
         // Collect all nodes that can reach this node via edges
         const sourceIds = state.edges.filter(e => e.target === nodeId).map(e => e.source);
-        return state.nodes.filter(n => sourceIds.includes(n.id) && n.type === 'agent');
+        // Include agent, input, transform, and firestore nodes as data sources
+        return state.nodes.filter(n => sourceIds.includes(n.id) && ['agent', 'input', 'transform', 'firestore'].includes(n.type));
     }
 
-    function getAgentOutputs(node) {
-        // In a real system, this would come from the Agent Registry schema
-        // For now, we return common outputs based on agent type/capability
-        if (node.data.capability === 'image') return ['imageUrl', 'prompt', 'revisedPrompt'];
-        if (node.data.capability === 'video') return ['videoUrl', 'thumbnailUrl', 'duration'];
-        return ['text', 'summary', 'status', 'tokens'];
+    function getNodeOutputs(node) {
+        // For Agents, use capability-based outputs
+        if (node.type === 'agent') {
+            if (node.data.capability === 'image') return ['imageUrl', 'prompt', 'revisedPrompt'];
+            if (node.data.capability === 'video') return ['videoUrl', 'thumbnailUrl', 'duration'];
+            return ['text', 'summary', 'status'];
+        }
+
+        // For Transform (Aggregate, Filter, etc.)
+        if (node.type === 'transform') {
+            return ['result', 'inputCount', 'outputCount'];
+        }
+
+        // For Input Nodes (Knowledge Hub, Project Brief)
+        if (node.type === 'input') {
+            const source = node.data.inputSource;
+            if (source === 'project_brief') return ['name', 'description', 'goals', 'targetAudience'];
+            if (source === 'knowledge_hub') return ['items', 'count', 'source'];
+            if (source === 'brand_brain') return ['persona', 'tone', 'values'];
+            return ['data', 'source'];
+        }
+
+        // For Firestore
+        if (node.type === 'firestore') {
+            return ['result', 'count', 'path'];
+        }
+
+        return ['output'];
     }
 
     function insertVariable(varPath) {
