@@ -448,11 +448,20 @@ window.WorkflowCanvas = (function () {
         if (propOutputDocId) propOutputDocId.addEventListener('input', (e) => updateNodeProperty('outputDocId', e.target.value));
         if (propOutputTemplate) propOutputTemplate.addEventListener('input', (e) => updateNodeProperty('outputDataTemplate', e.target.value));
 
-        // Command Bar Enter key
+        // Command Bar - Textarea auto-resize and Enter key handling
         const cmdInput = document.getElementById('wf-canvas-prompt');
         if (cmdInput) {
+            // Auto-resize textarea
+            const autoResize = () => {
+                cmdInput.style.height = 'auto';
+                const maxHeight = 200; // ~10 lines
+                cmdInput.style.height = Math.min(cmdInput.scrollHeight, maxHeight) + 'px';
+            };
+            cmdInput.addEventListener('input', autoResize);
+
+            // Enter to send, Shift+Enter for newline
             cmdInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
+                if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     refineWithPrompt();
                 }
