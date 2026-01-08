@@ -2529,6 +2529,7 @@ input:checked+.wf-slider:before {
     padding-top: 12px;
     border-top: 1px dotted rgba(255, 255, 255, 0.2);
 }
+
 /* Red Glow Effect for Failed Nodes */
 .wf-node.test-failed-glow {
     z-index: 200 !important;
@@ -2549,9 +2550,11 @@ input:checked+.wf-slider:before {
     0% {
         box-shadow: 0 0 20px rgba(239, 68, 68, 0.6), inset 0 0 10px rgba(239, 68, 68, 0.3);
     }
+
     50% {
         box-shadow: 0 0 45px rgba(239, 68, 68, 1.0), inset 0 0 20px rgba(239, 68, 68, 0.5);
     }
+
     100% {
         box-shadow: 0 0 20px rgba(239, 68, 68, 0.6), inset 0 0 10px rgba(239, 68, 68, 0.3);
     }
@@ -2608,4 +2611,119 @@ input:checked+.wf-slider:before {
 
 .wf-cap-icon {
     font-size: 14px;
+}
+
+/* ============================================
+   AI COMMAND BAR (AI COPILOT)
+   ============================================ */
+.wf-canvas-command-bar {
+    position: absolute;
+    bottom: 24px;
+    left: 45%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 650px;
+    z-index: 5000;
+    pointer-events: none;
+    animation: barSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes barSlideUp {
+    from {
+        transform: translate(-50%, 40px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translate(-50%, 0);
+        opacity: 1;
+    }
+}
+
+.wf-command-inner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: rgba(13, 20, 32, 0.85);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 100px;
+    box-shadow:
+        0 10px 40px rgba(0, 0, 0, 0.4),
+        0 0 20px rgba(0, 240, 255, 0.05);
+    pointer-events: all;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.wf-command-inner:focus-within {
+    border-color: var(--wf-cyan);
+    background: rgba(15, 23, 42, 0.95);
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.5),
+        0 0 0 4px rgba(0, 240, 255, 0.08);
+    max-width: 700px;
+}
+
+.wf-command-ai-icon {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--wf-gradient-cyan);
+    border-radius: 50%;
+    color: #fff;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(0, 240, 255, 0.3);
+}
+
+.wf-command-ai-icon svg {
+    width: 20px;
+    height: 20px;
+}
+
+.wf-command-input {
+    flex: 1;
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 8px 0;
+    outline: none !important;
+}
+
+.wf-command-input::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.wf-command-send {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    color: var(--wf-text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.wf-command-send svg {
+    width: 18px;
+    height: 18px;
+}
+
+.wf-command-send:hover {
+    background: var(--wf-cyan);
+    color: #000;
+    border-color: var(--wf-cyan);
+    transform: scale(1.1) rotate(-10deg);
+}
+
+.wf-command-send:active {
+    transform: scale(0.95);
 }

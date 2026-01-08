@@ -438,11 +438,8 @@ window.WorkflowCanvas = (function () {
         if (propCondition) propCondition.addEventListener('input', (e) => updateNodeProperty('expression', e.target.value));
 
         // Output Settings (End Node)
-        const propOutputDest = document.getElementById('wf-prop-output-dest');
         const propOutputColl = document.getElementById('wf-prop-output-collection');
         const propOutputWebhook = document.getElementById('wf-prop-output-webhook');
-
-        if (propOutputDest) propOutputDest.addEventListener('change', (e) => updateNodeProperty('outputDestination', e.target.value));
         if (propOutputColl) propOutputColl.addEventListener('input', (e) => updateNodeProperty('outputCollection', e.target.value));
         if (propOutputWebhook) propOutputWebhook.addEventListener('input', (e) => updateNodeProperty('outputWebhook', e.target.value));
 
@@ -450,6 +447,17 @@ window.WorkflowCanvas = (function () {
         const propOutputTemplate = document.getElementById('wf-prop-output-data-template');
         if (propOutputDocId) propOutputDocId.addEventListener('input', (e) => updateNodeProperty('outputDocId', e.target.value));
         if (propOutputTemplate) propOutputTemplate.addEventListener('input', (e) => updateNodeProperty('outputDataTemplate', e.target.value));
+
+        // Command Bar Enter key
+        const cmdInput = document.getElementById('wf-canvas-prompt');
+        if (cmdInput) {
+            cmdInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    refineWithPrompt();
+                }
+            });
+        }
     }
 
     // ============================================
@@ -968,8 +976,85 @@ window.WorkflowCanvas = (function () {
     }
 
     function refineAnalysis() {
+        if (state.currentStep === 2) {
+            const cmdInput = document.getElementById('wf-canvas-prompt');
+            if (cmdInput) {
+                cmdInput.focus();
+                return;
+            }
+        }
         elements.promptInput.focus();
         elements.promptInput.setSelectionRange(elements.promptInput.value.length, elements.promptInput.value.length);
+    }
+
+    /**
+     * AI Copilot: Refine existing canvas with a new prompt from the bottom bar
+     */
+    async function refineWithPrompt() {
+        const input = document.getElementById('wf-canvas-prompt');
+        const btn = document.getElementById('wf-canvas-prompt-btn');
+        const prompt = input?.value.trim();
+
+        if (!prompt) return;
+
+        // Visual feedback (loading)
+        btn.classList.add('loading');
+        input.disabled = true;
+        btn.innerHTML = '<span class="wf-spinner" style="width:16px;height:16px;border-width:2px;border-color:#000 transparent transparent transparent;"></span>';
+
+        try {
+            console.log('[WorkflowCanvas] Refining with prompt:', prompt);
+
+            // Simulation of smart refinement
+            await new Promise(resolve => setTimeout(resolve, 1500));
+
+            const keywords = prompt.toLowerCase();
+            let addedCount = 0;
+
+            // Simple rule-based refinement for MVP
+            if (keywords.includes('조건') || keywords.includes('분기') || keywords.includes('condition')) {
+                const lastNode = state.nodes[state.nodes.length - 1];
+                const x = lastNode ? lastNode.x + 200 : 300;
+                const y = lastNode ? lastNode.y : 300;
+                const node = createNode('condition', x, y, { expression: 'output.success == true' });
+                if (lastNode && lastNode.type !== 'end') createEdge(lastNode.id, node.id);
+                addedCount++;
+            } else if (keywords.includes('에이전트') || keywords.includes('추가') || keywords.includes('agent')) {
+                const agents = state.availableAgents[state.pipelineContext] || [];
+                const agent = agents[0] || { id: 'market_scout', name: 'Market Scout', icon: 'search' };
+
+                const lastNode = state.nodes[state.nodes.length - 1];
+                const x = lastNode ? lastNode.x + 200 : 300;
+                const y = lastNode ? lastNode.y : 300;
+
+                const node = createNode('agent', x, y, {
+                    agentId: agent.id,
+                    name: agent.name,
+                    icon: agent.icon
+                });
+                if (lastNode && lastNode.type !== 'end') createEdge(lastNode.id, node.id);
+                addedCount++;
+            } else {
+                // Generic feedback if no simple rules match
+                notify('제안하신 내용을 바탕으로 워크플로우 분석 모델이 고도화 중입니다. 현재는 단순 노드 추가만 지원합니다.', 'info');
+            }
+
+            if (addedCount > 0) {
+                renderAllNodes();
+                renderAllEdges();
+                notify(`${addedCount}개의 노드가 추가되었습니다.`, 'success');
+                input.value = '';
+            }
+
+        } catch (err) {
+            console.error('Refine failed:', err);
+            notify('요청 처리 중 오류가 발생했습니다.', 'error');
+        } finally {
+            btn.classList.remove('loading');
+            input.disabled = false;
+            btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>';
+            input.focus();
+        }
     }
 
     // ============================================
@@ -3395,6 +3480,7 @@ window.WorkflowCanvas = (function () {
         updateInputSourceUI,
         updateFirestoreOpUI,
         updateTransformUI,
+        refineWithPrompt,
 
         // Condition Builder Handlers
         addConditionRule,
