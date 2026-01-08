@@ -4216,6 +4216,7 @@ window.WorkflowCanvas = (function () {
             teamId: 'workflow-test',
             runId,
             subAgentId: agentId,
+            runtimeProfileId: null, // Explicitly pass null to avoid Firestore undefined error on backend
             systemPrompt: node.data.systemPrompt || `You are ${node.data.name || agentId}, an AI assistant.`,
             taskPrompt,
             previousOutputs,
