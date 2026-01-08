@@ -1857,23 +1857,7 @@ input:checked+.wf-slider:before {
 
 /* ============================================
    AGENT PALETTE
-   ============================================ */
-.wf-agent-palette {
-    position: absolute;
-    bottom: 24px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    gap: 14px;
-    padding: 18px 28px;
-    background: var(--wf-bg-glass);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid var(--wf-border);
-    border-radius: 20px;
-    z-index: 100;
-    box-shadow: var(--wf-shadow-lg), 0 0 40px rgba(0, 0, 0, 0.3);
-}
+/* Old palette styles - positioning now handled by .wf-canvas-footer-container */
 
 .wf-palette-item {
     display: flex;
