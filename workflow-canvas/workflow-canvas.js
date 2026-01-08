@@ -439,6 +439,13 @@ window.WorkflowCanvas = (function () {
                 document.getElementById('wf-prop-temp-value').textContent = e.target.value;
             });
         }
+
+        const propInstruction = document.getElementById('wf-prop-agent-instruction');
+        if (propInstruction) {
+            propInstruction.addEventListener('input', (e) => updateNodeProperty('instruction', e.target.value));
+        }
+
+        const propInputMapping = document.getElementById('wf-prop-input-mapping');
         if (propCondition) propCondition.addEventListener('input', (e) => updateNodeProperty('expression', e.target.value));
 
         // Output Settings (End Node)
@@ -2217,6 +2224,9 @@ window.WorkflowCanvas = (function () {
         firestoreGroup.style.display = node.type === 'firestore' ? 'block' : 'none';
         transformGroup.style.display = node.type === 'transform' ? 'block' : 'none';
 
+        const instructionGroup = document.getElementById('wf-prop-instruction-group');
+        if (instructionGroup) instructionGroup.style.display = node.type === 'agent' ? 'block' : 'none';
+
         // Update Trigger UI for the selected node
         if (node.data.triggerConfig) {
             syncTriggerUI(node.data.triggerConfig);
@@ -2323,6 +2333,9 @@ window.WorkflowCanvas = (function () {
 
             document.getElementById('wf-prop-temp').value = node.data.temperature || 0.7;
             document.getElementById('wf-prop-temp-value').textContent = node.data.temperature || 0.7;
+
+            const instruction = document.getElementById('wf-prop-agent-instruction');
+            if (instruction) instruction.value = node.data.instruction || '';
 
             // Input Mapping
             const inputMapping = document.getElementById('wf-prop-input-mapping');
@@ -4239,13 +4252,20 @@ window.WorkflowCanvas = (function () {
         console.log(`[executeAgentNodeWithContext] Agent: ${agentId}, Context nodes: ${previousOutputs.length}`);
 
         const executeSubAgent = firebase.functions().httpsCallable('executeSubAgent');
+
+        // Combine base system prompt with additional instructions if provided
+        let combinedSystemPrompt = node.data.systemPrompt || `You are ${node.data.name || agentId}, an AI assistant.`;
+        if (node.data.instruction && node.data.instruction.trim() !== '') {
+            combinedSystemPrompt += `\n\n[ADDITIONAL INSTRUCTIONS]\n${node.data.instruction}`;
+        }
+
         const response = await executeSubAgent({
             projectId: projectId || 'test-project',
             teamId: 'workflow-test',
             runId: runId,
             subAgentId: agentId,
             runtimeProfileId: 'default', // Explicitly set to 'default' to avoid Firestore undefined error
-            systemPrompt: node.data.systemPrompt || `You are ${node.data.name || agentId}, an AI assistant.`,
+            systemPrompt: combinedSystemPrompt,
             taskPrompt: taskPrompt,
             previousOutputs: previousOutputs || [],
             provider: getProviderFromModel(node.data.model) || 'openai',
