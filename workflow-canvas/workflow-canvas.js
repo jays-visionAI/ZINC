@@ -181,7 +181,7 @@ window.WorkflowCanvas = (function () {
     // Initialization
     // ============================================
     async function init() {
-        console.log('%c[WorkflowCanvas] Loaded v20260108_33', 'color: #00ff00; font-weight: bold;');
+        console.log('%c[WorkflowCanvas] Loaded v20260108_34', 'color: #00ff00; font-weight: bold;');
         // Load HTML template if not already present
         if (!document.getElementById('workflow-canvas-modal')) {
             await loadTemplate();
@@ -4618,7 +4618,7 @@ window.WorkflowCanvas = (function () {
                 const p = doc.data();
                 const option = document.createElement('option');
                 option.value = doc.id;
-                option.textContent = p.name || doc.id;
+                option.textContent = p.projectName || p.name || doc.id;
                 select.appendChild(option);
             });
 

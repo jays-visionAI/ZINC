@@ -1,4 +1,126 @@
+<style>
+    .pipeline-global-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        padding: 16px 24px;
+        margin-bottom: 24px;
+        backdrop-filter: blur(12px);
+    }
+
+    .pipeline-info h2 {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #fff;
+        margin-bottom: 4px;
+    }
+
+    .pipeline-info p {
+        font-size: 0.85rem;
+        color: rgba(255, 255, 255, 0.5);
+    }
+
+    .pipeline-project-selector {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: rgba(0, 0, 0, 0.2);
+        padding: 8px 16px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .pipeline-project-selector label {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: var(--color-cyan);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+    }
+
+    #pipeline-project-select {
+        min-width: 240px;
+        background: transparent;
+        border: none;
+        color: #fff;
+        font-size: 0.9rem;
+        font-weight: 600;
+        outline: none;
+        cursor: pointer;
+    }
+
+    #pipeline-project-select option {
+        background: #13131a;
+        color: #fff;
+    }
+
+    .active-project-badge {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 12px;
+        background: rgba(22, 224, 189, 0.1);
+        border: 1px solid rgba(22, 224, 189, 0.2);
+        border-radius: 20px;
+        margin-left: 12px;
+    }
+
+    .pulse-dot {
+        width: 8px;
+        height: 8px;
+        background: #16e0bd;
+        border-radius: 50%;
+        box-shadow: 0 0 10px rgba(22, 224, 189, 0.5);
+        animation: pipeline-pulse 2s infinite;
+    }
+
+    @keyframes pipeline-pulse {
+        0% {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        50% {
+            transform: scale(1.2);
+            opacity: 0.7;
+        }
+
+        100% {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+
+    #active-project-name {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #16e0bd;
+    }
+</style>
+
 <div class="admin-chatbot-container">
+    <!-- Global Project Context Header -->
+    <div class="pipeline-global-header">
+        <div class="pipeline-info">
+            <h2>5-Step Pipeline Management</h2>
+            <p>Select a project to apply context across all pipeline stages</p>
+        </div>
+        <div class="pipeline-project-selector">
+            <label>Testing Context:</label>
+            <select id="pipeline-project-select" onchange="window.updatePipelineGlobalProject(this.value)">
+                <option value="">Loading Projects...</option>
+            </select>
+            <div id="pipeline-project-active-badge" class="active-project-badge" style="display:none">
+                <div class="pulse-dot"></div>
+                <span id="active-project-name">No Project</span>
+            </div>
+        </div>
+    </div>
+
     <div class="admin-tabs">
         <button class="admin-tab-btn" data-tab="market">1. Market Pulse</button>
         <button class="admin-tab-btn" data-tab="brand">2. Brand Brain</button>
@@ -445,6 +567,16 @@
                     <h4>📂 저장된 워크플로우 <span class="workflow-count" id="workflow-count-studio">(0)</span></h4>
                     <button class="workflow-view-all-btn" onclick="viewAllWorkflows('studio')">전체보기 →</button>
                 </div>
+
+                <!-- Business Category Filter -->
+                <div class="workflow-category-filter" data-context="studio">
+                    <button class="filter-chip active" data-category="모두">🏠 모두</button>
+                    <button class="filter-chip" data-category="SNS/마케팅">📱 SNS/마케팅</button>
+                    <button class="filter-chip" data-category="블로그/학습">✍️ 블로그/학습</button>
+                    <button class="filter-chip" data-category="영업/뉴스레터">📧 영업/뉴스레터</button>
+                    <button class="filter-chip" data-category="전략/기획">💡 전략/기획</button>
+                </div>
+
                 <div class="workflow-cards-container" id="workflow-cards-studio">
                     <div class="workflow-empty-state">
                         <span class="workflow-empty-icon">📭</span>

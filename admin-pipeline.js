@@ -1,5 +1,7 @@
 // admin-pipeline.js - Unified 5-Step Pipeline Management
 
+let pipelineGlobalProjectId = null;
+
 // ============================================
 // Workflow List Management (exposed to window for WorkflowCanvas)
 // ============================================
@@ -66,6 +68,46 @@ async function loadAllPipelineWorkflows() {
     for (const context of contexts) {
         await loadPipelineWorkflows(context);
     }
+
+    // Initialize Category Filters
+    setupCategoryFilters();
+}
+
+function setupCategoryFilters() {
+    document.querySelectorAll('.workflow-category-filter .filter-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+            const filterContainer = chip.parentElement;
+            const context = filterContainer.dataset.context;
+            const category = chip.dataset.category;
+
+            // Update active state
+            filterContainer.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+            chip.classList.add('active');
+
+            // Apply filter to cards
+            filterWorkflowsByCategory(context, category);
+        });
+    });
+}
+
+function filterWorkflowsByCategory(context, category) {
+    const container = document.getElementById(`workflow-cards-${context}`);
+    if (!container) return;
+
+    const cards = container.querySelectorAll('.workflow-card');
+    let visibleCount = 0;
+
+    cards.forEach(card => {
+        const cardCategory = card.dataset.category || '기타';
+        if (category === '모두' || cardCategory === category) {
+            card.style.display = 'flex';
+            visibleCount++;
+        } else {
+            card.style.display = 'none';
+        }
+    });
+
+    // Update count display for the filtered view if needed, or handled by visibility
 }
 
 function renderWorkflowCards(context, workflows) {
@@ -91,9 +133,12 @@ function renderWorkflowCards(context, workflows) {
     }
 
     container.innerHTML = workflows.map(wf => `
-        <div class="workflow-card" data-workflow-id="${wf.id}">
+        <div class="workflow-card" data-workflow-id="${wf.id}" data-category="${wf.category || '기타'}">
             <div class="workflow-card-header">
-                <span class="workflow-card-status ${wf.status || 'draft'}">${wf.status || 'Draft'}</span>
+                <div class="workflow-card-badges">
+                    <span class="workflow-card-status ${wf.status || 'draft'}">${wf.status || 'Draft'}</span>
+                    ${wf.category ? `<span class="workflow-card-category-badge">${wf.category}</span>` : ''}
+                </div>
                 <div class="workflow-card-header-actions">
                     <button class="workflow-card-delete" onclick="deleteWorkflow('${wf.id}', '${wf.name || 'Untitled'}', '${context}')" title="삭제">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -169,7 +214,7 @@ function formatRelativeTime(timestamp) {
 // Global workflow action functions
 window.openWorkflowCanvas = function (context) {
     if (window.WorkflowCanvas) {
-        window.WorkflowCanvas.open(context);
+        window.WorkflowCanvas.open(context, pipelineGlobalProjectId);
     } else {
         console.error('WorkflowCanvas not loaded');
         alert('워크플로우 캔버스를 로드하는 중 오류가 발생했습니다.');
@@ -184,7 +229,7 @@ window.runWorkflow = function (workflowId) {
 window.editWorkflow = function (workflowId, context) {
     console.log('Editing workflow:', workflowId, 'in context:', context);
     if (window.WorkflowCanvas) {
-        window.WorkflowCanvas.open(context, null, workflowId);
+        window.WorkflowCanvas.open(context, pipelineGlobalProjectId, workflowId);
     } else {
         console.error('WorkflowCanvas not loaded');
         alert('워크플로우 캔버스를 로드하는 중 오류가 발생했습니다.');
@@ -280,6 +325,9 @@ async function initPipeline(currentUser, initialTab = 'market') {
 
     // Set initial tab
     setActiveTab(initialTab);
+
+    // 1b. Load Projects for Global Context
+    loadPipelineProjects();
 
     // 2. Slider Labels Logic
     const sliderConfigs = [
@@ -617,3 +665,51 @@ function setupSaveListeners() {
         } catch (e) { notify(e.message, 'error'); } finally { btn.disabled = false; }
     });
 }
+
+/**
+ * Load project list from Firestore
+ */
+async function loadPipelineProjects() {
+    const select = document.getElementById('pipeline-project-select');
+    if (!select) return;
+
+    try {
+        const db = firebase.firestore();
+        const snapshot = await db.collection('projects')
+            .orderBy('updatedAt', 'desc')
+            .limit(20)
+            .get();
+
+        select.innerHTML = '<option value="">Select Test Project...</option>';
+        snapshot.forEach(doc => {
+            const p = doc.data();
+            const option = document.createElement('option');
+            option.value = doc.id;
+            option.textContent = p.projectName || p.name || doc.id;
+            select.appendChild(option);
+        });
+    } catch (e) {
+        console.error('[Pipeline] Failed to load projects:', e);
+    }
+}
+
+/**
+ * Update global project context
+ */
+window.updatePipelineGlobalProject = function (projectId) {
+    pipelineGlobalProjectId = projectId;
+    console.log('[Pipeline] Global project context updated:', projectId);
+
+    const badge = document.getElementById('pipeline-project-active-badge');
+    const nameEl = document.getElementById('active-project-name');
+    const select = document.getElementById('pipeline-project-select');
+
+    if (projectId && projectId !== '') {
+        badge.style.display = 'flex';
+        const projectName = select.options[select.selectedIndex]?.text;
+        nameEl.textContent = projectName || projectId;
+    } else {
+        badge.style.display = 'none';
+        nameEl.textContent = 'No Project';
+    }
+};
