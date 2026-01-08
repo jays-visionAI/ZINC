@@ -3845,10 +3845,361 @@ window.WorkflowCanvas = (function () {
     }
 
     async function saveAndRun() {
+        // Save first
         await saveAsDraft();
-        alert('워크플로우 실행 기능은 곧 제공될 예정입니다.');
 
-        // TODO: Execute workflow via DAG Executor
+        // Validate workflow has nodes
+        if (state.nodes.length < 2) {
+            notify('워크플로우에 최소 2개 이상의 노드가 필요합니다.', 'error');
+            return;
+        }
+
+        // Find start node
+        const startNode = state.nodes.find(n => n.type === 'start');
+        if (!startNode) {
+            notify('Start 노드가 필요합니다.', 'error');
+            return;
+        }
+
+        notify('🚀 워크플로우 실행 시작...', 'info');
+        console.log('[WorkflowCanvas] Starting workflow execution...');
+
+        // Reset all node states
+        state.nodes.forEach(node => {
+            node.data.outputData = null;
+            node.data.executionStatus = null;
+            renderNodeStatus(node.id, null);
+        });
+
+        // Build execution order using topological sort (BFS from start)
+        const executionOrder = buildExecutionOrder(startNode.id);
+        console.log('[WorkflowCanvas] Execution order:', executionOrder.map(n => n.id));
+
+        // Track overall execution
+        const executionResults = [];
+        let hasError = false;
+
+        // Execute nodes in order
+        for (const node of executionOrder) {
+            if (hasError && node.type !== 'end') {
+                // Skip remaining nodes on error (except end node for cleanup)
+                continue;
+            }
+
+            // Show running state
+            renderNodeStatus(node.id, 'running');
+
+            try {
+                console.log(`[WorkflowCanvas] Executing node: ${node.id} (${node.type})`);
+                const startTime = Date.now();
+
+                // Get previous outputs for context
+                const previousOutputs = getPreviousNodeOutputs(node.id);
+
+                // Execute based on node type
+                let result;
+                switch (node.type) {
+                    case 'start':
+                        result = await testStartNode(node);
+                        break;
+                    case 'agent':
+                        result = await executeAgentNodeWithContext(node, previousOutputs);
+                        break;
+                    case 'input':
+                        result = await testInputNode(node);
+                        break;
+                    case 'firestore':
+                        result = await testFirestoreNode(node);
+                        break;
+                    case 'transform':
+                        result = await executeTransformWithPreviousData(node, previousOutputs);
+                        break;
+                    case 'condition':
+                        result = await evaluateConditionWithContext(node, previousOutputs);
+                        break;
+                    case 'parallel':
+                        result = await executeParallelBranches(node);
+                        break;
+                    case 'end':
+                        result = { success: true, output: { message: 'Workflow completed', results: executionResults } };
+                        break;
+                    default:
+                        result = { success: false, error: `Unknown node type: ${node.type}` };
+                }
+
+                const duration = Date.now() - startTime;
+
+                // Update node with result
+                node.data.outputData = result.output || { error: result.error };
+                node.data.executionStatus = result.success ? 'success' : 'error';
+                node.data.executedAt = new Date().toISOString();
+                node.data.executionDuration = duration;
+
+                // Update UI
+                renderNodeStatus(node.id, result.success ? 'success' : 'error');
+
+                executionResults.push({
+                    nodeId: node.id,
+                    type: node.type,
+                    success: result.success,
+                    duration,
+                    output: result.output
+                });
+
+                if (!result.success) {
+                    hasError = true;
+                    notify(`❌ 노드 실행 실패: ${node.data.name || node.id}`, 'error');
+                }
+
+            } catch (error) {
+                console.error(`[WorkflowCanvas] Node execution failed: ${node.id}`, error);
+
+                node.data.outputData = { error: error.message };
+                node.data.executionStatus = 'error';
+                node.data.executedAt = new Date().toISOString();
+
+                renderNodeStatus(node.id, 'error');
+                hasError = true;
+
+                executionResults.push({
+                    nodeId: node.id,
+                    type: node.type,
+                    success: false,
+                    error: error.message
+                });
+
+                notify(`❌ 오류: ${error.message}`, 'error');
+            }
+
+            // Small delay for visual feedback
+            await new Promise(resolve => setTimeout(resolve, 300));
+        }
+
+        // Final summary
+        const successCount = executionResults.filter(r => r.success).length;
+        const totalCount = executionResults.length;
+
+        if (hasError) {
+            notify(`⚠️ 워크플로우 부분 완료: ${successCount}/${totalCount} 노드 성공`, 'error');
+        } else {
+            notify(`✅ 워크플로우 실행 완료! ${successCount}개 노드 모두 성공`, 'success');
+        }
+
+        console.log('[WorkflowCanvas] Execution finished. Results:', executionResults);
+
+        // Show first node with data (for inspection)
+        const firstNodeWithOutput = state.nodes.find(n => n.data.outputData);
+        if (firstNodeWithOutput) {
+            state.selectedNodeId = firstNodeWithOutput.id;
+            showPropertiesForm(firstNodeWithOutput.id);
+        }
+    }
+
+    /**
+     * Build execution order using BFS from start node
+     */
+    function buildExecutionOrder(startNodeId) {
+        const visited = new Set();
+        const order = [];
+        const queue = [startNodeId];
+
+        while (queue.length > 0) {
+            const nodeId = queue.shift();
+
+            if (visited.has(nodeId)) continue;
+            visited.add(nodeId);
+
+            const node = state.nodes.find(n => n.id === nodeId);
+            if (!node) continue;
+
+            order.push(node);
+
+            // Find outgoing edges
+            const outgoingEdges = state.edges.filter(e => e.source === nodeId);
+            outgoingEdges.forEach(edge => {
+                if (!visited.has(edge.target)) {
+                    queue.push(edge.target);
+                }
+            });
+        }
+
+        return order;
+    }
+
+    /**
+     * Execute Agent Node with context from previous nodes
+     */
+    async function executeAgentNodeWithContext(node, previousOutputs) {
+        const agentId = node.data.agentId;
+        if (!agentId) {
+            return { success: false, error: 'Agent not selected' };
+        }
+
+        const projectId = state.pipelineContext || 'test-project';
+        const runId = `run_${Date.now()}`;
+
+        // Build rich context from previous outputs
+        const contextSummary = previousOutputs.map(o =>
+            `[${o.role}]: ${typeof o.content === 'string' ? o.content.substring(0, 500) : JSON.stringify(o.content).substring(0, 500)}`
+        ).join('\n');
+
+        const taskPrompt = node.data.taskPrompt ||
+            `You are ${node.data.name || agentId}. Based on the following context, execute your task:\n\n${contextSummary || 'No previous context available.'}`;
+
+        console.log(`[executeAgentNodeWithContext] Agent: ${agentId}, Context nodes: ${previousOutputs.length}`);
+
+        const executeSubAgent = firebase.functions().httpsCallable('executeSubAgent');
+        const response = await executeSubAgent({
+            projectId,
+            teamId: 'workflow-test',
+            runId,
+            subAgentId: agentId,
+            systemPrompt: node.data.systemPrompt || `You are ${node.data.name || agentId}, an AI assistant.`,
+            taskPrompt,
+            previousOutputs,
+            provider: getProviderFromModel(node.data.model),
+            model: node.data.model || 'gpt-4o',
+            temperature: node.data.temperature || 0.7
+        });
+
+        if (response.data && response.data.success) {
+            return {
+                success: true,
+                output: {
+                    response: response.data.output,
+                    model: response.data.model,
+                    usage: response.data.usage,
+                    metadata: response.data.metadata
+                }
+            };
+        } else {
+            return { success: false, error: response.data?.error || 'Cloud Function error' };
+        }
+    }
+
+    /**
+     * Execute Transform Node with actual previous data
+     */
+    async function executeTransformWithPreviousData(node, previousOutputs) {
+        const transformType = node.data.transformType || 'filter';
+
+        // Get input data from previous node
+        let inputData = [];
+        if (previousOutputs.length > 0) {
+            try {
+                const lastOutput = previousOutputs[previousOutputs.length - 1];
+                inputData = typeof lastOutput.content === 'string'
+                    ? JSON.parse(lastOutput.content)
+                    : lastOutput.content;
+
+                // Handle nested structures
+                if (inputData.result) inputData = inputData.result;
+                if (inputData.data) inputData = inputData.data;
+                if (!Array.isArray(inputData)) inputData = [inputData];
+            } catch (e) {
+                inputData = [{ raw: previousOutputs[0]?.content || 'No data' }];
+            }
+        }
+
+        let output;
+        try {
+            switch (transformType) {
+                case 'filter':
+                    const filterExpr = node.data.filterExpr || 'true';
+                    output = inputData.filter(item => {
+                        try { return eval(filterExpr); } catch { return true; }
+                    });
+                    break;
+                case 'map':
+                    output = inputData.map((item, i) => ({ ...item, _index: i }));
+                    break;
+                case 'reduce':
+                    output = { count: inputData.length, items: inputData };
+                    break;
+                case 'sort':
+                    const sortKey = node.data.sortKey || 'id';
+                    output = [...inputData].sort((a, b) => (b[sortKey] || 0) - (a[sortKey] || 0));
+                    break;
+                case 'slice':
+                    output = inputData.slice(0, node.data.sliceN || 10);
+                    break;
+                default:
+                    output = inputData;
+            }
+        } catch (e) {
+            output = inputData;
+        }
+
+        return {
+            success: true,
+            output: {
+                transformType,
+                inputCount: inputData.length,
+                outputCount: Array.isArray(output) ? output.length : 1,
+                result: output
+            }
+        };
+    }
+
+    /**
+     * Evaluate Condition with context
+     */
+    async function evaluateConditionWithContext(node, previousOutputs) {
+        const expression = node.data.expression || 'true';
+
+        // Build context for evaluation
+        let context = {};
+        if (previousOutputs.length > 0) {
+            try {
+                const lastOutput = previousOutputs[previousOutputs.length - 1];
+                context = typeof lastOutput.content === 'string'
+                    ? JSON.parse(lastOutput.content)
+                    : lastOutput.content;
+            } catch (e) {
+                context = { raw: previousOutputs[0]?.content };
+            }
+        }
+
+        // Simple evaluation
+        let result = true;
+        try {
+            // Replace common patterns
+            let evalExpr = expression
+                .replace(/output\./g, 'context.')
+                .replace(/result\./g, 'context.result.')
+                .replace(/success/g, 'context.success');
+
+            result = eval(evalExpr);
+        } catch (e) {
+            result = expression.includes('true') || expression.includes('success');
+        }
+
+        return {
+            success: true,
+            output: {
+                expression,
+                context: JSON.stringify(context).substring(0, 200),
+                evaluatedTo: result,
+                branch: result ? 'TRUE' : 'FALSE'
+            }
+        };
+    }
+
+    /**
+     * Execute Parallel branches (simplified - executes sequentially for now)
+     */
+    async function executeParallelBranches(node) {
+        // Find all outgoing edges from this parallel node
+        const outgoingEdges = state.edges.filter(e => e.source === node.id);
+
+        return {
+            success: true,
+            output: {
+                message: 'Parallel execution point',
+                branches: outgoingEdges.length,
+                branchTargets: outgoingEdges.map(e => e.target)
+            }
+        };
     }
 
     function copyJSON() {
