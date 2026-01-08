@@ -2620,25 +2620,141 @@ window.WorkflowCanvas = (function () {
         const source = node.data.inputSource;
         let data = null;
 
+        // Validation: Check if source is selected
+        if (!source || source === '' || source === 'Select Source...') {
+            return {
+                success: false,
+                error: 'DATA SOURCE가 선택되지 않았습니다. 데이터 소스를 선택해주세요.'
+            };
+        }
+
         switch (source) {
             case 'knowledgeHub':
-                // Query Knowledge Hub
+                // Query Knowledge Hub - actually query if possible
                 const khStatus = node.data.khStatus || 'active';
-                data = { source: 'Knowledge Hub', filter: khStatus, items: ['Document 1', 'Document 2'] };
-                break;
-            case 'firestoreQuery':
-                const collection = node.data.fsCollection || 'projects';
-                data = { source: 'Firestore', collection, sampleData: { id: 'doc1', name: 'Sample' } };
-                break;
-            case 'manualJson':
                 try {
-                    data = JSON.parse(node.data.manualJson || '{}');
+                    // Try to get actual Knowledge Hub data
+                    const projectId = state.pipelineContext;
+                    if (projectId && typeof db !== 'undefined') {
+                        const snapshot = await db.collection('knowledgeHub')
+                            .where('projectId', '==', projectId)
+                            .where('status', '==', khStatus)
+                            .limit(5)
+                            .get();
+
+                        const items = [];
+                        snapshot.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
+                        data = {
+                            source: 'Knowledge Hub',
+                            filter: khStatus,
+                            count: items.length,
+                            items: items.map(i => ({ id: i.id, title: i.title || i.name || 'Untitled' }))
+                        };
+                    } else {
+                        data = {
+                            source: 'Knowledge Hub',
+                            filter: khStatus,
+                            message: 'Project context not set - showing mock data',
+                            items: [{ id: 'mock1', title: 'Sample Document 1' }, { id: 'mock2', title: 'Sample Document 2' }]
+                        };
+                    }
+                } catch (e) {
+                    data = { source: 'Knowledge Hub', filter: khStatus, error: e.message, items: [] };
+                }
+                break;
+
+            case 'projectBrief':
+                // Get Project Brief
+                try {
+                    const projectId = state.pipelineContext;
+                    if (projectId && typeof db !== 'undefined') {
+                        const projectDoc = await db.collection('projects').doc(projectId).get();
+                        if (projectDoc.exists) {
+                            const p = projectDoc.data();
+                            data = {
+                                source: 'Project Brief',
+                                name: p.name,
+                                description: p.description,
+                                targetAudience: p.targetAudience,
+                                goals: p.goals
+                            };
+                        } else {
+                            return { success: false, error: `Project not found: ${projectId}` };
+                        }
+                    } else {
+                        data = {
+                            source: 'Project Brief',
+                            message: 'Mock data - project context not set',
+                            name: 'Sample Project',
+                            description: 'Project description'
+                        };
+                    }
+                } catch (e) {
+                    return { success: false, error: 'Failed to load Project Brief: ' + e.message };
+                }
+                break;
+
+            case 'brandBrain':
+                // Get Brand Brain Context
+                try {
+                    const projectId = state.pipelineContext;
+                    if (projectId && typeof db !== 'undefined') {
+                        const brandDoc = await db.collection('brandBrain').doc(projectId).get();
+                        if (brandDoc.exists) {
+                            data = { source: 'Brand Brain', ...brandDoc.data() };
+                        } else {
+                            data = { source: 'Brand Brain', message: 'No Brand Brain data found', empty: true };
+                        }
+                    } else {
+                        data = {
+                            source: 'Brand Brain',
+                            message: 'Mock data',
+                            persona: 'Professional',
+                            tone: 'Friendly',
+                            values: ['Innovation', 'Trust']
+                        };
+                    }
+                } catch (e) {
+                    return { success: false, error: 'Failed to load Brand Brain: ' + e.message };
+                }
+                break;
+
+            case 'firestoreQuery':
+                const collection = node.data.fsCollection;
+                if (!collection) {
+                    return { success: false, error: 'Firestore Collection 경로가 지정되지 않았습니다.' };
+                }
+                try {
+                    if (typeof db !== 'undefined') {
+                        const snapshot = await db.collection(collection).limit(5).get();
+                        const items = [];
+                        snapshot.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
+                        data = { source: 'Firestore Query', collection, count: items.length, items };
+                    } else {
+                        data = { source: 'Firestore Query', collection, message: 'Mock data', items: [{ id: 'doc1' }] };
+                    }
+                } catch (e) {
+                    return { success: false, error: 'Firestore query failed: ' + e.message };
+                }
+                break;
+
+            case 'manualJson':
+                const jsonInput = node.data.manualJson;
+                if (!jsonInput || jsonInput.trim() === '') {
+                    return { success: false, error: 'Manual JSON 입력이 비어있습니다.' };
+                }
+                try {
+                    data = JSON.parse(jsonInput);
                 } catch (e) {
                     return { success: false, error: 'Invalid JSON: ' + e.message };
                 }
                 break;
+
             default:
-                data = { source: source || 'unknown', message: 'Input source not configured' };
+                return {
+                    success: false,
+                    error: `알 수 없는 데이터 소스: ${source}`
+                };
         }
 
         return { success: true, output: data };
