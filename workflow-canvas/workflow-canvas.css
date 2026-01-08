@@ -1856,8 +1856,8 @@ input:checked+.wf-slider:before {
 }
 
 /* ============================================
-   AGENT PALETTE
-/* Old palette styles - positioning now handled by .wf-canvas-footer-container */
+   AGENT PALETTE ITEMS
+   ============================================ */
 
 .wf-palette-item {
     display: flex;
@@ -2659,13 +2659,6 @@ input:checked+.wf-slider:before {
     border: none;
     border-radius: 0;
     box-shadow: none;
-}
-
-/* 개별 팔레트 아이템 크기 축소 */
-.wf-palette-item {
-    padding: 8px 12px;
-    font-size: 13px;
-    border-radius: 10px;
 }
 
 /* 나머지 스타일 유지 */
