@@ -610,9 +610,39 @@ window.WorkflowCanvas = (function () {
             content.classList.toggle('active', idx + 1 === step);
         });
 
+        // Update Step 1 UI based on existing workflow
+        if (step === 1) {
+            updatePromptUIForMode();
+        }
+
         // Generate code when going to step 3
         if (step === 3) {
             generateCode();
+        }
+    }
+
+    /**
+     * Update Step 1 UI based on whether workflow exists (refine mode vs create mode)
+     */
+    function updatePromptUIForMode() {
+        const hasExistingWorkflow = state.nodes && state.nodes.length > 0;
+        const promptTitle = document.querySelector('.wf-prompt-title');
+        const promptSubtitle = document.querySelector('.wf-prompt-subtitle');
+        const promptTextarea = document.getElementById('wf-prompt-input');
+        const analyzeBtn = document.querySelector('.wf-prompt-actions .wf-btn-primary span');
+
+        if (hasExistingWorkflow) {
+            // REFINE MODE
+            if (promptTitle) promptTitle.textContent = '워크플로우 수정하기';
+            if (promptSubtitle) promptSubtitle.innerHTML = '기존 워크플로우에 노드를 추가, 삭제, 또는 수정할 수 있습니다.<br>예: "조건 노드 추가해줘", "마지막 에이전트 삭제해줘"';
+            if (promptTextarea) promptTextarea.placeholder = '예: 조건 노드 추가해줘, 병렬 처리 노드 넣어줘, 마지막 노드 삭제해줘...';
+            if (analyzeBtn) analyzeBtn.textContent = '워크플로우 수정';
+        } else {
+            // CREATE MODE
+            if (promptTitle) promptTitle.textContent = '워크플로우를 자연어로 설명해주세요';
+            if (promptSubtitle) promptSubtitle.innerHTML = 'AI가 분석하여 최적의 에이전트 워크플로우를 자동으로 구성합니다.<br>복잡한 조건이나 병렬 처리도 자연스럽게 설명해보세요.';
+            if (promptTextarea) promptTextarea.placeholder = '예: 먼저 시장 트렌드를 분석하고, 결과가 유의미하면 콘텐츠 기획을 진행하고, 아니면 추가 리서치를 해줘. 기획이 끝나면 글 작성과 이미지 생성을 동시에 진행해줘.';
+            if (analyzeBtn) analyzeBtn.textContent = 'AI로 워크플로우 생성';
         }
     }
 
@@ -626,47 +656,162 @@ window.WorkflowCanvas = (function () {
             return;
         }
 
+        // Check if we already have a workflow (refine mode vs create mode)
+        const hasExistingWorkflow = state.nodes && state.nodes.length > 0;
+        const isRefineMode = hasExistingWorkflow;
+
         // Show loading
         elements.analysisResult.classList.add('active');
-        elements.detectedAgents.innerHTML = '<div class="wf-loading"><div class="wf-spinner"></div><span class="wf-loading-text">AI가 분석 중입니다...</span></div>';
+        const loadingText = isRefineMode ? 'AI가 기존 워크플로우를 수정 중입니다...' : 'AI가 분석 중입니다...';
+        elements.detectedAgents.innerHTML = `<div class="wf-loading"><div class="wf-spinner"></div><span class="wf-loading-text">${loadingText}</span></div>`;
         elements.flowDescription.innerHTML = '';
 
         try {
-            // Smart analysis that detects data nodes, transforms, and agents
-            const analysis = await smartAnalyzePrompt(prompt);
-            state.analysisResult = analysis;
+            if (isRefineMode) {
+                // REFINE MODE: Modify existing workflow
+                console.log('[WorkflowCanvas] Refine mode - modifying existing workflow');
+                const refinement = await refineExistingWorkflow(prompt);
 
-            // Render detected data nodes first
-            let detectedHtml = '';
-            if (analysis.detectedDataNodes && analysis.detectedDataNodes.length > 0) {
-                detectedHtml += analysis.detectedDataNodes.map(dn => `
-                    <div class="wf-detected-agent wf-detected-data">
-                        <span class="wf-detected-check">${SVG_ICONS[dn.icon] || SVG_ICONS.database}</span>
-                        <span>${dn.name}</span>
-                        <span class="wf-detected-type">${dn.type}</span>
+                // Show refinement result
+                elements.detectedAgents.innerHTML = `
+                    <div class="wf-detected-agent" style="background: rgba(0, 240, 255, 0.1); border-color: rgba(0, 240, 255, 0.3);">
+                        <span class="wf-detected-check">${SVG_ICONS.check}</span>
+                        <span style="color: var(--wf-cyan);">워크플로우 수정 완료</span>
+                    </div>
+                `;
+                elements.flowDescription.innerHTML = `
+                    <strong style="color: var(--wf-cyan);">🔄 수정 내용:</strong><br>
+                    <pre style="white-space: pre-wrap; font-family: inherit; margin: 8px 0;">${refinement.description}</pre>
+                `;
+
+                // Re-render nodes and edges
+                renderAllNodes();
+                renderAllEdges();
+                notify('워크플로우가 수정되었습니다.', 'success');
+            } else {
+                // CREATE MODE: New workflow analysis
+                const analysis = await smartAnalyzePrompt(prompt);
+                state.analysisResult = analysis;
+
+                // Render detected data nodes first
+                let detectedHtml = '';
+                if (analysis.detectedDataNodes && analysis.detectedDataNodes.length > 0) {
+                    detectedHtml += analysis.detectedDataNodes.map(dn => `
+                        <div class="wf-detected-agent wf-detected-data">
+                            <span class="wf-detected-check">${SVG_ICONS[dn.icon] || SVG_ICONS.database}</span>
+                            <span>${dn.name}</span>
+                            <span class="wf-detected-type">${dn.type}</span>
+                        </div>
+                    `).join('');
+                }
+
+                // Then render detected agents
+                detectedHtml += analysis.detectedAgents.map(agent => `
+                    <div class="wf-detected-agent">
+                        <span class="wf-detected-check">${SVG_ICONS.check}</span>
+                        <span>${agent.name}</span>
                     </div>
                 `).join('');
+
+                elements.detectedAgents.innerHTML = detectedHtml || '<p>감지된 노드가 없습니다. 더 구체적으로 설명해주세요.</p>';
+
+                // Render flow description
+                elements.flowDescription.innerHTML = `
+                    <strong>감지된 흐름:</strong><br>
+                    <pre style="white-space: pre-wrap; font-family: inherit; margin: 8px 0;">${analysis.flowDescription}</pre>
+                `;
             }
-
-            // Then render detected agents
-            detectedHtml += analysis.detectedAgents.map(agent => `
-                <div class="wf-detected-agent">
-                    <span class="wf-detected-check">${SVG_ICONS.check}</span>
-                    <span>${agent.name}</span>
-                </div>
-            `).join('');
-
-            elements.detectedAgents.innerHTML = detectedHtml || '<p>감지된 노드가 없습니다. 더 구체적으로 설명해주세요.</p>';
-
-            // Render flow description
-            elements.flowDescription.innerHTML = `
-                <strong>감지된 흐름:</strong><br>
-                <pre style="white-space: pre-wrap; font-family: inherit; margin: 8px 0;">${analysis.flowDescription}</pre>
-            `;
         } catch (err) {
             console.error('Analysis failed:', err);
             elements.detectedAgents.innerHTML = '<p style="color: var(--wf-red);">분석 중 오류가 발생했습니다.</p>';
         }
+    }
+
+    /**
+     * Refine existing workflow with additional prompt
+     */
+    async function refineExistingWorkflow(prompt) {
+        await new Promise(resolve => setTimeout(resolve, 1200));
+
+        const keywords = prompt.toLowerCase();
+        let description = '';
+        let addedCount = 0;
+        let removedCount = 0;
+
+        // Parse intent from prompt
+        const addKeywords = ['추가', '넣어', 'add', '생성', '만들어', '붙여'];
+        const removeKeywords = ['삭제', '제거', 'remove', 'delete', '없애', '지워'];
+        const modifyKeywords = ['변경', '수정', 'change', 'modify', '바꿔'];
+
+        const isAdd = addKeywords.some(k => keywords.includes(k));
+        const isRemove = removeKeywords.some(k => keywords.includes(k));
+        const isModify = modifyKeywords.some(k => keywords.includes(k));
+
+        // Detect node type to add/remove
+        if (isAdd || (!isRemove && !isModify)) {
+            // Add nodes
+            if (keywords.includes('조건') || keywords.includes('분기') || keywords.includes('condition')) {
+                const lastNonEndNode = state.nodes.filter(n => n.type !== 'end').pop();
+                const x = lastNonEndNode ? lastNonEndNode.x + 200 : 300;
+                const y = lastNonEndNode ? lastNonEndNode.y : 300;
+                const node = createNode('condition', x, y, { expression: 'output.success == true' });
+                if (lastNonEndNode) createEdge(lastNonEndNode.id, node.id);
+                addedCount++;
+                description += '• 조건(Condition) 노드 추가됨\n';
+            }
+            if (keywords.includes('에이전트') || keywords.includes('agent')) {
+                const agents = state.availableAgents[state.pipelineContext] || [];
+                const agent = agents[0] || { id: 'market_scout', name: 'Market Scout', icon: 'search' };
+                const lastNonEndNode = state.nodes.filter(n => n.type !== 'end').pop();
+                const x = lastNonEndNode ? lastNonEndNode.x + 200 : 300;
+                const y = lastNonEndNode ? lastNonEndNode.y : 300;
+                const node = createNode('agent', x, y, {
+                    agentId: agent.id,
+                    name: agent.name,
+                    icon: agent.icon
+                });
+                if (lastNonEndNode) createEdge(lastNonEndNode.id, node.id);
+                addedCount++;
+                description += `• ${agent.name} 에이전트 추가됨\n`;
+            }
+            if (keywords.includes('병렬') || keywords.includes('parallel')) {
+                const lastNonEndNode = state.nodes.filter(n => n.type !== 'end').pop();
+                const x = lastNonEndNode ? lastNonEndNode.x + 200 : 300;
+                const y = lastNonEndNode ? lastNonEndNode.y : 300;
+                const node = createNode('parallel', x, y, {});
+                if (lastNonEndNode) createEdge(lastNonEndNode.id, node.id);
+                addedCount++;
+                description += '• 병렬(Parallel) 노드 추가됨\n';
+            }
+        }
+
+        if (isRemove) {
+            // Remove last non-start/end node
+            const removableNodes = state.nodes.filter(n => n.type !== 'start' && n.type !== 'end');
+            if (removableNodes.length > 0) {
+                const nodeToRemove = removableNodes[removableNodes.length - 1];
+                // Remove edges connected to this node
+                state.edges = state.edges.filter(e => e.source !== nodeToRemove.id && e.target !== nodeToRemove.id);
+                // Remove node
+                state.nodes = state.nodes.filter(n => n.id !== nodeToRemove.id);
+                // Remove from DOM
+                const el = document.getElementById(nodeToRemove.id);
+                if (el) el.remove();
+                removedCount++;
+                description += `• "${nodeToRemove.properties?.name || nodeToRemove.type}" 노드 삭제됨\n`;
+            }
+        }
+
+        if (addedCount === 0 && removedCount === 0) {
+            description = '요청을 이해했으나 구체적인 노드 타입을 명시해주세요.\n예: "조건 노드 추가해줘", "마지막 에이전트 삭제해줘"';
+        }
+
+        return {
+            success: addedCount > 0 || removedCount > 0,
+            addedCount,
+            removedCount,
+            description: description.trim()
+        };
     }
 
     // Smart analysis that infers data nodes, transforms, and agents
