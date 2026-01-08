@@ -2603,11 +2603,11 @@ input:checked+.wf-slider:before {
 .wf-canvas-footer-container {
     position: absolute;
     bottom: 24px;
-    left: 45%;
+    left: 50%;
     transform: translateX(-50%);
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: stretch;
     gap: 0;
     z-index: 5000;
     pointer-events: none;
@@ -2628,6 +2628,7 @@ input:checked+.wf-slider:before {
 
 .wf-agent-palette {
     display: flex;
+    justify-content: center;
     gap: 10px;
     padding: 10px 14px;
     background: rgba(13, 20, 32, 0.92);
