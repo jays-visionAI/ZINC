@@ -4227,22 +4227,28 @@ window.WorkflowCanvas = (function () {
     async function executeTransformWithPreviousData(node, previousOutputs) {
         const transformType = node.data.transformType || 'filter';
 
-        // Get input data from previous node
+        // Get input data from ALL previous nodes (for parallel merge)
         let inputData = [];
         if (previousOutputs.length > 0) {
-            try {
-                const lastOutput = previousOutputs[previousOutputs.length - 1];
-                inputData = typeof lastOutput.content === 'string'
-                    ? JSON.parse(lastOutput.content)
-                    : lastOutput.content;
+            previousOutputs.forEach(output => {
+                try {
+                    let content = typeof output.content === 'string'
+                        ? JSON.parse(output.content)
+                        : output.content;
 
-                // Handle nested structures
-                if (inputData.result) inputData = inputData.result;
-                if (inputData.data) inputData = inputData.data;
-                if (!Array.isArray(inputData)) inputData = [inputData];
-            } catch (e) {
-                inputData = [{ raw: previousOutputs[0]?.content || 'No data' }];
-            }
+                    // Unify format
+                    if (content.result && Array.isArray(content.result)) {
+                        inputData = inputData.concat(content.result);
+                    } else if (Array.isArray(content)) {
+                        inputData = inputData.concat(content);
+                    } else {
+                        // Single object
+                        inputData.push(content);
+                    }
+                } catch (e) {
+                    inputData.push({ raw: output.content, source: output.role });
+                }
+            });
         }
 
         let output;
