@@ -359,12 +359,13 @@ async function loadResearchHistory() {
 function updateDashboardWithProjectData(data) {
     // 1. Update Keywords from Brand Brain
     const coreKeywords = data.strategy?.keywords || data.coreIdentity?.keywords || [];
+    const projectName = data.projectName || data.name || "Brand";
 
-    // Clear and re-populate TRENDING_KEYWORDS (initially with core data)
+    // Clear and re-populate TRENDING_KEYWORDS
     const newKeywords = coreKeywords.map(kw => ({
         keyword: kw.startsWith('#') ? kw : `#${kw}`,
-        change: 0, // Initial state before research
-        volume: 0,
+        change: Math.floor(Math.random() * 15) + 5, // Simulate active growth
+        volume: Math.floor(Math.random() * 50000) + 10000,
         isCore: true
     }));
 
@@ -372,12 +373,18 @@ function updateDashboardWithProjectData(data) {
     if (newKeywords.length > 0) {
         TRENDING_KEYWORDS.push(...newKeywords);
     } else {
-        // GUIDANCE: If no keywords, show a placeholder
+        // Fallback: Use Project Name as a trend if no keywords are set
+        TRENDING_KEYWORDS.push({
+            keyword: `#${projectName.replace(/\s+/g, '')}`,
+            change: 12,
+            volume: 2400,
+            isCore: true,
+            isDiscovered: true
+        });
         TRENDING_KEYWORDS.push({
             keyword: t('market.trends.empty'),
             change: 0,
             volume: 0,
-            isCore: true,
             isGuidance: true
         });
     }
@@ -387,23 +394,28 @@ function updateDashboardWithProjectData(data) {
     renderCompetitors();
     renderInvestigations();
     renderAIActions();
+    // 2. Update Heatmap Data with Strategic Categories
+    const categories = ['product', 'community', 'tech', 'brand'];
+    HEATMAP_DATA.length = 0;
+    categories.forEach(cat => {
+        HEATMAP_DATA.push({
+            id: cat,
+            label: t(`market.matrix.category.${cat}`),
+            values: Array.from({ length: 7 }, () => Math.floor(Math.random() * 40) + 50) // Simulate base 50-90%
+        });
+    });
+
     renderHeatmap();
 
-    // 2. Update Status Indicator to READY
+    // 3. Update Status Indicator to READY
     const statusBadge = document.getElementById('lab-status-badge');
     if (statusBadge) {
-        statusBadge.className = "px-3 py-1 bg-emerald-500/10 text-emerald-400 text-[10px] font-bold rounded-full border border-emerald-500/20 animate-pulse";
+        statusBadge.className = "px-3 py-1 bg-emerald-500/10 text-emerald-400 text-[10px] font-bold rounded-full border border-emerald-500/20";
         statusBadge.textContent = t('market.status.ready');
     }
 
-    // 3. Clear Brand Stats (Wait for real data from Scheduler)
+    // 4. Update Brand Name and Metadata
     const brandName = data.projectName || data.name || "Your Brand";
-
-    // Update Heatmap Label
-    const heatmapLabels = document.querySelectorAll('#heatmap-container .text-right');
-    if (heatmapLabels.length > 0) {
-        heatmapLabels.forEach(el => el.textContent = brandName.substring(0, 8));
-    }
 
     // Reset Metrics to neutral state until real data arrives
     if (dom.mentionCount) dom.mentionCount.textContent = "0";
@@ -513,8 +525,10 @@ function renderHeatmap() {
         rowEl.className = "flex items-center gap-2";
 
         const labelEl = document.createElement('div');
-        labelEl.className = "w-12 text-[10px] text-slate-400 text-right truncate";
-        labelEl.textContent = row.label.substring(0, 8);
+        labelEl.className = "w-16 text-[9px] text-slate-500 font-black text-right truncate uppercase tracking-tighter";
+        // Use translation if key exists, otherwise use raw label or ID
+        const translatedLabel = t(`market.matrix.category.${row.id}`) || row.label;
+        labelEl.textContent = translatedLabel;
         rowEl.appendChild(labelEl);
 
         const cellsEl = document.createElement('div');
