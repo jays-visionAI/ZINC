@@ -846,22 +846,66 @@ async function callDeepSeekInternal(apiKey, model, messages, temperature) {
 
     const openai = new OpenAI({
         apiKey,
-        baseURL: 'https://api.deepseek.com'
+        baseURL: 'https://api.deepseek.com',
+        timeout: 120000 // Increase timeout to 2 minutes
     });
 
-    const response = await openai.chat.completions.create({
-        model: apiModel,
-        messages,
-        temperature,
-        max_completion_tokens: 4000
-    });
+    let lastError;
+    for (let i = 0; i < 3; i++) {
+        try {
+            console.log(`[callDeepSeekInternal] Attempt ${i + 1} for ${apiModel}`);
+            const response = await openai.chat.completions.create({
+                model: apiModel,
+                messages,
+                temperature,
+                max_completion_tokens: 4000
+            });
 
-    return {
-        content: response.choices[0]?.message?.content || '',
-        model: response.model,
-        usage: response.usage,
-        provider: 'deepseek'
-    };
+            return {
+                content: response.choices[0]?.message?.content || '',
+                model: response.model,
+                usage: response.usage,
+                provider: 'deepseek'
+            };
+        } catch (error) {
+            lastError = error;
+            console.warn(`[callDeepSeekInternal] Attempt ${i + 1} failed:`, error.message);
+
+            // Only retry on network errors or 5xx
+            const isNetworkError = error.message.includes('ECONNRESET') || error.message.includes('ETIMEDOUT');
+            const is5xx = error.status && error.status >= 500;
+
+            if (!(isNetworkError || is5xx)) {
+                throw error; // Don't retry for 4xx (e.g., auth, rate limit)
+            }
+
+            if (i < 2) {
+                const delay = Math.pow(2, i) * 1000;
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+    }
+
+    // If all retries fail, try emergency fallback
+    try {
+        return await callEmergencyFallback(messages, temperature);
+    } catch (fallbackError) {
+        throw lastError; // Re-throw the original DeepSeek error if fallback fails
+    }
+}
+
+/**
+ * Emergency Fallback to Gemini
+ */
+async function callEmergencyFallback(messages, temperature) {
+    console.error(`[callEmergencyFallback] Primary provider failed. Switching to Gemini...`);
+    try {
+        const apiKey = await getSystemApiKey('gemini');
+        return await callGeminiInternal(apiKey, 'gemini-1.5-flash', messages, temperature);
+    } catch (error) {
+        console.error(`[callEmergencyFallback] Gemini fallback also failed:`, error.message);
+        throw error;
+    }
 }
 
 /**
