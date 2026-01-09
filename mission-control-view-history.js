@@ -19,6 +19,21 @@
     let contentsListener = null;
     let teamListener = null;
 
+    // Helper to get current project name from DOM or state
+    const getProjectName = () => {
+        const docName = document.getElementById('project-title')?.textContent ||
+            document.getElementById('current-project-name')?.textContent;
+        if (docName && docName !== 'Select Project...' && docName !== 'Loading...') return docName.trim();
+
+        // Try fallback from select dropdown
+        const projectSelect = document.getElementById('project-select');
+        if (projectSelect && projectSelect.selectedIndex > 0) {
+            return projectSelect.options[projectSelect.selectedIndex].textContent;
+        }
+
+        return 'Project';
+    };
+
     // ===== Public API =====
 
     /**
@@ -880,8 +895,9 @@
 
         // Use cached channel profile or fallback to content data
         const xProfile = channelProfileCache['x'] || {};
-        const authorName = content.author_profile?.display_name || xProfile.name || (state.selectedProject?.name || 'Project');
-        const authorUsername = content.author_profile?.username || xProfile.username || xProfile.handle?.replace('@', '') || 'visionchain';
+        const projectName = getProjectName();
+        const authorName = content.author_profile?.display_name || xProfile.name || projectName;
+        const authorUsername = content.author_profile?.username || xProfile.username || xProfile.handle?.replace('@', '') || projectName.toLowerCase().replace(/\s+/g, '_');
         const avatarUrl = content.author_profile?.avatar_url || xProfile.profileImageUrl || '';
 
         return `
@@ -946,7 +962,8 @@
 
         // Use cached channel profile
         const igProfile = channelProfileCache['instagram'] || {};
-        const authorUsername = content.author_profile?.username || igProfile.username || igProfile.handle?.replace('@', '') || 'visionchain_official';
+        const projectName = getProjectName();
+        const authorUsername = content.author_profile?.username || igProfile.username || igProfile.handle?.replace('@', '') || (projectName.toLowerCase().replace(/\s+/g, '_') + '_official');
         const avatarUrl = content.author_profile?.avatar_url || igProfile.profileImageUrl || '';
 
         return `

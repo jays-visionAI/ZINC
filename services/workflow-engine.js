@@ -34,10 +34,16 @@ const WorkflowEngine = (function () {
                 try {
                     const result = await this.executeNode(node);
                     this.nodeOutputs[node.id] = result;
-                    this.logger.log(`[WorkflowEngine] ✅ ${node.id} completed in ${Date.now() - startTime}ms`);
+                    this.logger.log(`[WorkflowEngine] ✅ ${node.id} completed successfully`);
                 } catch (err) {
                     this.status = 'failed';
-                    this.logger.error(`[WorkflowEngine] ❌ ${node.id} failed:`, err);
+                    const errorDetails = err.message || 'Unknown error';
+                    this.logger.error(`[WorkflowEngine] ❌ Node "${node.data.name || node.id}" failed: ${errorDetails}`);
+
+                    // Attach node info to error for easier debugging
+                    err.nodeId = node.id;
+                    err.nodeType = node.type;
+                    err.nodeName = node.data.name;
                     throw err;
                 }
             }
@@ -459,10 +465,18 @@ const WorkflowEngine = (function () {
 
             } catch (err) {
                 const elapsed = (Date.now() - startTimeTotal) / 1000;
-                console.error(`[WorkflowEngine] findAndExecuteByContext Error after ${elapsed.toFixed(1)}s:`, err);
-                console.error('[WorkflowEngine] Error Code:', err.code);
-                console.error('[WorkflowEngine] Stack:', err.stack);
-                console.error('[WorkflowEngine] Details:', err.details);
+                console.error(`[WorkflowEngine] Execution failed after ${elapsed.toFixed(1)}s`);
+                console.error(`[WorkflowEngine] Type: ${err.name || 'Error'}, Code: ${err.code || 'n/a'}`);
+
+                if (err.nodeId) {
+                    console.error(`[WorkflowEngine] Failed Node: "${err.nodeName}" (${err.nodeId}) Type: ${err.nodeType}`);
+                }
+
+                if (err.code === 'permission-denied') {
+                    console.warn('[WorkflowEngine] 🛡️ Permission Denied: Ensure you have access to all requested Firestore collections and the selected Project.');
+                }
+
+                console.error('[WorkflowEngine] Full Error:', err);
                 throw err;
             }
         },
@@ -471,13 +485,15 @@ const WorkflowEngine = (function () {
             if (!workflowId) return;
             const db = firebase.firestore();
             try {
-                await db.collection('workflowDefinitions').doc(workflowId).update({
+                // Use a non-blocking attempt to increment
+                db.collection('workflowDefinitions').doc(workflowId).update({
                     contentCount: firebase.firestore.FieldValue.increment(1),
                     lastRunAt: firebase.firestore.FieldValue.serverTimestamp()
+                }).catch(err => {
+                    console.warn(`[WorkflowEngine] Could not update workflow metadata (Permissons?): ${err.message}`);
                 });
-                console.log(`[WorkflowEngine] Incremented contentCount for ${workflowId}`);
             } catch (err) {
-                console.warn('[WorkflowEngine] Failed to increment contentCount:', err);
+                // Silently fail for metadata updates
             }
         }
     };

@@ -4920,10 +4920,10 @@ ${agentList}
         return {
             source: 'Project Brief',
             message: 'Project ID not found in this context - using mock data',
-            name: 'Vision Chain Project',
-            description: 'AI-driven supply chain optimization platform',
-            targetAudience: 'Global logistics companies',
-            goals: 'Reduce operational costs by 25%'
+            name: 'Generic Project',
+            description: 'AI-powered project description goes here.',
+            targetAudience: 'Global tech community',
+            goals: 'Achieve project milestones efficiently'
         };
     }
 

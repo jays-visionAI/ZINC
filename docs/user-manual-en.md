@@ -38,7 +38,7 @@ Before using social media channels (X, Instagram, YouTube, etc.), you must first
 
 4. **Detailed Name*** (Descriptive Name)
    - A name to identify this API connection
-   - Examples: "VisionChain Official X Account", "Marketing Instagram"
+   - Examples: "MyBusiness Official X Account", "Marketing Instagram"
 
 5. **API Credentials**
    - Required fields appear automatically based on selected channel
@@ -157,7 +157,7 @@ View the following information on agent team cards in Command Center:
 
 ```
 ┌─────────────────────────────────────┐
-│ [X] VisionChain Marketing Team  ⚠️ 1│
+│ [X] Alpha Marketing Team  ⚠️ 1│
 │                                     │
 │ Autonomous Agent Team               │
 │                                     │

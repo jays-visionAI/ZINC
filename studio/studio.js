@@ -561,23 +561,22 @@ function initChatEngine() {
      * =====================================================
      */
     const STUDIO_ASSISTANT_SYSTEM_PROMPT = `
-You are the ZYNK Studio Orchestrator. Your role is to interact with the user to build a "Target Brief" (Final Context) for AI generation.
-The "Target Brief" is a living document visible to the user on the left sidebar. AI agents will use this board as the ULTIMATE source of truth.
+You are the ZYNK Studio Orchestrator. Your role is to collaborate with the user to build a "Target Brief" (Final Context) for AI generation.
+The "Target Brief" is the ultimate source of truth for all subsequent AI agents.
 
-INTERACTION GUIDELINES (Skywork Style):
-1. Greeting: Start with a professional greeting and clarify the project goal.
-2. Structured Blocks: Use [BLOCK] commands to show progress, to-do lists, or request supplementary info.
-3. USE COMMANDS to update the Target Brief Board.
-4. Market Research: If research is needed, use [SEARCH: "query"].
+CORE OPERATING PRINCIPLES:
+1. Context Extraction: Analyze the project ({{projectName}}) to establish a baseline.
+2. Gap Analysis: Identify missing information (audience, tone, specific goals) and ask the user for details.
+3. Autonomous Research: Suggest [SEARCH] commands to gather real-time market data when information is thin.
+4. Structured Response: Summarize knowns, propose next steps, and await user confirmation.
 
-COMMAND PARSING (Strict):
-- To show a structured card (To-do, Research, Info), use: [BLOCK: {"title": "Block Title", "icon": "brain|check|robot", "status": "running|done", "content": "Markdown/List content"}]
-- To update the side-panel Target Brief, append: [CONTEXT: {"name": "Header Name", "content": "Extracted strategy details"}]
-- To suggest a research chip, append: [SEARCH: "Topic to research"]
+COMMAND PARSING:
+- [BLOCK: {"title": "Title", "icon": "brain|check|robot", "status": "running|done", "content": "Markdown"}]
+- [CONTEXT: {"name": "Section Name", "content": "Extracted details"}]
+- [SEARCH: "Research query"]
 
 Current Project: {{projectName}}
 Language: Respond ONLY in {{targetLanguage}}.
-CRITICAL: Use high-quality, professional formatting. Maintain the Target Brief Board as the most accurate reflection of the current content plan.
 `;
 
     // Unified Smart Action Handler (Enhanced Interactive AI)
@@ -987,6 +986,11 @@ function showMarketResearchDetails(query) {
     let simulationHtml = "";
     const isKorean = (localStorage.getItem('zynk-main-language') === 'ko' || localStorage.getItem('zynk-language') === 'ko');
 
+    const projectSelect = document.getElementById('project-select');
+    const projectName = projectSelect.options[projectSelect.selectedIndex]?.textContent || 'Project';
+    const projectTag = `#${projectName.replace(/\s+/g, '')}`;
+    const innovationTag = isKorean ? '#기술혁신' : '#Innovation';
+
     if (isKorean) {
         simulationHtml = `
             <div style="margin-bottom: 20px; border-left: 3px solid #00FFA3; padding-left: 15px;">
@@ -999,7 +1003,7 @@ function showMarketResearchDetails(query) {
                     <div style="color: #00FFA3; font-weight: 600; font-size: 13px; margin-bottom: 10px;">타겟 오디언스</div>
                     <ul style="padding-left: 20px; font-size: 13px; margin: 0;">
                         <li>테크 얼리어답터 (20-30대)</li>
-                        <li>블록체인 투자자 및 개발자</li>
+                        <li>산업 분야 리더 및 전문가</li>
                         <li>혁신 기술 기반 사업가</li>
                     </ul>
                 </div>
@@ -1007,23 +1011,23 @@ function showMarketResearchDetails(query) {
                     <div style="color: #FBBF24; font-weight: 600; font-size: 13px; margin-bottom: 10px;">현재 여론/감성</div>
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <span style="font-size: 24px;">📈</span>
-                        <span style="font-size: 13px;">긍정적 기대감 (보안 및 확장성에 대한 관심 급증)</span>
+                        <span style="font-size: 13px;">긍정적 기대감 (핵심 가치 및 시장성에 대한 관심 급증)</span>
                     </div>
                 </div>
             </div>
 
             <h4 style="color: #fff; margin-bottom: 10px; font-size: 15px;">추천 키워드 전략</h4>
             <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                <span style="background: rgba(0,255,163,0.1); color: #00FFA3; padding: 4px 10px; border-radius: 20px; font-size: 12px;">#VisionChain2026</span>
-                <span style="background: rgba(0,255,163,0.1); color: #00FFA3; padding: 4px 10px; border-radius: 20px; font-size: 12px;">#Web3Innovation</span>
-                <span style="background: rgba(0,255,163,0.1); color: #00FFA3; padding: 4px 10px; border-radius: 20px; font-size: 12px;">#BlockchainScaling</span>
+                <span style="background: rgba(0,255,163,0.1); color: #00FFA3; padding: 4px 10px; border-radius: 20px; font-size: 12px;">${projectTag}</span>
+                <span style="background: rgba(0,255,163,0.1); color: #00FFA3; padding: 4px 10px; border-radius: 20px; font-size: 12px;">${innovationTag}</span>
+                <span style="background: rgba(0,255,163,0.1); color: #00FFA3; padding: 4px 10px; border-radius: 20px; font-size: 12px;">#MarketTrend</span>
             </div>
             
             <div id="research-result-summary" style="margin-top: 25px; padding: 15px; background: rgba(0,255,163,0.05); border-radius: 10px; font-size: 13px; color: #fff;">
-                <strong style="color: #00FFA3;">에이전트 제안:</strong> 위 데이터를 바탕으로 '보안성'과 '사용자 중심의 확장'을 핵심 테마로 설정하여 주간 포스팅을 구성하는 것을 추천합니다.
+                <strong style="color: #00FFA3;">에이전트 제안:</strong> 위 데이터를 바탕으로 현재 시장 트렌드와 본 프로젝트의 핵심 가치를 결합하여 독창적인 콘텐츠를 구성하는 것을 추천합니다.
             </div>
         `;
-        state.lastResearchSummary = `### 시장 리서치: ${cleanTitle}\n- 타겟: 테크 얼리어답터 (20-30대)\n- 여론: 긍정적 기대감 (보안/확장성)\n- 키워드: #VisionChain2026, #Web3Innovation\n- 제안: 보안성과 사용자 중심 확장을 핵심 테마로 설정.`;
+        state.lastResearchSummary = `### 시장 리서치: ${cleanTitle}\n- 타겟: 관련 분야 얼리어답터 및 전문가\n- 여론: 긍정적 기대감 확인\n- 키워드: ${projectTag}, ${innovationTag}\n- 제안: 시장 트렌드와 핵심 가치 통합 전략 수립.`;
     } else {
         simulationHtml = `
             <div style="margin-bottom: 20px; border-left: 3px solid #00FFA3; padding-left: 15px;">
@@ -1036,29 +1040,29 @@ function showMarketResearchDetails(query) {
                     <div style="color: #00FFA3; font-weight: 600; font-size: 13px; margin-bottom: 10px;">Target Audience</div>
                     <ul style="padding-left: 20px; font-size: 13px; margin: 0;">
                         <li>Tech Early Adopters (20s-30s)</li>
-                        <li>Blockchain Investors & Developers</li>
+                        <li>Industry Leaders & Experts</li>
                     </ul>
                 </div>
                 <div style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 10px;">
                     <div style="color: #FBBF24; font-weight: 600; font-size: 13px; margin-bottom: 10px;">Public Sentiment</div>
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <span style="font-size: 24px;">📈</span>
-                        <span style="font-size: 13px;">Positive (Growing interest in security/scalability)</span>
+                        <span style="font-size: 13px;">Positive (Growing interest in core project values)</span>
                     </div>
                 </div>
             </div>
 
             <h4 style="color: #fff; margin-bottom: 10px; font-size: 15px;">Keyword Strategy</h4>
             <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                <span style="background: rgba(0,255,163,0.1); color: #00FFA3; padding: 4px 10px; border-radius: 20px; font-size: 12px;">#VisionChain2026</span>
-                <span style="background: rgba(0,255,163,0.1); color: #00FFA3; padding: 4px 10px; border-radius: 20px; font-size: 12px;">#Web3Innovation</span>
+                <span style="background: rgba(0,255,163,0.1); color: #00FFA3; padding: 4px 10px; border-radius: 20px; font-size: 12px;">${projectTag}</span>
+                <span style="background: rgba(0,255,163,0.1); color: #00FFA3; padding: 4px 10px; border-radius: 20px; font-size: 12px;">${innovationTag}</span>
             </div>
             
             <div id="research-result-summary" style="margin-top: 25px; padding: 15px; background: rgba(0,255,163,0.05); border-radius: 10px; font-size: 13px; color: #fff;">
-                <strong style="color: #00FFA3;">Agent Suggestion:</strong> Focus on "Security" and "User-centric Scaling" as core themes.
+                <strong style="color: #00FFA3;">Agent Suggestion:</strong> Focus on combining market trends with core project positioning.
             </div>
         `;
-        state.lastResearchSummary = `### Market Research: ${cleanTitle}\n- Target: Tech Early Adopters\n- Sentiment: Positive expectations around security and scaling.\n- Keywords: #VisionChain2026, #Web3Innovation\n- Suggestion: Focus on security and user-centric scalability.`;
+        state.lastResearchSummary = `### Market Research: ${cleanTitle}\n- Target: Relevant early adopters\n- Sentiment: Positive expectations around innovation.\n- Keywords: ${projectTag}, ${innovationTag}\n- Suggestion: Integrate market trends with unique value propositions.`;
     }
 
     content.innerHTML = simulationHtml;
