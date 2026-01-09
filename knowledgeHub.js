@@ -3102,9 +3102,14 @@ Industry: ${currentProject.industry || 'N/A'}
         const systemPrompt = `당신은 시니어 브랜드 전략 컨설턴트입니다. 
 제공된 [PROJECT BRIEF]와 [KNOWLEDGE SOURCES]를 바탕으로 브랜드의 핵심 가치와 전략적 방향을 요약하세요.
 
+[출력 형식 - 반드시 이 레이블을 포함하세요]
+BRAND SUMMARY: (약 800자 내외의 요약 본문)
+KEY INSIGHTS: (5개의 인사이트를 한 줄씩 작성)
+SUGGESTED QUESTIONS: (3개의 추천 질문을 한 줄씩 작성)
+
 [제약 조건]
 1. 각 소스의 'Weight'(가중치)를 고려하여 비중을 조절하세요.
-2. 약 800자 내외의 한국어 텍스트로 작성하세요. (JSON이나 마크다운 복잡한 구조 없이 텍스트 중심)
+2. SUGGESTED QUESTIONS는 반드시 3개를 정밀하게 추천하세요.
 3. 전문적이고 통찰력 있는 톤을 유지하세요.
 4. 비활성화된 문서는 제외되었습니다. 제공된 데이터에만 집중하세요.`;
 
@@ -3130,23 +3135,39 @@ Industry: ${currentProject.industry || 'N/A'}
 
         const aiOutput = result.data.output || result.data.content;
 
-        // Structure the result for the existing UI
-        let finalSummaryText = aiOutput;
+        // Structure the result with robust parsing
+        let finalSummaryText = "";
         let insights = [];
         let questions = [];
 
-        // Simple heuristic to split if AI added sections despite our text-only request
-        if (typeof aiOutput === 'string' && aiOutput.includes('핵심 인사이트')) {
-            const parts = aiOutput.split('핵심 인사이트');
-            finalSummaryText = parts[0].trim();
-            // Try to extract some lines as insights
-            insights = parts[1].split('\n').filter(l => l.trim().length > 5).slice(0, 5);
+        if (typeof aiOutput === 'string') {
+            const summaryMatch = aiOutput.match(/BRAND SUMMARY:?\s*([\s\S]*?)(?=KEY INSIGHTS|$)/i);
+            const insightsMatch = aiOutput.match(/KEY INSIGHTS:?\s*([\s\S]*?)(?=SUGGESTED QUESTIONS|$)/i);
+            const questionsMatch = aiOutput.match(/SUGGESTED QUESTIONS:?\s*([\s\S]*?)$/i);
+
+            finalSummaryText = summaryMatch ? summaryMatch[1].trim() : aiOutput;
+
+            if (insightsMatch) {
+                insights = insightsMatch[1].split('\n')
+                    .map(l => l.replace(/^[-*\d.\s]+/, '').trim())
+                    .filter(l => l.length > 5).slice(0, 5);
+            }
+
+            if (questionsMatch) {
+                questions = questionsMatch[1].split('\n')
+                    .map(l => l.replace(/^[-*\d.\s]+/, '').trim())
+                    .filter(l => l.length > 5).slice(0, 3);
+            }
         }
 
         const parsedResult = {
-            summary: finalSummaryText,
-            keyInsights: insights.length > 0 ? insights : ["통찰력을 바탕으로 전략을 수행하세요."],
-            suggestedQuestions: questions.length > 0 ? questions : ["이 브랜드의 핵심 차별화 요소는 무엇인가요?"]
+            summary: finalSummaryText || aiOutput,
+            keyInsights: insights.length > 0 ? insights : ["데이터 기반의 인사이트를 분석 중입니다."],
+            suggestedQuestions: questions.length >= 3 ? questions.slice(0, 3) : [
+                "이 브랜드의 핵심 차별화 요소는 무엇인가요?",
+                "가장 우선순위가 높은 타겟 고객층은 누구인가요?",
+                "단기적으로 집중해야 할 마케팅 채널은 어디인가요?"
+            ]
         };
 
         // 3. Keep Weight Distribution logic for UI consistency
