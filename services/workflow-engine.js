@@ -217,7 +217,7 @@ const WorkflowEngine = (function () {
 
             const provider = this.inferProvider(model);
 
-            const executeSubAgent = firebase.app().functions('us-central1').httpsCallable('executeSubAgent');
+            const executeSubAgent = firebase.app().functions('us-central1').httpsCallable('executeSubAgent', { timeout: 540000 });
 
             // Format history for the Cloud Function context
             const previousOutputsArray = Object.entries(context.previousOutputs).map(([id, content]) => ({
@@ -397,41 +397,38 @@ const WorkflowEngine = (function () {
             try {
                 // 1. Try finding by context (Prefer 'active', then any)
                 let snapshot = await db.collection('workflowDefinitions')
-                    .where('pipelineContext', '==', pipelineContext)
+                    .where('pipelineContext', 'in', [pipelineContext, 'one_pager', 'creative']) // Search broader contexts
                     .orderBy('createdAt', 'desc')
-                    .limit(20)
+                    .limit(50)
                     .get();
 
                 // If not found by context, get all and filter locally for better matching
                 if (snapshot.empty) {
-                    console.warn(`[WorkflowEngine] No workflows found for context: ${pipelineContext}. Fetching all workflows for fallback...`);
-                    snapshot = await db.collection('workflowDefinitions').limit(50).get();
+                    console.warn(`[WorkflowEngine] No workflows found for contexts: ${pipelineContext}. Fetching all workflows for fallback...`);
+                    snapshot = await db.collection('workflowDefinitions').limit(100).get();
                 }
 
                 const allWorkflows = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-                // Log all available to console for debugging
-                console.log(`[WorkflowEngine] Discovery: Found ${allWorkflows.length} total potential workflows.`);
-                console.table(allWorkflows.map(w => ({ id: w.id, name: w.name, context: w.pipelineContext, status: w.status })));
-
                 // Filter strategy:
                 // A. Exact context match (highest priority)
                 let target = allWorkflows.find(w => w.pipelineContext === pipelineContext && w.status === 'active') ||
-                    allWorkflows.find(w => w.pipelineContext === pipelineContext);
+                    allWorkflows.find(w => w.pipelineContext === pipelineContext) ||
+                    allWorkflows.find(w => w.pipelineContext === 'one_pager' && w.status === 'active') ||
+                    allWorkflows.find(w => w.pipelineContext === 'one_pager');
 
                 // B. Name-based match (Keyword fallback)
                 if (!target) {
-                    const keywords = ['one pager', 'one-pager', '원페이저', 'onepager'];
+                    const keywords = ['one pager', 'one-pager', '원페이저', 'onepager', 'studio pro'];
                     target = allWorkflows.find(w => {
                         const name = (w.name || '').toLowerCase();
                         return keywords.some(k => name.includes(k));
                     });
                 }
 
-                // C. Last resort: If context is studio and there's ONLY one workflow in the system, maybe use that?
-                // Actually, let's just fail if A and B didn't work, but with a better error message.
                 if (!target) {
-                    throw new Error(`No workflow found for context "${pipelineContext}" or containing "One Pager" in name. Please check your workflow's Context and Name in the Admin Canvas.`);
+                    const availableNames = allWorkflows.map(w => w.name).join(', ');
+                    throw new Error(`No workflow found for context "${pipelineContext}". Available: [${availableNames}]. Please check your workflow Context in the Admin Canvas.`);
                 }
 
                 logger.log(`[WorkflowEngine] Selected workflow: "${target.name}" (${target.id})`);

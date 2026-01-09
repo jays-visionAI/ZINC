@@ -7557,13 +7557,13 @@ function startProgressBar(proj = null) {
 
     // Simulate progress (0-90% over ~2 minutes, leaving 10% for completion)
     const steps = [
-        { percent: 10, msg: 'Initializing agent...', duration: 2000 },
-        { percent: 20, msg: 'Reading Knowledge Hub context...', duration: 3000 },
-        { percent: 35, msg: 'Generating AI images with Vertex AI...', duration: 15000 },
-        { percent: 55, msg: 'Building HTML structure...', duration: 10000 },
-        { percent: 70, msg: 'Applying styling and animations...', duration: 30000 },
-        { percent: 85, msg: 'Finalizing document...', duration: 60000 },
-        { percent: 90, msg: 'Almost there...', duration: 30000 }
+        { percent: 10, msg: 'Initializing Workflow Engine...', duration: 2000 },
+        { percent: 25, msg: 'Analyzing Project & Brand Context...', duration: 4000 },
+        { percent: 45, msg: 'Executing Multi-Agent Sequence...', duration: 20000 },
+        { percent: 65, msg: 'Designing Layout & Visuals...', duration: 15000 },
+        { percent: 80, msg: 'Refining Content Quality...', duration: 30000 },
+        { percent: 90, msg: 'Finalizing Document Output...', duration: 30000 },
+        { percent: 95, msg: 'Almost there...', duration: 20000 }
     ];
 
     let stepIndex = 0;
