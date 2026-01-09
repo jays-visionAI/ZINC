@@ -4888,17 +4888,31 @@ async function generateCreativeItem() {
 
             addLog('Workflow sequence complete. Processing final output...', 'success');
 
-            // Find the HTML output (usually from 'document_designer' or 'end' node)
+            // Find the actual HTML document among all node outputs (Scoring approach)
             const outputs = workflowResult.outputs;
-            const designerNodeId = Object.keys(outputs).find(id => id.includes('designer') || id.includes('Document'));
+            let bestHtmlCandidate = '';
+            let maxHtmlScore = -1;
 
-            if (designerNodeId && outputs[designerNodeId]) {
-                finalHtml = outputs[designerNodeId];
-            } else {
-                // Fallback to the last node's output
-                const nodeIds = Object.keys(outputs);
-                finalHtml = outputs[nodeIds[nodeIds.length - 1]];
-            }
+            Object.entries(outputs).forEach(([id, content]) => {
+                if (typeof content !== 'string') return;
+
+                let score = 0;
+                const lowerContent = content.toLowerCase();
+
+                if (lowerContent.includes('<!doctype html')) score += 100;
+                if (lowerContent.includes('<html')) score += 50;
+                if (lowerContent.includes('<body')) score += 30;
+                if (lowerContent.includes('<div')) score += 10;
+                if (id.toLowerCase().includes('designer') || id.toLowerCase().includes('document')) score += 20;
+                if (content.length < 200) score -= 50;
+
+                if (score > maxHtmlScore) {
+                    maxHtmlScore = score;
+                    bestHtmlCandidate = content;
+                }
+            });
+
+            finalHtml = bestHtmlCandidate || '<html><body>Error: No valid HTML content found in workflow outputs.</body></html>';
 
             // If it's still an object, try to extract 'html' or 'content'
             if (typeof finalHtml === 'object') {
