@@ -143,14 +143,17 @@ const WorkflowEngine = (function () {
                     }
 
                     // PRD 11.2 - Auto-Export Logic
-                    if (node.data && node.data.outputDestination === 'firestore') {
+                    // Support both explicit 'firestore' destination AND 'autoExport' shorthand
+                    if ((node.data && node.data.outputDestination === 'firestore') || (node.data && node.data.autoExport)) {
                         this.logger.log(`[WorkflowEngine] END node auto-export: Saving to Firestore...`);
+
+                        const collection = node.data.outputCollection || node.data.autoExport;
 
                         // Map END node's export properties to Firestore node's expected properties
                         const fsConfig = {
                             data: {
                                 operation: 'write',
-                                collection: node.data.outputCollection,
+                                collection: collection,
                                 docId: node.data.outputDocId,
                                 dataTemplate: node.data.outputDataTemplate || '{{prev.output}}' // Simpler default
                             }
