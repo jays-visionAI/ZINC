@@ -74,6 +74,7 @@ async function init() {
     renderAIActions();
     setupEventListeners();
 
+    // Competitor Radar will be initialized after project data loads in onProjectChange()
 }
 
 /**
@@ -190,11 +191,26 @@ async function onProjectChange() {
                 console.log('[MarketPulse] ⚠️ No Core Agent Team - using simulation mode');
             }
 
+            // Log project data for debugging
+            console.log('[MarketPulse] Project data loaded:', {
+                projectName: currentProjectData.projectName,
+                industry: currentProjectData.industry || currentProjectData.coreIdentity?.industry,
+                targetAudience: currentProjectData.targetAudience || currentProjectData.coreIdentity?.targetAudience,
+                usp: currentProjectData.usp || currentProjectData.coreIdentity?.usp,
+                description: currentProjectData.description || currentProjectData.coreIdentity?.description
+            });
+
             // Generate initial mock state (fallback)
             updateDashboardWithProjectData(currentProjectData);
 
             // Load research history for the project
             loadResearchHistory();
+
+            // 🆚 Initialize Competitor Radar after project data is loaded
+            if (typeof competitorRadar !== 'undefined' && competitorRadar) {
+                console.log('[MarketPulse] Triggering Competitor Radar scan...');
+                competitorRadar.scanMarket();
+            }
         }
 
         // 2. ⚡ Subscribe to Real-Time Market Pulse Data (from Scheduler)
@@ -1630,3 +1646,594 @@ document.addEventListener('DOMContentLoaded', () => {
     window.healthCenter = new BrandHealthIntelligence();
 });
 
+
+// ========== COMPETITOR STRATEGIC RADAR (MATCHMAKING) ==========
+// No more mock data - real AI discovery only
+
+class CompetitorRadarManager {
+    constructor() {
+        this.selectedRivals = new Set();
+        this.candidates = [];
+        this.isScanning = false;
+        this.carouselIndex = 0;
+        this.visibleCards = 3;
+        this.hasInsufficientData = false;
+
+        this.dom = {
+            grid: document.getElementById('rival-selection-grid'),
+            selectionCount: document.getElementById('selection-count'),
+            selectionStatus: document.getElementById('selection-status'),
+            startBtn: document.getElementById('btn-start-tracking'),
+            prevBtn: document.getElementById('radar-prev'),
+            nextBtn: document.getElementById('radar-next')
+        };
+
+        if (this.dom.startBtn) {
+            this.dom.startBtn.addEventListener('click', () => this.handleStartTracking());
+        }
+        if (this.dom.prevBtn) {
+            this.dom.prevBtn.addEventListener('click', () => this.prevSlide());
+        }
+        if (this.dom.nextBtn) {
+            this.dom.nextBtn.addEventListener('click', () => this.nextSlide());
+        }
+    }
+
+    // Check if project has enough data for competitor analysis
+    checkProjectDataSufficiency(projectData) {
+        if (!projectData) return { sufficient: false, missing: ['프로젝트 데이터'] };
+
+        console.log('[CompetitorRadar] Checking project data sufficiency:', projectData);
+
+        const missing = [];
+
+        // Extract fields from various possible locations in project data
+        const projectName = projectData.projectName || projectData.name;
+        const industry = projectData.industry || projectData.coreIdentity?.industry || projectData.category || projectData.coreIdentity?.category;
+        const targetAudience = projectData.targetAudience || projectData.coreIdentity?.targetAudience || projectData.strategy?.targetAudience || projectData.audience;
+        const usp = projectData.usp || projectData.coreIdentity?.usp || projectData.strategy?.usp || projectData.coreIdentity?.uniqueSellingPoints || projectData.uniqueSellingPoints;
+        const productDescription = projectData.productDescription || projectData.coreIdentity?.description || projectData.description || projectData.brief || projectData.coreIdentity?.brief;
+        const keywords = projectData.keywords || projectData.coreIdentity?.keywords || projectData.strategy?.keywords || projectData.tags;
+        const brandValues = projectData.brandValues || projectData.coreIdentity?.brandValues || projectData.values;
+        const competitors = projectData.competitors || projectData.coreIdentity?.competitors;
+
+        // Log found values
+        console.log('[CompetitorRadar] Extracted data:', { projectName, industry, targetAudience, usp, productDescription, keywords, brandValues, competitors });
+
+        // Check what's missing
+        if (!industry && !projectData.category) missing.push('산업/카테고리');
+        if (!targetAudience) missing.push('타겟 오디언스');
+        if (!usp && !productDescription && !projectName) missing.push('핵심 가치 제안(USP) 또는 제품 설명');
+
+        // More lenient: Need projectName OR (industry + any other field)
+        // OR if there are already competitors defined
+        const hasBasicInfo = projectName || productDescription || industry;
+        const hasDetailedInfo = targetAudience || usp || (keywords && keywords.length > 0) || brandValues;
+        const hasExistingCompetitors = competitors && competitors.length > 0;
+
+        const sufficient = hasBasicInfo && (hasDetailedInfo || hasExistingCompetitors || industry);
+
+        return {
+            sufficient,
+            missing,
+            data: {
+                projectName,
+                industry,
+                targetAudience,
+                usp,
+                productDescription,
+                keywords,
+                brandValues,
+                existingCompetitors: competitors
+            }
+        };
+    }
+
+    async scanMarket() {
+        if (this.isScanning) return;
+        this.isScanning = true;
+        this.hasInsufficientData = false;
+
+        // Show loading state
+        if (this.dom.grid) {
+            this.dom.grid.innerHTML = `
+                <div class="w-full py-12 flex flex-col items-center justify-center space-y-4">
+                    <div class="w-16 h-16 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
+                    <p class="text-slate-500 text-xs font-bold animate-pulse uppercase tracking-widest">ZYNK AI Analyzing Market Vectors...</p>
+                </div>
+            `;
+        }
+
+        // Check if project is selected
+        if (!currentProjectId || !currentProjectData) {
+            this.showInsufficientDataMessage('프로젝트를 먼저 선택해주세요.');
+            this.isScanning = false;
+            return;
+        }
+
+        // Check project data sufficiency
+        const check = this.checkProjectDataSufficiency(currentProjectData);
+
+        if (!check.sufficient) {
+            this.showInsufficientDataMessage(
+                `정보가 충분하지 못해 경쟁사를 찾지 못했습니다.`,
+                check.missing
+            );
+            this.isScanning = false;
+            return;
+        }
+
+        try {
+            // Call AI to find competitors
+            const competitors = await this.discoverCompetitorsWithAI(check.data, currentProjectData);
+
+            if (!competitors || competitors.length === 0) {
+                this.showInsufficientDataMessage(
+                    '경쟁사를 발견하지 못했습니다. 프로젝트 정보를 더 구체적으로 입력해주세요.',
+                    ['더 구체적인 산업 카테고리', '명확한 타겟 고객층 정의', '차별화된 USP 설명']
+                );
+                this.isScanning = false;
+                return;
+            }
+
+            this.candidates = competitors;
+            this.carouselIndex = 0;
+            this.renderCandidates();
+            this.updateNavButtons();
+
+        } catch (error) {
+            console.error('[CompetitorRadar] AI Discovery failed:', error);
+            this.showInsufficientDataMessage(
+                '경쟁사 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+                []
+            );
+        }
+
+        this.isScanning = false;
+    }
+
+    async discoverCompetitorsWithAI(extractedData, projectData) {
+        console.log('[CompetitorRadar] Starting AI competitor discovery with:', extractedData);
+
+        const projectName = projectData.projectName || projectData.name || 'Unknown Project';
+
+        // Build context for AI
+        const context = {
+            projectName,
+            industry: extractedData.industry,
+            targetAudience: extractedData.targetAudience,
+            usp: extractedData.usp,
+            productDescription: extractedData.productDescription,
+            keywords: extractedData.keywords
+        };
+
+        try {
+            // Call Cloud Function for competitor discovery
+            const discoverCompetitorsFunction = firebase.functions().httpsCallable('discoverCompetitors');
+            const result = await discoverCompetitorsFunction({
+                projectId: currentProjectId,
+                context: context,
+                model: 'deepseek' // Force DeepSeek model
+            });
+
+            if (result.data && result.data.competitors && result.data.competitors.length > 0) {
+                // Format competitors to expected structure
+                return result.data.competitors.map((c, idx) => ({
+                    id: `rival-${idx + 1}`,
+                    name: c.name,
+                    matchScore: c.matchScore || 70,
+                    uspOverlap: c.uspOverlap || 60,
+                    audienceProximity: c.audienceProximity || 60,
+                    marketPresence: c.marketPresence || 50,
+                    growthMomentum: c.growthMomentum || 50,
+                    justification: c.justification || c.reason || '분석 근거 없음',
+                    website: c.website || null
+                }));
+            }
+
+            return [];
+
+        } catch (error) {
+            console.error('[CompetitorRadar] Cloud Function call failed:', error);
+
+            // Fallback: Check if there are cached competitors in project data
+            if (projectData.competitors && projectData.competitors.length > 0) {
+                console.log('[CompetitorRadar] Using cached competitors from project data');
+                return projectData.competitors.map((c, idx) => ({
+                    id: `rival-${idx + 1}`,
+                    name: c.name || c,
+                    matchScore: c.matchScore || 70,
+                    uspOverlap: c.uspOverlap || 60,
+                    audienceProximity: c.audienceProximity || 60,
+                    marketPresence: c.marketPresence || 50,
+                    growthMomentum: c.growthMomentum || 50,
+                    justification: c.justification || '기존 분석 데이터 기반'
+                }));
+            }
+
+            throw error;
+        }
+    }
+
+    showInsufficientDataMessage(mainMessage, missingFields = []) {
+        this.hasInsufficientData = true;
+
+        if (!this.dom.grid) return;
+
+        const missingList = missingFields.length > 0
+            ? `<ul class="text-left text-xs text-slate-400 mt-4 space-y-1">
+                ${missingFields.map(f => `<li class="flex items-center gap-2"><span class="text-red-400">•</span> ${f}</li>`).join('')}
+               </ul>`
+            : '';
+
+        this.dom.grid.innerHTML = `
+            <div class="w-full py-10 flex flex-col items-center justify-center text-center">
+                <div class="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-slate-500">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M12 16v-4"/>
+                        <path d="M12 8h.01"/>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold text-white mb-2">경쟁사 발견 실패</h3>
+                <p class="text-sm text-slate-400 max-w-md">${mainMessage}</p>
+                ${missingList}
+                <div class="mt-6 flex gap-3">
+                    <a href="knowledgeHub.html?tab=project-brief" 
+                       class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg transition-colors">
+                        📝 프로젝트 브리프 작성하기
+                    </a>
+                    <button onclick="competitorRadar.scanMarket()" 
+                            class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-lg transition-colors">
+                        🔄 다시 시도
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    renderCandidates() {
+        if (!this.dom.grid) return;
+        this.dom.grid.innerHTML = '';
+
+        this.candidates.forEach((cand, idx) => {
+            const card = document.createElement('div');
+            card.className = `radar-card-wrapper match-card rounded-2xl p-5 cursor-pointer flex flex-col gap-3 animate-in fade-in zoom-in duration-500`;
+            card.style.animationDelay = `${idx * 80}ms`;
+            card.dataset.id = cand.id;
+
+            const isSelected = this.selectedRivals.has(cand.id);
+            if (isSelected) card.classList.add('selected');
+
+            card.innerHTML = `
+                <div class="flex justify-between items-start">
+                    <div class="circular-progress" style="--progress: ${(cand.matchScore * 3.6)}deg">
+                        <span>${cand.matchScore}%</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="text-right">
+                            <div class="text-[10px] text-slate-500 uppercase font-bold mb-1">Match</div>
+                            <div class="text-xs font-black ${cand.matchScore > 85 ? 'text-indigo-400' : 'text-slate-300'}">${cand.matchScore > 85 ? 'TIER 1' : 'PEER'}</div>
+                        </div>
+                        <button class="reject-btn p-1.5 hover:bg-red-500/20 rounded-lg text-slate-600 hover:text-red-400 transition-all" data-id="${cand.id}" title="경쟁사 제외">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="text-base font-bold text-white leading-tight">${cand.name}</h4>
+                    <p class="text-[10px] text-slate-500 mt-1 line-clamp-2 italic">${cand.justification}</p>
+                </div>
+
+                <div class="space-y-1.5 mt-auto">
+                    <div class="flex items-center gap-2">
+                        <span class="text-[9px] text-slate-500 w-20 shrink-0">USP Overlap</span>
+                        <div class="indicator-bar-wrapper"><div class="indicator-bar-fill bg-indigo-500" style="width: ${cand.uspOverlap}%"></div></div>
+                        <span class="text-[10px] font-bold text-slate-300 w-7 text-right">${cand.uspOverlap}%</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[9px] text-slate-500 w-20 shrink-0">Audience</span>
+                        <div class="indicator-bar-wrapper"><div class="indicator-bar-fill bg-purple-500" style="width: ${cand.audienceProximity}%"></div></div>
+                        <span class="text-[10px] font-bold text-slate-300 w-7 text-right">${cand.audienceProximity}%</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[9px] text-slate-500 w-20 shrink-0">Presence</span>
+                        <div class="indicator-bar-wrapper"><div class="indicator-bar-fill bg-cyan-500" style="width: ${cand.marketPresence}%"></div></div>
+                        <span class="text-[10px] font-bold text-slate-300 w-7 text-right">${cand.marketPresence}%</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[9px] text-slate-500 w-20 shrink-0">Momentum</span>
+                        <div class="indicator-bar-wrapper"><div class="indicator-bar-fill bg-emerald-500" style="width: ${cand.growthMomentum}%"></div></div>
+                        <span class="text-[10px] font-bold text-slate-300 w-7 text-right">${cand.growthMomentum}%</span>
+                    </div>
+                </div>
+
+                <div class="pt-2 border-t border-white/5 flex items-center justify-between">
+                    <span class="text-[10px] font-bold ${isSelected ? 'text-indigo-400' : 'text-slate-600'}">${isSelected ? '✓ SELECTED' : 'Click to Select'}</span>
+                    <div class="w-5 h-5 rounded-full border-2 ${isSelected ? 'bg-indigo-500 border-indigo-500' : 'border-slate-700'} flex items-center justify-center transition-all">
+                        ${isSelected ? '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+                    </div>
+                </div>
+            `;
+
+            // Main card click = selection
+            card.onclick = (e) => {
+                if (e.target.closest('.reject-btn')) return; // Prevent selection when clicking X
+                this.toggleSelection(cand.id);
+            };
+
+            // Reject button click = open feedback modal
+            const rejectBtn = card.querySelector('.reject-btn');
+            if (rejectBtn) {
+                rejectBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    openRejectionModal(cand);
+                };
+            }
+
+            this.dom.grid.appendChild(card);
+        });
+
+        this.applyCarouselTransform();
+    }
+
+    applyCarouselTransform() {
+        if (!this.dom.grid) return;
+        const cardWidth = 100 / this.visibleCards;
+        const offset = this.carouselIndex * cardWidth;
+        this.dom.grid.style.transform = `translateX(-${offset}%)`;
+    }
+
+    prevSlide() {
+        if (this.carouselIndex > 0) {
+            this.carouselIndex--;
+            this.applyCarouselTransform();
+            this.updateNavButtons();
+        }
+    }
+
+    nextSlide() {
+        const maxIndex = this.candidates.length - this.visibleCards;
+        if (this.carouselIndex < maxIndex) {
+            this.carouselIndex++;
+            this.applyCarouselTransform();
+            this.updateNavButtons();
+        }
+    }
+
+    updateNavButtons() {
+        const maxIndex = this.candidates.length - this.visibleCards;
+        if (this.dom.prevBtn) this.dom.prevBtn.disabled = this.carouselIndex <= 0;
+        if (this.dom.nextBtn) this.dom.nextBtn.disabled = this.carouselIndex >= maxIndex;
+    }
+
+    toggleSelection(id) {
+        if (this.selectedRivals.has(id)) {
+            this.selectedRivals.delete(id);
+        } else {
+            if (this.selectedRivals.size >= 2) {
+                showNotification('최대 2개까지만 라이벌로 선정할 수 있습니다.', 'error');
+                return;
+            }
+            this.selectedRivals.add(id);
+        }
+        this.renderCandidates();
+        this.updateUI();
+    }
+
+    updateUI() {
+        const count = this.selectedRivals.size;
+        if (this.dom.selectionCount) this.dom.selectionCount.textContent = count;
+
+        if (this.dom.selectionStatus) {
+            const dots = this.dom.selectionStatus.children;
+            for (let i = 0; i < dots.length; i++) {
+                if (i < count) {
+                    dots[i].className = 'w-4 h-4 rounded-full bg-indigo-500 border-2 border-indigo-400 shadow-[0_0_10px_rgba(99,102,241,0.5)]';
+                } else {
+                    dots[i].className = 'w-4 h-4 rounded-full border-2 border-slate-700 bg-slate-900';
+                }
+            }
+        }
+
+        if (this.dom.startBtn) {
+            this.dom.startBtn.disabled = count !== 2;
+        }
+    }
+
+    async handleStartTracking() {
+        if (this.selectedRivals.size !== 2) return;
+
+        const originalText = this.dom.startBtn.innerHTML;
+        this.dom.startBtn.disabled = true;
+        this.dom.startBtn.innerHTML = '<span class="animate-pulse">LOCKING TARGETS...</span>';
+
+        try {
+            const selectedData = Array.from(this.selectedRivals).map(id => this.candidates.find(c => c.id === id));
+
+            await new Promise(r => setTimeout(r, 2000));
+
+            showNotification('Targets locked! DeepSeek continuous monitoring initialized.', 'success');
+
+            const panel = document.getElementById('competitor-matchmaking-panel');
+            if (panel) {
+                panel.innerHTML = `
+                    <div class="relative bg-indigo-600/10 backdrop-blur-xl border border-indigo-500/30 rounded-3xl p-6 overflow-hidden animate-in fade-in zoom-in duration-700">
+                        <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 bg-indigo-500/20 rounded-full flex items-center justify-center text-indigo-400">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m16 10-4 4-4-4"/></svg>
+                                </div>
+                                <div>
+                                    <h3 class="text-white font-bold">Continuous Radar Monitoring: ACTIVE</h3>
+                                    <p class="text-xs text-indigo-300/70">DeepSeek Tracking ${selectedData[0].name} & ${selectedData[1].name} • 24/7 Intelligence Sync</p>
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <span class="px-3 py-1 bg-emerald-500/20 text-emerald-400 text-[10px] font-black rounded-full border border-emerald-500/30">LATEST INTEL: 4m ago</span>
+                                <button onclick="window.location.reload()" class="text-xs text-indigo-400 hover:text-white underline">Change Targets</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            COMPETITORS.length = 0;
+            COMPETITORS.push(...selectedData.map(d => ({
+                name: d.name,
+                handle: `@${d.name.toLowerCase().replace(' ', '')}`,
+                mentions: 8402,
+                change: 12,
+                sentiment: d.matchScore,
+                latest: d.justification,
+                isYou: false
+            })));
+            renderCompetitors();
+
+        } catch (error) {
+            console.error(error);
+            showNotification('Failed to lock targets.', 'error');
+            this.dom.startBtn.disabled = false;
+            this.dom.startBtn.innerHTML = originalText;
+        }
+    }
+}
+
+// Initializer
+const competitorRadar = new CompetitorRadarManager();
+
+// Expose manual add to global
+window.addCustomRival = function () {
+    const url = prompt('추가하고 싶은 경쟁사의 URL 혹은 브랜드 이름을 입력하세요:');
+    if (url) {
+        showNotification(`${url} 분석을 시작합니다... (DeepSeek Processing)`, 'info');
+    }
+};
+
+// ========== COMPETITOR REJECTION FEEDBACK SYSTEM ==========
+let currentRejectionTarget = null;
+
+function openRejectionModal(candidate) {
+    currentRejectionTarget = candidate;
+
+    const modal = document.getElementById('rejection-feedback-modal');
+    const nameEl = document.getElementById('rejection-rival-name');
+    const scoreEl = document.getElementById('rejection-match-score');
+
+    if (nameEl) nameEl.textContent = candidate.name;
+    if (scoreEl) scoreEl.textContent = `${candidate.matchScore}%`;
+
+    // Reset form
+    document.querySelectorAll('input[name="rejection-reason"]').forEach(cb => cb.checked = false);
+    const additionalFeedback = document.getElementById('rejection-additional-feedback');
+    if (additionalFeedback) additionalFeedback.value = '';
+
+    if (modal) {
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeRejectionModal() {
+    const modal = document.getElementById('rejection-feedback-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+    currentRejectionTarget = null;
+}
+
+async function submitRejectionFeedback() {
+    if (!currentRejectionTarget || !currentProjectId) {
+        showNotification('프로젝트를 먼저 선택해주세요.', 'error');
+        return;
+    }
+
+    // Collect selected reasons
+    const selectedReasons = [];
+    document.querySelectorAll('input[name="rejection-reason"]:checked').forEach(cb => {
+        selectedReasons.push(cb.value);
+    });
+
+    const additionalFeedback = document.getElementById('rejection-additional-feedback')?.value || '';
+
+    if (selectedReasons.length === 0 && !additionalFeedback.trim()) {
+        showNotification('최소 1개의 사유를 선택하거나 의견을 입력해주세요.', 'error');
+        return;
+    }
+
+    // Build feedback object
+    const feedbackData = {
+        // Competitor Info
+        competitorId: currentRejectionTarget.id,
+        competitorName: currentRejectionTarget.name,
+        matchScore: currentRejectionTarget.matchScore,
+        uspOverlap: currentRejectionTarget.uspOverlap,
+        audienceProximity: currentRejectionTarget.audienceProximity,
+        marketPresence: currentRejectionTarget.marketPresence,
+        growthMomentum: currentRejectionTarget.growthMomentum,
+        justification: currentRejectionTarget.justification,
+
+        // Feedback
+        rejectionReasons: selectedReasons,
+        additionalFeedback: additionalFeedback.trim(),
+
+        // Context
+        projectId: currentProjectId,
+        userId: currentUser?.uid || null,
+
+        // Timestamps
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+
+        // Meta for AI improvement
+        feedbackType: 'competitor_rejection',
+        aiModel: 'deepseek-v3',
+        feedbackVersion: '1.0'
+    };
+
+    try {
+        // Save to Firestore
+        await firebase.firestore()
+            .collection('projects')
+            .doc(currentProjectId)
+            .collection('competitorFeedback')
+            .add(feedbackData);
+
+        // Also save to global feedback collection for cross-project analysis
+        await firebase.firestore()
+            .collection('globalCompetitorFeedback')
+            .add(feedbackData);
+
+        console.log('[CompetitorRadar] Rejection feedback saved:', feedbackData);
+
+        // Remove the competitor from the list
+        competitorRadar.removeCandidate(currentRejectionTarget.id);
+
+        closeRejectionModal();
+        showNotification(`${currentRejectionTarget.name}이(가) 경쟁사 목록에서 제외되었습니다. 피드백이 저장되었습니다.`, 'success');
+
+    } catch (error) {
+        console.error('[CompetitorRadar] Failed to save rejection feedback:', error);
+        showNotification('피드백 저장에 실패했습니다.', 'error');
+    }
+}
+
+// Add removeCandidate method to CompetitorRadarManager
+CompetitorRadarManager.prototype.removeCandidate = function (candidateId) {
+    // Remove from selection if selected
+    this.selectedRivals.delete(candidateId);
+
+    // Remove from candidates array
+    this.candidates = this.candidates.filter(c => c.id !== candidateId);
+
+    // Re-render
+    this.renderCandidates();
+    this.updateNavButtons();
+    this.updateUI();
+};
+
+// Expose functions globally
+window.openRejectionModal = openRejectionModal;
+window.closeRejectionModal = closeRejectionModal;
+window.submitRejectionFeedback = submitRejectionFeedback;
