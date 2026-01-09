@@ -3114,12 +3114,16 @@ Industry: ${currentProject.industry || 'N/A'}
         const executeSubAgent = firebase.app().functions('us-central1').httpsCallable('executeSubAgent', { timeout: 540000 });
         const result = await executeSubAgent({
             projectId: currentProjectId,
+            teamId: 'knowledgeHub',
+            subAgentId: 'brand-summary-analyzer',
             agentRole: 'Brand Strategist',
+            runId: 'ks-' + Date.now(),
             taskPrompt: taskPrompt,
             systemPrompt: systemPrompt,
             model: 'deepseek-reasoner',
             provider: 'deepseek',
-            temperature: 0.3
+            temperature: 0.3,
+            previousOutputs: [] // Provide empty array if no previous history
         });
 
         if (!result.data.success) throw new Error(result.data.error || 'AI Analysis failed');
