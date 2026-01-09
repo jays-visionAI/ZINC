@@ -177,28 +177,25 @@ const WorkflowEngine = (function () {
             // Optimize for direct output mapping (common for HTML results)
             // If the template is just '{{prev.output}}' and the output is a string, use it directly
             const prevOutput = Object.values(context.previousOutputs)[0];
+            // Template Resolution
+            let finalData = {};
             if (dataTemplate === '{{prev.output}}' && typeof prevOutput === 'string') {
-                const finalData = {
+                finalData = {
                     content: prevOutput,
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 };
-                const targetDocId = docId || context.projectId;
-                await db.collection(collection).doc(targetDocId).set(finalData, { merge: true });
-                return { success: true, savedAt: targetDocId };
-            }
-
-            // Standard Template Resolution
-            const resolvedData = this.resolveVariables(dataTemplate || "{}", context);
-            let finalData = {};
-            try {
-                // If it looks like JSON, try to parse it
-                if (typeof resolvedData === 'string' && resolvedData.trim().startsWith('{')) {
-                    finalData = JSON.parse(resolvedData);
-                } else {
+            } else {
+                const resolvedData = this.resolveVariables(dataTemplate || "{}", context);
+                try {
+                    // If it looks like JSON, try to parse it
+                    if (typeof resolvedData === 'string' && resolvedData.trim().startsWith('{')) {
+                        finalData = JSON.parse(resolvedData);
+                    } else {
+                        finalData = { content: resolvedData };
+                    }
+                } catch (e) {
                     finalData = { content: resolvedData };
                 }
-            } catch (e) {
-                finalData = { content: resolvedData };
             }
 
             if (operation === 'write') {
@@ -216,7 +213,8 @@ const WorkflowEngine = (function () {
                 // SECURITY RULE COMPLIANCE: Force nested paths for project-scoped collections
                 // These collections are ONLY writable under projects/{projectId}/...
                 const projectScopedCollections = [
-                    'onePagers', 'brandSummaries', 'generatedContents', 'knowledgeSources',
+                    'onePagers', 'one_pagers', 'brandSummaries', 'brand_summaries',
+                    'generatedContents', 'generated_contents', 'knowledgeSources', 'knowledge_sources',
                     'contentPlans', 'savedPlans', 'scheduledContent', 'brochures', 'pitchDecks',
                     'promoImages', 'generatedImages', 'researchHistory'
                 ];
