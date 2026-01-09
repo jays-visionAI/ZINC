@@ -116,6 +116,7 @@ window.seedProWorkflows = async function () {
         if (typeof seedProWorkflowsSet === 'function') await seedProWorkflowsSet();
         if (typeof seedKnowledgeWorkflow === 'function') await seedKnowledgeWorkflow();
         if (typeof seedOnePagerWorkflow === 'function') await seedOnePagerWorkflow();
+        if (typeof seedOnePagerWorkflowV2 === 'function') await seedOnePagerWorkflowV2();
         if (typeof seedDocumentDesignerAgent === 'function') await seedDocumentDesignerAgent();
 
         showNotification('Professional workflows and agents have been seeded successfully!', 'success');

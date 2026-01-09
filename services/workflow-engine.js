@@ -279,27 +279,61 @@ const WorkflowEngine = (function () {
 
         findAndExecuteByContext: async (pipelineContext, projectContext, logger) => {
             const db = firebase.firestore();
-            const snapshot = await db.collection('workflowDefinitions')
-                .where('pipelineContext', '==', pipelineContext)
-                .where('status', '==', 'active')
-                .limit(1)
-                .get();
+            logger.log(`[WorkflowEngine] Searching for workflow in context: ${pipelineContext}...`);
 
-            let targetWorkflowId = null;
-
-            if (snapshot.empty) {
-                // Try fallback without active status filter if needed
-                const snap2 = await db.collection('workflowDefinitions')
+            try {
+                // 1. Try finding by context (Prefer 'active', then any)
+                let snapshot = await db.collection('workflowDefinitions')
                     .where('pipelineContext', '==', pipelineContext)
-                    .limit(1)
+                    .where('status', '==', 'active')
+                    .limit(5)
                     .get();
-                if (snap2.empty) throw new Error(`No workflow found for context: ${pipelineContext}`);
-                targetWorkflowId = snap2.docs[0].id;
-            } else {
-                targetWorkflowId = snapshot.docs[0].id;
-            }
 
-            return await WorkflowEngine.executeById(targetWorkflowId, projectContext, logger);
+                if (snapshot.empty) {
+                    console.log(`[WorkflowEngine] No active workflow for ${pipelineContext}, looking for drafts...`);
+                    snapshot = await db.collection('workflowDefinitions')
+                        .where('pipelineContext', '==', pipelineContext)
+                        .limit(5)
+                        .get();
+                }
+
+                // 2. Fallback: Search by name keywords globally if context yields nothing
+                // This handles cases where the user might have named it 'One Pager' but context is different
+                if (snapshot.empty) {
+                    console.log(`[WorkflowEngine] No workflow for context ${pipelineContext}. Searching by keywords...`);
+                    const keywords = ['one-pager', 'one pager', '원페이저', 'One Pager'];
+
+                    // We can't do broad OR in Firestore easily without multiple queries
+                    for (const kw of keywords) {
+                        const nameSnap = await db.collection('workflowDefinitions')
+                            .where('name', '==', kw)
+                            .limit(1)
+                            .get();
+                        if (!nameSnap.empty) {
+                            snapshot = nameSnap;
+                            break;
+                        }
+                    }
+                }
+
+                if (snapshot.empty) {
+                    // Diagnostic: List top workflows to console to help debugging
+                    const anyWorkflows = await db.collection('workflowDefinitions').limit(5).get();
+                    console.log('[WorkflowEngine] Available workflows in DB:', anyWorkflows.docs.map(d => ({ id: d.id, name: d.data().name, context: d.data().pipelineContext })));
+                    throw new Error(`No workflow found for context: ${pipelineContext}`);
+                }
+
+                // Pick the most relevant one (for now, just the first found)
+                const targetDoc = snapshot.docs[0];
+                const targetWorkflowId = targetDoc.id;
+
+                logger.log(`[WorkflowEngine] Found workflow: ${targetDoc.data().name} (${targetWorkflowId})`);
+                return await WorkflowEngine.executeById(targetWorkflowId, projectContext, logger);
+
+            } catch (err) {
+                console.error('[WorkflowEngine] findAndExecuteByContext Error:', err);
+                throw err;
+            }
         },
 
         incrementContentCount: async (workflowId) => {
