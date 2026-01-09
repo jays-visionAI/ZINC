@@ -105,6 +105,7 @@ const WorkflowEngine = (function () {
             const context = {
                 projectContext: this.projectContext,
                 previousOutputs: previousOutputs,
+                allOutputs: this.nodeOutputs,
                 projectId: this.projectContext.id || this.projectContext.projectId
             };
 
@@ -123,10 +124,43 @@ const WorkflowEngine = (function () {
                     return await this.runAgentNode(node, context);
                 case 'transform':
                     return await this.runTransformNode(node, context);
+                case 'firestore':
+                    return await this.runFirestoreNode(node, context);
                 case 'end':
                     return previousOutputs; // Typically just pass through
                 default:
                     return { warning: `Node type ${node.type} not fully implemented in standalone engine` };
+            }
+        }
+
+        async runFirestoreNode(node, context) {
+            const { operation, collection, docId, dataTemplate } = node.data;
+            const db = firebase.firestore();
+
+            // Resolve variables in the data template
+            const resolvedData = this.resolveVariables(dataTemplate || "{}", context);
+            let finalData = {};
+            try {
+                finalData = (typeof resolvedData === 'string') ? JSON.parse(resolvedData) : resolvedData;
+            } catch (e) {
+                finalData = { content: resolvedData };
+            }
+
+            if (operation === 'write') {
+                const targetDocId = docId || context.projectId;
+                if (!collection || !targetDocId) throw new Error('Collection or DocID missing for Firestore Write');
+
+                await db.collection(collection).doc(targetDocId).set({
+                    ...finalData,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+
+                return { success: true, savedAt: targetDocId };
+            } else {
+                // Read operation
+                if (!collection || !docId) throw new Error('Collection or DocID missing for Firestore Read');
+                const doc = await db.collection(collection).doc(docId).get();
+                return doc.exists ? doc.data() : { error: 'Not found' };
             }
         }
 
@@ -208,6 +242,23 @@ const WorkflowEngine = (function () {
                 if (parts[0] === 'inputs') {
                     let obj = context.projectContext?.inputs || {};
                     for (let i = 1; i < parts.length; i++) {
+                        if (obj && obj[parts[i]] !== undefined) obj = obj[parts[i]];
+                        else return match;
+                    }
+                    return typeof obj === 'object' ? JSON.stringify(obj) : obj;
+                }
+                if (parts[0] === 'nodes') {
+                    const nodeId = parts[1];
+                    const nodeOutput = context.allOutputs ? context.allOutputs[nodeId] : null;
+                    if (!nodeOutput) return match;
+
+                    if (parts[2] === 'output' || parts.length === 2) {
+                        return typeof nodeOutput === 'object' ? JSON.stringify(nodeOutput) : nodeOutput;
+                    }
+
+                    // Handle deeper properties if output is an object
+                    let obj = nodeOutput;
+                    for (let i = 2; i < parts.length; i++) {
                         if (obj && obj[parts[i]] !== undefined) obj = obj[parts[i]];
                         else return match;
                     }
