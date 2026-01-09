@@ -285,50 +285,44 @@ const WorkflowEngine = (function () {
                 // 1. Try finding by context (Prefer 'active', then any)
                 let snapshot = await db.collection('workflowDefinitions')
                     .where('pipelineContext', '==', pipelineContext)
-                    .where('status', '==', 'active')
-                    .limit(5)
+                    .orderBy('createdAt', 'desc')
+                    .limit(20)
                     .get();
 
+                // If not found by context, get all and filter locally for better matching
                 if (snapshot.empty) {
-                    console.log(`[WorkflowEngine] No active workflow for ${pipelineContext}, looking for drafts...`);
-                    snapshot = await db.collection('workflowDefinitions')
-                        .where('pipelineContext', '==', pipelineContext)
-                        .limit(5)
-                        .get();
+                    console.warn(`[WorkflowEngine] No workflows found for context: ${pipelineContext}. Fetching all workflows for fallback...`);
+                    snapshot = await db.collection('workflowDefinitions').limit(50).get();
                 }
 
-                // 2. Fallback: Search by name keywords globally if context yields nothing
-                // This handles cases where the user might have named it 'One Pager' but context is different
-                if (snapshot.empty) {
-                    console.log(`[WorkflowEngine] No workflow for context ${pipelineContext}. Searching by keywords...`);
-                    const keywords = ['one-pager', 'one pager', '원페이저', 'One Pager'];
+                const allWorkflows = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-                    // We can't do broad OR in Firestore easily without multiple queries
-                    for (const kw of keywords) {
-                        const nameSnap = await db.collection('workflowDefinitions')
-                            .where('name', '==', kw)
-                            .limit(1)
-                            .get();
-                        if (!nameSnap.empty) {
-                            snapshot = nameSnap;
-                            break;
-                        }
-                    }
+                // Log all available to console for debugging
+                console.log(`[WorkflowEngine] Discovery: Found ${allWorkflows.length} total potential workflows.`);
+                console.table(allWorkflows.map(w => ({ id: w.id, name: w.name, context: w.pipelineContext, status: w.status })));
+
+                // Filter strategy:
+                // A. Exact context match (highest priority)
+                let target = allWorkflows.find(w => w.pipelineContext === pipelineContext && w.status === 'active') ||
+                    allWorkflows.find(w => w.pipelineContext === pipelineContext);
+
+                // B. Name-based match (Keyword fallback)
+                if (!target) {
+                    const keywords = ['one pager', 'one-pager', '원페이저', 'onepager'];
+                    target = allWorkflows.find(w => {
+                        const name = (w.name || '').toLowerCase();
+                        return keywords.some(k => name.includes(k));
+                    });
                 }
 
-                if (snapshot.empty) {
-                    // Diagnostic: List top workflows to console to help debugging
-                    const anyWorkflows = await db.collection('workflowDefinitions').limit(5).get();
-                    console.log('[WorkflowEngine] Available workflows in DB:', anyWorkflows.docs.map(d => ({ id: d.id, name: d.data().name, context: d.data().pipelineContext })));
-                    throw new Error(`No workflow found for context: ${pipelineContext}`);
+                // C. Last resort: If context is studio and there's ONLY one workflow in the system, maybe use that?
+                // Actually, let's just fail if A and B didn't work, but with a better error message.
+                if (!target) {
+                    throw new Error(`No workflow found for context "${pipelineContext}" or containing "One Pager" in name. Please check your workflow's Context and Name in the Admin Canvas.`);
                 }
 
-                // Pick the most relevant one (for now, just the first found)
-                const targetDoc = snapshot.docs[0];
-                const targetWorkflowId = targetDoc.id;
-
-                logger.log(`[WorkflowEngine] Found workflow: ${targetDoc.data().name} (${targetWorkflowId})`);
-                return await WorkflowEngine.executeById(targetWorkflowId, projectContext, logger);
+                logger.log(`[WorkflowEngine] Selected workflow: "${target.name}" (${target.id})`);
+                return await WorkflowEngine.executeById(target.id, projectContext, logger);
 
             } catch (err) {
                 console.error('[WorkflowEngine] findAndExecuteByContext Error:', err);
