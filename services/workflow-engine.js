@@ -53,30 +53,50 @@ const WorkflowEngine = (function () {
             const visited = new Set();
             const queue = [startNodeId];
 
-            while (queue.length > 0) {
+            let iterations = 0;
+            const MAX_ITERATIONS = nodes.length * 10; // Safety limit
+
+            while (queue.length > 0 && iterations < MAX_ITERATIONS) {
+                iterations++;
                 const nodeId = queue.shift();
+
                 if (visited.has(nodeId)) continue;
 
                 const node = nodes.find(n => n.id === nodeId);
                 if (!node) continue;
 
-                // Check if all dependencies are satisfied (for DAG)
+                // Check dependencies: only proceed if all nodes pointing TO this node are already visited
                 const incomingEdges = edges.filter(e => e.target === nodeId);
                 const allDepsSatisfied = incomingEdges.every(e => visited.has(e.source));
 
+                // Special case: if dependency is not reachable from start node, we might be stuck
+                // For now, if not satisfied, push to end of queue to try later
                 if (incomingEdges.length > 0 && !allDepsSatisfied) {
-                    // Put back in queue to try later
+                    // Check if any of the dependencies are even REACHABLE from the start
+                    // If not, this node can never be satisfied in a pure linear run
                     queue.push(nodeId);
+
+                    // Optimization: if this is the only node left and still not satisfied, it's unreachable or cyclic
+                    if (queue.length === 1) break;
                     continue;
                 }
 
                 order.push(node);
                 visited.add(nodeId);
 
-                // Add neighbors
-                const neighbors = edges.filter(e => e.source === nodeId).map(e => e.target);
-                queue.push(...neighbors);
+                // Add children to queue
+                const children = edges.filter(e => e.source === nodeId).map(e => e.target);
+                for (const childId of children) {
+                    if (!visited.has(childId)) {
+                        queue.push(childId);
+                    }
+                }
             }
+
+            if (iterations >= MAX_ITERATIONS) {
+                this.logger.warn('[WorkflowEngine] Maximum iterations reached during sorting. Possible cycle or unreachable nodes.');
+            }
+
             return order;
         }
 
