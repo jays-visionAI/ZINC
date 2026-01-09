@@ -671,7 +671,56 @@
             </div>
         </div>
 
-        <!-- Row 1: Live Trends + Your Brand -->
+        <!-- 🎯 PROJECT RESONANCE KEYWORD EDITOR MODAL -->
+        <div id="keyword-editor-modal" class="fixed inset-0 z-[100] hidden">
+            <div class="absolute inset-0 bg-black/80 backdrop-blur-md" onclick="closeKeywordEditor()"></div>
+            <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg">
+                <div
+                    class="bg-slate-900 border border-indigo-500/30 rounded-3xl p-8 shadow-2xl animate-in zoom-in-95 duration-300">
+                    <div class="flex items-center justify-between mb-8">
+                        <div>
+                            <h3 class="text-xl font-black text-white tracking-tight">🎯 Market Resonance Keywords</h3>
+                            <p class="text-xs text-slate-500 mt-1">Define core keywords for real-time market monitoring
+                            </p>
+                        </div>
+                        <button onclick="closeKeywordEditor()"
+                            class="p-2 hover:bg-slate-800 rounded-xl text-slate-400 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block text-xs font-black text-indigo-400 uppercase tracking-widest mb-3">Core
+                                Keywords (Separated by comma)</label>
+                            <textarea id="resonance-keywords-input" rows="4"
+                                class="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-sm text-white placeholder-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all resize-none"
+                                placeholder="e.g. Omnichain, AI Agents, Web3 Infrastructure, ZK Proofs"></textarea>
+                            <p class="text-[10px] text-slate-600 mt-3 leading-relaxed">
+                                💡 Tip: Entering specific technological or category keywords improves the accuracy of
+                                market resonance analysis.
+                            </p>
+                        </div>
+
+                        <div class="pt-4 flex gap-3">
+                            <button onclick="closeKeywordEditor()"
+                                class="flex-1 py-4 bg-slate-800 hover:bg-slate-700 text-slate-400 font-bold rounded-2xl transition-all">
+                                Cancel
+                            </button>
+                            <button onclick="saveResonanceKeywords()"
+                                class="flex-2 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-black rounded-2xl shadow-lg shadow-indigo-500/20 transition-all active:scale-95">
+                                💾 Save & Sync
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
 
             <!-- 🔥 LIVE TRENDS (3 cols) -->

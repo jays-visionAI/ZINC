@@ -357,14 +357,14 @@ async function loadResearchHistory() {
 }
 
 function updateDashboardWithProjectData(data) {
-    // 1. Update Keywords from Brand Brain
-    const coreKeywords = data.strategy?.keywords || data.coreIdentity?.keywords || [];
+    // 1. Update Keywords: Priority [Market Pulse Keywords] > [Core Identity Keywords]
+    const coreKeywords = data.marketPulseKeywords || data.strategy?.keywords || data.coreIdentity?.keywords || [];
     const projectName = data.projectName || data.name || "Brand";
 
     // Clear and re-populate TRENDING_KEYWORDS
     const newKeywords = coreKeywords.map(kw => ({
         keyword: kw.startsWith('#') ? kw : `#${kw}`,
-        change: Math.floor(Math.random() * 15) + 5, // Simulate active growth
+        change: Math.floor(Math.random() * 15) + 5,
         volume: Math.floor(Math.random() * 50000) + 10000,
         isCore: true
     }));
@@ -373,14 +373,7 @@ function updateDashboardWithProjectData(data) {
     if (newKeywords.length > 0) {
         TRENDING_KEYWORDS.push(...newKeywords);
     } else {
-        // Fallback: Use Project Name as a trend if no keywords are set
-        TRENDING_KEYWORDS.push({
-            keyword: `#${projectName.replace(/\s+/g, '')}`,
-            change: 12,
-            volume: 2400,
-            isCore: true,
-            isDiscovered: true
-        });
+        // GUIDANCE: No keywords found, show clean message
         TRENDING_KEYWORDS.push({
             keyword: t('market.trends.empty'),
             change: 0,
@@ -798,11 +791,11 @@ function setupEventListeners() {
         btnDeploy.addEventListener('click', (e) => handleDeployAgent(e));
     }
 
-    // Setup Keywords Button
+    // Setup Keywords Button (Now Opens Modal)
     const btnSetup = document.getElementById('btn-setup-keywords');
     if (btnSetup) {
         btnSetup.addEventListener('click', () => {
-            window.location.href = 'brand-brain.html';
+            openKeywordEditor();
         });
     }
 
@@ -2649,7 +2642,73 @@ CompetitorRadarManager.prototype.removeCandidate = function (candidateId) {
     this.updateUI();
 };
 
-// Expose functions globally
+// ========== KEYWORD EDITOR FUNCTIONS ==========
+function openKeywordEditor() {
+    const modal = document.getElementById('keyword-editor-modal');
+    const input = document.getElementById('resonance-keywords-input');
+
+    if (modal && input) {
+        // Pre-fill with existing keywords if any
+        const existing = currentProjectData?.marketPulseKeywords ||
+            currentProjectData?.strategy?.keywords ||
+            currentProjectData?.coreIdentity?.keywords || [];
+        input.value = existing.join(', ');
+
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeKeywordEditor() {
+    const modal = document.getElementById('keyword-editor-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+}
+
+async function saveResonanceKeywords() {
+    if (!currentProjectId) return;
+
+    const input = document.getElementById('resonance-keywords-input');
+    const saveBtn = document.querySelector('[onclick="saveResonanceKeywords()"]');
+
+    const keywordsRaw = input.value.trim();
+    const keywords = keywordsRaw ? keywordsRaw.split(',').map(kw => kw.trim()).filter(kw => kw) : [];
+
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="animate-pulse">Saving...</span>';
+    }
+
+    try {
+        await firebase.firestore().collection('projects').doc(currentProjectId).update({
+            marketPulseKeywords: keywords
+        });
+
+        // Update local state
+        currentProjectData.marketPulseKeywords = keywords;
+
+        // Refresh UI
+        updateDashboardWithProjectData(currentProjectData);
+
+        showNotification('Resonance keywords updated successfully!', 'success');
+        closeKeywordEditor();
+    } catch (error) {
+        console.error('Error saving keywords:', error);
+        showNotification('Failed to save keywords.', 'error');
+    } finally {
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '💾 Save & Sync';
+        }
+    }
+}
+
+// Expose globally
+window.openKeywordEditor = openKeywordEditor;
+window.closeKeywordEditor = closeKeywordEditor;
+window.saveResonanceKeywords = saveResonanceKeywords;
 window.openRejectionModal = openRejectionModal;
 window.closeRejectionModal = closeRejectionModal;
 window.submitRejectionFeedback = submitRejectionFeedback;
