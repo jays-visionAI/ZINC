@@ -558,7 +558,9 @@
                         <div style="margin-bottom: 20px;">
                             <label style="display: block; margin-bottom: 8px; font-size: 14px; color: #4ecdc4; font-weight: 600;">설계에 사용할 LLM 모델</label>
                             <select id="designer-llm-model" style="width: 100%; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; color: #fff; font-size: 14px; box-sizing: border-box; cursor: pointer;">
-                                <option value="deepseek-chat" selected>DeepSeek V3 (추천 - 빠른 설계)</option>
+                                <option value="deepseek-v3.2-speciale" selected>⭐ DeepSeek V3.2 Speciale (최신 - 추천)</option>
+                                <option value="deepseek-v3.2">DeepSeek V3.2 (빠른 설계)</option>
+                                <option value="deepseek-chat">DeepSeek V3 (안정)</option>
                                 <option value="deepseek-reasoner">DeepSeek R1 (깊은 사고 - 정교한 절차 설계)</option>
                                 <option value="gpt-4o">GPT-4o (표준)</option>
                             </select>
@@ -612,8 +614,10 @@
                             <div>
                                 <label style="display: block; margin-bottom: 6px; font-size: 12px; color: rgba(255,255,255,0.6);">LLM Model</label>
                                 <select id="designed-model" style="width: 100%; padding: 12px; background: #1a1a2e; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: #fff; box-sizing: border-box;">
-                                    <option value="deepseek-reasoner">DeepSeek R1</option>
-                                    <option value="deepseek-chat">DeepSeek V3</option>
+                                    <option value="deepseek-v3.2-speciale">⭐ DeepSeek V3.2 Speciale (최신)</option>
+                                    <option value="deepseek-v3.2">DeepSeek V3.2</option>
+                                    <option value="deepseek-chat">DeepSeek V3 (안정)</option>
+                                    <option value="deepseek-reasoner">DeepSeek R1 (Reasoning)</option>
                                     <option value="gpt-4o">GPT-4o</option>
                                 </select>
                             </div>

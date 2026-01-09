@@ -149,14 +149,18 @@ const WorkflowEngine = (function () {
 
             if (!result.data.success) throw new Error(result.data.error || 'Agent failed');
 
-            // Try to parse JSON if expected
+            // Try to parse JSON if NOT HTML and seems like JSON
             let content = result.data.content;
-            try {
-                if (content.includes('{') && content.includes('}')) {
-                    const jsonMatch = content.match(/\{[\s\S]*\}/);
-                    if (jsonMatch) content = JSON.parse(jsonMatch[0]);
-                }
-            } catch (e) { /* keep as string if not JSON */ }
+            const isHtml = content.trim().toLowerCase().startsWith('<!doctype') || content.trim().toLowerCase().startsWith('<html');
+
+            if (!isHtml) {
+                try {
+                    if (content.includes('{') && content.includes('}')) {
+                        const jsonMatch = content.match(/\{[\s\S]*\}/);
+                        if (jsonMatch) content = JSON.parse(jsonMatch[0]);
+                    }
+                } catch (e) { /* keep as string if not JSON */ }
+            }
 
             return content;
         }
@@ -181,6 +185,14 @@ const WorkflowEngine = (function () {
 
                 // Handle special paths
                 if (parts[0] === 'projectId') return context.projectId || '';
+                if (parts[0] === 'inputs') {
+                    let obj = context.projectContext?.inputs || {};
+                    for (let i = 1; i < parts.length; i++) {
+                        if (obj && obj[parts[i]] !== undefined) obj = obj[parts[i]];
+                        else return match;
+                    }
+                    return typeof obj === 'object' ? JSON.stringify(obj) : obj;
+                }
                 if (parts[0] === 'prev') {
                     // Get output from the first available previous node
                     const keys = Object.keys(context.previousOutputs);

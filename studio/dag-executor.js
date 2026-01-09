@@ -680,7 +680,7 @@ class DAGExecutor {
         // v5.1: agentConfig already calculated at start of invokeAgent
 
 
-        const executeSubAgent = firebase.functions().httpsCallable('executeSubAgent', { timeout: 300000 });
+        const executeSubAgent = firebase.functions().httpsCallable('executeSubAgent', { timeout: 540000 });
 
         // v4.0: runtimeProfileId (Source of Truth)
         const runtimeProfileId =
@@ -1135,7 +1135,7 @@ class DAGExecutor {
             this.emit('onLog', { message: '   🎨 Generating image with configured provider...', type: 'info' });
 
             // Set longer timeout for image generation (3 minutes instead of default ~70s)
-            const generateFn = firebase.functions().httpsCallable('generateCreativeContent', { timeout: 180000 });
+            const generateFn = firebase.functions().httpsCallable('generateCreativeContent', { timeout: 540000 });
             const result = await generateFn({
                 type: 'promo_images',
                 inputs: {

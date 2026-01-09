@@ -228,11 +228,36 @@
                     <div class="admin-form-group">
                         <label class="admin-form-label">LLM Model</label>
                         <select id="edit-model" class="admin-select" style="width: 100%;">
-                            <option value="gpt-4o">GPT-4o</option>
-                            <option value="gpt-4o-mini">GPT-4o Mini</option>
-                            <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
-                            <option value="deepseek-chat">DeepSeek V3</option>
-                            <option value="deepseek-reasoner">DeepSeek R1 (Reasoner)</option>
+                            <optgroup label="🔤 Text Models">
+                                <option value="gpt-4o">⭐ GPT-4o (openai)</option>
+                                <option value="gpt-4o-mini">GPT-4o Mini (openai)</option>
+                                <option value="claude-3-5-sonnet-20241022">⭐ Claude 3.5 Sonnet (anthropic)</option>
+                                <option value="claude-3-haiku-20240307">💰 Claude 3 Haiku (anthropic)</option>
+                                <option value="deepseek-reasoner">⭐ DeepSeek R1 (deepseek)</option>
+                                <option value="deepseek-chat">💰 DeepSeek Chat (deepseek)</option>
+                                <option value="deepseek-v3.2">DeepSeek V3.2 (deepseek)</option>
+                                <option value="deepseek-v3.2-speciale">⭐ DeepSeek V3.2 Speciale (deepseek)</option>
+                                <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash (google)</option>
+                            </optgroup>
+                            <optgroup label="🖼️ Image Models">
+                                <option value="imagen-3">⭐ Imagen 3 (google)</option>
+                                <option value="gemini-2.5-flash-nano-banana">Gemini 2.5 Flash (Nano Banana) (google)
+                                </option>
+                                <option value="gemini-3-pro-nano-banana">⭐ Gemini 3 pro (Nano Banana Pro) (google)
+                                </option>
+                                <option value="stable-diffusion-xl">Stable Diffusion XL (stability)</option>
+                                <option value="midjourney-v6">⭐ Midjourney v6 (midjourney)</option>
+                            </optgroup>
+                            <optgroup label="🎬 Video Models">
+                                <option value="runway-gen3-alpha">⭐ Runway Gen-3 Alpha (runway)</option>
+                                <option value="kling-1.5">Kling 1.5 (kuaishou)</option>
+                                <option value="pika-1.5">Pika 1.5 (pika)</option>
+                                <option value="sora-preview">⭐ Sora (Preview) (openai)</option>
+                            </optgroup>
+                            <optgroup label="💻 Code Models">
+                                <option value="codestral-latest">Codestral (mistral)</option>
+                                <option value="deepseek-coder">DeepSeek Coder (deepseek)</option>
+                            </optgroup>
                         </select>
                     </div>
                     <div class="admin-form-group">

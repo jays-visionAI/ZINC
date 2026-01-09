@@ -114,6 +114,45 @@ exports.callOpenAI = functions.https.onCall(async (data, context) => {
 });
 
 /**
+ * Generate LLM Response (Generic)
+ * Used by AI Agent Designer and other admin tools
+ */
+exports.generateLLMResponse = onCall({ cors: true }, async (request) => {
+    const payload = request.data || {};
+    const { provider, model, systemPrompt, userMessage, temperature = 0.7, source } = payload;
+
+    console.log(`[generateLLMResponse] provider=${provider}, model=${model}, source=${source}`);
+
+    if (!userMessage) {
+        return { success: false, error: 'userMessage is required' };
+    }
+
+    try {
+        const providerName = provider || 'deepseek';
+
+        const messages = [];
+        if (systemPrompt) {
+            messages.push({ role: 'system', content: systemPrompt });
+        }
+        messages.push({ role: 'user', content: userMessage });
+
+        // callLLM internally handles API key lookup via getSystemApiKey
+        const result = await callLLM(providerName, model || 'deepseek-chat', messages, temperature);
+
+        return {
+            success: true,
+            response: result.content,
+            model: result.model,
+            usage: result.usage
+        };
+
+    } catch (error) {
+        console.error('[generateLLMResponse] Error:', error.message);
+        return { success: false, error: error.message };
+    }
+});
+
+/**
  * Test LLM Provider Connection
  * Tests if the stored API key is valid for a given provider
  */
@@ -764,13 +803,29 @@ async function callClaudeInternal(apiKey, model, messages, temperature) {
  */
 async function callDeepSeekInternal(apiKey, model, messages, temperature) {
     const OpenAI = require('openai');
+
+    // Map frontend model IDs to API-supported model IDs
+    // DeepSeek API only supports: deepseek-chat, deepseek-reasoner
+    const modelMapping = {
+        'deepseek-v3': 'deepseek-chat',
+        'deepseek-v3.2': 'deepseek-chat',
+        'deepseek-v3.2-speciale': 'deepseek-chat',  // V3.2 Speciale -> chat (latest V3)
+        'deepseek-coder': 'deepseek-chat',           // Coder also uses chat
+        'deepseek-chat-v3-0324': 'deepseek-chat'
+    };
+
+    const apiModel = modelMapping[model] || model;
+    if (modelMapping[model]) {
+        console.log(`[callDeepSeekInternal] Model mapped: ${model} -> ${apiModel}`);
+    }
+
     const openai = new OpenAI({
         apiKey,
         baseURL: 'https://api.deepseek.com'
     });
 
     const response = await openai.chat.completions.create({
-        model,
+        model: apiModel,
         messages,
         temperature,
         max_completion_tokens: 4000

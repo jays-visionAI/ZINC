@@ -116,8 +116,9 @@ window.seedProWorkflows = async function () {
         if (typeof seedProWorkflowsSet === 'function') await seedProWorkflowsSet();
         if (typeof seedKnowledgeWorkflow === 'function') await seedKnowledgeWorkflow();
         if (typeof seedOnePagerWorkflow === 'function') await seedOnePagerWorkflow();
+        if (typeof seedDocumentDesignerAgent === 'function') await seedDocumentDesignerAgent();
 
-        showNotification('Professional workflows have been seeded successfully!', 'success');
+        showNotification('Professional workflows and agents have been seeded successfully!', 'success');
 
         // Refresh all lists
         const contexts = ['market', 'brand', 'knowledge', 'studio', 'growth'];

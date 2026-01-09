@@ -708,7 +708,7 @@
                             <div class="wf-property-group" id="wf-prop-output-group" style="display: none;">
                                 <label class="wf-property-label">Output Destination (결과 전송 대상)</label>
                                 <select id="wf-prop-output-dest" class="wf-property-select"
-                                    onchange="WorkflowCanvas.updateOutputUI(this.value)">
+                                    onchange="WorkflowCanvas.updateNodeProperty('outputDestination', this.value); WorkflowCanvas.updateOutputUI(this.value);">
                                     <option value="none">None (No auto-export)</option>
                                     <option value="studio">Studio Content (스튜디오로 전송)</option>
                                     <option value="firestore">Firestore Collection (DB 저장)</option>
@@ -729,20 +729,23 @@
                                     style="display: none; margin-top: 10px;">
                                     <label class="wf-property-label" style="font-size: 11px;">Collection Path</label>
                                     <input type="text" id="wf-prop-output-collection" class="wf-property-input"
-                                        placeholder="projects/{{projectId}}/brandSummaries">
+                                        placeholder="projects/{{projectId}}/brandSummaries"
+                                        onchange="WorkflowCanvas.updateNodeProperty('outputCollection', this.value)">
                                     <p class="wf-property-hint">Use {{projectId}}, {{userId}}, {{timestamp}} for dynamic
                                         paths</p>
 
                                     <label class="wf-property-label" style="font-size: 11px; margin-top: 10px;">Document
                                         ID (Optional)</label>
                                     <input type="text" id="wf-prop-output-doc-id" class="wf-property-input"
-                                        placeholder="Leave blank for auto-generated ID">
+                                        placeholder="Leave blank for auto-generated ID"
+                                        onchange="WorkflowCanvas.updateNodeProperty('outputDocId', this.value)">
 
                                     <label class="wf-property-label" style="font-size: 11px; margin-top: 10px;">Data
                                         Template</label>
                                     <textarea id="wf-prop-output-data-template"
                                         class="wf-property-input wf-property-textarea"
-                                        placeholder='{ "title": "Summary - {{timestamp}}", "content": "{{lastNode.output}}", "createdBy": "{{userId}}" }'></textarea>
+                                        placeholder='{ "title": "Summary - {{timestamp}}", "content": "{{lastNode.output}}", "createdBy": "{{userId}}" }'
+                                        onchange="WorkflowCanvas.updateNodeProperty('outputDataTemplate', this.value)"></textarea>
                                     <p class="wf-property-hint">Map workflow output to Firestore document fields</p>
                                 </div>
 
@@ -751,7 +754,8 @@
                                     style="display: none; margin-top: 10px;">
                                     <label class="wf-property-label" style="font-size: 11px;">Webhook URL</label>
                                     <input type="url" id="wf-prop-output-webhook" class="wf-property-input"
-                                        placeholder="https://api.example.com/endpoint">
+                                        placeholder="https://api.example.com/endpoint"
+                                        onchange="WorkflowCanvas.updateNodeProperty('outputWebhook', this.value)">
                                 </div>
                             </div>
 

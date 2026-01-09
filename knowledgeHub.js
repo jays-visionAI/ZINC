@@ -4869,21 +4869,76 @@ async function generateCreativeItem() {
     addLog(`Workspace created: ${projectId}`, 'info');
 
     try {
-        const generateFn = firebase.app().functions('us-central1').httpsCallable('generateCreativeContent', { timeout: 600000 });
-        const result = await generateFn({
-            projectId: projectId,
-            type: currentCreativeType,
-            inputs: inputs,
-            advancedOptions: advancedOptions,
-            projectContext: contextText,
-            targetLanguage: targetLanguage || 'ko',
-            performanceMode: currentUserPerformanceMode || 'balanced'
-        });
+        let finalHtml = '';
+        let metadata = {};
+
+        if (currentCreativeType === 'one_pager') {
+            addLog('Routing to Workflow Engine (V2)...', 'info');
+
+            // Execute the 'studio' context workflow (One Pager Pro V2)
+            const workflowResult = await WorkflowEngine.findAndExecuteByContext('studio', {
+                id: currentProjectId,
+                projectId: currentProjectId,
+                inputs: inputs,
+                advancedOptions: advancedOptions
+            }, {
+                log: (msg) => addLog(msg, 'info'),
+                error: (msg) => addLog(msg, 'error')
+            });
+
+            addLog('Workflow sequence complete. Processing final output...', 'success');
+
+            // Find the HTML output (usually from 'document_designer' or 'end' node)
+            const outputs = workflowResult.outputs;
+            const designerNodeId = Object.keys(outputs).find(id => id.includes('designer') || id.includes('Document'));
+
+            if (designerNodeId && outputs[designerNodeId]) {
+                finalHtml = outputs[designerNodeId];
+            } else {
+                // Fallback to the last node's output
+                const nodeIds = Object.keys(outputs);
+                finalHtml = outputs[nodeIds[nodeIds.length - 1]];
+            }
+
+            // If it's still an object, try to extract 'html' or 'content'
+            if (typeof finalHtml === 'object') {
+                finalHtml = finalHtml.html || finalHtml.content || JSON.stringify(finalHtml);
+            }
+
+            // Update Firestore with the result
+            await db.collection('creativeProjects').doc(projectId).update({
+                status: 'completed',
+                htmlContent: finalHtml,
+                metadata: {
+                    workflowId: workflowResult.workflowId,
+                    engine: 'WorkflowEngine-V2'
+                },
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            // Increment workflow usage counter
+            if (workflowResult.workflowId) {
+                WorkflowEngine.incrementContentCount(workflowResult.workflowId);
+            }
+
+        } else {
+            // Standard legacy path for other types
+            const generateFn = firebase.app().functions('us-central1').httpsCallable('generateCreativeContent', { timeout: 600000 });
+            const result = await generateFn({
+                projectId: projectId,
+                type: currentCreativeType,
+                inputs: inputs,
+                advancedOptions: advancedOptions,
+                projectContext: contextText,
+                targetLanguage: targetLanguage || 'ko',
+                performanceMode: currentUserPerformanceMode || 'balanced'
+            });
+            addLog('Generation Success!', 'success');
+        }
 
         stopProgressBar(100);
-        addLog('Generation Success!', 'success');
 
-        // The backend already updates the document status and HTML. 
+        // The backend (or our manual update above) already updates the document status and HTML. 
         // We just need to trigger the view.
         viewCreativeProject(projectId);
 
