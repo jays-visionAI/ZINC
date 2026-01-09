@@ -1644,6 +1644,8 @@ document.addEventListener('DOMContentLoaded', () => {
     init();
     // Initialize Health Intelligence Center
     window.healthCenter = new BrandHealthIntelligence();
+    // Initialize Competitor Radar
+    window.competitorRadar = new CompetitorRadarManager();
 });
 
 
@@ -1665,7 +1667,8 @@ class CompetitorRadarManager {
             selectionStatus: document.getElementById('selection-status'),
             startBtn: document.getElementById('btn-start-tracking'),
             prevBtn: document.getElementById('radar-prev'),
-            nextBtn: document.getElementById('radar-next')
+            nextBtn: document.getElementById('radar-next'),
+            lastUpdated: document.getElementById('radar-last-updated')
         };
 
         if (this.dom.startBtn) {
@@ -1729,8 +1732,20 @@ class CompetitorRadarManager {
         };
     }
 
-    async scanMarket() {
+    async scanMarket(forceScan = false) {
         if (this.isScanning) return;
+
+        // Caching Logic: If not forced, check if project already has competitors
+        if (!forceScan && currentProjectData?.competitors && currentProjectData.competitors.length > 0) {
+            console.log('[CompetitorRadar] Found cached competitors, skipping AI scan.');
+            this.candidates = currentProjectData.competitors;
+            this.carouselIndex = 0;
+            this.renderCandidates();
+            this.updateNavButtons();
+            this.renderLastUpdated(currentProjectData.competitorsUpdatedAt);
+            return;
+        }
+
         this.isScanning = true;
         this.hasInsufficientData = false;
 
@@ -1835,6 +1850,15 @@ class CompetitorRadarManager {
             this.renderCandidates();
             this.updateNavButtons();
 
+            // Render last updated (now)
+            this.renderLastUpdated(null);
+
+            // Update local project data to prevent re-scan on project change
+            if (currentProjectData) {
+                currentProjectData.competitors = competitors;
+                currentProjectData.competitorsUpdatedAt = { seconds: Math.floor(Date.now() / 1000) };
+            }
+
         } catch (error) {
             console.error('[CompetitorRadar] AI Discovery failed:', error);
             this.showInsufficientDataMessage(
@@ -1844,6 +1868,39 @@ class CompetitorRadarManager {
         }
 
         this.isScanning = false;
+    }
+
+    renderLastUpdated(updatedAt) {
+        if (!this.dom.lastUpdated) return;
+
+        let dateObj;
+        if (!updatedAt) {
+            dateObj = new Date();
+        } else if (updatedAt.toDate) {
+            dateObj = updatedAt.toDate();
+        } else if (updatedAt.seconds) {
+            dateObj = new Date(updatedAt.seconds * 1000);
+        } else {
+            dateObj = new Date(updatedAt);
+        }
+
+        const now = new Date();
+        const diffMs = now - dateObj;
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+        const year = dateObj.getFullYear();
+        const month = dateObj.getMonth() + 1;
+        const day = dateObj.getDate();
+
+        const dateStr = `${year}.${month}.${day}`;
+        const elapsedStr = diffDays > 0 ? `(${diffDays}days have elapsed)` : '(Just now)';
+
+        this.dom.lastUpdated.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-400">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+            Last Update: <span class="text-slate-300 font-bold ml-0.5">${dateStr}.${elapsedStr}</span>
+        `;
     }
 
     async discoverCompetitorsWithAI(extractedData, projectData) {
@@ -2152,7 +2209,7 @@ class CompetitorRadarManager {
         this.dom.grid.innerHTML = `
             <div class="w-full py-12 flex flex-col items-center justify-center text-center text-slate-500">
                 <p class="text-sm">${t('market.qb.analysisCancelled')}</p>
-                <button onclick="competitorRadar.scanMarket()" class="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-lg transition-colors">
+                <button onclick="competitorRadar.scanMarket(true)" class="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-lg transition-colors">
                     🔄 ${t('market.qb.retry')}
                 </button>
             </div>
@@ -2219,7 +2276,7 @@ class CompetitorRadarManager {
             currentProjectData.usp = usp;
 
             // Re-trigger market scan
-            this.scanMarket();
+            this.scanMarket(true);
 
         } catch (error) {
             console.error('[QuickBriefing] Save failed:', error);
