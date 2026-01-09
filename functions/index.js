@@ -334,7 +334,7 @@ exports.executeSubAgent = onCall({
             throw new functions.https.HttpsError('failed-precondition', 'API key not configured');
         }
 
-        const projectData = projectDoc.exists ? projectDoc.data() : null;
+
         const brandData = brandProjectDoc.exists ? brandProjectDoc.data() : (brandDoc.exists ? brandDoc.data() : null);
         const knowledgeDocs = [];
         if (!knowledgeSnapshot.empty) {
