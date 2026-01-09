@@ -207,6 +207,11 @@ const WorkflowEngine = (function () {
 
                 let targetCollection = collection;
 
+                // DEBUG LOGGING
+                const currentUser = firebase.auth().currentUser;
+                this.logger.log(`[WorkflowEngine] Firestore Write Request - Collection: "${collection}", DocID: "${targetDocId}", User: ${currentUser ? currentUser.uid : 'Unauthenticated'}, Project: ${context.projectId}`);
+
+
 
                 // SECURITY RULE COMPLIANCE: Force nested paths for project-scoped collections
                 // These collections are ONLY writable under projects/{projectId}/...
