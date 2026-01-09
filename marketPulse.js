@@ -1929,24 +1929,24 @@ class CompetitorRadarManager {
             throw error;
         }
     }
-    // Industry categories for dropdown
+    // Industry categories for dropdown (using translation keys)
     static INDUSTRY_CATEGORIES = [
-        { id: 'saas_software', label: 'SaaS / 소프트웨어', icon: '💻' },
-        { id: 'fintech_finance', label: '핀테크 / 금융', icon: '💰' },
-        { id: 'blockchain_crypto', label: '블록체인 / 크립토', icon: '⛓️' },
-        { id: 'ecommerce_retail', label: '이커머스 / 리테일', icon: '🛒' },
-        { id: 'healthcare_bio', label: '헬스케어 / 바이오', icon: '🏥' },
-        { id: 'ai_ml', label: 'AI / 머신러닝', icon: '🤖' },
-        { id: 'education_edtech', label: '교육 / 에듀테크', icon: '📚' },
-        { id: 'media_content', label: '미디어 / 콘텐츠', icon: '🎬' },
-        { id: 'logistics_mobility', label: '물류 / 모빌리티', icon: '🚚' },
-        { id: 'gaming_entertainment', label: '게임 / 엔터테인먼트', icon: '🎮' },
-        { id: 'real_estate', label: '부동산 / 프롭테크', icon: '🏠' },
-        { id: 'food_beverage', label: 'F&B / 푸드테크', icon: '🍔' },
-        { id: 'travel_hospitality', label: '여행 / 호스피탈리티', icon: '✈️' },
-        { id: 'hr_recruiting', label: 'HR / 채용', icon: '👥' },
-        { id: 'marketing_adtech', label: '마케팅 / 애드테크', icon: '📢' },
-        { id: 'other', label: '기타 (직접 입력)', icon: '📝' }
+        { id: 'saas_software', labelKey: 'market.industry.saas_software', icon: '💻' },
+        { id: 'fintech_finance', labelKey: 'market.industry.fintech_finance', icon: '💰' },
+        { id: 'blockchain_crypto', labelKey: 'market.industry.blockchain_crypto', icon: '⛓️' },
+        { id: 'ecommerce_retail', labelKey: 'market.industry.ecommerce_retail', icon: '🛒' },
+        { id: 'healthcare_bio', labelKey: 'market.industry.healthcare_bio', icon: '🏥' },
+        { id: 'ai_ml', labelKey: 'market.industry.ai_ml', icon: '🤖' },
+        { id: 'education_edtech', labelKey: 'market.industry.education_edtech', icon: '📚' },
+        { id: 'media_content', labelKey: 'market.industry.media_content', icon: '🎬' },
+        { id: 'logistics_mobility', labelKey: 'market.industry.logistics_mobility', icon: '🚚' },
+        { id: 'gaming_entertainment', labelKey: 'market.industry.gaming_entertainment', icon: '🎮' },
+        { id: 'real_estate', labelKey: 'market.industry.real_estate', icon: '🏠' },
+        { id: 'food_beverage', labelKey: 'market.industry.food_beverage', icon: '🍔' },
+        { id: 'travel_hospitality', labelKey: 'market.industry.travel_hospitality', icon: '✈️' },
+        { id: 'hr_recruiting', labelKey: 'market.industry.hr_recruiting', icon: '👥' },
+        { id: 'marketing_adtech', labelKey: 'market.industry.marketing_adtech', icon: '📢' },
+        { id: 'other', labelKey: 'market.industry.other', icon: '📝' }
     ];
 
     // Temporary storage for known competitors during form editing
@@ -1964,9 +1964,9 @@ class CompetitorRadarManager {
         const existingAudience = existingBriefing.targetAudience || currentProjectData?.targetAudience || '';
         const existingUSP = existingBriefing.usp || currentProjectData?.usp || '';
 
-        // Build industry options
+        // Build industry options using translation
         const industryOptions = CompetitorRadarManager.INDUSTRY_CATEGORIES.map(cat =>
-            `<option value="${cat.id}" ${existingIndustry === cat.id ? 'selected' : ''}>${cat.icon} ${cat.label}</option>`
+            `<option value="${cat.id}" ${existingIndustry === cat.id ? 'selected' : ''}>${cat.icon} ${t(cat.labelKey)}</option>`
         ).join('');
 
         // Build known competitors list
@@ -1990,8 +1990,8 @@ class CompetitorRadarManager {
                             </svg>
                         </div>
                         <div>
-                            <h3 class="text-lg font-bold text-white">⚡ Quick Briefing</h3>
-                            <p class="text-xs text-slate-400">더 정확한 경쟁사를 찾기 위해 아래 정보를 입력해주세요.</p>
+                            <h3 class="text-lg font-bold text-white">⚡ ${t('market.qb.title')}</h3>
+                            <p class="text-xs text-slate-400">${t('market.qb.subtitle')}</p>
                         </div>
                     </div>
 
@@ -2000,57 +2000,57 @@ class CompetitorRadarManager {
                         <!-- Industry -->
                         <div>
                             <label class="block text-sm font-bold text-slate-300 mb-2">
-                                🏭 산업/카테고리 <span class="text-red-400">*</span>
+                                🏭 ${t('market.qb.industry')} <span class="text-red-400">${t('market.qb.required')}</span>
                             </label>
                             <select id="qb-industry" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:border-indigo-500 focus:outline-none transition-colors">
-                                <option value="">선택하세요...</option>
+                                <option value="">${t('market.qb.industryPlaceholder')}</option>
                                 ${industryOptions}
                             </select>
                             <input type="text" id="qb-industry-custom" 
                                    class="hidden mt-2 w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none"
-                                   placeholder="산업 카테고리를 직접 입력하세요">
+                                   placeholder="${t('market.qb.industryCustomPlaceholder')}">
                         </div>
 
                         <!-- Target Audience -->
                         <div>
                             <label class="block text-sm font-bold text-slate-300 mb-2">
-                                👥 주요 타겟 고객 <span class="text-red-400">*</span>
+                                👥 ${t('market.qb.audience')} <span class="text-red-400">${t('market.qb.required')}</span>
                             </label>
                             <input type="text" id="qb-audience" 
                                    value="${existingAudience}"
                                    class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none"
-                                   placeholder="예: 30-40대 스타트업 창업자, B2B 기업 의사결정자">
+                                   placeholder="${t('market.qb.audiencePlaceholder')}">
                         </div>
 
                         <!-- USP -->
                         <div>
                             <label class="block text-sm font-bold text-slate-300 mb-2">
-                                💎 핵심 차별점 (USP)
+                                💎 ${t('market.qb.usp')}
                             </label>
                             <textarea id="qb-usp" rows="2"
                                       class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none resize-none"
-                                      placeholder="예: AI 기반 실시간 분석, 업계 최저 수수료, 24시간 고객 지원">${existingUSP}</textarea>
+                                      placeholder="${t('market.qb.uspPlaceholder')}">${existingUSP}</textarea>
                         </div>
 
                         <!-- Known Competitors -->
                         <div class="pt-4 border-t border-slate-700">
                             <label class="block text-sm font-bold text-slate-300 mb-2">
-                                🎯 이미 알고 있는 경쟁사 <span class="text-slate-500 font-normal">(선택)</span>
+                                🎯 ${t('market.qb.knownCompetitors')} <span class="text-slate-500 font-normal">${t('market.qb.knownCompetitorsOptional')}</span>
                             </label>
-                            <p class="text-xs text-slate-500 mb-3">직접 경쟁사를 추가하면 AI가 더 정확하게 분석합니다.</p>
+                            <p class="text-xs text-slate-500 mb-3">${t('market.qb.knownCompetitorsHint')}</p>
                             
                             <div class="flex gap-2 mb-3">
                                 <input type="text" id="qb-competitor-input" 
                                        class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none"
-                                       placeholder="경쟁사 이름 또는 URL 입력">
+                                       placeholder="${t('market.qb.competitorInputPlaceholder')}">
                                 <button onclick="competitorRadar.addKnownCompetitor()" 
                                         class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold rounded-lg transition-colors">
-                                    + 추가
+                                    + ${t('market.qb.add')}
                                 </button>
                             </div>
 
                             <div id="qb-competitors-list" class="space-y-2 max-h-32 overflow-y-auto">
-                                ${knownCompetitorsList || '<p class="text-xs text-slate-600 text-center py-2">추가된 경쟁사가 없습니다</p>'}
+                                ${knownCompetitorsList || `<p class="text-xs text-slate-600 text-center py-2">${t('market.qb.noCompetitorsAdded')}</p>`}
                             </div>
                         </div>
                     </div>
@@ -2059,11 +2059,11 @@ class CompetitorRadarManager {
                     <div class="flex gap-3 mt-6 pt-4 border-t border-slate-700">
                         <button onclick="competitorRadar.cancelQuickBriefing()" 
                                 class="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-400 text-sm font-bold rounded-xl transition-colors">
-                            취소
+                            ${t('market.qb.cancel')}
                         </button>
                         <button onclick="competitorRadar.saveQuickBriefingAndScan()" 
                                 class="flex-1 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-sm font-bold rounded-xl shadow-lg shadow-indigo-500/20 transition-all">
-                            💾 저장 후 경쟁사 찾기
+                            💾 ${t('market.qb.saveAndScan')}
                         </button>
                     </div>
                 </div>
@@ -2124,7 +2124,7 @@ class CompetitorRadarManager {
         if (!listEl) return;
 
         if (this.tempKnownCompetitors.length === 0) {
-            listEl.innerHTML = '<p class="text-xs text-slate-600 text-center py-2">추가된 경쟁사가 없습니다</p>';
+            listEl.innerHTML = `<p class="text-xs text-slate-600 text-center py-2">${t('market.qb.noCompetitorsAdded')}</p>`;
             return;
         }
 
@@ -2151,9 +2151,9 @@ class CompetitorRadarManager {
         if (!this.dom.grid) return;
         this.dom.grid.innerHTML = `
             <div class="w-full py-12 flex flex-col items-center justify-center text-center text-slate-500">
-                <p class="text-sm">경쟁사 분석이 취소되었습니다.</p>
+                <p class="text-sm">${t('market.qb.analysisCancelled')}</p>
                 <button onclick="competitorRadar.scanMarket()" class="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-lg transition-colors">
-                    🔄 다시 시도
+                    🔄 ${t('market.qb.retry')}
                 </button>
             </div>
         `;
@@ -2174,12 +2174,12 @@ class CompetitorRadarManager {
 
         // Validation
         if (!industry) {
-            alert('산업/카테고리를 선택해주세요.');
+            alert(t('market.qb.validationIndustry'));
             industrySelect?.focus();
             return;
         }
         if (!targetAudience) {
-            alert('타겟 고객을 입력해주세요.');
+            alert(t('market.qb.validationAudience'));
             audienceInput?.focus();
             return;
         }
@@ -2188,7 +2188,7 @@ class CompetitorRadarManager {
         const saveBtn = document.querySelector('[onclick="competitorRadar.saveQuickBriefingAndScan()"]');
         if (saveBtn) {
             saveBtn.disabled = true;
-            saveBtn.innerHTML = '<span class="animate-pulse">저장 중...</span>';
+            saveBtn.innerHTML = `<span class="animate-pulse">${t('market.qb.saving')}</span>`;
         }
 
         try {
