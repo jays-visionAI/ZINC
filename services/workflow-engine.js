@@ -202,7 +202,33 @@ const WorkflowEngine = (function () {
                 const targetDocId = docId || context.projectId;
                 if (!collection || !targetDocId) throw new Error('Collection or DocID missing for Firestore Write');
 
-                await db.collection(collection).doc(targetDocId).set({
+                let targetCollection = collection;
+
+
+                // SECURITY RULE COMPLIANCE: Force nested paths for project-scoped collections
+                // These collections are ONLY writable under projects/{projectId}/...
+                const projectScopedCollections = [
+                    'onePagers', 'brandSummaries', 'generatedContents', 'knowledgeSources',
+                    'contentPlans', 'savedPlans', 'scheduledContent', 'brochures', 'pitchDecks',
+                    'promoImages', 'generatedImages', 'researchHistory'
+                ];
+
+                if (projectScopedCollections.includes(collection)) {
+                    // Check if we are already using a nested path (simple check)
+                    if (!collection.startsWith('projects/')) {
+                        this.logger.log(`[WorkflowEngine] 🛡️ Security Redirect: Routing '${collection}' to 'projects/${context.projectId}/${collection}'`);
+                        // We use the sub-collection API structure
+                        await db.collection('projects').doc(context.projectId).collection(collection).doc(targetDocId).set({
+                            ...finalData,
+                            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        }, { merge: true });
+
+                        return { success: true, savedAt: `projects/${context.projectId}/${collection}/${targetDocId}` };
+                    }
+                }
+
+                // Default write for other collections (or if already full path)
+                await db.collection(targetCollection).doc(targetDocId).set({
                     ...finalData,
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 }, { merge: true });
