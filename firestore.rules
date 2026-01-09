@@ -201,35 +201,35 @@ service cloud.firestore {
       // One Pagers (Marketing Assets)
       match /onePagers/{docId} {
         allow read: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
-        allow create: if isAuthenticated() && isProjectOwner(projectId);
+        allow create, update: if isAuthenticated() && isProjectOwner(projectId);
         allow delete: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
       }
 
       // Brochures (Marketing Assets)
       match /brochures/{docId} {
         allow read: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
-        allow create: if isAuthenticated() && isProjectOwner(projectId);
+        allow create, update: if isAuthenticated() && isProjectOwner(projectId);
         allow delete: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
       }
 
       // Promo Images (Social Content)
       match /promoImages/{docId} {
         allow read: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
-        allow create: if isAuthenticated() && isProjectOwner(projectId);
+        allow create, update: if isAuthenticated() && isProjectOwner(projectId);
         allow delete: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
       }
 
       // Pitch Decks (Sales Assets)
       match /pitchDecks/{docId} {
         allow read: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
-        allow create: if isAuthenticated() && isProjectOwner(projectId);
+        allow create, update: if isAuthenticated() && isProjectOwner(projectId);
         allow delete: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
       }
 
       // Generated Images (Knowledge Hub / Studio)
       match /generatedImages/{imageId} {
         allow read: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
-        allow create: if isAuthenticated() && isProjectOwner(projectId);
+        allow create, update: if isAuthenticated() && isProjectOwner(projectId);
         allow delete: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
       }
 

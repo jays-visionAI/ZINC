@@ -199,14 +199,18 @@ const WorkflowEngine = (function () {
             }
 
             if (operation === 'write') {
-                const targetDocId = docId || context.projectId;
-                if (!collection || !targetDocId) throw new Error('Collection or DocID missing for Firestore Write');
+                if (!collection) throw new Error('Collection missing for Firestore Write');
+
+                // If no docId is provided, and it's an auto-export scenario, we should probably 
+                // generate a new ID to avoid overwriting the project record or failing on update rules
+                let targetDocId = docId;
+                if (!targetDocId) {
+                    // For Project-scoped collections, if we don't have a docId, 
+                    // we create a new random ID to support multiple versions/history
+                    targetDocId = db.collection('projects').doc().id;
+                }
 
                 let targetCollection = collection;
-
-                // DEBUG LOGGING
-                const currentUser = firebase.auth().currentUser;
-                this.logger.log(`[WorkflowEngine] Firestore Write Request - Collection: "${collection}", DocID: "${targetDocId}", User: ${currentUser ? currentUser.uid : 'Unauthenticated'}, Project: ${context.projectId}`);
 
 
 
