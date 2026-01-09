@@ -3643,18 +3643,39 @@ ${agentList}
 
     function handleCanvasMouseUp(e) {
         if (state.isConnecting) {
-            // Check if dropped on a node's input port
+            // Check if dropped on a node or its input port
             const targetPort = e.target.closest('.wf-port-input');
-            if (targetPort) {
-                const targetNodeId = targetPort.closest('.wf-node').id;
-                if (targetNodeId !== state.connectionSource.nodeId) {
+            const targetNodeEl = e.target.closest('.wf-node');
+
+            if (targetPort || targetNodeEl) {
+                const targetNodeId = (targetPort || targetNodeEl).closest('.wf-node').id;
+                const sourceNodeId = state.connectionSource.nodeId;
+
+                if (targetNodeId !== sourceNodeId) {
                     let label = '';
                     const pt = state.connectionSource.portType;
                     if (pt === 'output-true') label = 'TRUE';
                     else if (pt === 'output-false') label = 'FALSE';
                     else if (pt === 'output-default') label = 'DEFAULT';
 
-                    createEdge(state.connectionSource.nodeId, targetNodeId, label);
+                    const targetNode = state.nodes.find(n => n.id === targetNodeId);
+
+                    // Smart replacement: if node is not parallel-capable, replace old connection
+                    if (targetNode && targetNode.type !== 'parallel') {
+                        // For non-condition sources, or same-label condition sources, replace
+                        state.edges = state.edges.filter(edge => {
+                            // Keep if it's not pointing to this target, OR if it's from a different source port
+                            if (edge.target !== targetNodeId) return true;
+                            // If it's from the same category (label), we replace it
+                            return edge.label !== label;
+                        });
+                    }
+
+                    // Avoid exact duplicates
+                    const exists = state.edges.some(e => e.source === sourceNodeId && e.target === targetNodeId && e.label === label);
+                    if (!exists) {
+                        createEdge(sourceNodeId, targetNodeId, label);
+                    }
                 }
             }
         }
