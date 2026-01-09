@@ -52,6 +52,7 @@ const RESEARCH_STEPS = [
 let currentProjectId = null;
 let currentUser = null;
 let currentProjectData = null; // Store project data for simulation
+let selectedKeywordsForEditor = []; // Temporary storage for modal editing
 
 async function init() {
     // Check auth first
@@ -828,6 +829,29 @@ function setupEventListeners() {
             renderHeatmap();
         }
     });
+
+    // Resonance Tag Input Setup
+    const tagInput = document.getElementById('tag-input-field');
+    if (tagInput) {
+        tagInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const val = tagInput.value.trim();
+                if (val && !selectedKeywordsForEditor.includes(val)) {
+                    if (selectedKeywordsForEditor.length >= 10) {
+                        showNotification('Maximum 10 keywords allowed.', 'warning');
+                        return;
+                    }
+                    selectedKeywordsForEditor.push(val);
+                    tagInput.value = '';
+                    renderActiveTags();
+                }
+            } else if (e.key === 'Backspace' && tagInput.value === '' && selectedKeywordsForEditor.length > 0) {
+                selectedKeywordsForEditor.pop();
+                renderActiveTags();
+            }
+        });
+    }
 
     // AI Actions (Event Delegation)
     if (dom.aiActions) {
@@ -2645,14 +2669,14 @@ CompetitorRadarManager.prototype.removeCandidate = function (candidateId) {
 // ========== KEYWORD EDITOR FUNCTIONS ==========
 function openKeywordEditor() {
     const modal = document.getElementById('keyword-editor-modal');
-    const input = document.getElementById('resonance-keywords-input');
-
-    if (modal && input) {
+    if (modal) {
         // Pre-fill with existing keywords if any
-        const existing = currentProjectData?.marketPulseKeywords ||
+        selectedKeywordsForEditor = [...(currentProjectData?.marketPulseKeywords ||
             currentProjectData?.strategy?.keywords ||
-            currentProjectData?.coreIdentity?.keywords || [];
-        input.value = existing.join(', ');
+            currentProjectData?.coreIdentity?.keywords || [])];
+
+        renderActiveTags();
+        clearAISuggestions();
 
         modal.classList.remove('hidden');
         document.body.style.overflow = 'hidden';
@@ -2667,18 +2691,119 @@ function closeKeywordEditor() {
     }
 }
 
+function renderActiveTags() {
+    const container = document.getElementById('active-tags-container');
+    const input = document.getElementById('tag-input-field');
+    const countDisplay = document.getElementById('keyword-count');
+
+    if (!container || !input) return;
+
+    // Remove existing tags
+    container.querySelectorAll('.tag-chip').forEach(tag => tag.remove());
+
+    // Create new tags
+    selectedKeywordsForEditor.forEach((kw, index) => {
+        const tag = document.createElement('div');
+        tag.className = 'tag-chip flex items-center gap-2 px-3 py-1.5 bg-indigo-500/10 text-indigo-400 text-xs font-bold rounded-xl border border-indigo-500/20 group animate-in fade-in zoom-in-95 duration-200';
+        tag.innerHTML = `
+            ${kw}
+            <button onclick="removeKeywordAtIndex(${index})" class="hover:text-red-400 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+        `;
+        container.insertBefore(tag, input);
+    });
+
+    if (countDisplay) {
+        countDisplay.textContent = `${selectedKeywordsForEditor.length}/10 Keywords`;
+        countDisplay.className = `text-[10px] font-bold ${selectedKeywordsForEditor.length >= 10 ? 'text-red-400' : 'text-slate-600'}`;
+    }
+}
+
+function removeKeywordAtIndex(index) {
+    selectedKeywordsForEditor.splice(index, 1);
+    renderActiveTags();
+}
+
+function clearAISuggestions() {
+    const container = document.getElementById('ai-suggestions-container');
+    if (container) {
+        container.innerHTML = '<div class="text-xs text-slate-600 italic py-2">Click refresh to generate suggestions using DeepSeek V3.</div>';
+    }
+}
+
+async function generateAISuggestions() {
+    const container = document.getElementById('ai-suggestions-container');
+    const btn = document.getElementById('btn-generate-suggestions');
+    const icon = document.getElementById('suggestion-btn-icon');
+
+    if (!container || !currentProjectId) return;
+
+    // UI Loading State
+    if (icon) icon.classList.add('animate-spin');
+    if (btn) btn.disabled = true;
+    container.innerHTML = `
+        <div class="flex items-center gap-3 px-2 py-2">
+            <div class="w-4 h-4 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin"></div>
+            <span class="text-xs text-slate-500 font-medium">Analyzing project DNA and market trends...</span>
+        </div>
+    `;
+
+    try {
+        const executeSubAgent = firebase.functions().httpsCallable('executeSubAgent');
+        const response = await executeSubAgent({
+            projectId: currentProjectId,
+            teamId: 'SYSTEM_INTEL_TEAM',
+            runId: 'keywords_' + Date.now(),
+            subAgentId: 'strategy_analyst',
+            taskPrompt: `Based on the project name "${currentProjectData.projectName}" and its description "${currentProjectData.description || 'No description available'}", suggest 8 high-impact market keywords for monitoring sentiment and competition. Return ONLY a comma-separated list of keywords.`,
+            systemPrompt: "You are an expert market analyst using DeepSeek V3. Suggest optimized search keywords for brand monitoring. Format: Keyword1, Keyword2, Keyword3..."
+        });
+
+        if (response.data.success) {
+            const raw = response.data.output || "";
+            const suggestions = raw.split(',').map(s => s.trim()).filter(s => s);
+
+            container.innerHTML = '';
+            suggestions.forEach(kw => {
+                const chip = document.createElement('button');
+                chip.className = 'px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium rounded-xl border border-slate-700 transition-all active:scale-95 animate-in slide-in-from-bottom-2 duration-300';
+                chip.textContent = `+ ${kw}`;
+                chip.onclick = () => {
+                    if (selectedKeywordsForEditor.length >= 10) {
+                        showNotification('Maximum 10 keywords allowed.', 'warning');
+                        return;
+                    }
+                    if (!selectedKeywordsForEditor.includes(kw)) {
+                        selectedKeywordsForEditor.push(kw);
+                        renderActiveTags();
+                        chip.classList.add('opacity-40', 'pointer-events-none');
+                        chip.textContent = `Added`;
+                    }
+                };
+                container.appendChild(chip);
+            });
+        } else {
+            throw new Error(response.data.error || "Failed to generate suggestions");
+        }
+    } catch (error) {
+        console.error('Error generating suggestions:', error);
+        container.innerHTML = '<div class="text-[10px] text-red-500 font-bold px-2 py-2 uppercase tracking-wider">AI analysis failed. Please try again or enter manually.</div>';
+    } finally {
+        if (icon) icon.classList.remove('animate-spin');
+        if (btn) btn.disabled = false;
+    }
+}
+
 async function saveResonanceKeywords() {
     if (!currentProjectId) return;
 
-    const input = document.getElementById('resonance-keywords-input');
     const saveBtn = document.querySelector('[onclick="saveResonanceKeywords()"]');
-
-    const keywordsRaw = input.value.trim();
-    const keywords = keywordsRaw ? keywordsRaw.split(',').map(kw => kw.trim()).filter(kw => kw) : [];
+    const keywords = [...selectedKeywordsForEditor];
 
     if (saveBtn) {
         saveBtn.disabled = true;
-        saveBtn.innerHTML = '<span class="animate-pulse">Saving...</span>';
+        saveBtn.innerHTML = '<div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Saving...';
     }
 
     try {
@@ -2686,29 +2811,36 @@ async function saveResonanceKeywords() {
             marketPulseKeywords: keywords
         });
 
-        // Update local state
+        // Update local state and trigger UI refresh
         currentProjectData.marketPulseKeywords = keywords;
-
-        // Refresh UI
         updateDashboardWithProjectData(currentProjectData);
 
-        showNotification('Resonance keywords updated successfully!', 'success');
+        // Clear old analysis results to force new run relevance
+        await firebase.firestore().collection('projects').doc(currentProjectId)
+            .collection('marketPulse').doc('latest').delete().catch(() => { });
+
+        showNotification('Resonance strategy synced successfully!', 'success');
         closeKeywordEditor();
     } catch (error) {
         console.error('Error saving keywords:', error);
-        showNotification('Failed to save keywords.', 'error');
+        showNotification('Sync failed. Please try again.', 'error');
     } finally {
         if (saveBtn) {
             saveBtn.disabled = false;
-            saveBtn.innerHTML = '💾 Save & Sync';
+            saveBtn.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                SYNC STRATEGY
+            `;
         }
     }
 }
 
-// Expose globally
+// Global expose
 window.openKeywordEditor = openKeywordEditor;
 window.closeKeywordEditor = closeKeywordEditor;
 window.saveResonanceKeywords = saveResonanceKeywords;
+window.removeKeywordAtIndex = removeKeywordAtIndex;
+window.generateAISuggestions = generateAISuggestions;
 window.openRejectionModal = openRejectionModal;
 window.closeRejectionModal = closeRejectionModal;
 window.submitRejectionFeedback = submitRejectionFeedback;
