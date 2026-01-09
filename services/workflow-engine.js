@@ -161,7 +161,14 @@ const WorkflowEngine = (function () {
 
                         // We need to inject the finalResult as 'prev.output' for the template resolver
                         const exportContext = { ...context, previousOutputs: { [node.id]: finalResult } };
-                        await this.runFirestoreNode(fsConfig, exportContext);
+
+                        try {
+                            await this.runFirestoreNode(fsConfig, exportContext);
+                            this.logger.log(`[WorkflowEngine] ✅ Auto-export saved successfully.`);
+                        } catch (exportErr) {
+                            this.logger.log(`[WorkflowEngine] ⚠️ Auto-export failed but continuing: ${exportErr.message}`, 'warn');
+                            console.warn('[WorkflowEngine] Auto-export error detail:', exportErr);
+                        }
                     }
 
                     return finalResult;
