@@ -313,15 +313,16 @@ const WorkflowEngine = (function () {
             return 'openai';
         }
 
-        // --- Data Fetchers ---
         async fetchKnowledgeHubData(ctx) {
             const db = firebase.firestore();
-            const snapshot = await db.collection('projects').doc(ctx.projectId)
-                .collection('knowledgeSources').get();
+            // Match the query used in functions/index.js
+            const snapshot = await db.collection('knowledgeHub')
+                .where('projectId', '==', ctx.projectId)
+                .where('active', '==', true)
+                .limit(10)
+                .get();
 
-            const sources = snapshot.docs
-                .map(d => ({ id: d.id, ...d.data() }))
-                .filter(s => s.isActive !== false);
+            const sources = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
 
             return {
                 sources: sources,
@@ -337,7 +338,8 @@ const WorkflowEngine = (function () {
 
         async fetchBrandBrainData(ctx) {
             const db = firebase.firestore();
-            const doc = await db.collection('projects').doc(ctx.projectId).collection('brandBrain').doc('core').get();
+            // Match the path used in functions/index.js: db.collection('brandBrain').doc(projectId)
+            const doc = await db.collection('brandBrain').doc(ctx.projectId).get();
             return doc.exists ? doc.data() : { error: 'Brand Brain not found' };
         }
     }
