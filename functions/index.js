@@ -884,18 +884,68 @@ exports.discoverCompetitors = onCall({
     }
 
     try {
-        // Build the AI prompt with comprehensive context
-        const systemPrompt = `You are a competitive intelligence analyst specializing in market research. Your task is to identify potential competitors for a business based on the provided context.
+        // Build the AI prompt with comprehensive context and STRUCTURED SCORING GUIDELINES
+        const systemPrompt = `You are a competitive intelligence analyst. Your task is to identify real competitors and calculate precise match scores using the following STRUCTURED SCORING SYSTEM.
 
-IMPORTANT RULES:
-1. Only suggest REAL companies that actually exist
-2. Provide accurate, verifiable information
-3. If you cannot identify real competitors confidently, return an empty array
-4. Focus on companies in the same industry/market segment
-5. Consider both direct and indirect competitors
-6. Respond ONLY with valid JSON, no markdown or explanation`;
+=== SCORING METHODOLOGY ===
 
-        const userPrompt = `Analyze the following business context and identify 5-8 potential competitors:
+Each competitor must be scored on 4 dimensions. The FINAL matchScore is calculated as:
+matchScore = (uspOverlap × 0.35) + (audienceProximity × 0.30) + (marketPresence × 0.20) + (growthMomentum × 0.15)
+
+=== DIMENSION 1: USP OVERLAP (Weight: 35%) ===
+"How much does their value proposition compete with ours?"
+
+SCORING CRITERIA:
+- 90-100: Core USP is nearly identical (direct head-to-head competitor)
+- 70-89: More than 50% of key features/values overlap
+- 50-69: Some features or value propositions overlap
+- 30-49: Indirect competition, different approach to similar problem
+- 0-29: Minimal to no overlap in value proposition
+
+=== DIMENSION 2: AUDIENCE PROXIMITY (Weight: 30%) ===
+"Are they targeting the same customers?"
+
+SCORING CRITERIA:
+- 90-100: Exact same target customer (industry, size, role, geography)
+- 70-89: 80%+ customer segment overlap
+- 50-69: 50%+ customer segment overlap
+- 30-49: Some customer segments overlap
+- 0-29: Different customer base
+
+CONSIDER: Industry vertical, Company size (SMB/Enterprise), Decision maker role, Geographic focus
+
+=== DIMENSION 3: MARKET PRESENCE (Weight: 20%) ===
+"How established are they in the market?"
+
+SCORING CRITERIA:
+- 90-100: Market leader, dominant player, household name
+- 70-89: Major player, significant market share
+- 50-69: Growing mid-size company, recognized brand
+- 30-49: Early-stage startup, emerging player
+- 0-29: Very new or niche player with minimal presence
+
+CONSIDER: Estimated revenue, Employee count, Funding raised, Brand recognition
+
+=== DIMENSION 4: GROWTH MOMENTUM (Weight: 15%) ===
+"How fast are they growing?"
+
+SCORING CRITERIA:
+- 90-100: Explosive growth (100%+ YoY), unicorn trajectory
+- 70-89: High growth (50-100% YoY)
+- 50-69: Solid growth (20-50% YoY)
+- 30-49: Slow growth (0-20% YoY)
+- 0-29: Stagnant or declining
+
+CONSIDER: Recent funding, Product launches, Hiring trends, News mentions
+
+=== OUTPUT RULES ===
+1. ONLY suggest REAL companies that actually exist
+2. Calculate matchScore using the weighted formula above
+3. Provide justification in KOREAN explaining why they are a competitor
+4. Respond with VALID JSON only, no markdown or explanations
+5. If you cannot identify real competitors, return: {"competitors": []}`;
+
+        const userPrompt = `=== PROJECT ANALYSIS REQUEST ===
 
 PROJECT NAME: ${context.projectName || 'Unknown'}
 INDUSTRY/CATEGORY: ${context.industry || 'Not specified'}
@@ -914,7 +964,15 @@ ${context.brandProfile ? `BRAND PROFILE:
 ${context.knowledgeBase && context.knowledgeBase.length > 0 ? `KNOWLEDGE BASE DOCUMENTS:
 ${context.knowledgeBase.map(doc => `- [${doc.type}] ${doc.title}: ${doc.summary}`).join('\n')}` : ''}
 
-Based on this information, identify potential competitors and return a JSON array with the following structure:
+${context.knownCompetitors && context.knownCompetitors.length > 0 ? `
+=== KNOWN COMPETITORS (User-provided) ===
+The user has identified these as competitors. Include them in your analysis and find similar competitors:
+${context.knownCompetitors.map(c => `- ${c.name}${c.url ? ` (${c.url})` : ''}`).join('\n')}` : ''}
+
+=== TASK ===
+Identify 5-8 potential competitors and calculate their match scores using the structured methodology.
+
+RESPOND WITH THIS EXACT JSON STRUCTURE:
 {
   "competitors": [
     {
@@ -924,20 +982,13 @@ Based on this information, identify potential competitors and return a JSON arra
       "audienceProximity": 75,
       "marketPresence": 70,
       "growthMomentum": 65,
-      "justification": "Brief explanation in Korean of why this is a competitor",
+      "justification": "한국어로 이 회사가 왜 경쟁사인지 2-3문장으로 설명",
       "website": "https://example.com"
     }
   ]
 }
 
-SCORES EXPLANATION:
-- matchScore: Overall competitor match (0-100)
-- uspOverlap: How much their value proposition overlaps with the project (0-100)
-- audienceProximity: How similar their target audience is (0-100)
-- marketPresence: Their current market visibility/size (0-100)
-- growthMomentum: Their recent growth trajectory (0-100)
-
-If you cannot identify real competitors with confidence, return: {"competitors": []}`;
+Remember: matchScore = (uspOverlap × 0.35) + (audienceProximity × 0.30) + (marketPresence × 0.20) + (growthMomentum × 0.15)`;
 
         const messages = [
             { role: 'system', content: systemPrompt },
@@ -968,19 +1019,38 @@ If you cannot identify real competitors with confidence, return: {"competitors":
             return { success: false, error: 'Failed to parse AI response', competitors: [] };
         }
 
-        // Validate and sanitize competitors
+        // Validate, sanitize, and recalculate matchScore using weighted formula
         const validCompetitors = competitors
             .filter(c => c.name && c.name.trim())
-            .map(c => ({
-                name: c.name.trim(),
-                matchScore: Math.min(100, Math.max(0, parseInt(c.matchScore) || 70)),
-                uspOverlap: Math.min(100, Math.max(0, parseInt(c.uspOverlap) || 60)),
-                audienceProximity: Math.min(100, Math.max(0, parseInt(c.audienceProximity) || 60)),
-                marketPresence: Math.min(100, Math.max(0, parseInt(c.marketPresence) || 50)),
-                growthMomentum: Math.min(100, Math.max(0, parseInt(c.growthMomentum) || 50)),
-                justification: c.justification || '분석 결과 경쟁 관계로 판단됨',
-                website: c.website || null
-            }))
+            .map(c => {
+                // Parse and clamp individual scores
+                const uspOverlap = Math.min(100, Math.max(0, parseInt(c.uspOverlap) || 60));
+                const audienceProximity = Math.min(100, Math.max(0, parseInt(c.audienceProximity) || 60));
+                const marketPresence = Math.min(100, Math.max(0, parseInt(c.marketPresence) || 50));
+                const growthMomentum = Math.min(100, Math.max(0, parseInt(c.growthMomentum) || 50));
+
+                // Recalculate matchScore using weighted formula
+                // matchScore = (USP × 0.35) + (Audience × 0.30) + (Presence × 0.20) + (Momentum × 0.15)
+                const calculatedScore = Math.round(
+                    (uspOverlap * 0.35) +
+                    (audienceProximity * 0.30) +
+                    (marketPresence * 0.20) +
+                    (growthMomentum * 0.15)
+                );
+
+                return {
+                    name: c.name.trim(),
+                    matchScore: calculatedScore, // Use recalculated score
+                    uspOverlap,
+                    audienceProximity,
+                    marketPresence,
+                    growthMomentum,
+                    justification: c.justification || '분석 결과 경쟁 관계로 판단됨',
+                    website: c.website || null
+                };
+            })
+            // Sort by matchScore descending (highest first)
+            .sort((a, b) => b.matchScore - a.matchScore)
             .slice(0, 8); // Max 8 competitors
 
         // Save to Firestore for caching
