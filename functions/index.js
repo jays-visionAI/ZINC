@@ -865,6 +865,146 @@ exports.healthCheck = functions.https.onRequest((req, res) => {
 });
 
 /**
+ * Discover Competitors using AI
+ * Analyzes project context (Knowledge Hub, Brand Brain, Project Brief) to find potential competitors
+ */
+exports.discoverCompetitors = onCall({
+    cors: true,
+    timeoutSeconds: 120,
+    memory: '512MiB'
+}, async (request) => {
+    const data = request.data || {};
+    const { projectId, context, model } = data;
+
+    console.log('[discoverCompetitors] Request received:', { projectId, model });
+    console.log('[discoverCompetitors] Context:', JSON.stringify(context, null, 2));
+
+    if (!projectId || !context) {
+        return { success: false, error: 'Missing projectId or context', competitors: [] };
+    }
+
+    try {
+        // Build the AI prompt with comprehensive context
+        const systemPrompt = `You are a competitive intelligence analyst specializing in market research. Your task is to identify potential competitors for a business based on the provided context.
+
+IMPORTANT RULES:
+1. Only suggest REAL companies that actually exist
+2. Provide accurate, verifiable information
+3. If you cannot identify real competitors confidently, return an empty array
+4. Focus on companies in the same industry/market segment
+5. Consider both direct and indirect competitors
+6. Respond ONLY with valid JSON, no markdown or explanation`;
+
+        const userPrompt = `Analyze the following business context and identify 5-8 potential competitors:
+
+PROJECT NAME: ${context.projectName || 'Unknown'}
+INDUSTRY/CATEGORY: ${context.industry || 'Not specified'}
+TARGET AUDIENCE: ${context.targetAudience || 'Not specified'}
+UNIQUE SELLING PROPOSITION (USP): ${context.usp || 'Not specified'}
+PRODUCT DESCRIPTION: ${context.productDescription || 'Not specified'}
+KEYWORDS: ${Array.isArray(context.keywords) ? context.keywords.join(', ') : context.keywords || 'None'}
+BRAND VALUES: ${context.brandValues || 'Not specified'}
+
+${context.brandProfile ? `BRAND PROFILE:
+- Persona: ${context.brandProfile.persona || 'N/A'}
+- Tone: ${context.brandProfile.tone || 'N/A'}
+- Values: ${context.brandProfile.values || 'N/A'}
+- Positioning: ${context.brandProfile.positioning || 'N/A'}` : ''}
+
+${context.knowledgeBase && context.knowledgeBase.length > 0 ? `KNOWLEDGE BASE DOCUMENTS:
+${context.knowledgeBase.map(doc => `- [${doc.type}] ${doc.title}: ${doc.summary}`).join('\n')}` : ''}
+
+Based on this information, identify potential competitors and return a JSON array with the following structure:
+{
+  "competitors": [
+    {
+      "name": "Company Name",
+      "matchScore": 85,
+      "uspOverlap": 80,
+      "audienceProximity": 75,
+      "marketPresence": 70,
+      "growthMomentum": 65,
+      "justification": "Brief explanation in Korean of why this is a competitor",
+      "website": "https://example.com"
+    }
+  ]
+}
+
+SCORES EXPLANATION:
+- matchScore: Overall competitor match (0-100)
+- uspOverlap: How much their value proposition overlaps with the project (0-100)
+- audienceProximity: How similar their target audience is (0-100)
+- marketPresence: Their current market visibility/size (0-100)
+- growthMomentum: Their recent growth trajectory (0-100)
+
+If you cannot identify real competitors with confidence, return: {"competitors": []}`;
+
+        const messages = [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+        ];
+
+        // Use DeepSeek for competitor discovery
+        const result = await callLLM('deepseek', model || 'deepseek-chat', messages, 0.3);
+
+        console.log('[discoverCompetitors] AI Response:', result.content);
+
+        // Parse the JSON response
+        let competitors = [];
+        try {
+            // Extract JSON from response (handle potential markdown code blocks)
+            let jsonStr = result.content;
+            const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                jsonStr = jsonMatch[0];
+            }
+
+            const parsed = JSON.parse(jsonStr);
+            competitors = parsed.competitors || [];
+
+            console.log('[discoverCompetitors] Parsed competitors:', competitors.length);
+        } catch (parseError) {
+            console.error('[discoverCompetitors] Failed to parse AI response:', parseError);
+            return { success: false, error: 'Failed to parse AI response', competitors: [] };
+        }
+
+        // Validate and sanitize competitors
+        const validCompetitors = competitors
+            .filter(c => c.name && c.name.trim())
+            .map(c => ({
+                name: c.name.trim(),
+                matchScore: Math.min(100, Math.max(0, parseInt(c.matchScore) || 70)),
+                uspOverlap: Math.min(100, Math.max(0, parseInt(c.uspOverlap) || 60)),
+                audienceProximity: Math.min(100, Math.max(0, parseInt(c.audienceProximity) || 60)),
+                marketPresence: Math.min(100, Math.max(0, parseInt(c.marketPresence) || 50)),
+                growthMomentum: Math.min(100, Math.max(0, parseInt(c.growthMomentum) || 50)),
+                justification: c.justification || '분석 결과 경쟁 관계로 판단됨',
+                website: c.website || null
+            }))
+            .slice(0, 8); // Max 8 competitors
+
+        // Save to Firestore for caching
+        if (validCompetitors.length > 0) {
+            await db.collection('projects').doc(projectId).update({
+                competitors: validCompetitors,
+                competitorsUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+            }).catch(err => console.warn('[discoverCompetitors] Failed to cache:', err));
+        }
+
+        return {
+            success: true,
+            competitors: validCompetitors,
+            model: result.model,
+            cached: false
+        };
+
+    } catch (error) {
+        console.error('[discoverCompetitors] Error:', error);
+        return { success: false, error: error.message, competitors: [] };
+    }
+});
+
+/**
  * Test X (Twitter) API connection and fetch account info
  * Returns username/handle if successful
  * Using v2 onRequest with cors option for automatic CORS handling

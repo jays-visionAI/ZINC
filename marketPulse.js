@@ -1751,21 +1751,75 @@ class CompetitorRadarManager {
             return;
         }
 
-        // Check project data sufficiency
-        const check = this.checkProjectDataSufficiency(currentProjectData);
-
-        if (!check.sufficient) {
-            this.showInsufficientDataMessage(
-                `정보가 충분하지 못해 경쟁사를 찾지 못했습니다.`,
-                check.missing
-            );
-            this.isScanning = false;
-            return;
-        }
-
         try {
-            // Call AI to find competitors
-            const competitors = await this.discoverCompetitorsWithAI(check.data, currentProjectData);
+            // 📚 Fetch Knowledge Hub & Brand Brain data for richer context
+            console.log('[CompetitorRadar] Fetching Knowledge Hub and Brand Brain data...');
+
+            const [knowledgeSnapshot, brandDoc] = await Promise.all([
+                firebase.firestore()
+                    .collection('knowledgeHub')
+                    .where('projectId', '==', currentProjectId)
+                    .where('active', '==', true)
+                    .limit(10)
+                    .get()
+                    .catch(() => ({ empty: true, docs: [] })),
+                firebase.firestore()
+                    .collection('brandBrain')
+                    .doc(currentProjectId)
+                    .get()
+                    .catch(() => ({ exists: false }))
+            ]);
+
+            // Extract Knowledge Hub documents
+            const knowledgeDocs = [];
+            if (!knowledgeSnapshot.empty) {
+                knowledgeSnapshot.docs.forEach(doc => {
+                    const data = doc.data();
+                    knowledgeDocs.push({
+                        title: data.title,
+                        type: data.type,
+                        content: data.content || data.summary,
+                        category: data.category
+                    });
+                });
+            }
+            console.log('[CompetitorRadar] Knowledge Hub docs found:', knowledgeDocs.length);
+
+            // Extract Brand Brain data
+            const brandData = brandDoc.exists ? brandDoc.data() : null;
+            if (brandData) {
+                console.log('[CompetitorRadar] Brand Brain data found:', {
+                    persona: brandData.persona,
+                    tone: brandData.tone,
+                    values: brandData.values
+                });
+            }
+
+            // Combine all data sources for sufficiency check
+            const enrichedProjectData = {
+                ...currentProjectData,
+                _knowledgeHub: knowledgeDocs,
+                _brandBrain: brandData
+            };
+
+            // Check project data sufficiency with enriched data
+            const check = this.checkProjectDataSufficiency(enrichedProjectData);
+
+            if (!check.sufficient) {
+                this.showInsufficientDataMessage(
+                    `정보가 충분하지 못해 경쟁사를 찾지 못했습니다.`,
+                    check.missing
+                );
+                this.isScanning = false;
+                return;
+            }
+
+            // Add knowledge hub and brand data to context
+            check.data.knowledgeHub = knowledgeDocs;
+            check.data.brandBrain = brandData;
+
+            // Call AI to find competitors with enriched context
+            const competitors = await this.discoverCompetitorsWithAI(check.data, enrichedProjectData);
 
             if (!competitors || competitors.length === 0) {
                 this.showInsufficientDataMessage(
@@ -1797,15 +1851,33 @@ class CompetitorRadarManager {
 
         const projectName = projectData.projectName || projectData.name || 'Unknown Project';
 
-        // Build context for AI
+        // Build comprehensive context for AI including Knowledge Hub and Brand Brain
         const context = {
             projectName,
             industry: extractedData.industry,
             targetAudience: extractedData.targetAudience,
             usp: extractedData.usp,
             productDescription: extractedData.productDescription,
-            keywords: extractedData.keywords
+            keywords: extractedData.keywords,
+            brandValues: extractedData.brandValues,
+
+            // Include Knowledge Hub documents
+            knowledgeBase: extractedData.knowledgeHub?.map(doc => ({
+                title: doc.title,
+                type: doc.type,
+                summary: doc.content?.substring(0, 500) || ''
+            })) || [],
+
+            // Include Brand Brain persona/tone
+            brandProfile: extractedData.brandBrain ? {
+                persona: extractedData.brandBrain.persona,
+                tone: extractedData.brandBrain.tone,
+                values: extractedData.brandBrain.values,
+                positioning: extractedData.brandBrain.positioning
+            } : null
         };
+
+        console.log('[CompetitorRadar] Full AI context:', context);
 
         try {
             // Call Cloud Function for competitor discovery
