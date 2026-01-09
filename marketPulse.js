@@ -2800,6 +2800,7 @@ async function saveResonanceKeywords() {
 
     const saveBtn = document.querySelector('[onclick="saveResonanceKeywords()"]');
     const keywords = [...selectedKeywordsForEditor];
+    const userId = currentUser?.uid;
 
     if (saveBtn) {
         saveBtn.disabled = true;
@@ -2807,19 +2808,48 @@ async function saveResonanceKeywords() {
     }
 
     try {
-        await firebase.firestore().collection('projects').doc(currentProjectId).update({
-            marketPulseKeywords: keywords
+        const db = firebase.firestore();
+        const batch = db.batch();
+
+        // 1. Update Project Document (Core Source of Truth)
+        // This is where AI Agents look first
+        const projectRef = db.collection('projects').doc(currentProjectId);
+        batch.update(projectRef, {
+            marketPulseKeywords: keywords,
+            'strategy.keywords': keywords, // Sync to internal strategy field
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
+
+        // 2. Update Brand Brain Document (Legacy/Center Sync)
+        if (userId) {
+            const bbRef = db.collection('brandBrain').doc(userId).collection('projects').doc(currentProjectId);
+            batch.set(bbRef, {
+                strategy: { currentFocus: { keywords: keywords } },
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+        }
+
+        // 2b. Sync to Flat BrandBrain (Expected by some Backend Agents)
+        const bbFlatRef = db.collection('brandBrain').doc(currentProjectId);
+        batch.set(bbFlatRef, {
+            keywords: keywords,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        // 3. Clear old analysis results to force new run relevance
+        const latestRef = db.collection('projects').doc(currentProjectId).collection('marketPulse').doc('latest');
+        batch.delete(latestRef);
+
+        await batch.commit();
 
         // Update local state and trigger UI refresh
         currentProjectData.marketPulseKeywords = keywords;
+        if (!currentProjectData.strategy) currentProjectData.strategy = {};
+        currentProjectData.strategy.keywords = keywords;
+
         updateDashboardWithProjectData(currentProjectData);
 
-        // Clear old analysis results to force new run relevance
-        await firebase.firestore().collection('projects').doc(currentProjectId)
-            .collection('marketPulse').doc('latest').delete().catch(() => { });
-
-        showNotification('Resonance strategy synced successfully!', 'success');
+        showNotification('Resonance strategy synced with Brand Brain successfully!', 'success');
         closeKeywordEditor();
     } catch (error) {
         console.error('Error saving keywords:', error);
