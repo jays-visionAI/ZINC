@@ -818,6 +818,7 @@ async function callDeepSeekInternal(apiKey, model, messages, temperature) {
     // Map frontend model IDs to API-supported model IDs
     // DeepSeek API only supports: deepseek-chat, deepseek-reasoner
     const modelMapping = {
+        'deepseek': 'deepseek-chat',                 // Generic deepseek -> chat
         'deepseek-v3': 'deepseek-chat',
         'deepseek-v3.2': 'deepseek-chat',
         'deepseek-v3.2-speciale': 'deepseek-chat',  // V3.2 Speciale -> chat (latest V3)
