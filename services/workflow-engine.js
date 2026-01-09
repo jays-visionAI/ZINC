@@ -372,19 +372,30 @@ const WorkflowEngine = (function () {
 
         async fetchKnowledgeHubData(ctx) {
             const db = firebase.firestore();
-            // Match the query used in functions/index.js
-            const snapshot = await db.collection('knowledgeHub')
-                .where('projectId', '==', ctx.projectId)
-                .where('active', '==', true)
-                .limit(10)
-                .get();
+            const projectId = ctx.projectId;
+            if (!projectId) throw new Error('Project ID missing for Knowledge Hub fetch');
 
-            const sources = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            // According to Rules 158: match /projects/{projectId}/knowledgeSources/{sourceId}
+            // Root query on 'knowledgeHub' or root 'knowledgeSources' will fail with permission-denied
+            try {
+                const snapshot = await db.collection('projects').doc(projectId)
+                    .collection('knowledgeSources')
+                    .where('active', '==', true)
+                    .limit(20)
+                    .get();
 
-            return {
-                sources: sources,
-                rawText: sources.map(s => `Title: ${s.title || 'Untitled'}\nContent: ${s.summary || s.content || s.description || ''}`).join('\n\n')
-            };
+                const sources = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                return {
+                    sources: sources,
+                    rawText: sources.map(s => `Title: ${s.title || 'Untitled'}\nContent: ${s.summary || s.content || s.description || ''}`).join('\n\n')
+                };
+            } catch (err) {
+                if (err.code === 'permission-denied') {
+                    console.warn(`[WorkflowEngine] Permission Denied for Knowledge Hub. Path: projects/${projectId}/knowledgeSources`);
+                }
+                throw err;
+            }
         }
 
         async fetchProjectBriefData(ctx) {
@@ -395,9 +406,29 @@ const WorkflowEngine = (function () {
 
         async fetchBrandBrainData(ctx) {
             const db = firebase.firestore();
-            // Match the path used in functions/index.js: db.collection('brandBrain').doc(projectId)
-            const doc = await db.collection('brandBrain').doc(ctx.projectId).get();
-            return doc.exists ? doc.data() : { error: 'Brand Brain not found' };
+            const projectId = ctx.projectId;
+            if (!projectId) throw new Error('Project ID missing for Brand Brain fetch');
+
+            try {
+                // Rules 437 keyed by userId, but we also use brandBrain/{projectId} at root for system agents
+                // Let's try root first, then nested
+                const doc = await db.collection('brandBrain').doc(projectId).get();
+                if (doc.exists) return doc.data();
+
+                // Nested Fallback (Rules 442)
+                const userId = ctx.projectContext?.userId || (firebase.auth().currentUser?.uid);
+                if (userId) {
+                    const fallbackDoc = await db.collection('brandBrain').doc(userId).collection('projects').doc(projectId).get();
+                    if (fallbackDoc.exists) return fallbackDoc.data();
+                }
+
+                return { error: 'Brand Brain not found' };
+            } catch (err) {
+                if (err.code === 'permission-denied') {
+                    console.warn(`[WorkflowEngine] Permission Denied for Brand Brain at root. Trying nested...`);
+                }
+                return { error: err.message };
+            }
         }
     }
 

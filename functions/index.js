@@ -309,12 +309,25 @@ exports.executeSubAgent = onCall({
 
     try {
         // 1. Fetch Context Data (Parallel)
-        // Note: Assuming 'brandBrain' connects via projectId. Adjust collection name if needed.
-        const [projectDoc, brandDoc, knowledgeSnapshot, apiKey] = await Promise.all([
+        const [projectDoc, apiKey] = await Promise.all([
             db.collection('projects').doc(projectId).get(),
-            db.collection('brandBrain').doc(projectId).get(),
-            db.collection('knowledgeHub').where('projectId', '==', projectId).where('active', '==', true).limit(3).get().catch(() => ({ empty: true, forEach: () => { } })),
             getSystemApiKey(provider || 'openai')
+        ]);
+
+        if (!projectDoc.exists) {
+            throw new functions.https.HttpsError('not-found', 'Project not found');
+        }
+        const projectData = projectDoc.data();
+        const projectOwnerId = projectData.userId;
+
+        // Fetch remaining context in parallel using owner ID context
+        const [brandDoc, brandProjectDoc, knowledgeSnapshot] = await Promise.all([
+            // Primary Brand Brain (Root doc for user)
+            projectOwnerId ? db.collection('brandBrain').doc(projectOwnerId).get() : Promise.resolve({ exists: false }),
+            // Project-specific Brand Brain (Rules 442)
+            projectOwnerId ? db.collection('brandBrain').doc(projectOwnerId).collection('projects').doc(projectId).get() : Promise.resolve({ exists: false }),
+            // Knowledge Sources (Nested under project - Rules 158)
+            db.collection('projects').doc(projectId).collection('knowledgeSources').where('active', '==', true).limit(5).get().catch(() => ({ empty: true, forEach: () => { } }))
         ]);
 
         if (!apiKey) {
@@ -322,7 +335,7 @@ exports.executeSubAgent = onCall({
         }
 
         const projectData = projectDoc.exists ? projectDoc.data() : null;
-        const brandData = brandDoc.exists ? brandDoc.data() : null;
+        const brandData = brandProjectDoc.exists ? brandProjectDoc.data() : (brandDoc.exists ? brandDoc.data() : null);
         const knowledgeDocs = [];
         if (!knowledgeSnapshot.empty) {
             knowledgeSnapshot.forEach(doc => knowledgeDocs.push(doc.data()));
