@@ -2511,10 +2511,36 @@ ${agentList}
             // JSON preview (truncated)
             const jsonPreview = safeJsonStringify(outputData, 2);
             const truncated = jsonPreview.length > 500 ? jsonPreview.substring(0, 500) + '\n...' : jsonPreview;
-            jsonEl.querySelector('code').textContent = truncated;
+            if (jsonEl && jsonEl.querySelector('code')) {
+                jsonEl.querySelector('code').textContent = truncated;
+            }
 
             // Store full data for expansion
             state.selectedNodeOutputData = outputData;
+
+            // --- HTML Preview Logic ---
+            const htmlContainer = document.getElementById('wf-output-html-container');
+            const htmlPreview = document.getElementById('wf-output-html-preview');
+            const openHtmlBtn = document.getElementById('wf-btn-open-html');
+
+            let htmlContent = null;
+            if (typeof outputData === 'string' && (outputData.includes('<!DOCTYPE html>') || outputData.includes('<html'))) {
+                htmlContent = outputData;
+            } else if (outputData.response && typeof outputData.response === 'string' && (outputData.response.includes('<!DOCTYPE html>') || outputData.response.includes('<html'))) {
+                htmlContent = outputData.response;
+            }
+
+            if (htmlContent) {
+                htmlContainer.style.display = 'block';
+                openHtmlBtn.style.display = 'block';
+                // Use blob for safe iframe content injection
+                const blob = new Blob([htmlContent], { type: 'text/html' });
+                htmlPreview.src = URL.createObjectURL(blob);
+                state.lastHtmlOutput = htmlContent;
+            } else {
+                htmlContainer.style.display = 'none';
+                openHtmlBtn.style.display = 'none';
+            }
         } else {
             // No output data yet
             emptyEl.style.display = 'block';
@@ -4830,6 +4856,14 @@ ${agentList}
         zoomOut,
         zoomReset,
         tidyUp,
+        hidePropertiesForm,
+        openHtmlInNewWindow: () => {
+            const html = state.lastHtmlOutput;
+            if (!html) return;
+            const win = window.open('', '_blank');
+            win.document.write(html);
+            win.document.close();
+        },
         deleteSelectedNode,
         highlightNode,
         unhighlightNodes,

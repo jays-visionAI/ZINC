@@ -893,11 +893,30 @@
                                         <span id="wf-output-data-timestamp"></span>
                                         <span id="wf-output-data-size"></span>
                                     </div>
+
+                                    <!-- HTML Preview (for Designer results) -->
+                                    <div id="wf-output-html-container" style="display: none; margin-bottom: 15px;">
+                                        <label class="wf-property-label"
+                                            style="font-size: 11px; margin-bottom: 5px; opacity: 0.7;">Visual
+                                            Preview</label>
+                                        <div class="wf-output-html-wrapper"
+                                            style="border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; background: white; overflow: hidden; height: 300px;">
+                                            <iframe id="wf-output-html-preview"
+                                                style="width: 100%; height: 100%; border: none;"></iframe>
+                                        </div>
+                                    </div>
+
                                     <pre id="wf-output-data-json"><code></code></pre>
-                                    <button class="wf-btn wf-btn-secondary wf-output-data-expand"
-                                        onclick="WorkflowCanvas.expandOutputData()">
-                                        🔍 View Full Data
-                                    </button>
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                        <button class="wf-btn wf-btn-secondary wf-output-data-expand"
+                                            onclick="WorkflowCanvas.expandOutputData()">
+                                            🔍 View Full Data
+                                        </button>
+                                        <button id="wf-btn-open-html" class="wf-btn wf-btn-secondary"
+                                            style="display: none;" onclick="WorkflowCanvas.openHtmlInNewWindow()">
+                                            🌐 Open Window
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>

@@ -127,13 +127,35 @@ const WorkflowEngine = (function () {
                 case 'firestore':
                     return await this.runFirestoreNode(node, context);
                 case 'end':
+                    let finalResult = previousOutputs;
+
                     // User's brilliant idea: Explicitly pick which node's output is the "Final Result"
                     if (node.data && node.data.finalOutputNodeId) {
                         const targetId = node.data.finalOutputNodeId;
                         this.logger.log(`[WorkflowEngine] END node redirection: Selecting output from ${targetId} as final result.`);
-                        return context.allOutputs[targetId] || previousOutputs;
+                        finalResult = context.allOutputs[targetId] || previousOutputs;
                     }
-                    return previousOutputs; // Default: pass through last node's output
+
+                    // PRD 11.2 - Auto-Export Logic
+                    if (node.data && node.data.outputDestination === 'firestore') {
+                        this.logger.log(`[WorkflowEngine] END node auto-export: Saving to Firestore...`);
+
+                        // Map END node's export properties to Firestore node's expected properties
+                        const fsConfig = {
+                            data: {
+                                operation: 'write',
+                                collection: node.data.outputCollection,
+                                docId: node.data.outputDocId,
+                                dataTemplate: node.data.outputDataTemplate || '{"content": "{{prev.output}}"}'
+                            }
+                        };
+
+                        // We need to inject the finalResult as 'prev.output' for the template resolver
+                        const exportContext = { ...context, previousOutputs: { [node.id]: finalResult } };
+                        await this.runFirestoreNode(fsConfig, exportContext);
+                    }
+
+                    return finalResult;
                 default:
                     return { warning: `Node type ${node.type} not fully implemented in standalone engine` };
             }
