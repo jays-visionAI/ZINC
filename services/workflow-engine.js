@@ -127,7 +127,13 @@ const WorkflowEngine = (function () {
                 case 'firestore':
                     return await this.runFirestoreNode(node, context);
                 case 'end':
-                    return previousOutputs; // Typically just pass through
+                    // User's brilliant idea: Explicitly pick which node's output is the "Final Result"
+                    if (node.data && node.data.finalOutputNodeId) {
+                        const targetId = node.data.finalOutputNodeId;
+                        this.logger.log(`[WorkflowEngine] END node redirection: Selecting output from ${targetId} as final result.`);
+                        return context.allOutputs[targetId] || previousOutputs;
+                    }
+                    return previousOutputs; // Default: pass through last node's output
                 default:
                     return { warning: `Node type ${node.type} not fully implemented in standalone engine` };
             }

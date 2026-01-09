@@ -2433,6 +2433,15 @@ ${agentList}
             const destSelect = document.getElementById('wf-prop-output-dest');
             destSelect.value = node.data.outputDestination || 'none';
 
+            // Populate the "Primary Result Node" selector
+            const outputNodeSelect = document.getElementById('wf-prop-final-output-node');
+            if (outputNodeSelect) {
+                // List all nodes except the current End node and Start node
+                const otherNodes = state.nodes.filter(n => n.id !== node.id && n.type !== 'start');
+                outputNodeSelect.innerHTML = '<option value="">Default (Last Node)</option>' +
+                    otherNodes.map(n => `<option value="${n.id}" ${n.id === node.data.finalOutputNodeId ? 'selected' : ''}>${n.data.name || n.type} (${n.id})</option>`).join('');
+            }
+
             const ctxInput = document.getElementById('wf-prop-output-studio-context');
             ctxInput.value = state.pipelineContext;
             ctxInput.onchange = (e) => {

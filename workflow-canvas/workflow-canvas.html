@@ -706,6 +706,15 @@
 
                             <!-- Output Settings (for END nodes) -->
                             <div class="wf-property-group" id="wf-prop-output-group" style="display: none;">
+                                <label class="wf-property-label">Primary Result Node (최종 결과물 노드)</label>
+                                <select id="wf-prop-final-output-node" class="wf-property-select"
+                                    onchange="WorkflowCanvas.updateNodeProperty('finalOutputNodeId', this.value);">
+                                    <option value="">Default (Last Node)</option>
+                                    <!-- Populated by JS -->
+                                </select>
+                                <p class="wf-property-hint" style="margin-bottom: 15px;">워크플로우의 최종 결과물로 간주할 노드를 선택하세요.
+                                </p>
+
                                 <label class="wf-property-label">Output Destination (결과 전송 대상)</label>
                                 <select id="wf-prop-output-dest" class="wf-property-select"
                                     onchange="WorkflowCanvas.updateNodeProperty('outputDestination', this.value); WorkflowCanvas.updateOutputUI(this.value);">
