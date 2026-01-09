@@ -190,21 +190,32 @@ const WorkflowEngine = (function () {
             const provider = this.inferProvider(model);
 
             const executeSubAgent = firebase.app().functions('us-central1').httpsCallable('executeSubAgent');
+
+            // Format history for the Cloud Function context
+            const previousOutputsArray = Object.entries(context.previousOutputs).map(([id, content]) => ({
+                role: id,
+                content: typeof content === 'object' ? JSON.stringify(content) : content
+            }));
+
             const result = await executeSubAgent({
-                agentId: agentId || 'general',
                 projectId: context.projectId,
-                userPrompt: resolvedUserPrompt,
+                teamId: 'workflow', // Fallback for standalone execution
+                subAgentId: agentId || node.id || 'general',
+                runId: 'wf-run-' + Date.now(),
+                taskPrompt: resolvedUserPrompt,
                 systemPrompt: combinedSystemPrompt,
+                previousOutputs: previousOutputsArray,
                 model: model || 'gpt-4o-mini',
                 provider: provider,
-                temperature: temperature || 0.7,
-                runtimeProfileId: null
+                temperature: temperature || 0.3,
+                runtimeProfileId: node.data.runtimeProfileId || null
             });
 
             if (!result.data.success) throw new Error(result.data.error || 'Agent failed');
 
             // Try to parse JSON if NOT HTML and seems like JSON
-            let content = result.data.content;
+            let content = result.data.output || result.data.content;
+            if (!content) return ""; // Safety fallback
             const isHtml = content.trim().toLowerCase().startsWith('<!doctype') || content.trim().toLowerCase().startsWith('<html');
 
             if (!isHtml) {
