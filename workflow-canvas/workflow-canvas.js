@@ -3485,7 +3485,25 @@ ${agentList}
         const count = state.selectedNodeIds.length;
         if (!confirm(`${count}개의 노드를 삭제하시겠습니까?`)) return;
 
+        // Perform smart deletion: connect previous nodes to next nodes
         state.selectedNodeIds.forEach(id => {
+            const incomingEdges = state.edges.filter(e => e.target === id);
+            const outgoingEdges = state.edges.filter(e => e.source === id);
+
+            // Only attempt auto-reconnect if it's a single node being deleted
+            // to avoid complex/unexpected side effects for mass deletions
+            if (count === 1) {
+                incomingEdges.forEach(inEdge => {
+                    outgoingEdges.forEach(outEdge => {
+                        // Avoid duplicates if already exists
+                        const exists = state.edges.some(e => e.source === inEdge.source && e.target === outEdge.target);
+                        if (!exists) {
+                            createEdge(inEdge.source, outEdge.target);
+                        }
+                    });
+                });
+            }
+
             // Remove edges connected to this node
             state.edges = state.edges.filter(e => e.source !== id && e.target !== id);
             // Remove node
