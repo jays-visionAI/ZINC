@@ -50,51 +50,51 @@ const WorkflowEngine = (function () {
             const nodes = this.workflow.nodes;
             const edges = this.workflow.edges;
             const order = [];
-            const visited = new Set();
+
+            // 1. Calculate in-degrees for all nodes reachable from any start point
+            // For a precise DAG run starting from startNodeId, we'll use a degree map.
+            const inDegree = {};
+            nodes.forEach(n => inDegree[n.id] = 0);
+            edges.forEach(e => {
+                if (inDegree[e.target] !== undefined) {
+                    inDegree[e.target]++;
+                }
+            });
+
+            // 2. Kahn's Algorithm
             const queue = [startNodeId];
+            const processed = new Set();
 
-            let iterations = 0;
-            const MAX_ITERATIONS = nodes.length * 10; // Safety limit
+            // We need to be careful: the startNodeId might have incoming edges if it's not a true 'source'
+            // but for our engine, startNodeId is the entry point.
 
-            while (queue.length > 0 && iterations < MAX_ITERATIONS) {
-                iterations++;
+            let count = 0;
+            const MAX = nodes.length * 2;
+
+            while (queue.length > 0 && count < MAX) {
+                count++;
                 const nodeId = queue.shift();
-
-                if (visited.has(nodeId)) continue;
+                if (processed.has(nodeId)) continue;
 
                 const node = nodes.find(n => n.id === nodeId);
                 if (!node) continue;
 
-                // Check dependencies: only proceed if all nodes pointing TO this node are already visited
-                const incomingEdges = edges.filter(e => e.target === nodeId);
-                const allDepsSatisfied = incomingEdges.every(e => visited.has(e.source));
-
-                // Special case: if dependency is not reachable from start node, we might be stuck
-                // For now, if not satisfied, push to end of queue to try later
-                if (incomingEdges.length > 0 && !allDepsSatisfied) {
-                    // Check if any of the dependencies are even REACHABLE from the start
-                    // If not, this node can never be satisfied in a pure linear run
-                    queue.push(nodeId);
-
-                    // Optimization: if this is the only node left and still not satisfied, it's unreachable or cyclic
-                    if (queue.length === 1) break;
-                    continue;
-                }
-
                 order.push(node);
-                visited.add(nodeId);
+                processed.add(nodeId);
 
-                // Add children to queue
-                const children = edges.filter(e => e.source === nodeId).map(e => e.target);
-                for (const childId of children) {
-                    if (!visited.has(childId)) {
+                // Find all children
+                const outEdges = edges.filter(e => e.source === nodeId);
+                outEdges.forEach(e => {
+                    const childId = e.target;
+                    inDegree[childId]--;
+                    if (inDegree[childId] <= 0) {
                         queue.push(childId);
                     }
-                }
+                });
             }
 
-            if (iterations >= MAX_ITERATIONS) {
-                this.logger.warn('[WorkflowEngine] Maximum iterations reached during sorting. Possible cycle or unreachable nodes.');
+            if (order.length === 0) {
+                this.logger.error('[WorkflowEngine] Failed to build execution order. Check start node.');
             }
 
             return order;
