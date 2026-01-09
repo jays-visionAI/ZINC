@@ -4876,15 +4876,35 @@ async function generateCreativeItem() {
             addLog('Routing to Workflow Engine (V2)...', 'info');
 
             // Execute the 'studio' context workflow (One Pager Pro V2)
-            const workflowResult = await WorkflowEngine.findAndExecuteByContext('studio', {
-                id: currentProjectId,
-                projectId: currentProjectId,
-                inputs: inputs,
-                advancedOptions: advancedOptions
-            }, {
-                log: (msg) => addLog(msg, 'info'),
-                error: (msg) => addLog(msg, 'error')
-            });
+            let workflowResult;
+            try {
+                workflowResult = await WorkflowEngine.findAndExecuteByContext('studio', {
+                    id: currentProjectId,
+                    projectId: currentProjectId,
+                    inputs: inputs,
+                    advancedOptions: advancedOptions
+                }, {
+                    log: (msg) => addLog(msg, 'info'),
+                    error: (msg) => addLog(msg, 'error')
+                });
+            } catch (err) {
+                console.error('[Creative] Workflow execution failed:', err);
+                const errorMsg = err.code === 'deadline-exceeded'
+                    ? 'Generation timed out. The AI is taking longer than expected for this complex task. Please try again or use a simpler prompt.'
+                    : `Generation failed: ${err.message}`;
+                addLog(errorMsg, 'error');
+                showNotification(errorMsg, 'error');
+                stopProgressBar(0);
+                return;
+            }
+
+            if (!workflowResult || !workflowResult.outputs) {
+                const errorMsg = 'Workflow completed but returned no data. Please check the workflow definition.';
+                addLog(errorMsg, 'error');
+                showNotification(errorMsg, 'error');
+                stopProgressBar(0);
+                return;
+            }
 
             addLog('Workflow sequence complete. Processing final output...', 'success');
 
@@ -4911,6 +4931,13 @@ async function generateCreativeItem() {
                     bestHtmlCandidate = content;
                 }
             });
+
+            if (bestHtmlCandidate) {
+                console.log(`[Creative] Best HTML candidate found. Size: ${bestHtmlCandidate.length} bytes`);
+                if (bestHtmlCandidate.length > 900000) {
+                    addLog('Warning: Generated document is very large and may exceed storage limits.', 'warning');
+                }
+            }
 
             finalHtml = bestHtmlCandidate || '<html><body>Error: No valid HTML content found in workflow outputs.</body></html>';
 

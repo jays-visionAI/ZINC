@@ -146,7 +146,7 @@ const WorkflowEngine = (function () {
                                 operation: 'write',
                                 collection: node.data.outputCollection,
                                 docId: node.data.outputDocId,
-                                dataTemplate: node.data.outputDataTemplate || '{"content": "{{prev.output}}"}'
+                                dataTemplate: node.data.outputDataTemplate || '{{prev.output}}' // Simpler default
                             }
                         };
 
@@ -165,11 +165,29 @@ const WorkflowEngine = (function () {
             const { operation, collection, docId, dataTemplate } = node.data;
             const db = firebase.firestore();
 
-            // Resolve variables in the data template
+            // Optimize for direct output mapping (common for HTML results)
+            // If the template is just '{{prev.output}}' and the output is a string, use it directly
+            const prevOutput = Object.values(context.previousOutputs)[0];
+            if (dataTemplate === '{{prev.output}}' && typeof prevOutput === 'string') {
+                const finalData = {
+                    content: prevOutput,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                const targetDocId = docId || context.projectId;
+                await db.collection(collection).doc(targetDocId).set(finalData, { merge: true });
+                return { success: true, savedAt: targetDocId };
+            }
+
+            // Standard Template Resolution
             const resolvedData = this.resolveVariables(dataTemplate || "{}", context);
             let finalData = {};
             try {
-                finalData = (typeof resolvedData === 'string') ? JSON.parse(resolvedData) : resolvedData;
+                // If it looks like JSON, try to parse it
+                if (typeof resolvedData === 'string' && resolvedData.trim().startsWith('{')) {
+                    finalData = JSON.parse(resolvedData);
+                } else {
+                    finalData = { content: resolvedData };
+                }
             } catch (e) {
                 finalData = { content: resolvedData };
             }
@@ -217,7 +235,8 @@ const WorkflowEngine = (function () {
 
             const provider = this.inferProvider(model);
 
-            const executeSubAgent = firebase.app().functions('us-central1').httpsCallable('executeSubAgent', { timeout: 540000 });
+            // Use direct firebase.functions() for more reliable timeout handling
+            const executeSubAgent = firebase.functions('us-central1').httpsCallable('executeSubAgent', { timeout: 540000 });
 
             // Format history for the Cloud Function context
             const previousOutputsArray = Object.entries(context.previousOutputs).map(([id, content]) => ({
@@ -245,9 +264,12 @@ const WorkflowEngine = (function () {
             // Try to parse JSON if NOT HTML and seems like JSON
             let content = result.data.output || result.data.content;
             if (!content) return ""; // Safety fallback
-            const isHtml = content.trim().toLowerCase().startsWith('<!doctype') || content.trim().toLowerCase().startsWith('<html');
 
-            if (!isHtml) {
+            // Ensure content is string for safety before trimming
+            const contentStr = typeof content === 'string' ? content : JSON.stringify(content);
+            const isHtml = contentStr.trim().toLowerCase().startsWith('<!doctype') || contentStr.trim().toLowerCase().startsWith('<html');
+
+            if (!isHtml && typeof content === 'string') {
                 try {
                     if (content.includes('{') && content.includes('}')) {
                         const jsonMatch = content.match(/\{[\s\S]*\}/);
@@ -393,6 +415,7 @@ const WorkflowEngine = (function () {
         findAndExecuteByContext: async (pipelineContext, projectContext, logger) => {
             const db = firebase.firestore();
             logger.log(`[WorkflowEngine] Searching for workflow in context: ${pipelineContext}...`);
+            const startTimeTotal = Date.now();
 
             try {
                 // 1. Try finding by context (Prefer 'active', then any)
@@ -435,7 +458,11 @@ const WorkflowEngine = (function () {
                 return await WorkflowEngine.executeById(target.id, projectContext, logger);
 
             } catch (err) {
-                console.error('[WorkflowEngine] findAndExecuteByContext Error:', err);
+                const elapsed = (Date.now() - startTimeTotal) / 1000;
+                console.error(`[WorkflowEngine] findAndExecuteByContext Error after ${elapsed.toFixed(1)}s:`, err);
+                console.error('[WorkflowEngine] Error Code:', err.code);
+                console.error('[WorkflowEngine] Stack:', err.stack);
+                console.error('[WorkflowEngine] Details:', err.details);
                 throw err;
             }
         },

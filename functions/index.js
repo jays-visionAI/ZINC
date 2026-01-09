@@ -271,7 +271,7 @@ async function testDeepSeekConnectionQuick(apiKey) {
  */
 exports.executeSubAgent = onCall({
     cors: true,
-    timeoutSeconds: 300,
+    timeoutSeconds: 540,
     memory: '1GiB'
 }, async (request) => {
     const data = request.data;
