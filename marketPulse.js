@@ -1874,7 +1874,10 @@ class CompetitorRadarManager {
                 tone: extractedData.brandBrain.tone,
                 values: extractedData.brandBrain.values,
                 positioning: extractedData.brandBrain.positioning
-            } : null
+            } : null,
+
+            // Include user-provided known competitors
+            knownCompetitors: projectData.competitorBriefing?.knownCompetitors || []
         };
 
         console.log('[CompetitorRadar] Full AI context:', context);
@@ -1926,42 +1929,312 @@ class CompetitorRadarManager {
             throw error;
         }
     }
+    // Industry categories for dropdown
+    static INDUSTRY_CATEGORIES = [
+        { id: 'saas_software', label: 'SaaS / 소프트웨어', icon: '💻' },
+        { id: 'fintech_finance', label: '핀테크 / 금융', icon: '💰' },
+        { id: 'blockchain_crypto', label: '블록체인 / 크립토', icon: '⛓️' },
+        { id: 'ecommerce_retail', label: '이커머스 / 리테일', icon: '🛒' },
+        { id: 'healthcare_bio', label: '헬스케어 / 바이오', icon: '🏥' },
+        { id: 'ai_ml', label: 'AI / 머신러닝', icon: '🤖' },
+        { id: 'education_edtech', label: '교육 / 에듀테크', icon: '📚' },
+        { id: 'media_content', label: '미디어 / 콘텐츠', icon: '🎬' },
+        { id: 'logistics_mobility', label: '물류 / 모빌리티', icon: '🚚' },
+        { id: 'gaming_entertainment', label: '게임 / 엔터테인먼트', icon: '🎮' },
+        { id: 'real_estate', label: '부동산 / 프롭테크', icon: '🏠' },
+        { id: 'food_beverage', label: 'F&B / 푸드테크', icon: '🍔' },
+        { id: 'travel_hospitality', label: '여행 / 호스피탈리티', icon: '✈️' },
+        { id: 'hr_recruiting', label: 'HR / 채용', icon: '👥' },
+        { id: 'marketing_adtech', label: '마케팅 / 애드테크', icon: '📢' },
+        { id: 'other', label: '기타 (직접 입력)', icon: '📝' }
+    ];
 
-    showInsufficientDataMessage(mainMessage, missingFields = []) {
+    // Temporary storage for known competitors during form editing
+    tempKnownCompetitors = [];
+
+    showQuickBriefingForm(mainMessage, missingFields = []) {
         this.hasInsufficientData = true;
+        this.tempKnownCompetitors = currentProjectData?.competitorBriefing?.knownCompetitors || [];
 
         if (!this.dom.grid) return;
 
-        const missingList = missingFields.length > 0
-            ? `<ul class="text-left text-xs text-slate-400 mt-4 space-y-1">
-                ${missingFields.map(f => `<li class="flex items-center gap-2"><span class="text-red-400">•</span> ${f}</li>`).join('')}
-               </ul>`
-            : '';
+        // Pre-fill values from existing project data
+        const existingBriefing = currentProjectData?.competitorBriefing || {};
+        const existingIndustry = existingBriefing.industry || currentProjectData?.industry || '';
+        const existingAudience = existingBriefing.targetAudience || currentProjectData?.targetAudience || '';
+        const existingUSP = existingBriefing.usp || currentProjectData?.usp || '';
+
+        // Build industry options
+        const industryOptions = CompetitorRadarManager.INDUSTRY_CATEGORIES.map(cat =>
+            `<option value="${cat.id}" ${existingIndustry === cat.id ? 'selected' : ''}>${cat.icon} ${cat.label}</option>`
+        ).join('');
+
+        // Build known competitors list
+        const knownCompetitorsList = this.tempKnownCompetitors.map((c, idx) =>
+            `<div class="flex items-center gap-2 bg-slate-800 px-3 py-2 rounded-lg" data-idx="${idx}">
+                <span class="text-sm text-white">🏢 ${c.name}</span>
+                ${c.url ? `<span class="text-xs text-slate-500">(${c.url})</span>` : ''}
+                <button onclick="competitorRadar.removeKnownCompetitor(${idx})" class="ml-auto text-slate-500 hover:text-red-400 transition-colors">✕</button>
+            </div>`
+        ).join('');
 
         this.dom.grid.innerHTML = `
-            <div class="w-full py-10 flex flex-col items-center justify-center text-center">
-                <div class="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-slate-500">
-                        <circle cx="12" cy="12" r="10"/>
-                        <path d="M12 16v-4"/>
-                        <path d="M12 8h.01"/>
-                    </svg>
-                </div>
-                <h3 class="text-lg font-bold text-white mb-2">경쟁사 발견 실패</h3>
-                <p class="text-sm text-slate-400 max-w-md">${mainMessage}</p>
-                ${missingList}
-                <div class="mt-6 flex gap-3">
-                    <a href="knowledgeHub.html?tab=project-brief" 
-                       class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg transition-colors">
-                        📝 프로젝트 브리프 작성하기
-                    </a>
-                    <button onclick="competitorRadar.scanMarket()" 
-                            class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-lg transition-colors">
-                        🔄 다시 시도
-                    </button>
+            <div class="w-full max-w-2xl mx-auto">
+                <div class="bg-slate-800/50 border border-indigo-500/30 rounded-2xl p-6 animate-in fade-in zoom-in-95 duration-300">
+                    <!-- Header -->
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-12 h-12 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white">
+                                <path d="M12 20h9"/>
+                                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-white">⚡ Quick Briefing</h3>
+                            <p class="text-xs text-slate-400">더 정확한 경쟁사를 찾기 위해 아래 정보를 입력해주세요.</p>
+                        </div>
+                    </div>
+
+                    <!-- Form Fields -->
+                    <div class="space-y-4">
+                        <!-- Industry -->
+                        <div>
+                            <label class="block text-sm font-bold text-slate-300 mb-2">
+                                🏭 산업/카테고리 <span class="text-red-400">*</span>
+                            </label>
+                            <select id="qb-industry" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:border-indigo-500 focus:outline-none transition-colors">
+                                <option value="">선택하세요...</option>
+                                ${industryOptions}
+                            </select>
+                            <input type="text" id="qb-industry-custom" 
+                                   class="hidden mt-2 w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none"
+                                   placeholder="산업 카테고리를 직접 입력하세요">
+                        </div>
+
+                        <!-- Target Audience -->
+                        <div>
+                            <label class="block text-sm font-bold text-slate-300 mb-2">
+                                👥 주요 타겟 고객 <span class="text-red-400">*</span>
+                            </label>
+                            <input type="text" id="qb-audience" 
+                                   value="${existingAudience}"
+                                   class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none"
+                                   placeholder="예: 30-40대 스타트업 창업자, B2B 기업 의사결정자">
+                        </div>
+
+                        <!-- USP -->
+                        <div>
+                            <label class="block text-sm font-bold text-slate-300 mb-2">
+                                💎 핵심 차별점 (USP)
+                            </label>
+                            <textarea id="qb-usp" rows="2"
+                                      class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none resize-none"
+                                      placeholder="예: AI 기반 실시간 분석, 업계 최저 수수료, 24시간 고객 지원">${existingUSP}</textarea>
+                        </div>
+
+                        <!-- Known Competitors -->
+                        <div class="pt-4 border-t border-slate-700">
+                            <label class="block text-sm font-bold text-slate-300 mb-2">
+                                🎯 이미 알고 있는 경쟁사 <span class="text-slate-500 font-normal">(선택)</span>
+                            </label>
+                            <p class="text-xs text-slate-500 mb-3">직접 경쟁사를 추가하면 AI가 더 정확하게 분석합니다.</p>
+                            
+                            <div class="flex gap-2 mb-3">
+                                <input type="text" id="qb-competitor-input" 
+                                       class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none"
+                                       placeholder="경쟁사 이름 또는 URL 입력">
+                                <button onclick="competitorRadar.addKnownCompetitor()" 
+                                        class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold rounded-lg transition-colors">
+                                    + 추가
+                                </button>
+                            </div>
+
+                            <div id="qb-competitors-list" class="space-y-2 max-h-32 overflow-y-auto">
+                                ${knownCompetitorsList || '<p class="text-xs text-slate-600 text-center py-2">추가된 경쟁사가 없습니다</p>'}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="flex gap-3 mt-6 pt-4 border-t border-slate-700">
+                        <button onclick="competitorRadar.cancelQuickBriefing()" 
+                                class="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-400 text-sm font-bold rounded-xl transition-colors">
+                            취소
+                        </button>
+                        <button onclick="competitorRadar.saveQuickBriefingAndScan()" 
+                                class="flex-1 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-sm font-bold rounded-xl shadow-lg shadow-indigo-500/20 transition-all">
+                            💾 저장 후 경쟁사 찾기
+                        </button>
+                    </div>
                 </div>
             </div>
         `;
+
+        // Add event listener for industry dropdown change
+        const industrySelect = document.getElementById('qb-industry');
+        const industryCustom = document.getElementById('qb-industry-custom');
+        if (industrySelect && industryCustom) {
+            industrySelect.addEventListener('change', () => {
+                if (industrySelect.value === 'other') {
+                    industryCustom.classList.remove('hidden');
+                } else {
+                    industryCustom.classList.add('hidden');
+                }
+            });
+        }
+
+        // Enter key support for competitor input
+        const competitorInput = document.getElementById('qb-competitor-input');
+        if (competitorInput) {
+            competitorInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.addKnownCompetitor();
+                }
+            });
+        }
+    }
+
+    addKnownCompetitor() {
+        const input = document.getElementById('qb-competitor-input');
+        if (!input || !input.value.trim()) return;
+
+        const value = input.value.trim();
+        const isUrl = value.startsWith('http://') || value.startsWith('https://') || value.includes('.com') || value.includes('.io');
+
+        const competitor = {
+            name: isUrl ? this.extractDomainName(value) : value,
+            url: isUrl ? (value.startsWith('http') ? value : `https://${value}`) : null
+        };
+
+        this.tempKnownCompetitors.push(competitor);
+        input.value = '';
+
+        // Re-render the list
+        this.updateKnownCompetitorsList();
+    }
+
+    removeKnownCompetitor(idx) {
+        this.tempKnownCompetitors.splice(idx, 1);
+        this.updateKnownCompetitorsList();
+    }
+
+    updateKnownCompetitorsList() {
+        const listEl = document.getElementById('qb-competitors-list');
+        if (!listEl) return;
+
+        if (this.tempKnownCompetitors.length === 0) {
+            listEl.innerHTML = '<p class="text-xs text-slate-600 text-center py-2">추가된 경쟁사가 없습니다</p>';
+            return;
+        }
+
+        listEl.innerHTML = this.tempKnownCompetitors.map((c, idx) =>
+            `<div class="flex items-center gap-2 bg-slate-800 px-3 py-2 rounded-lg animate-in fade-in duration-200" data-idx="${idx}">
+                <span class="text-sm text-white">🏢 ${c.name}</span>
+                ${c.url ? `<span class="text-xs text-slate-500 truncate max-w-[200px]">(${c.url})</span>` : ''}
+                <button onclick="competitorRadar.removeKnownCompetitor(${idx})" class="ml-auto text-slate-500 hover:text-red-400 transition-colors">✕</button>
+            </div>`
+        ).join('');
+    }
+
+    extractDomainName(url) {
+        try {
+            const hostname = new URL(url.startsWith('http') ? url : `https://${url}`).hostname;
+            return hostname.replace('www.', '').split('.')[0];
+        } catch {
+            return url;
+        }
+    }
+
+    cancelQuickBriefing() {
+        // Just show an empty state
+        if (!this.dom.grid) return;
+        this.dom.grid.innerHTML = `
+            <div class="w-full py-12 flex flex-col items-center justify-center text-center text-slate-500">
+                <p class="text-sm">경쟁사 분석이 취소되었습니다.</p>
+                <button onclick="competitorRadar.scanMarket()" class="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-lg transition-colors">
+                    🔄 다시 시도
+                </button>
+            </div>
+        `;
+    }
+
+    async saveQuickBriefingAndScan() {
+        // Get form values
+        const industrySelect = document.getElementById('qb-industry');
+        const industryCustom = document.getElementById('qb-industry-custom');
+        const audienceInput = document.getElementById('qb-audience');
+        const uspInput = document.getElementById('qb-usp');
+
+        const industry = industrySelect?.value === 'other'
+            ? industryCustom?.value.trim()
+            : industrySelect?.value;
+        const targetAudience = audienceInput?.value.trim();
+        const usp = uspInput?.value.trim();
+
+        // Validation
+        if (!industry) {
+            alert('산업/카테고리를 선택해주세요.');
+            industrySelect?.focus();
+            return;
+        }
+        if (!targetAudience) {
+            alert('타겟 고객을 입력해주세요.');
+            audienceInput?.focus();
+            return;
+        }
+
+        // Show loading state
+        const saveBtn = document.querySelector('[onclick="competitorRadar.saveQuickBriefingAndScan()"]');
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<span class="animate-pulse">저장 중...</span>';
+        }
+
+        try {
+            // Build briefing data
+            const briefingData = {
+                industry,
+                industryCustom: industrySelect?.value === 'other' ? industryCustom?.value.trim() : null,
+                targetAudience,
+                usp,
+                knownCompetitors: this.tempKnownCompetitors,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            // Save to Firestore
+            await firebase.firestore().collection('projects').doc(currentProjectId).update({
+                competitorBriefing: briefingData,
+                industry: industry, // Also update top-level for compatibility
+                targetAudience: targetAudience,
+                usp: usp
+            });
+
+            console.log('[QuickBriefing] Saved:', briefingData);
+
+            // Update local cache
+            currentProjectData.competitorBriefing = briefingData;
+            currentProjectData.industry = industry;
+            currentProjectData.targetAudience = targetAudience;
+            currentProjectData.usp = usp;
+
+            // Re-trigger market scan
+            this.scanMarket();
+
+        } catch (error) {
+            console.error('[QuickBriefing] Save failed:', error);
+            alert('저장에 실패했습니다: ' + error.message);
+
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '💾 저장 후 경쟁사 찾기';
+            }
+        }
+    }
+
+    // Keep old method name for compatibility, but redirect to new form
+    showInsufficientDataMessage(mainMessage, missingFields = []) {
+        this.showQuickBriefingForm(mainMessage, missingFields);
     }
 
     renderCandidates() {
