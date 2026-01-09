@@ -3082,43 +3082,68 @@ async function generateSummary() {
     if (btnRegenerate) btnRegenerate.disabled = true;
 
     try {
-        console.log('[KnowledgeHub] Executing Workflow for Knowledge Hub...');
+        summaryTitle.textContent = 'Analyzing Deep Brand Intel...';
+        summaryContent.textContent = 'DeepSeek R1 is synthesizing project brief and active sources...';
 
-        // 1. Execute the workflow tagged for 'knowledge' context
-        // This will automatically pull the 'active' workflow for this step from the Admin-Pipeline
-        const projectContext = {
-            id: currentProjectId,
-            ...currentProject
+        const projectInfo = `
+[PROJECT BRIEF]
+Name: ${currentProject.name || 'Untitled'}
+Vision: ${currentProject.vision || 'N/A'}
+Audience: ${currentProject.targetAudience || 'N/A'}
+Tone: ${currentProject.tone || 'Professional'}
+Industry: ${currentProject.industry || 'N/A'}
+`;
+
+        const sourceContext = activeSources.map(s => {
+            const weight = s.importance === 3 ? 'High' : (s.importance === 1 ? 'Low' : 'Medium');
+            return `Source: ${s.title}\nWeight: ${weight}\nContent: ${s.summary || s.content || ''}`;
+        }).join('\n\n---\n\n');
+
+        const systemPrompt = `당신은 시니어 브랜드 전략 컨설턴트입니다. 
+제공된 [PROJECT BRIEF]와 [KNOWLEDGE SOURCES]를 바탕으로 브랜드의 핵심 가치와 전략적 방향을 요약하세요.
+
+[제약 조건]
+1. 각 소스의 'Weight'(가중치)를 고려하여 비중을 조절하세요.
+2. 약 800자 내외의 한국어 텍스트로 작성하세요. (JSON이나 마크다운 복잡한 구조 없이 텍스트 중심)
+3. 전문적이고 통찰력 있는 톤을 유지하세요.
+4. 비활성화된 문서는 제외되었습니다. 제공된 데이터에만 집중하세요.`;
+
+        const taskPrompt = `아래 데이터를 바탕으로 브랜드 요약을 작성해줘.\n\n${projectInfo}\n\n=== KNOWLEDGE SOURCES ===\n\n${sourceContext}`;
+
+        // Direct AI Call using DeepSeek R1
+        const executeSubAgent = firebase.functions('us-central1').httpsCallable('executeSubAgent', { timeout: 540000 });
+        const result = await executeSubAgent({
+            projectId: currentProjectId,
+            agentRole: 'Brand Strategist',
+            taskPrompt: taskPrompt,
+            systemPrompt: systemPrompt,
+            model: 'deepseek-reasoner',
+            provider: 'deepseek',
+            temperature: 0.3
+        });
+
+        if (!result.data.success) throw new Error(result.data.error || 'AI Analysis failed');
+
+        const aiOutput = result.data.output || result.data.content;
+
+        // Structure the result for the existing UI
+        let finalSummaryText = aiOutput;
+        let insights = [];
+        let questions = [];
+
+        // Simple heuristic to split if AI added sections despite our text-only request
+        if (typeof aiOutput === 'string' && aiOutput.includes('핵심 인사이트')) {
+            const parts = aiOutput.split('핵심 인사이트');
+            finalSummaryText = parts[0].trim();
+            // Try to extract some lines as insights
+            insights = parts[1].split('\n').filter(l => l.trim().length > 5).slice(0, 5);
+        }
+
+        const parsedResult = {
+            summary: finalSummaryText,
+            keyInsights: insights.length > 0 ? insights : ["통찰력을 바탕으로 전략을 수행하세요."],
+            suggestedQuestions: questions.length > 0 ? questions : ["이 브랜드의 핵심 차별화 요소는 무엇인가요?"]
         };
-
-        const { outputs, workflowId } = await WorkflowEngine.findAndExecuteByContext('knowledge', projectContext);
-        console.log('[KnowledgeHub] Workflow Execution Outputs:', outputs);
-
-        // Increment content count for the workflow
-        if (workflowId) {
-            WorkflowEngine.incrementContentCount(workflowId);
-        }
-
-        // 2. Locate the primary analysis data from the workflow
-        // We look for a node that produced the summary/insights/questions structure
-        let parsedResult = null;
-
-        // Strategy: First look for a node named 'analyzer' (common in our templates)
-        // Then fallback to any node that has 'summary' in its output
-        if (outputs['analyzer']) {
-            parsedResult = outputs['analyzer'];
-        } else {
-            for (const nodeId in outputs) {
-                if (outputs[nodeId] && outputs[nodeId].summary) {
-                    parsedResult = outputs[nodeId];
-                    break;
-                }
-            }
-        }
-
-        if (!parsedResult) {
-            throw new Error('No summary output found in workflow results. Please check your workflow configuration.');
-        }
 
         // 3. Keep Weight Distribution logic for UI consistency
         const totalPoints = activeSources.reduce((sum, s) => sum + (s.importance === 3 ? 3 : (s.importance === 1 ? 1 : 2)), 0);
