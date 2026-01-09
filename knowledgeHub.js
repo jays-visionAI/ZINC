@@ -3111,7 +3111,7 @@ Industry: ${currentProject.industry || 'N/A'}
         const taskPrompt = `아래 데이터를 바탕으로 브랜드 요약을 작성해줘.\n\n${projectInfo}\n\n=== KNOWLEDGE SOURCES ===\n\n${sourceContext}`;
 
         // Direct AI Call using DeepSeek R1
-        const executeSubAgent = firebase.functions('us-central1').httpsCallable('executeSubAgent', { timeout: 540000 });
+        const executeSubAgent = firebase.app().functions('us-central1').httpsCallable('executeSubAgent', { timeout: 540000 });
         const result = await executeSubAgent({
             projectId: currentProjectId,
             agentRole: 'Brand Strategist',

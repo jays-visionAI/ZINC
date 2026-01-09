@@ -236,7 +236,7 @@ const WorkflowEngine = (function () {
             const provider = this.inferProvider(model);
 
             // Use direct firebase.functions() for more reliable timeout handling
-            const executeSubAgent = firebase.functions('us-central1').httpsCallable('executeSubAgent', { timeout: 540000 });
+            const executeSubAgent = firebase.app().functions('us-central1').httpsCallable('executeSubAgent', { timeout: 540000 });
 
             // Format history for the Cloud Function context
             const previousOutputsArray = Object.entries(context.previousOutputs).map(([id, content]) => ({
