@@ -288,6 +288,7 @@ exports.executeSubAgent = onCall({
         teamId,
         runId,
         subAgentId,
+        agentRole,
         runtimeProfileId,
         systemPrompt,
         taskPrompt,
@@ -300,6 +301,11 @@ exports.executeSubAgent = onCall({
     if (!projectId || !teamId || !subAgentId) {
         throw new functions.https.HttpsError('invalid-argument', 'Missing required parameters');
     }
+
+    // Role-based Default Requirements Detection
+    const isDesigner = (subAgentId || '').toLowerCase().includes('designer') ||
+        (agentRole || '').toLowerCase().includes('designer') ||
+        (agentRole || '').toLowerCase().includes('디자이너');
 
     try {
         // 1. Fetch Context Data (Parallel)
@@ -338,6 +344,11 @@ exports.executeSubAgent = onCall({
         // Inject Knowledge Base (Simple Text Injection)
         if (knowledgeDocs.length > 0) {
             enhancedSystemPrompt += `\n\n# KNOWLEDGE BASE REFERENCES\nThe following documents are relevant to this task:\n${knowledgeDocs.map(d => `- [${d.title}]: ${d.content ? d.content.substring(0, 500) + '...' : d.summary || 'No content'}`).join('\n')}`;
+        }
+
+        // 2.5 Inject Technical Requirements for Designers (Default)
+        if (isDesigner) {
+            enhancedSystemPrompt += `\n\n# TECHNICAL REQUIREMENTS (DEFAULT)\n- Your output MUST be a SINGLE, COMPLETELY SELF-CONTAINED HTML document.\n- All CSS must be included within a <style> tag in the <head>.\n- You may use Tailwind CSS via CDN if helpful.\n- DO NOT include any conversational text, explanations, or markdown code blocks (like \`\`\`html). Output ONLY the raw HTML code starting with <!DOCTYPE html>.\n- Ensure the design is professional, modern, and high-fidelity.`;
         }
 
         // Build messages

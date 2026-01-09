@@ -207,6 +207,7 @@ const WorkflowEngine = (function () {
                 projectId: context.projectId,
                 teamId: 'workflow', // Fallback for standalone execution
                 subAgentId: agentId || node.id || 'general',
+                agentRole: node.data.name || 'Assistant',
                 runId: 'wf-run-' + Date.now(),
                 taskPrompt: resolvedUserPrompt,
                 systemPrompt: combinedSystemPrompt,
