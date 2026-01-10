@@ -1856,7 +1856,7 @@ class CompetitorRadarManager {
                 <div class="text-center">
                     <h3 class="text-lg font-bold text-white mb-2">경쟁사 분석 시작하기</h3>
                     <p class="text-sm text-slate-500 max-w-md">
-                        DeepSeek V3 AI를 사용하여 프로젝트와 관련된 경쟁사를 분석합니다.<br>
+                        ZYNK AI를 사용하여 프로젝트와 관련된 경쟁사를 분석합니다.<br>
                         분석 결과는 저장되어 다음 방문 시 자동으로 불러옵니다.
                     </p>
                 </div>
@@ -1872,7 +1872,7 @@ class CompetitorRadarManager {
                         <path d="m4.93 19.07 2.83-2.83"/>
                         <path d="m16.24 7.76 2.83-2.83"/>
                     </svg>
-                    DeepSeek V3로 경쟁사 발견하기
+                    ZYNK AI로 경쟁사 발견하기
                 </button>
                 <p class="text-[10px] text-slate-600">분석에 약 10-20초 소요됩니다</p>
             </div>
@@ -1901,7 +1901,7 @@ class CompetitorRadarManager {
             this.dom.grid.innerHTML = `
                 <div class="w-full py-12 flex flex-col items-center justify-center space-y-4">
                     <div class="w-16 h-16 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
-                    <p class="text-slate-500 text-xs font-bold animate-pulse uppercase tracking-widest">DeepSeek V3 Analyzing Market Vectors...</p>
+                    <p class="text-slate-500 text-xs font-bold animate-pulse uppercase tracking-widest">ZYNK AI Analyzing Market Vectors...</p>
                 </div>
             `;
         }
@@ -2710,7 +2710,7 @@ class CompetitorRadarManager {
                 console.log('[CompetitorRadar] Tracking data saved to Firestore');
             }
 
-            showNotification('Targets locked! DeepSeek continuous monitoring initialized.', 'success');
+            showNotification('Targets locked! ZYNK AI continuous monitoring initialized.', 'success');
 
             // Render Intelligence Dashboard
             this.renderTrackingDashboard(selectedData);
@@ -3080,7 +3080,7 @@ const competitorRadar = window.competitorRadar;
 window.addCustomRival = function () {
     const url = prompt('추가하고 싶은 경쟁사의 URL 혹은 브랜드 이름을 입력하세요:');
     if (url) {
-        showNotification(`${url} 분석을 시작합니다... (DeepSeek Processing)`, 'info');
+        showNotification(`${url} 분석을 시작합니다... (ZYNK AI Processing)`, 'info');
     }
 };
 
@@ -3311,7 +3311,7 @@ async function generateAISuggestions() {
             runId: 'keywords_' + Date.now(),
             subAgentId: 'strategy_analyst',
             taskPrompt: `Based on the project name "${currentProjectData.projectName}" and its description "${currentProjectData.description || 'No description available'}", suggest 8 high-impact market keywords for monitoring sentiment and competition. Return ONLY a comma-separated list of keywords.`,
-            systemPrompt: "You are an expert market analyst using DeepSeek V3. Suggest optimized search keywords for brand monitoring. Format: Keyword1, Keyword2, Keyword3..."
+            systemPrompt: "You are an expert market analyst. Suggest optimized search keywords for brand monitoring. Format: Keyword1, Keyword2, Keyword3..."
         });
 
         if (response.data.success) {
