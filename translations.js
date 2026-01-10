@@ -906,3 +906,23 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+// Sync language from database when user is authenticated
+if (typeof firebase !== 'undefined') {
+    firebase.auth().onAuthStateChanged(async (user) => {
+        if (user) {
+            try {
+                const doc = await firebase.firestore().collection('users').doc(user.uid).get();
+                if (doc.exists) {
+                    const dbLang = doc.data().language;
+                    if (dbLang && dbLang !== currentLang) {
+                        console.log('[i18n] Syncing language from DB:', dbLang);
+                        setAppLanguage(dbLang, true);
+                    }
+                }
+            } catch (err) {
+                console.warn('[i18n] Database language sync failed:', err);
+            }
+        }
+    });
+}

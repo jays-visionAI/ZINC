@@ -34,20 +34,33 @@ window.switchTab = function (tabId) {
     }
 };
 
-function initLanguageTab() {
+async function initLanguageTab() {
     const globalSelect = document.getElementById('global-lang-select');
     const mainSelect = document.getElementById('main-lang-select');
     const subSelect = document.getElementById('sub-lang-select');
 
-    if (globalSelect) {
-        globalSelect.value = localStorage.getItem('zynk-language') || 'en';
+    // Priority: Database > localStorage > Default
+    let globalLang = localStorage.getItem('zynk-language');
+    let mainLang = localStorage.getItem('zynk-main-language');
+    let subLang = localStorage.getItem('zynk-sub-language');
+
+    if (currentUser) {
+        try {
+            const userDoc = await firebase.firestore().collection('users').doc(currentUser.uid).get();
+            if (userDoc.exists) {
+                const userData = userDoc.data();
+                if (userData.language) globalLang = userData.language;
+                if (userData.mainLanguage) mainLang = userData.mainLanguage;
+                if (userData.subLanguage) subLang = userData.subLanguage;
+            }
+        } catch (err) {
+            console.warn('[Settings] Failed to load language from DB, using local storage:', err);
+        }
     }
-    if (mainSelect) {
-        mainSelect.value = localStorage.getItem('zynk-main-language') || 'ko';
-    }
-    if (subSelect) {
-        subSelect.value = localStorage.getItem('zynk-sub-language') || 'en';
-    }
+
+    if (globalSelect) globalSelect.value = globalLang || 'en';
+    if (mainSelect) mainSelect.value = mainLang || 'ko';
+    if (subSelect) subSelect.value = subLang || 'en';
 }
 
 function renderProfileTab() {
@@ -130,29 +143,52 @@ function setupEventListeners() {
     // 2. Save Button for all Language Settings
     const saveLangBtn = document.getElementById('save-language-btn');
     if (saveLangBtn) {
-        saveLangBtn.addEventListener('click', () => {
+        saveLangBtn.addEventListener('click', async () => {
             const globalLang = document.getElementById('global-lang-select')?.value;
             const mainLang = document.getElementById('main-lang-select')?.value;
             const subLang = document.getElementById('sub-lang-select')?.value;
 
-            if (globalLang) {
-                localStorage.setItem('zynk-language', globalLang);
-                if (typeof setAppLanguage === 'function') {
-                    setAppLanguage(globalLang, true);
+            const originalBtnText = saveLangBtn.innerHTML;
+            saveLangBtn.disabled = true;
+            saveLangBtn.innerHTML = '<span class="animate-pulse">Saving...</span>';
+
+            try {
+                // 1. Save to localStorage for instant UI persistence
+                if (globalLang) {
+                    localStorage.setItem('zynk-language', globalLang);
+                    if (typeof setAppLanguage === 'function') {
+                        setAppLanguage(globalLang, true);
+                    }
                 }
-            }
-            if (mainLang) localStorage.setItem('zynk-main-language', mainLang);
-            if (subLang) localStorage.setItem('zynk-sub-language', subLang);
+                if (mainLang) localStorage.setItem('zynk-main-language', mainLang);
+                if (subLang) localStorage.setItem('zynk-sub-language', subLang);
 
-            console.log('[Settings] All language settings saved persisted');
+                // 2. Save to Firestore for cross-session/device permanence
+                if (currentUser) {
+                    await firebase.firestore().collection('users').doc(currentUser.uid).set({
+                        language: globalLang,
+                        mainLanguage: mainLang,
+                        subLanguage: subLang,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+                }
 
-            // Show feedback
-            if (typeof showAlertModal === 'function') {
-                const title = (localStorage.getItem('zynk-language') === 'ko') ? '저장 완료' : 'Settings Saved';
-                const msg = (localStorage.getItem('zynk-language') === 'ko') ? '언어 설정이 성공적으로 저장되었습니다.' : 'Language settings have been saved successfully.';
-                showAlertModal(title, msg, null, { type: 'success' });
-            } else {
-                alert('✅ Settings saved');
+                console.log('[Settings] All language settings saved to DB and LocalStorage');
+
+                // Show feedback
+                if (typeof showAlertModal === 'function') {
+                    const title = (localStorage.getItem('zynk-language') === 'ko') ? '저장 완료' : 'Settings Saved';
+                    const msg = (localStorage.getItem('zynk-language') === 'ko') ? '언어 설정이 성공적으로 저장되었습니다.' : 'Language settings have been saved successfully.';
+                    showAlertModal(title, msg, null, { type: 'success' });
+                } else {
+                    alert('✅ Settings saved');
+                }
+            } catch (err) {
+                console.error('[Settings] Failed to save language settings:', err);
+                showNotification('Failed to save settings. Please try again.', 'error');
+            } finally {
+                saveLangBtn.disabled = false;
+                saveLangBtn.innerHTML = originalBtnText;
             }
         });
     }

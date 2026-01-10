@@ -497,7 +497,7 @@ function renderTrendingKeywords() {
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6m-9-9h6m6 0h6"/></svg>
                 </div>
                 <h4 class="text-slate-300 font-bold mb-1">${t('market.trends.empty')}</h4>
-                <p class="text-[10px] text-slate-500 text-center max-w-[240px]">핵심 소셜 미디어 키워드를 설정하여 <br> 시장 반응을 실시간으로 추적하세요.</p>
+                <p class="text-[10px] text-slate-500 text-center max-w-[240px]">Set core social media keywords to <br> track market response in real-time.</p>
             </div>
         `;
         return;
@@ -906,7 +906,6 @@ function setupEventListeners() {
         chip.addEventListener('click', () => {
             const target = chip.getAttribute('data-target');
             const query = chip.getAttribute('data-query');
-
             if (target) {
                 const targetInput = document.getElementById('research-target');
                 if (targetInput) {
@@ -1747,7 +1746,7 @@ class CompetitorRadarManager {
 
     // Check if project has enough data for competitor analysis
     checkProjectDataSufficiency(projectData) {
-        if (!projectData) return { sufficient: false, missing: ['프로젝트 데이터'] };
+        if (!projectData) return { sufficient: false, missing: ['Project Data'] };
 
         console.log('[CompetitorRadar] Checking project data sufficiency:', projectData);
 
@@ -1767,9 +1766,9 @@ class CompetitorRadarManager {
         console.log('[CompetitorRadar] Extracted data:', { projectName, industry, targetAudience, usp, productDescription, keywords, brandValues, competitors });
 
         // Check what's missing
-        if (!industry && !projectData.category) missing.push('산업/카테고리');
-        if (!targetAudience) missing.push('타겟 오디언스');
-        if (!usp && !productDescription && !projectName) missing.push('핵심 가치 제안(USP) 또는 제품 설명');
+        if (!industry && !projectData.category) missing.push('Industry/Category');
+        if (!targetAudience) missing.push('Target Audience');
+        if (!usp && !productDescription && !projectName) missing.push('Core Value Proposition (USP) or Product Description');
 
         // More lenient: Need projectName OR (industry + any other field)
         // OR if there are already competitors defined
@@ -2108,7 +2107,7 @@ class CompetitorRadarManager {
                     audienceProximity: c.audienceProximity || 60,
                     marketPresence: c.marketPresence || 50,
                     growthMomentum: c.growthMomentum || 50,
-                    justification: c.justification || c.reason || '분석 근거 없음',
+                    justification: c.justification || c.reason || 'No analysis basis provided',
                     website: c.website || null
                 }));
             }
@@ -2129,7 +2128,7 @@ class CompetitorRadarManager {
                     audienceProximity: c.audienceProximity || 60,
                     marketPresence: c.marketPresence || 50,
                     growthMomentum: c.growthMomentum || 50,
-                    justification: c.justification || '기존 분석 데이터 기반'
+                    justification: c.justification || 'Based on historical analysis data'
                 }));
             }
 
@@ -3601,7 +3600,7 @@ function removeKeywordAtIndex(index) {
 function clearAISuggestions() {
     const container = document.getElementById('ai-suggestions-container');
     if (container) {
-        container.innerHTML = '<div class="text-xs text-slate-600 italic py-2">Powered by ZYNK AI</div>';
+        container.innerHTML = '<div class="text-xs text-slate-600 italic py-2">Powered by DeepSeek V3 (ZYNK AI)</div>';
     }
 }
 
@@ -3715,15 +3714,22 @@ async function saveResonanceKeywords() {
 
         await batch.commit();
 
-        // Update local state and trigger UI refresh
+        // Update local state
         currentProjectData.marketPulseKeywords = keywords;
         if (!currentProjectData.strategy) currentProjectData.strategy = {};
         currentProjectData.strategy.keywords = keywords;
 
-        updateDashboardWithProjectData(currentProjectData);
-
-        showNotification('Resonance strategy synced with Brand Brain successfully!', 'success');
+        // Immediately close modal to prevent user frustration if refresh is slow or buggy
         closeKeywordEditor();
+        showNotification('Resonance strategy synced with Brand Brain successfully!', 'success');
+
+        // Trigger UI refresh (wrapped in try-catch to not block modal closing/message)
+        try {
+            updateDashboardWithProjectData(currentProjectData);
+        } catch (refreshError) {
+            console.warn('[MarketPulse] UI refresh partially failed after save:', refreshError);
+        }
+
     } catch (error) {
         console.error('Error saving keywords:', error);
         showNotification('Sync failed. Please try again.', 'error');
