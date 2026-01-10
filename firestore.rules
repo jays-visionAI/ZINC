@@ -226,6 +226,20 @@ service cloud.firestore {
         allow delete: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
       }
 
+      // Competitor Tracking (Market Pulse Intelligence)
+      match /competitorTracking/{trackingId} {
+        allow read: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
+        allow create, update: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
+        allow delete: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
+        
+        // Tracking Snapshots (Historical data)
+        match /snapshots/{snapshotId} {
+          allow read: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
+          allow create: if isAuthenticated() && isProjectOwner(projectId);
+          allow delete: if isAdmin();
+        }
+      }
+
       // Generated Images (Knowledge Hub / Studio)
       match /generatedImages/{imageId} {
         allow read: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());

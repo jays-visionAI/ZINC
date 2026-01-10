@@ -209,8 +209,14 @@ async function onProjectChange() {
 
             // 🆚 Initialize Competitor Radar after project data is loaded
             if (typeof competitorRadar !== 'undefined' && competitorRadar) {
-                console.log('[MarketPulse] Triggering Competitor Radar scan...');
-                competitorRadar.scanMarket();
+                console.log('[MarketPulse] Checking for existing competitor tracking...');
+                const hasActiveTracking = await competitorRadar.loadExistingTracking();
+                if (!hasActiveTracking) {
+                    console.log('[MarketPulse] No active tracking. Triggering Competitor Radar scan...');
+                    competitorRadar.scanMarket();
+                } else {
+                    console.log('[MarketPulse] Active tracking found. Displaying Intelligence Dashboard.');
+                }
             }
         }
 
@@ -2468,9 +2474,12 @@ class CompetitorRadarManager {
         document.getElementById('detail-service').textContent = cand.mainService || 'Lack of Data';
         document.getElementById('detail-address').textContent = cand.address || 'Lack of Data';
         document.getElementById('detail-product').textContent = cand.product || 'Lack of Data';
-        document.getElementById('detail-ai-comment').textContent = cand.aiComment || 'No detailed AI commentary available for this competitor.';
 
-        // Metrics Labels
+        // AI Strategic Commentary - Use aiComment first, fallback to justification
+        const aiCommentary = cand.aiComment || cand.justification || 'No detailed AI commentary available for this competitor.';
+        document.getElementById('detail-ai-comment').textContent = aiCommentary;
+
+        // Metrics Labels with context
         document.getElementById('label-detail-usp').textContent = `${cand.uspOverlap}%`;
         document.getElementById('label-detail-audience').textContent = `${cand.audienceProximity}%`;
         document.getElementById('label-detail-presence').textContent = `${cand.marketPresence}%`;
@@ -2566,41 +2575,60 @@ class CompetitorRadarManager {
         this.dom.startBtn.innerHTML = '<span class="animate-pulse">LOCKING TARGETS...</span>';
 
         try {
-            const selectedData = Array.from(this.selectedRivals).map(id => this.candidates.find(c => c.id === id));
+            const selectedData = Array.from(this.selectedRivals).map(id => this.candidates.find(c => c.id === id)).filter(Boolean);
 
-            await new Promise(r => setTimeout(r, 2000));
+            // Save to Firestore
+            if (currentProjectId) {
+                const trackingData = {
+                    rivals: selectedData.map(d => ({
+                        id: d.id,
+                        name: d.name,
+                        matchScore: d.matchScore,
+                        uspOverlap: d.uspOverlap,
+                        audienceProximity: d.audienceProximity,
+                        marketPresence: d.marketPresence,
+                        growthMomentum: d.growthMomentum,
+                        justification: d.justification,
+                        website: d.website
+                    })),
+                    startedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    status: 'active'
+                };
+
+                await firebase.firestore()
+                    .collection('projects')
+                    .doc(currentProjectId)
+                    .collection('competitorTracking')
+                    .doc('current')
+                    .set(trackingData, { merge: true });
+
+                // Save initial snapshot
+                await firebase.firestore()
+                    .collection('projects')
+                    .doc(currentProjectId)
+                    .collection('competitorTracking')
+                    .doc('current')
+                    .collection('snapshots')
+                    .add({
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                        rivals: trackingData.rivals
+                    });
+
+                console.log('[CompetitorRadar] Tracking data saved to Firestore');
+            }
 
             showNotification('Targets locked! DeepSeek continuous monitoring initialized.', 'success');
 
-            const panel = document.getElementById('competitor-matchmaking-panel');
-            if (panel) {
-                panel.innerHTML = `
-                    <div class="relative bg-indigo-600/10 backdrop-blur-xl border border-indigo-500/30 rounded-3xl p-6 overflow-hidden animate-in fade-in zoom-in duration-700">
-                        <div class="flex flex-col md:flex-row items-center justify-between gap-6">
-                            <div class="flex items-center gap-4">
-                                <div class="w-12 h-12 bg-indigo-500/20 rounded-full flex items-center justify-center text-indigo-400">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m16 10-4 4-4-4"/></svg>
-                                </div>
-                                <div>
-                                    <h3 class="text-white font-bold">Continuous Radar Monitoring: ACTIVE</h3>
-                                    <p class="text-xs text-indigo-300/70">DeepSeek Tracking ${selectedData.map(d => d.name).join(' & ')} • 24/7 Intelligence Sync</p>
-                                </div>
-                            </div>
-                            <div class="flex gap-2">
-                                <span class="px-3 py-1 bg-emerald-500/20 text-emerald-400 text-[10px] font-black rounded-full border border-emerald-500/30">LATEST INTEL: 4m ago</span>
-                                <button onclick="window.location.reload()" class="text-xs text-indigo-400 hover:text-white underline">Change Targets</button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
+            // Render Intelligence Dashboard
+            this.renderTrackingDashboard(selectedData);
 
+            // Update global COMPETITORS array for the main dashboard
             COMPETITORS.length = 0;
             COMPETITORS.push(...selectedData.map(d => ({
                 name: d.name,
-                handle: `@${d.name.toLowerCase().replace(' ', '')}`,
-                mentions: 8402,
-                change: 12,
+                handle: `@${d.name.toLowerCase().replace(/\s+/g, '')}`,
+                mentions: Math.floor(Math.random() * 8000) + 2000,
+                change: Math.floor(Math.random() * 20) - 5,
                 sentiment: d.matchScore,
                 latest: d.justification,
                 isYou: false
@@ -2613,6 +2641,154 @@ class CompetitorRadarManager {
             this.dom.startBtn.disabled = false;
             this.dom.startBtn.innerHTML = originalText;
         }
+    }
+
+    renderTrackingDashboard(selectedData) {
+        const panel = document.getElementById('competitor-matchmaking-panel');
+        if (!panel) return;
+
+        const rivalsHtml = selectedData.map(d => `
+            <div class="bg-slate-800/50 border border-white/5 rounded-2xl p-4 hover:border-indigo-500/30 transition-all">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-black text-sm">
+                            ${d.matchScore}%
+                        </div>
+                        <div>
+                            <h4 class="text-white font-bold text-sm">${d.name}</h4>
+                            <span class="text-[9px] text-slate-500 uppercase tracking-wider">MONITORING ACTIVE</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                        <span class="text-[10px] text-emerald-400 font-bold">LIVE</span>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-4 gap-2 mb-3">
+                    <div class="text-center">
+                        <div class="text-[10px] text-indigo-400 font-bold">${d.uspOverlap}%</div>
+                        <div class="text-[8px] text-slate-600">USP</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-[10px] text-purple-400 font-bold">${d.audienceProximity}%</div>
+                        <div class="text-[8px] text-slate-600">Audience</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-[10px] text-cyan-400 font-bold">${d.marketPresence}%</div>
+                        <div class="text-[8px] text-slate-600">Presence</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-[10px] text-emerald-400 font-bold">${d.growthMomentum}%</div>
+                        <div class="text-[8px] text-slate-600">Momentum</div>
+                    </div>
+                </div>
+                
+                <p class="text-[10px] text-slate-500 italic line-clamp-2">${d.justification || 'AI 분석 대기 중...'}</p>
+            </div>
+        `).join('');
+
+        panel.innerHTML = `
+            <div class="relative bg-gradient-to-br from-indigo-900/20 to-purple-900/20 backdrop-blur-xl border border-indigo-500/20 rounded-3xl overflow-hidden animate-in fade-in zoom-in duration-700">
+                <!-- Header -->
+                <div class="p-6 border-b border-white/5">
+                    <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 bg-indigo-500/20 rounded-full flex items-center justify-center text-indigo-400 relative">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="m4.93 4.93 2.83 2.83"/><path d="m16.24 16.24 2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="m4.93 19.07 2.83-2.83"/><path d="m16.24 7.76 2.83-2.83"/></svg>
+                                <span class="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-slate-900"></span>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-black text-white">Intelligence Dashboard</h3>
+                                <p class="text-xs text-slate-400">Tracking ${selectedData.length} competitor(s) • 24/7 AI Monitoring</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="px-3 py-1.5 bg-emerald-500/20 text-emerald-400 text-[10px] font-black rounded-full border border-emerald-500/30 flex items-center gap-2">
+                                <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
+                                RADAR ACTIVE
+                            </span>
+                            <button onclick="window.competitorRadar.resetTracking()" class="px-3 py-1.5 bg-slate-800 text-slate-400 text-[10px] font-bold rounded-lg border border-slate-700 hover:border-indigo-500/50 hover:text-white transition-all">
+                                Change Targets
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Tracked Rivals Grid -->
+                <div class="p-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        ${rivalsHtml}
+                    </div>
+                </div>
+                
+                <!-- Footer Stats -->
+                <div class="px-6 py-4 bg-slate-900/50 border-t border-white/5 flex flex-wrap items-center justify-between gap-4">
+                    <div class="flex items-center gap-6">
+                        <div class="text-center">
+                            <div class="text-lg font-black text-white">${selectedData.length}</div>
+                            <div class="text-[9px] text-slate-500 uppercase">Rivals Tracked</div>
+                        </div>
+                        <div class="h-8 w-px bg-slate-800"></div>
+                        <div class="text-center">
+                            <div class="text-lg font-black text-indigo-400">${Math.round(selectedData.reduce((a, b) => a + b.matchScore, 0) / selectedData.length)}%</div>
+                            <div class="text-[9px] text-slate-500 uppercase">Avg Match</div>
+                        </div>
+                        <div class="h-8 w-px bg-slate-800"></div>
+                        <div class="text-center">
+                            <div class="text-lg font-black text-emerald-400">--</div>
+                            <div class="text-[9px] text-slate-500 uppercase">Next Update</div>
+                        </div>
+                    </div>
+                    <div class="text-[10px] text-slate-600">
+                        Started: ${new Date().toLocaleString()}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    resetTracking() {
+        if (!confirm('추적 대상을 변경하시겠습니까? 기존 추적 데이터는 유지됩니다.')) return;
+
+        this.selectedRivals.clear();
+        this.updateUI();
+        this.renderCandidates();
+
+        // Show the selection interface again
+        const panel = document.getElementById('competitor-matchmaking-panel');
+        if (panel) {
+            // Re-render the original matchmaking panel structure
+            // This is handled by the page refresh for simplicity
+            window.location.reload();
+        }
+    }
+
+    async loadExistingTracking() {
+        if (!currentProjectId) return;
+
+        try {
+            const trackingDoc = await firebase.firestore()
+                .collection('projects')
+                .doc(currentProjectId)
+                .collection('competitorTracking')
+                .doc('current')
+                .get();
+
+            if (trackingDoc.exists && trackingDoc.data().status === 'active') {
+                const data = trackingDoc.data();
+                console.log('[CompetitorRadar] Loading existing tracking data:', data);
+
+                // Render the dashboard with existing data
+                this.renderTrackingDashboard(data.rivals);
+
+                return true; // Tracking is active
+            }
+        } catch (error) {
+            console.error('[CompetitorRadar] Error loading tracking data:', error);
+        }
+
+        return false; // No active tracking
     }
 }
 
