@@ -410,7 +410,7 @@ class AgentRuntimeService {
                 productionVersion: productionVersion,
                 systemPrompt: productionVersion?.systemPrompt || null,
                 procedures: productionVersion?.procedures || [],
-                config: productionVersion?.config || { model: 'gpt-4o', temperature: 0.7 },
+                config: productionVersion?.config || { model: 'deepseek-chat', provider: 'deepseek', temperature: 0.7 },
                 sourceFiles: registryData.sourceFiles || []
             };
         } catch (error) {
@@ -426,7 +426,7 @@ class AgentRuntimeService {
     static async resolveAgentPrompt(registryAgentId, subAgentPrompt = null, roleType = 'unknown') {
         let source = 'default';
         let prompt = this.getDefaultPromptForRole(roleType);
-        let config = { model: 'gpt-4o', temperature: 0.7 };
+        let config = { model: 'deepseek-chat', provider: 'deepseek', temperature: 0.7 };
         let procedures = [];
 
         if (registryAgentId) {

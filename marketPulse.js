@@ -209,11 +209,20 @@ async function onProjectChange() {
 
             // 🆚 Initialize Competitor Radar after project data is loaded
             if (typeof competitorRadar !== 'undefined' && competitorRadar) {
-                console.log('[MarketPulse] Checking for existing competitor tracking...');
+                console.log('[MarketPulse] Loading competitor data from Firestore...');
+
+                // First check for active tracking
                 const hasActiveTracking = await competitorRadar.loadExistingTracking();
+
                 if (!hasActiveTracking) {
-                    console.log('[MarketPulse] No active tracking. Triggering Competitor Radar scan...');
-                    competitorRadar.scanMarket();
+                    // No active tracking - try to load cached competitors from project
+                    const hasCachedCompetitors = await competitorRadar.loadCachedCompetitors();
+
+                    if (!hasCachedCompetitors) {
+                        // No cached data - show empty state with scan button
+                        console.log('[MarketPulse] No cached competitors. Showing scan prompt.');
+                        competitorRadar.showScanPrompt();
+                    }
                 } else {
                     console.log('[MarketPulse] Active tracking found. Displaying Intelligence Dashboard.');
                 }
@@ -1786,6 +1795,90 @@ class CompetitorRadarManager {
         };
     }
 
+    /**
+     * Load cached competitors from Firestore (no AI call)
+     * Returns true if competitors were found and loaded
+     */
+    async loadCachedCompetitors() {
+        if (!currentProjectId) return false;
+
+        try {
+            // Check project document for cached competitors
+            const projectDoc = await firebase.firestore()
+                .collection('projects')
+                .doc(currentProjectId)
+                .get();
+
+            if (!projectDoc.exists) return false;
+
+            const data = projectDoc.data();
+            const competitors = data.competitors || [];
+
+            if (competitors.length > 0) {
+                console.log('[CompetitorRadar] Loading', competitors.length, 'cached competitors from Firestore');
+
+                this.candidates = competitors.map((c, i) => ({
+                    ...c,
+                    id: c.id || `rival-${i + 1}`
+                }));
+
+                this.carouselIndex = 0;
+                this.renderCandidates();
+                this.updateNavButtons();
+                this.renderLastUpdated(data.competitorsUpdatedAt);
+
+                return true;
+            }
+
+        } catch (error) {
+            console.error('[CompetitorRadar] Error loading cached competitors:', error);
+        }
+
+        return false;
+    }
+
+    /**
+     * Show prompt to scan for competitors (no auto-scan)
+     */
+    showScanPrompt() {
+        if (!this.dom.grid) return;
+
+        this.dom.grid.innerHTML = `
+            <div class="w-full py-12 flex flex-col items-center justify-center space-y-6 animate-in fade-in duration-500">
+                <div class="w-20 h-20 bg-indigo-500/10 rounded-full flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-400">
+                        <circle cx="11" cy="11" r="8"/>
+                        <path d="m21 21-4.3-4.3"/>
+                        <path d="M11 8v6"/>
+                        <path d="M8 11h6"/>
+                    </svg>
+                </div>
+                <div class="text-center">
+                    <h3 class="text-lg font-bold text-white mb-2">경쟁사 분석 시작하기</h3>
+                    <p class="text-sm text-slate-500 max-w-md">
+                        DeepSeek V3 AI를 사용하여 프로젝트와 관련된 경쟁사를 분석합니다.<br>
+                        분석 결과는 저장되어 다음 방문 시 자동으로 불러옵니다.
+                    </p>
+                </div>
+                <button onclick="competitorRadar.scanMarket(true)" 
+                    class="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2 setup-glow">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2v4"/>
+                        <path d="M12 18v4"/>
+                        <path d="m4.93 4.93 2.83 2.83"/>
+                        <path d="m16.24 16.24 2.83 2.83"/>
+                        <path d="M2 12h4"/>
+                        <path d="M18 12h4"/>
+                        <path d="m4.93 19.07 2.83-2.83"/>
+                        <path d="m16.24 7.76 2.83-2.83"/>
+                    </svg>
+                    DeepSeek V3로 경쟁사 발견하기
+                </button>
+                <p class="text-[10px] text-slate-600">분석에 약 10-20초 소요됩니다</p>
+            </div>
+        `;
+    }
+
     async scanMarket(forceScan = false) {
         if (this.isScanning) return;
 
@@ -1808,7 +1901,7 @@ class CompetitorRadarManager {
             this.dom.grid.innerHTML = `
                 <div class="w-full py-12 flex flex-col items-center justify-center space-y-4">
                     <div class="w-16 h-16 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
-                    <p class="text-slate-500 text-xs font-bold animate-pulse uppercase tracking-widest">ZYNK AI Analyzing Market Vectors...</p>
+                    <p class="text-slate-500 text-xs font-bold animate-pulse uppercase tracking-widest">DeepSeek V3 Analyzing Market Vectors...</p>
                 </div>
             `;
         }

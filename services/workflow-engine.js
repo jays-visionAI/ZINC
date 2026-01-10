@@ -302,8 +302,8 @@ const WorkflowEngine = (function () {
                 taskPrompt: resolvedUserPrompt,
                 systemPrompt: combinedSystemPrompt,
                 previousOutputs: previousOutputsArray,
-                model: model || 'gpt-4o-mini',
-                provider: provider,
+                model: model || 'deepseek-chat',
+                provider: provider || 'deepseek',
                 temperature: temperature || 0.3,
                 runtimeProfileId: node.data.runtimeProfileId || null
             });
