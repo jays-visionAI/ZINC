@@ -1775,8 +1775,12 @@
                         </div>
 
                         <div class="space-y-5">
-                            <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1">4-Core
-                                Analysis Metrics</p>
+                            <div class="flex items-center justify-between mb-1">
+                                <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">4-Core
+                                    Analysis Metrics</p>
+                                <span class="text-[9px] text-slate-600 italic">Match Score = USP×35% + Audience×30% +
+                                    Presence×20% + Momentum×15%</span>
+                            </div>
                             <!-- USP -->
                             <div class="space-y-1.5">
                                 <div class="flex justify-between text-[11px] font-bold">
@@ -1789,6 +1793,15 @@
                                 </div>
                                 <p class="text-[9px] text-slate-600 italic">고유 가치 제안(USP)의 유사성. 높을수록 핵심 차별점이 유사함을 의미합니다.
                                 </p>
+                                <details class="text-[9px] text-slate-700 cursor-pointer">
+                                    <summary class="hover:text-slate-500 transition-colors">📊 계산 근거 보기</summary>
+                                    <div class="mt-1 p-2 bg-slate-800/50 rounded-lg text-slate-500 space-y-1">
+                                        <p>• 핵심 기능/서비스 유사도 분석</p>
+                                        <p>• 기술 스택 및 아키텍처 비교</p>
+                                        <p>• 차별화 메시지 키워드 중복도</p>
+                                        <p>• 문제 해결 방식의 유사성</p>
+                                    </div>
+                                </details>
                             </div>
                             <!-- Audience -->
                             <div class="space-y-1.5">
@@ -1803,6 +1816,15 @@
                                 </div>
                                 <p class="text-[9px] text-slate-600 italic">타겟 고객층 중복도. 높을수록 같은 고객을 두고 경쟁할 가능성이 높습니다.
                                 </p>
+                                <details class="text-[9px] text-slate-700 cursor-pointer">
+                                    <summary class="hover:text-slate-500 transition-colors">📊 계산 근거 보기</summary>
+                                    <div class="mt-1 p-2 bg-slate-800/50 rounded-lg text-slate-500 space-y-1">
+                                        <p>• 타겟 시장/세그먼트 일치도</p>
+                                        <p>• 고객 유형 (개발자, 기업, 개인) 비교</p>
+                                        <p>• 지리적 시장 중복</p>
+                                        <p>• 가격대 및 서비스 티어 유사성</p>
+                                    </div>
+                                </details>
                             </div>
                             <!-- Presence -->
                             <div class="space-y-1.5">
@@ -1816,6 +1838,15 @@
                                 </div>
                                 <p class="text-[9px] text-slate-600 italic">시장 내 브랜드 인지도 및 점유율. 높을수록 강력한 시장 지배력을 가집니다.
                                 </p>
+                                <details class="text-[9px] text-slate-700 cursor-pointer">
+                                    <summary class="hover:text-slate-500 transition-colors">📊 계산 근거 보기</summary>
+                                    <div class="mt-1 p-2 bg-slate-800/50 rounded-lg text-slate-500 space-y-1">
+                                        <p>• 예상 매출 / TVL (해당시)</p>
+                                        <p>• 팀 규모 및 글로벌 사무실 수</p>
+                                        <p>• 누적 자금 조달액</p>
+                                        <p>• 미디어 노출 및 브랜드 인지도</p>
+                                    </div>
+                                </details>
                             </div>
                             <!-- Momentum -->
                             <div class="space-y-1.5">
@@ -1830,6 +1861,15 @@
                                 </div>
                                 <p class="text-[9px] text-slate-600 italic">성장 속도 및 확장 추세. 높을수록 시장 내 입지를 빠르게 넓히고 있습니다.
                                 </p>
+                                <details class="text-[9px] text-slate-700 cursor-pointer">
+                                    <summary class="hover:text-slate-500 transition-colors">📊 계산 근거 보기</summary>
+                                    <div class="mt-1 p-2 bg-slate-800/50 rounded-lg text-slate-500 space-y-1">
+                                        <p>• 최근 펀딩 라운드 / 투자 유치</p>
+                                        <p>• 신규 제품 출시 빈도</p>
+                                        <p>• 채용 추세 및 팀 확장</p>
+                                        <p>• 뉴스/미디어 멘션 증가율</p>
+                                    </div>
+                                </details>
                             </div>
                         </div>
                     </div>
