@@ -2954,7 +2954,21 @@ class CompetitorRadarManager {
             document.body.appendChild(modal);
         }
 
-        const candidatesHtml = this.candidates.map((cand, idx) => `
+        const candidatesHtml = this.candidates.map((cand, idx) => {
+            // Determine tier based on match score
+            let tierLabel, tierClass;
+            if (cand.matchScore >= 85) {
+                tierLabel = 'TIER 1 THREAT';
+                tierClass = 'text-red-400';
+            } else if (cand.matchScore >= 70) {
+                tierLabel = 'TIER 2 RIVAL';
+                tierClass = 'text-amber-400';
+            } else {
+                tierLabel = 'MARKET PEER';
+                tierClass = 'text-slate-400';
+            }
+
+            return `
             <div class="bg-slate-800/50 border border-white/5 rounded-2xl p-4 hover:border-indigo-500/30 transition-all cursor-pointer" onclick="window.competitorRadar.openCompetitorDetail(${idx})">
                 <div class="flex items-center justify-between mb-3">
                     <div class="flex items-center gap-3">
@@ -2963,14 +2977,14 @@ class CompetitorRadarManager {
                         </div>
                         <div>
                             <h4 class="text-white font-bold">${cand.name}</h4>
-                            <span class="text-[10px] text-slate-500">${cand.mainService || 'N/A'}</span>
+                            <span class="text-[10px] ${tierClass} font-bold uppercase tracking-wide">${tierLabel}</span>
                         </div>
                     </div>
                     ${this.selectedRivals.has(cand.id) ? '<span class="text-[10px] text-emerald-400 font-bold px-2 py-1 bg-emerald-500/20 rounded-full">TRACKING</span>' : ''}
                 </div>
                 <p class="text-[10px] text-slate-500 italic line-clamp-2">${cand.justification || ''}</p>
             </div>
-        `).join('');
+        `}).join('');
 
         modal.innerHTML = `
             <div class="fixed inset-0 bg-black/80 backdrop-blur-sm" onclick="document.getElementById('all-candidates-modal').classList.add('hidden')"></div>
