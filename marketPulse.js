@@ -2996,19 +2996,168 @@ class CompetitorRadarManager {
         modal.classList.remove('hidden');
     }
 
-    resetTracking() {
-        if (!confirm('추적 대상을 변경하시겠습니까? 기존 추적 데이터는 유지됩니다.')) return;
+    async resetTracking() {
+        if (!confirm('추적 대상을 변경하시겠습니까? 현재 추적 중인 경쟁사는 선택된 상태로 유지됩니다.')) return;
 
-        this.selectedRivals.clear();
-        this.updateUI();
-        this.renderCandidates();
+        // Load all discovered competitors from project
+        try {
+            const projectDoc = await firebase.firestore()
+                .collection('projects')
+                .doc(currentProjectId)
+                .get();
 
-        // Show the selection interface again
+            if (!projectDoc.exists) {
+                showNotification('프로젝트 데이터를 불러올 수 없습니다.', 'error');
+                return;
+            }
+
+            const data = projectDoc.data();
+            const allCompetitors = data.competitors || [];
+
+            if (allCompetitors.length === 0) {
+                showNotification('발견된 경쟁사가 없습니다. 새로 스캔해주세요.', 'warning');
+                this.showScanPrompt();
+                return;
+            }
+
+            // Get currently tracked rivals to pre-select them
+            const trackingDoc = await firebase.firestore()
+                .collection('projects')
+                .doc(currentProjectId)
+                .collection('competitorTracking')
+                .doc('current')
+                .get();
+
+            const trackedRivalIds = new Set();
+            if (trackingDoc.exists && trackingDoc.data().rivals) {
+                trackingDoc.data().rivals.forEach(r => {
+                    trackedRivalIds.add(r.id || r.name);
+                });
+            }
+
+            // Update candidates
+            this.candidates = allCompetitors.map((c, i) => ({
+                ...c,
+                id: c.id || `rival-${i + 1}`
+            }));
+
+            // Pre-select currently tracked rivals
+            this.selectedRivals.clear();
+            this.candidates.forEach(c => {
+                if (trackedRivalIds.has(c.id) || trackedRivalIds.has(c.name)) {
+                    this.selectedRivals.add(c.id);
+                }
+            });
+
+            // Restore the original selection panel
+            this.restoreSelectionPanel();
+
+            // Render candidates with pre-selection
+            this.carouselIndex = 0;
+            this.renderCandidates();
+            this.updateNavButtons();
+            this.updateUI();
+
+            showNotification('경쟁사 목록을 불러왔습니다. 추적 대상을 변경하세요.', 'info');
+
+        } catch (error) {
+            console.error('[CompetitorRadar] Error in resetTracking:', error);
+            showNotification('경쟁사 목록을 불러오는 데 실패했습니다.', 'error');
+        }
+    }
+
+    restoreSelectionPanel() {
         const panel = document.getElementById('competitor-matchmaking-panel');
-        if (panel) {
-            // Re-render the original matchmaking panel structure
-            // This is handled by the page refresh for simplicity
-            window.location.reload();
+        if (!panel) return;
+
+        panel.innerHTML = `
+            <div class="absolute -inset-1 bg-gradient-to-r from-indigo-500/20 via-purple-500/10 to-transparent rounded-3xl blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+
+            <div class="relative bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-8 overflow-hidden">
+                <!-- Radar Background Decoration -->
+                <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] opacity-10 pointer-events-none">
+                    <div class="w-full h-full border border-slate-700 rounded-full"></div>
+                    <div class="absolute inset-[100px] border border-slate-700 rounded-full"></div>
+                    <div class="absolute inset-[200px] border border-slate-700 rounded-full"></div>
+                    <div class="radar-line"></div>
+                </div>
+
+                <div class="relative flex flex-col items-center text-center mb-10">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black tracking-widest uppercase mb-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        추적 대상 변경 모드
+                    </div>
+                    <h1 class="text-3xl font-black text-white mb-3 tracking-tight">추적 대상 선택</h1>
+                    <p class="text-slate-400 max-w-2xl text-sm leading-relaxed mb-4">
+                        추적할 경쟁사를 선택하거나 취소하세요. 현재 추적 중인 경쟁사는 <span class="text-emerald-400 font-bold">선택된 상태</span>로 표시됩니다.<br>
+                        변경 사항을 저장하려면 <span class="text-indigo-400 font-bold">LOCK TARGETS & START TRACKING</span> 버튼을 클릭하세요.
+                    </p>
+                </div>
+
+                <!-- Carousel Navigation -->
+                <div class="absolute right-8 top-8 flex gap-2 z-20">
+                    <button id="radar-prev" class="nav-btn w-10 h-10 rounded-xl flex items-center justify-center" disabled>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                    </button>
+                    <button id="radar-next" class="nav-btn w-10 h-10 rounded-xl flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                    </button>
+                </div>
+
+                <!-- Match Selection Carousel -->
+                <div class="relative overflow-hidden w-full mb-10">
+                    <div id="rival-selection-grid" class="radar-carousel-container"></div>
+                </div>
+
+                <!-- Footer Action -->
+                <div class="flex flex-col md:flex-row items-center justify-between pt-8 border-t border-slate-800 gap-6">
+                    <div class="flex items-center gap-4">
+                        <div id="selection-status" class="flex gap-1.5">
+                            <div class="w-4 h-4 rounded-full border-2 border-slate-700 bg-slate-900"></div>
+                            <div class="w-4 h-4 rounded-full border-2 border-slate-700 bg-slate-900"></div>
+                            <div class="w-4 h-4 rounded-full border-2 border-slate-700 bg-slate-900"></div>
+                        </div>
+                        <span class="text-xs font-bold text-slate-400"><span id="selection-count">0</span> / 3 Selected</span>
+                        <div class="h-4 w-px bg-slate-800"></div>
+                        <button onclick="window.competitorRadar.cancelReset()" class="text-xs text-slate-500 hover:text-red-400 transition-colors flex items-center gap-1.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                            Cancel
+                        </button>
+                    </div>
+
+                    <button id="btn-start-tracking" disabled
+                        class="px-8 py-3 bg-slate-800 text-slate-500 text-sm font-black rounded-xl border border-slate-700 cursor-not-allowed transition-all opacity-50 grayscale enabled:opacity-100 enabled:grayscale-0 enabled:bg-gradient-to-r enabled:from-indigo-600 enabled:to-purple-600 enabled:text-white enabled:border-none enabled:shadow-lg enabled:shadow-indigo-500/20 enabled:hover:scale-105 enabled:active:scale-95 enabled:cursor-pointer">
+                        LOCK TARGETS & START TRACKING
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // Re-bind DOM references
+        this.dom.grid = document.getElementById('rival-selection-grid');
+        this.dom.startBtn = document.getElementById('btn-start-tracking');
+        this.dom.prevBtn = document.getElementById('radar-prev');
+        this.dom.nextBtn = document.getElementById('radar-next');
+        this.dom.selectionStatus = document.getElementById('selection-status');
+        this.dom.selectionCount = document.getElementById('selection-count');
+
+        // Re-bind event listeners
+        if (this.dom.startBtn) {
+            this.dom.startBtn.onclick = () => this.handleStartTracking();
+        }
+        if (this.dom.prevBtn) {
+            this.dom.prevBtn.onclick = () => this.prevSlide();
+        }
+        if (this.dom.nextBtn) {
+            this.dom.nextBtn.onclick = () => this.nextSlide();
+        }
+    }
+
+    async cancelReset() {
+        // Reload existing tracking to go back to dashboard
+        const hasTracking = await this.loadExistingTracking();
+        if (!hasTracking) {
+            this.showScanPrompt();
         }
     }
 
