@@ -2765,7 +2765,7 @@ class CompetitorRadarManager {
     }
 
     async loadExistingTracking() {
-        if (!currentProjectId) return;
+        if (!currentProjectId) return false;
 
         try {
             const trackingDoc = await firebase.firestore()
@@ -2779,8 +2779,16 @@ class CompetitorRadarManager {
                 const data = trackingDoc.data();
                 console.log('[CompetitorRadar] Loading existing tracking data:', data);
 
+                // Check for alerts
+                if (data.alerts && data.alerts.length > 0) {
+                    this.displayAlerts(data.alerts);
+                }
+
                 // Render the dashboard with existing data
                 this.renderTrackingDashboard(data.rivals);
+
+                // Load and render history for trend visualization
+                await this.loadTrackingHistory(data.rivals);
 
                 return true; // Tracking is active
             }
@@ -2789,6 +2797,185 @@ class CompetitorRadarManager {
         }
 
         return false; // No active tracking
+    }
+
+    async loadTrackingHistory(currentRivals) {
+        if (!currentProjectId) return;
+
+        try {
+            const snapshotsQuery = await firebase.firestore()
+                .collection('projects')
+                .doc(currentProjectId)
+                .collection('competitorTracking')
+                .doc('current')
+                .collection('snapshots')
+                .orderBy('timestamp', 'desc')
+                .limit(7) // Last 7 snapshots for weekly trend
+                .get();
+
+            if (snapshotsQuery.empty) {
+                console.log('[CompetitorRadar] No history available yet');
+                return;
+            }
+
+            const snapshots = [];
+            snapshotsQuery.forEach(doc => {
+                const data = doc.data();
+                snapshots.push({
+                    timestamp: data.timestamp?.toDate?.() || new Date(),
+                    rivals: data.rivals
+                });
+            });
+
+            // Reverse for chronological order
+            snapshots.reverse();
+
+            console.log('[CompetitorRadar] Loaded', snapshots.length, 'historical snapshots');
+
+            // Render trend section if we have history
+            if (snapshots.length > 1) {
+                this.renderTrendSection(snapshots, currentRivals);
+            }
+
+        } catch (error) {
+            console.error('[CompetitorRadar] Error loading history:', error);
+        }
+    }
+
+    renderTrendSection(snapshots, currentRivals) {
+        const panel = document.getElementById('competitor-matchmaking-panel');
+        if (!panel) return;
+
+        // Find or create trend section
+        let trendSection = panel.querySelector('#tracking-trend-section');
+        if (!trendSection) {
+            trendSection = document.createElement('div');
+            trendSection.id = 'tracking-trend-section';
+            trendSection.className = 'p-6 border-t border-white/5';
+
+            // Insert before footer
+            const footer = panel.querySelector('.bg-slate-900\\/50');
+            if (footer) {
+                footer.parentNode.insertBefore(trendSection, footer);
+            } else {
+                panel.appendChild(trendSection);
+            }
+        }
+
+        // Calculate trend data for each rival
+        const trendData = currentRivals.map(rival => {
+            const historicalScores = snapshots.map(snapshot => {
+                const historicalRival = snapshot.rivals?.find(r => r.id === rival.id || r.name === rival.name);
+                return historicalRival?.matchScore || rival.matchScore;
+            });
+
+            // Calculate change from earliest to latest
+            const oldestScore = historicalScores[0] || rival.matchScore;
+            const latestScore = historicalScores[historicalScores.length - 1] || rival.matchScore;
+            const change = latestScore - oldestScore;
+
+            return {
+                name: rival.name,
+                scores: historicalScores,
+                change,
+                direction: change > 0 ? 'up' : change < 0 ? 'down' : 'stable'
+            };
+        });
+
+        trendSection.innerHTML = `
+            <div class="mb-4">
+                <h4 class="text-sm font-bold text-white flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-400"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                    Match Score Trend (Last ${snapshots.length} Updates)
+                </h4>
+                <p class="text-[10px] text-slate-500 mt-1">경쟁사별 매치 점수 변화 추이</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                ${trendData.map(trend => `
+                    <div class="bg-slate-800/30 rounded-xl p-4 border border-white/5">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-sm font-bold text-white">${trend.name}</span>
+                            <span class="text-xs font-bold ${trend.direction === 'up' ? 'text-emerald-400' : trend.direction === 'down' ? 'text-red-400' : 'text-slate-500'}">
+                                ${trend.direction === 'up' ? '▲' : trend.direction === 'down' ? '▼' : '•'}
+                                ${trend.change > 0 ? '+' : ''}${trend.change}%
+                            </span>
+                        </div>
+                        <div class="flex items-end gap-1 h-12">
+                            ${trend.scores.map((score, i) => `
+                                <div class="flex-1 bg-slate-700 rounded-t relative group" style="height: ${Math.max(10, score * 0.8)}%">
+                                    <div class="absolute inset-0 bg-gradient-to-t from-indigo-500/50 to-indigo-400/30 rounded-t"></div>
+                                    <div class="absolute -top-5 left-1/2 -translate-x-1/2 text-[8px] text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">${score}%</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="flex justify-between mt-2 text-[8px] text-slate-600">
+                            <span>이전</span>
+                            <span>최근</span>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    displayAlerts(alerts) {
+        if (!alerts || alerts.length === 0) return;
+
+        // Show notification for the most recent/significant alert
+        const topAlert = alerts.reduce((a, b) =>
+            (b.severity === 'high' && a.severity !== 'high') ? b : a
+            , alerts[0]);
+
+        const directionText = topAlert.direction === 'increase' ? '상승' : '하락';
+        const metricNames = {
+            uspOverlap: 'USP Overlap',
+            audienceProximity: 'Audience Proximity',
+            marketPresence: 'Market Presence',
+            growthMomentum: 'Growth Momentum'
+        };
+
+        showNotification(
+            `⚠️ ${topAlert.rivalName}의 ${metricNames[topAlert.metric]}이(가) ${Math.abs(topAlert.change)}% ${directionText}했습니다!`,
+            topAlert.severity === 'high' ? 'error' : 'warning'
+        );
+
+        // Also render alert banner in the dashboard
+        this.renderAlertBanner(alerts);
+    }
+
+    renderAlertBanner(alerts) {
+        const panel = document.getElementById('competitor-matchmaking-panel');
+        if (!panel) return;
+
+        // Create alert banner
+        const alertBanner = document.createElement('div');
+        alertBanner.className = 'mx-6 mt-6 p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl';
+        alertBanner.innerHTML = `
+            <div class="flex items-start gap-3">
+                <div class="w-8 h-8 bg-amber-500/20 rounded-full flex items-center justify-center text-amber-400 shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                </div>
+                <div class="flex-1">
+                    <h4 class="text-amber-400 font-bold text-sm mb-1">⚡ 경쟁사 지표 변동 감지</h4>
+                    <div class="space-y-1">
+                        ${alerts.slice(0, 3).map(alert => `
+                            <p class="text-[11px] text-slate-400">
+                                <span class="text-white font-bold">${alert.rivalName}</span>의 
+                                <span class="text-indigo-400">${alert.metric}</span>이(가) 
+                                <span class="${alert.direction === 'increase' ? 'text-emerald-400' : 'text-red-400'}">${alert.direction === 'increase' ? '+' : ''}${alert.change}%</span> 변동
+                            </p>
+                        `).join('')}
+                    </div>
+                </div>
+                <button onclick="this.closest('.bg-amber-500\\\\/10').remove()" class="text-slate-500 hover:text-white">✕</button>
+            </div>
+        `;
+
+        // Insert at top of panel content
+        const header = panel.querySelector('.border-b');
+        if (header) {
+            header.after(alertBanner);
+        }
     }
 }
 

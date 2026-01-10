@@ -6198,3 +6198,11 @@ exports.seedMasterAgents = require('./maintenance/seedMasterAgents').seedMasterA
 // Phase 5: Studio Pipeline V2
 // ============================================
 exports.executeStudioPipeline = require('./studioPipeline').executeStudioPipeline;
+
+// ============================================
+// Competitor Intelligence (Market Pulse)
+// ============================================
+const competitorIntel = require('./competitorIntelligence');
+exports.scheduledCompetitorUpdate = competitorIntel.scheduledCompetitorUpdate;
+exports.getCompetitorHistory = competitorIntel.getCompetitorHistory;
+exports.getCompetitorAlerts = competitorIntel.getCompetitorAlerts;
