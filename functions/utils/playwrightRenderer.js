@@ -68,8 +68,16 @@ async function renderHTMLToPDF(htmlContent, options = {}) {
             }));
         });
 
+        // SPECIAL: Wait for Tailwind JIT if detected
+        console.log('[PDFRenderer] 🎨 Checking for Tailwind JIT...');
+        await page.evaluate(async () => {
+            if (window.tailwind) {
+                await new Promise(r => setTimeout(r, 1000));
+            }
+        });
+
         // Small delay for final rendering
-        await new Promise(r => setTimeout(r, 500));
+        await new Promise(r => setTimeout(r, 1000));
 
         // Generate PDF
         console.log('[PDFRenderer] 📑 Generating PDF...');

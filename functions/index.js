@@ -361,7 +361,22 @@ exports.executeSubAgent = onCall({
 
         // 2.5 Inject Technical Requirements for Designers (Default)
         if (isDesigner) {
-            enhancedSystemPrompt += `\n\n# TECHNICAL REQUIREMENTS (DEFAULT)\n- Your output MUST be a SINGLE, COMPLETELY SELF-CONTAINED HTML document.\n- All CSS must be included within a <style> tag in the <head>.\n- You may use Tailwind CSS via CDN if helpful.\n- DO NOT include any conversational text, explanations, or markdown code blocks (like \`\`\`html). Output ONLY the raw HTML code starting with <!DOCTYPE html>.\n- Ensure the design is professional, modern, and high-fidelity.`;
+            enhancedSystemPrompt += `\n\n# TECHNICAL REQUIREMENTS (A4 PDF STABILITY)
+- Your output MUST be a SINGLE, COMPLETELY SELF-CONTAINED HTML document.
+- **IMPORTANT**: Design for **A4 Paper (210mm x 297mm)**.
+- Wrap your content in a container: <div class="a4-container" style="width: 210mm; min-height: 297mm; margin: 0 auto; background: white; position: relative;">...</div>
+- All CSS must be in a <style> tag. You may use Tailwind via CDN, but MUST include this PRINT STABILITY CSS:
+  <style>
+    @media print {
+        body { margin: 0; padding: 0; background: white; }
+        .a4-container { width: 210mm; height: 297mm; margin: 0; border: none; box-shadow: none; }
+    }
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    body { background: #f4f4f5; display: flex; justify-content: center; padding: 20px 0; }
+    .a4-container { box-shadow: 0 10px 25px rgba(0,0,0,0.1); overflow: hidden; }
+  </style>
+- DO NOT include conversational text or markdown blocks. Output ONLY raw HTML.
+- Ensure high-fidelity typography and professional spacing.`;
         }
 
         // Build messages

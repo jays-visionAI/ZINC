@@ -4425,7 +4425,7 @@ async function downloadCreativeAsPDF(options = {}) {
     // === HIGH QUALITY PDF (Server-side Puppeteer) ===
     // Use server-side for Press Releases and Pitch Decks to ensure WYSIWYG and perfect pagination
     const normalizedType = (currentCreativeType || '').toLowerCase().trim();
-    const isHQType = normalizedType === 'press_release' || normalizedType === 'news' || normalizedType === 'pitch_deck';
+    const isHQType = ['press_release', 'news', 'pitch_deck', 'one_pager', 'onepager', 'one_pager_pro', 'onepagerpro'].includes(normalizedType);
 
     if (isHQType && iframe) {
         showNotification('Generating high-quality PDF (server-side)...', 'info');
