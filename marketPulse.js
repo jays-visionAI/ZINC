@@ -363,24 +363,33 @@ function updateDashboardWithProjectData(data) {
     const projectName = data.projectName || data.name || "Brand";
 
     // Clear and re-populate TRENDING_KEYWORDS
-    const newKeywords = coreKeywords.map(kw => ({
-        keyword: kw.startsWith('#') ? kw : `#${kw}`,
-        change: Math.floor(Math.random() * 15) + 5,
-        volume: Math.floor(Math.random() * 50000) + 10000,
-        isCore: true
-    }));
+    const userKeywords = data.marketPulseKeywords || [];
+    const hasKeywords = userKeywords.length > 0;
 
     TRENDING_KEYWORDS.length = 0;
-    if (newKeywords.length > 0) {
-        TRENDING_KEYWORDS.push(...newKeywords);
-    } else {
-        // GUIDANCE: No keywords found, show clean message
-        TRENDING_KEYWORDS.push({
-            keyword: t('market.trends.empty'),
-            change: 0,
-            volume: 0,
-            isGuidance: true
+
+    if (hasKeywords) {
+        userKeywords.forEach(kw => {
+            TRENDING_KEYWORDS.push({
+                keyword: kw.startsWith('#') ? kw : `#${kw}`,
+                change: Math.floor(Math.random() * 15) + 5, // Simulated growth
+                volume: Math.floor(Math.random() * 50000) + 10000,
+                isCore: true
+            });
         });
+    }
+
+    // Update Setup Keywords button style based on state
+    const setupBtn = document.getElementById('btn-setup-keywords');
+    if (setupBtn) {
+        if (!hasKeywords) {
+            setupBtn.classList.add('setup-glow');
+            setupBtn.classList.remove('text-slate-400');
+            setupBtn.classList.add('text-indigo-400', 'px-3', 'py-1.5', 'rounded-xl', 'bg-indigo-500/10');
+        } else {
+            setupBtn.classList.remove('setup-glow', 'text-indigo-400', 'px-3', 'py-1.5', 'rounded-xl', 'bg-indigo-500/10');
+            setupBtn.classList.add('text-slate-400');
+        }
     }
 
     renderTrendingKeywords();
@@ -466,23 +475,35 @@ function renderTrendingKeywords() {
     if (!dom.trendingKeywords) return;
     dom.trendingKeywords.innerHTML = '';
 
+    if (TRENDING_KEYWORDS.length === 0) {
+        dom.trendingKeywords.innerHTML = `
+            <div class="flex flex-col items-center justify-center py-10 px-6 border-2 border-dashed border-slate-800 rounded-2xl bg-slate-900/30">
+                <div class="w-12 h-12 bg-indigo-500/10 rounded-full flex items-center justify-center mb-3 text-indigo-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6m-9-9h6m6 0h6"/></svg>
+                </div>
+                <h4 class="text-slate-300 font-bold mb-1">${t('market.trends.empty')}</h4>
+                <p class="text-[10px] text-slate-500 text-center max-w-[240px]">핵심 소셜 미디어 키워드를 설정하여 <br> 시장 반응을 실시간으로 추적하세요.</p>
+            </div>
+        `;
+        return;
+    }
+
     const maxChange = Math.max(...TRENDING_KEYWORDS.map(k => Math.abs(k.change || 0)), 50);
 
     TRENDING_KEYWORDS.forEach((item, index) => {
         const isPositive = item.change > 0;
         const changeAbs = Math.abs(item.change || 0);
-        // Ensure even 0% change has a small visible bar (2%)
         const barWidth = Math.max(2, (changeAbs / maxChange) * 100);
         const delay = index * 100;
 
         const el = document.createElement('div');
-        el.className = `flex items-center gap-4 group cursor-help transition-all duration-300 animate-in fade-in slide-in-from-right-4 ${item.isGuidance ? 'opacity-60 grayscale' : ''}`;
+        el.className = `flex items-center gap-4 group cursor-help transition-all duration-300 animate-in fade-in slide-in-from-right-4`;
         el.style.animationDelay = `${delay}ms`;
 
         el.innerHTML = `
             <div class="w-40 shrink-0">
                 <div class="flex flex-col">
-                    <span class="font-semibold text-sm text-slate-200 group-hover:text-cyan-400 transition-colors">${item.keyword} ${item.isGuidance ? '✨' : ''}</span>
+                    <span class="font-semibold text-sm text-slate-200 group-hover:text-cyan-400 transition-colors">${item.keyword}</span>
                     <div class="flex gap-1 mt-0.5">
                         ${item.isCore ? `<span class="px-1 py-0.5 bg-indigo-500/10 text-indigo-400 text-[7px] font-bold rounded border border-indigo-500/20 uppercase tracking-widest">IDENTITY</span>` : ''}
                         ${item.isDiscovered ? `<span class="px-1 py-0.5 bg-cyan-500/20 text-cyan-400 text-[7px] font-bold rounded border border-cyan-500/30 uppercase tracking-widest">DISCOVERED</span>` : ''}
@@ -501,9 +522,7 @@ function renderTrendingKeywords() {
                 </div>
             </div>
             <div class="text-[10px] text-slate-500 w-24 text-right shrink-0">
-                ${item.isGuidance ? '<span class="text-cyan-400 animate-pulse">Action Required</span>' : `
-                    <span class="text-slate-400 font-mono">${((item.volume || 0) / 1000).toFixed(1)}k</span> <span class="opacity-50">vol</span>
-                `}
+                <span class="text-slate-400 font-mono">${((item.volume || 0) / 1000).toFixed(1)}k</span> <span class="opacity-50">vol</span>
             </div>
         `;
         dom.trendingKeywords.appendChild(el);
