@@ -1694,8 +1694,6 @@ document.addEventListener('DOMContentLoaded', () => {
     init();
     // Initialize Health Intelligence Center
     window.healthCenter = new BrandHealthIntelligence();
-    // Initialize Competitor Radar
-    window.competitorRadar = new CompetitorRadarManager();
 });
 
 
@@ -1895,7 +1893,10 @@ class CompetitorRadarManager {
                 return;
             }
 
-            this.candidates = competitors;
+            this.candidates = competitors.map((c, i) => ({
+                ...c,
+                id: c.id || `rival-${Date.now()}-${i}`
+            }));
             this.carouselIndex = 0;
             this.renderCandidates();
             this.updateNavButtons();
@@ -2353,13 +2354,14 @@ class CompetitorRadarManager {
         if (candCountEl) candCountEl.textContent = this.candidates.length;
 
         this.candidates.forEach((cand, idx) => {
+            // Ensure unique ID for valid selection tracking
+            if (!cand.id) cand.id = `rival-${idx + 1}`;
+            const isSelected = this.selectedRivals.has(cand.id);
+
             const card = document.createElement('div');
-            card.className = `radar-card-wrapper match-card rounded-2xl p-5 cursor-pointer flex flex-col gap-3 animate-in fade-in zoom-in duration-500`;
+            card.className = `radar-card-wrapper match-card rounded-2xl p-5 cursor-pointer flex flex-col gap-3 animate-in fade-in zoom-in duration-500 ${isSelected ? 'selected' : ''}`;
             card.style.animationDelay = `${idx * 80}ms`;
             card.dataset.id = cand.id;
-
-            const isSelected = this.selectedRivals.has(cand.id);
-            if (isSelected) card.classList.add('selected');
 
             card.innerHTML = `
                 <div class="flex justify-between items-start">
@@ -2544,12 +2546,20 @@ class CompetitorRadarManager {
         }
 
         if (this.dom.startBtn) {
-            this.dom.startBtn.disabled = count !== 3;
+            // Enable button if at least 1 rival is selected (allows 1-3)
+            this.dom.startBtn.disabled = count === 0;
+            if (count > 0) {
+                this.dom.startBtn.classList.remove('opacity-50', 'grayscale');
+                this.dom.startBtn.classList.add('setup-glow');
+            } else {
+                this.dom.startBtn.classList.add('opacity-50', 'grayscale');
+                this.dom.startBtn.classList.remove('setup-glow');
+            }
         }
     }
 
     async handleStartTracking() {
-        if (this.selectedRivals.size !== 3) return;
+        if (this.selectedRivals.size === 0) return;
 
         const originalText = this.dom.startBtn.innerHTML;
         this.dom.startBtn.disabled = true;
@@ -2607,7 +2617,8 @@ class CompetitorRadarManager {
 }
 
 // Initializer
-const competitorRadar = new CompetitorRadarManager();
+window.competitorRadar = new CompetitorRadarManager();
+const competitorRadar = window.competitorRadar;
 
 // Expose manual add to global
 window.addCustomRival = function () {
