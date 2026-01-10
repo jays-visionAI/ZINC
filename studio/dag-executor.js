@@ -637,7 +637,7 @@ class DAGExecutor {
             const modelName = resultMeta.model || (result && result.model) || 'Unknown';
             const providerName = resultMeta.provider ? ` (${resultMeta.provider})` : '';
 
-            this.emit('onLog', { message: `   ✓ ${agentId} completed using <strong>${modelName}</strong>${providerName}`, type: 'success' });
+            this.emit('onLog', { message: `   ✓ ${agentId} completed successfully`, type: 'success' });
 
             // Trigger content generation callback for creation agents
             if (['creator_text', 'creator_image', 'creator_video'].includes(agentId)) {

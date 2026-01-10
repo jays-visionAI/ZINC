@@ -3692,7 +3692,7 @@ function removeKeywordAtIndex(index) {
 function clearAISuggestions() {
     const container = document.getElementById('ai-suggestions-container');
     if (container) {
-        container.innerHTML = '<div class="text-xs text-slate-600 italic py-2">Powered by DeepSeek V3 (ZYNK AI)</div>';
+        container.innerHTML = '<div class="text-xs text-slate-600 italic py-2">Powered by ZYNK AI Intelligence</div>';
     }
 }
 

@@ -484,9 +484,9 @@ Feel free to ask me anything about using ZYNK!
         messageEl.className = `chatbot-message ${message.type}`;
 
         // Show model meta only for bot messages
-        const metaHtml = (message.type === 'bot' && message.model) ?
+        const metaHtml = (message.type === 'bot') ?
             `<div class="chatbot-meta" style="font-size: 10px; opacity: 0.6; margin-top: 6px; text-align: right; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 4px;">
-                ${message.provider === 'google' || message.provider === 'gemini' ? '✨' : '🤖'} ${message.model}
+                🐝 ZYNK AI Intelligence
              </div>` : '';
 
         // Custom style for system avatar

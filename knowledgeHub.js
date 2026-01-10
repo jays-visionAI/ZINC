@@ -1634,15 +1634,19 @@ async function regenerateSourceSummary(sourceId) {
         if (source.sourceType === 'note') {
             contentToSummarize = source.note?.content || source.content || '';
         } else if (source.sourceType === 'link') {
-            contentToSummarize = source.link?.extractedContent || source.content || source.analysis?.extractedContent || source.link?.url || '';
+            contentToSummarize = source.link?.extractedContent || source.content || source.analysis?.extractedContent || source.extractedContent || source.link?.url || '';
         } else if (source.sourceType === 'google_drive') {
-            contentToSummarize = source.googleDrive?.extractedContent || source.content || source.analysis?.extractedContent || source.googleDrive?.fileName || '';
+            contentToSummarize = source.googleDrive?.extractedContent || source.content || source.analysis?.extractedContent || source.extractedContent || source.googleDrive?.fileName || '';
         } else if (source.sourceType === 'file') {
             // Use the extracted content from the initial analysis (check multiple possible fields)
-            contentToSummarize = source.content || source.analysis?.extractedContent || source.extractedText || '';
+            contentToSummarize = source.content || source.analysis?.extractedContent || source.extractedContent || source.extractedText || source.extracted_text || source.text || '';
         }
 
-        if (!contentToSummarize || contentToSummarize.trim().length < 5) {
+        // Even if we don't find content on the client, we'll try calling the Cloud Function
+        // if we have a fileUrl or link, as the backend might be more robust at extraction.
+        const canTryExtraction = source.fileUrl || source.link?.url || source.googleDrive?.fileId;
+
+        if (!contentToSummarize && !canTryExtraction) {
             console.error('[KnowledgeHub] No content found for source:', source);
             showNotification('No content available to summarize. The initial text extraction may have failed.', 'error');
             return;
@@ -3083,7 +3087,7 @@ async function generateSummary() {
 
     try {
         summaryTitle.textContent = 'Analyzing Deep Brand Intel...';
-        summaryContent.textContent = 'DeepSeek V3 is synthesizing project brief and active sources...';
+        summaryContent.textContent = 'ZYNK AI is synthesizing project brief and active sources...';
 
         const projectInfo = `
 [PROJECT BRIEF]
@@ -3115,8 +3119,8 @@ SUGGESTED QUESTIONS: (3개의 추천 질문을 한 줄씩 작성)
 
         const taskPrompt = `아래 데이터를 바탕으로 브랜드 요약을 작성해줘.\n\n${projectInfo}\n\n=== KNOWLEDGE SOURCES ===\n\n${sourceContext}`;
 
-        // Direct AI Call using DeepSeek R1
-        const executeSubAgent = firebase.app().functions('us-central1').httpsCallable('executeSubAgent', { timeout: 540000 });
+        // Direct AI Call using ZYNK AI
+        const executeSubAgent = firebase.functions().httpsCallable('executeSubAgent', { timeout: 540000 });
         const result = await executeSubAgent({
             projectId: currentProjectId,
             teamId: 'knowledgeHub',

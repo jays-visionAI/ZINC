@@ -819,7 +819,7 @@ window.WorkflowCanvas = (function () {
      * Refine existing workflow with additional prompt
      */
     async function refineExistingWorkflow(prompt) {
-        console.log('[WorkflowCanvas] Refining existing workflow with DeepSeek V3.2 Speciale...');
+        console.log('[WorkflowCanvas] Refining existing workflow with ZYNK AI...');
 
         // Prepare current state for LLM context
         const currentGraph = {
@@ -925,7 +925,7 @@ ${agentList}
 
     // Smart analysis that infers data nodes, transforms, and agents
     async function smartAnalyzePrompt(prompt) {
-        console.log('[WorkflowCanvas] Analyzing prompt with DeepSeek V3.2 Speciale...');
+        console.log('[WorkflowCanvas] Analyzing prompt with ZYNK AI...');
 
         // Get available agents for current context
         const contextAgents = state.availableAgents[state.pipelineContext] || [];
