@@ -773,7 +773,7 @@ function renderAIActions() {
         const glowColor = isPriority ? 'shadow-[0_0_20px_rgba(245,158,11,0.05)]' : '';
 
         const badge = isPriority
-            ? '<span class="px-2 py-0.5 bg-amber-500/20 text-amber-400 text-[10px] font-bold rounded uppercase tracking-tighter">🔥 Strategic Priority</span>'
+            ? '<span class="px-2 py-0.5 bg-amber-500/20 text-amber-400 text-[10px] font-bold rounded uppercase tracking-tighter flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>Strategic Priority</span>'
             : '<span class="px-2 py-0.5 bg-slate-800 text-slate-500 text-[10px] font-bold rounded uppercase tracking-tighter">Opportunity</span>';
 
         const el = document.createElement('div');
@@ -2197,7 +2197,7 @@ class CompetitorRadarManager {
                             </svg>
                         </div>
                         <div>
-                            <h3 class="text-lg font-bold text-white">⚡ ${t('market.qb.title')}</h3>
+                            <h3 class="text-lg font-bold text-white flex items-center gap-1.5"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-amber-400"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>${t('market.qb.title')}</h3>
                             <p class="text-xs text-slate-400">${t('market.qb.subtitle')}</p>
                         </div>
                     </div>
@@ -2241,8 +2241,9 @@ class CompetitorRadarManager {
 
                         <!-- Known Competitors -->
                         <div class="pt-4 border-t border-slate-700">
-                            <label class="block text-sm font-bold text-slate-300 mb-2">
-                                🎯 ${t('market.qb.knownCompetitors')} <span class="text-slate-500 font-normal">${t('market.qb.knownCompetitorsOptional')}</span>
+                            <label class="block text-sm font-bold text-slate-300 mb-2 flex items-center gap-1.5">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-indigo-400"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                                ${t('market.qb.knownCompetitors')} <span class="text-slate-500 font-normal">${t('market.qb.knownCompetitorsOptional')}</span>
                             </label>
                             <p class="text-xs text-slate-500 mb-3">${t('market.qb.knownCompetitorsHint')}</p>
                             
@@ -2851,8 +2852,8 @@ class CompetitorRadarManager {
                     </div>
                     <div class="bg-slate-800/30 rounded-xl p-6 text-center">
                         <div class="text-slate-600 text-xs">
-                            <p class="mb-2">📊 트렌드 데이터가 수집되면 여기에 표시됩니다</p>
-                            <p class="text-[10px] text-slate-700">첫 번째 정기 업데이트 후 경쟁사 점수 변화를 확인할 수 있습니다</p>
+                            <p class="mb-2 flex items-center justify-center gap-1.5"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-indigo-400"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>Trend data will appear here once collected</p>
+                            <p class="text-[10px] text-slate-700">After the first scheduled update, you can view competitor score changes</p>
                         </div>
                     </div>
                 </div>

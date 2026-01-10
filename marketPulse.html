@@ -720,8 +720,15 @@
                         </button>
                     </div>
 
-                    <p class="text-[10px] text-slate-600 text-center mt-4">
-                        💡 피드백은 DeepSeek AI의 경쟁사 분석 정확도 향상에 활용됩니다
+                    <p class="text-[10px] text-slate-600 text-center mt-4 flex items-center justify-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="text-amber-400">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 16v-4" />
+                            <path d="M12 8h.01" />
+                        </svg>
+                        Feedback helps improve ZYNK AI competitor analysis accuracy
                     </p>
                 </div>
             </div>
@@ -741,7 +748,15 @@
                         <div class="flex items-center justify-between mb-8">
                             <div>
                                 <h3 class="text-2xl font-black text-white tracking-tight flex items-center gap-3">
-                                    <span class="p-2 bg-indigo-500/20 rounded-xl text-indigo-400">🎯</span>
+                                    <span class="p-2 bg-indigo-500/20 rounded-xl text-indigo-400">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round">
+                                            <circle cx="12" cy="12" r="10" />
+                                            <circle cx="12" cy="12" r="6" />
+                                            <circle cx="12" cy="12" r="2" />
+                                        </svg>
+                                    </span>
                                     Market Resonance Keywords
                                 </h3>
                                 <p class="text-xs text-slate-500 mt-1 font-medium italic">Define core pillars for
@@ -895,7 +910,13 @@
             <!-- 📊 YOUR BRAND (2 cols) -->
             <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col">
                 <h2 class="text-lg font-bold flex items-center gap-2 mb-6">
-                    <span class="text-indigo-400">📊</span> <span data-i18n="market.brand.title">Your Brand</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        class="text-indigo-400">
+                        <path d="M3 3v18h18" />
+                        <path d="m19 9-5 5-4-4-3 3" />
+                    </svg>
+                    <span data-i18n="market.brand.title">Your Brand</span>
                 </h2>
 
                 <!-- Reputation Score & Mention Count Card -->
@@ -1193,8 +1214,14 @@
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col">
                 <div class="flex items-center justify-between mb-4">
                     <h2 class="text-lg font-bold flex items-center gap-2">
-                        <span class="text-amber-400">🎯</span> <span data-i18n="market.missions.title">AI
-                            Missions</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="text-amber-400">
+                            <circle cx="12" cy="12" r="10" />
+                            <circle cx="12" cy="12" r="6" />
+                            <circle cx="12" cy="12" r="2" />
+                        </svg>
+                        <span data-i18n="market.missions.title">AI Missions</span>
                     </h2>
                     <span
                         class="px-2 py-0.5 bg-amber-500/10 text-amber-400 text-[10px] font-bold rounded uppercase">Actionable</span>
@@ -1791,15 +1818,17 @@
                                     <div id="bar-detail-usp" class="h-full bg-indigo-500 transition-all duration-1000"
                                         style="width: 0%"></div>
                                 </div>
-                                <p class="text-[9px] text-slate-600 italic">고유 가치 제안(USP)의 유사성. 높을수록 핵심 차별점이 유사함을 의미합니다.
+                                <p class="text-[9px] text-slate-600 italic">Similarity of unique value propositions.
+                                    Higher scores indicate similar core differentiators.
                                 </p>
                                 <details class="text-[9px] text-slate-700 cursor-pointer">
-                                    <summary class="hover:text-slate-500 transition-colors">📊 계산 근거 보기</summary>
+                                    <summary class="hover:text-slate-500 transition-colors">📊 View Calculation Basis
+                                    </summary>
                                     <div class="mt-1 p-2 bg-slate-800/50 rounded-lg text-slate-500 space-y-1">
-                                        <p>• 핵심 기능/서비스 유사도 분석</p>
-                                        <p>• 기술 스택 및 아키텍처 비교</p>
-                                        <p>• 차별화 메시지 키워드 중복도</p>
-                                        <p>• 문제 해결 방식의 유사성</p>
+                                        <p>• Core feature/service similarity analysis</p>
+                                        <p>• Tech stack and architecture comparison</p>
+                                        <p>• Differentiation message keyword overlap</p>
+                                        <p>• Problem-solving approach similarity</p>
                                     </div>
                                 </details>
                             </div>
@@ -1814,15 +1843,17 @@
                                         class="h-full bg-purple-500 transition-all duration-1000" style="width: 0%">
                                     </div>
                                 </div>
-                                <p class="text-[9px] text-slate-600 italic">타겟 고객층 중복도. 높을수록 같은 고객을 두고 경쟁할 가능성이 높습니다.
+                                <p class="text-[9px] text-slate-600 italic">Target customer overlap. Higher scores mean
+                                    greater likelihood of competing for the same customers.
                                 </p>
                                 <details class="text-[9px] text-slate-700 cursor-pointer">
-                                    <summary class="hover:text-slate-500 transition-colors">📊 계산 근거 보기</summary>
+                                    <summary class="hover:text-slate-500 transition-colors">📊 View Calculation Basis
+                                    </summary>
                                     <div class="mt-1 p-2 bg-slate-800/50 rounded-lg text-slate-500 space-y-1">
-                                        <p>• 타겟 시장/세그먼트 일치도</p>
-                                        <p>• 고객 유형 (개발자, 기업, 개인) 비교</p>
-                                        <p>• 지리적 시장 중복</p>
-                                        <p>• 가격대 및 서비스 티어 유사성</p>
+                                        <p>• Target market/segment alignment</p>
+                                        <p>• Customer type comparison (developers, enterprises, individuals)</p>
+                                        <p>• Geographic market overlap</p>
+                                        <p>• Pricing tier and service level similarity</p>
                                     </div>
                                 </details>
                             </div>
@@ -1836,15 +1867,17 @@
                                     <div id="bar-detail-presence"
                                         class="h-full bg-cyan-500 transition-all duration-1000" style="width: 0%"></div>
                                 </div>
-                                <p class="text-[9px] text-slate-600 italic">시장 내 브랜드 인지도 및 점유율. 높을수록 강력한 시장 지배력을 가집니다.
+                                <p class="text-[9px] text-slate-600 italic">Brand awareness and market share. Higher
+                                    scores indicate stronger market dominance.
                                 </p>
                                 <details class="text-[9px] text-slate-700 cursor-pointer">
-                                    <summary class="hover:text-slate-500 transition-colors">📊 계산 근거 보기</summary>
+                                    <summary class="hover:text-slate-500 transition-colors">📊 View Calculation Basis
+                                    </summary>
                                     <div class="mt-1 p-2 bg-slate-800/50 rounded-lg text-slate-500 space-y-1">
-                                        <p>• 예상 매출 / TVL (해당시)</p>
-                                        <p>• 팀 규모 및 글로벌 사무실 수</p>
-                                        <p>• 누적 자금 조달액</p>
-                                        <p>• 미디어 노출 및 브랜드 인지도</p>
+                                        <p>• Estimated revenue / TVL (if applicable)</p>
+                                        <p>• Team size and global office count</p>
+                                        <p>• Cumulative funding raised</p>
+                                        <p>• Media exposure and brand recognition</p>
                                     </div>
                                 </details>
                             </div>
@@ -1859,15 +1892,17 @@
                                         class="h-full bg-emerald-500 transition-all duration-1000" style="width: 0%">
                                     </div>
                                 </div>
-                                <p class="text-[9px] text-slate-600 italic">성장 속도 및 확장 추세. 높을수록 시장 내 입지를 빠르게 넓히고 있습니다.
+                                <p class="text-[9px] text-slate-600 italic">Growth speed and expansion trend. Higher
+                                    scores mean rapid market position growth.
                                 </p>
                                 <details class="text-[9px] text-slate-700 cursor-pointer">
-                                    <summary class="hover:text-slate-500 transition-colors">📊 계산 근거 보기</summary>
+                                    <summary class="hover:text-slate-500 transition-colors">📊 View Calculation Basis
+                                    </summary>
                                     <div class="mt-1 p-2 bg-slate-800/50 rounded-lg text-slate-500 space-y-1">
-                                        <p>• 최근 펀딩 라운드 / 투자 유치</p>
-                                        <p>• 신규 제품 출시 빈도</p>
-                                        <p>• 채용 추세 및 팀 확장</p>
-                                        <p>• 뉴스/미디어 멘션 증가율</p>
+                                        <p>• Recent funding rounds / investment</p>
+                                        <p>• New product launch frequency</p>
+                                        <p>• Hiring trends and team expansion</p>
+                                        <p>• News/media mention growth rate</p>
                                     </div>
                                 </details>
                             </div>
