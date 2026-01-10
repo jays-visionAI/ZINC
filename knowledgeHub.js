@@ -1221,6 +1221,7 @@ function initializeAddSourceModal() {
     initializeUploadHandlers();
 }
 
+console.log('Knowledge Hub JS v1.0.3 - 30MB Limit Active');
 let selectedSourceFiles = [];
 
 function initializeUploadHandlers() {
@@ -1276,7 +1277,8 @@ function initializeUploadHandlers() {
         }
 
         const validFiles = files.filter(file => {
-            if (file.size > 30 * 1024 * 1024) {
+            const maxSize = 30 * 1024 * 1024; // 30MB
+            if (file.size > maxSize) {
                 showNotification(`File "${file.name}" exceeds 30MB limit.`, 'error');
                 return false;
             }
