@@ -1813,6 +1813,25 @@ class CompetitorRadarManager {
         this.carouselIndex = 0;
         this.visibleCards = 3;
         this.hasInsufficientData = false;
+        this.tempKnownCompetitors = [];
+        this.INDUSTRY_CATEGORIES = [
+            { id: 'saas_software', labelKey: 'market.industry.saas_software', icon: '💻' },
+            { id: 'fintech_finance', labelKey: 'market.industry.fintech_finance', icon: '💰' },
+            { id: 'blockchain_crypto', labelKey: 'market.industry.blockchain_crypto', icon: '⛓️' },
+            { id: 'ecommerce_retail', labelKey: 'market.industry.ecommerce_retail', icon: '🛒' },
+            { id: 'healthcare_bio', labelKey: 'market.industry.healthcare_bio', icon: '🏥' },
+            { id: 'ai_ml', labelKey: 'market.industry.ai_ml', icon: '🤖' },
+            { id: 'education_edtech', labelKey: 'market.industry.education_edtech', icon: '📚' },
+            { id: 'media_content', labelKey: 'market.industry.media_content', icon: '🎬' },
+            { id: 'logistics_mobility', labelKey: 'market.industry.logistics_mobility', icon: '🚚' },
+            { id: 'gaming_entertainment', labelKey: 'market.industry.gaming_entertainment', icon: '🎮' },
+            { id: 'real_estate', labelKey: 'market.industry.real_estate', icon: '🏠' },
+            { id: 'food_beverage', labelKey: 'market.industry.food_beverage', icon: '🍔' },
+            { id: 'travel_hospitality', labelKey: 'market.industry.travel_hospitality', icon: '✈️' },
+            { id: 'hr_recruiting', labelKey: 'market.industry.hr_recruiting', icon: '👥' },
+            { id: 'marketing_adtech', labelKey: 'market.industry.marketing_adtech', icon: '📢' },
+            { id: 'other', labelKey: 'market.industry.other', icon: '📝' }
+        ];
 
         this.dom = {
             grid: document.getElementById('rival-selection-grid'),
@@ -2226,34 +2245,21 @@ class CompetitorRadarManager {
             throw error;
         }
     }
-    // Industry categories for dropdown (using translation keys)
-    static INDUSTRY_CATEGORIES = [
-        { id: 'saas_software', labelKey: 'market.industry.saas_software', icon: '💻' },
-        { id: 'fintech_finance', labelKey: 'market.industry.fintech_finance', icon: '💰' },
-        { id: 'blockchain_crypto', labelKey: 'market.industry.blockchain_crypto', icon: '⛓️' },
-        { id: 'ecommerce_retail', labelKey: 'market.industry.ecommerce_retail', icon: '🛒' },
-        { id: 'healthcare_bio', labelKey: 'market.industry.healthcare_bio', icon: '🏥' },
-        { id: 'ai_ml', labelKey: 'market.industry.ai_ml', icon: '🤖' },
-        { id: 'education_edtech', labelKey: 'market.industry.education_edtech', icon: '📚' },
-        { id: 'media_content', labelKey: 'market.industry.media_content', icon: '🎬' },
-        { id: 'logistics_mobility', labelKey: 'market.industry.logistics_mobility', icon: '🚚' },
-        { id: 'gaming_entertainment', labelKey: 'market.industry.gaming_entertainment', icon: '🎮' },
-        { id: 'real_estate', labelKey: 'market.industry.real_estate', icon: '🏠' },
-        { id: 'food_beverage', labelKey: 'market.industry.food_beverage', icon: '🍔' },
-        { id: 'travel_hospitality', labelKey: 'market.industry.travel_hospitality', icon: '✈️' },
-        { id: 'hr_recruiting', labelKey: 'market.industry.hr_recruiting', icon: '👥' },
-        { id: 'marketing_adtech', labelKey: 'market.industry.marketing_adtech', icon: '📢' },
-        { id: 'other', labelKey: 'market.industry.other', icon: '📝' }
-    ];
 
-    // Temporary storage for known competitors during form editing
-    tempKnownCompetitors = [];
 
     showQuickBriefingForm(mainMessage, missingFields = []) {
         this.hasInsufficientData = true;
         this.tempKnownCompetitors = currentProjectData?.competitorBriefing?.knownCompetitors || [];
 
-        if (!this.dom.grid) return;
+        // Create or get modal
+        let modal = document.getElementById('qb-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'qb-modal';
+            modal.className = 'fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300';
+            document.body.appendChild(modal);
+        }
+        modal.classList.remove('hidden');
 
         // Pre-fill values from existing project data
         const existingBriefing = currentProjectData?.competitorBriefing || {};
@@ -2262,111 +2268,89 @@ class CompetitorRadarManager {
         const existingUSP = existingBriefing.usp || currentProjectData?.usp || '';
 
         // Build industry options using translation
-        const industryOptions = CompetitorRadarManager.INDUSTRY_CATEGORIES.map(cat =>
+        const industryOptions = this.INDUSTRY_CATEGORIES.map(cat =>
             `<option value="${cat.id}" ${existingIndustry === cat.id ? 'selected' : ''}>${cat.icon} ${t(cat.labelKey)}</option>`
         ).join('');
 
-        // Build known competitors list
-        const knownCompetitorsList = this.tempKnownCompetitors.map((c, idx) =>
-            `<div class="flex items-center gap-2 bg-slate-800 px-3 py-2 rounded-lg" data-idx="${idx}">
-                <span class="text-sm text-white">🏢 ${c.name}</span>
-                ${c.url ? `<span class="text-xs text-slate-500">(${c.url})</span>` : ''}
-                <button onclick="competitorRadar.removeKnownCompetitor(${idx})" class="ml-auto text-slate-500 hover:text-red-400 transition-colors">✕</button>
-            </div>`
-        ).join('');
-
-        this.dom.grid.innerHTML = `
-            <div class="w-full max-w-2xl mx-auto">
-                <div class="bg-slate-800/50 border border-indigo-500/30 rounded-2xl p-6 animate-in fade-in zoom-in-95 duration-300">
-                    <!-- Header -->
-                    <div class="flex items-center gap-3 mb-6">
-                        <div class="w-12 h-12 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white">
-                                <path d="M12 20h9"/>
-                                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+        modal.innerHTML = `
+            <div class="relative bg-slate-900 border border-indigo-500/30 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
+                <div class="p-6 border-b border-white/5 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white">
+                                <path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
                             </svg>
                         </div>
                         <div>
-                            <h3 class="text-lg font-bold text-white flex items-center gap-1.5"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-amber-400"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>${t('market.qb.title')}</h3>
-                            <p class="text-xs text-slate-400">${t('market.qb.subtitle')}</p>
+                            <h3 class="text-lg font-bold text-white">${t('market.qb.title')}</h3>
+                            <p class="text-xs text-slate-500">${t('market.qb.subtitle')}</p>
                         </div>
                     </div>
+                    <button onclick="document.getElementById('qb-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 transition-colors">✕</button>
+                </div>
 
-                    <!-- Form Fields -->
-                    <div class="space-y-4">
-                        <!-- Industry -->
+                <div class="p-6 space-y-5 overflow-y-auto max-h-[60vh]">
+                    <!-- Form Fields (Simplified for Modal) -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-bold text-slate-300 mb-2">
-                                🏭 ${t('market.qb.industry')} <span class="text-red-400">${t('market.qb.required')}</span>
-                            </label>
-                            <select id="qb-industry" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:border-indigo-500 focus:outline-none transition-colors">
+                            <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">${t('market.qb.industry')}</label>
+                            <select id="qb-industry" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-indigo-500 focus:outline-none transition-colors">
                                 <option value="">${t('market.qb.industryPlaceholder')}</option>
                                 ${industryOptions}
                             </select>
                             <input type="text" id="qb-industry-custom" 
-                                   class="hidden mt-2 w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none"
+                                   class="hidden mt-2 w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-slate-600 focus:border-indigo-500 focus:outline-none"
                                    placeholder="${t('market.qb.industryCustomPlaceholder')}">
                         </div>
-
-                        <!-- Target Audience -->
                         <div>
-                            <label class="block text-sm font-bold text-slate-300 mb-2">
-                                👥 ${t('market.qb.audience')} <span class="text-red-400">${t('market.qb.required')}</span>
-                            </label>
-                            <input type="text" id="qb-audience" 
-                                   value="${existingAudience}"
-                                   class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none"
+                            <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">${t('market.qb.audience')}</label>
+                            <input type="text" id="qb-audience" value="${existingAudience}"
+                                   class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-slate-600 focus:border-indigo-500 focus:outline-none"
                                    placeholder="${t('market.qb.audiencePlaceholder')}">
                         </div>
-
-                        <!-- USP -->
-                        <div>
-                            <label class="block text-sm font-bold text-slate-300 mb-2">
-                                💎 ${t('market.qb.usp')}
-                            </label>
-                            <textarea id="qb-usp" rows="2"
-                                      class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none resize-none"
-                                      placeholder="${t('market.qb.uspPlaceholder')}">${existingUSP}</textarea>
-                        </div>
-
-                        <!-- Known Competitors -->
-                        <div class="pt-4 border-t border-slate-700">
-                            <label class="block text-sm font-bold text-slate-300 mb-2 flex items-center gap-1.5">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-indigo-400"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-                                ${t('market.qb.knownCompetitors')} <span class="text-slate-500 font-normal">${t('market.qb.knownCompetitorsOptional')}</span>
-                            </label>
-                            <p class="text-xs text-slate-500 mb-3">${t('market.qb.knownCompetitorsHint')}</p>
-                            
-                            <div class="flex gap-2 mb-3">
-                                <input type="text" id="qb-competitor-input" 
-                                       class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none"
-                                       placeholder="${t('market.qb.competitorInputPlaceholder')}">
-                                <button onclick="competitorRadar.addKnownCompetitor()" 
-                                        class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold rounded-lg transition-colors">
-                                    + ${t('market.qb.add')}
-                                </button>
-                            </div>
-
-                            <div id="qb-competitors-list" class="space-y-2 max-h-32 overflow-y-auto">
-                                ${knownCompetitorsList || `<p class="text-xs text-slate-600 text-center py-2">${t('market.qb.noCompetitorsAdded')}</p>`}
-                            </div>
-                        </div>
                     </div>
 
-                    <!-- Actions -->
-                    <div class="flex gap-3 mt-6 pt-4 border-t border-slate-700">
-                        <button onclick="competitorRadar.cancelQuickBriefing()" 
-                                class="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-400 text-sm font-bold rounded-xl transition-colors">
-                            ${t('market.qb.cancel')}
-                        </button>
-                        <button onclick="competitorRadar.saveQuickBriefingAndScan()" 
-                                class="flex-1 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-sm font-bold rounded-xl shadow-lg shadow-indigo-500/20 transition-all">
-                            💾 ${t('market.qb.saveAndScan')}
-                        </button>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">${t('market.qb.usp')}</label>
+                        <textarea id="qb-usp" rows="2"
+                                  class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-slate-600 focus:border-indigo-500 focus:outline-none resize-none"
+                                  placeholder="${t('market.qb.uspPlaceholder')}">${existingUSP}</textarea>
                     </div>
+
+                    <div class="pt-2">
+                        <label class="block text-xs font-bold text-slate-400 mb-3 uppercase tracking-wider flex items-center justify-between">
+                            <span>${t('market.qb.knownCompetitors')}</span>
+                            <span class="text-[10px] font-normal lowercase opacity-50">${t('market.qb.knownCompetitorsOptional')}</span>
+                        </label>
+                        <div class="flex gap-2 mb-3">
+                            <input type="text" id="qb-competitor-input" 
+                                   class="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-white text-sm placeholder:text-slate-600 focus:border-indigo-500 focus:outline-none"
+                                   placeholder="${t('market.qb.competitorInputPlaceholder')}">
+                            <button onclick="competitorRadar.addKnownCompetitor()" 
+                                    class="px-4 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 text-sm font-bold rounded-xl border border-indigo-500/30 transition-all">
+                                + ${t('market.qb.add')}
+                            </button>
+                        </div>
+                        <div id="qb-competitors-list" class="flex flex-wrap gap-2">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-6 border-t border-white/5 bg-slate-900 flex items-center justify-end gap-3">
+                    <button onclick="document.getElementById('qb-modal').classList.add('hidden')" class="px-5 py-2.5 text-slate-400 hover:text-white text-sm font-bold transition-colors">
+                        ${t('market.qb.cancel')}
+                    </button>
+                    <button onclick="competitorRadar.saveQuickBriefingAndScan()" 
+                            class="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm font-black rounded-xl shadow-lg shadow-indigo-500/20 hover:scale-105 active:scale-95 transition-all setup-glow">
+                        ${t('market.qb.saveAndScan')}
+                    </button>
                 </div>
             </div>
         `;
+
+
+        this.updateKnownCompetitorsList();
 
         // Add event listener for industry dropdown change
         const industrySelect = document.getElementById('qb-industry');
@@ -2422,15 +2406,14 @@ class CompetitorRadarManager {
         if (!listEl) return;
 
         if (this.tempKnownCompetitors.length === 0) {
-            listEl.innerHTML = `<p class="text-xs text-slate-600 text-center py-2">${t('market.qb.noCompetitorsAdded')}</p>`;
+            listEl.innerHTML = `<p class="text-[10px] text-slate-600 w-full text-center py-2">${t('market.qb.noCompetitorsAdded')}</p>`;
             return;
         }
 
         listEl.innerHTML = this.tempKnownCompetitors.map((c, idx) =>
-            `<div class="flex items-center gap-2 bg-slate-800 px-3 py-2 rounded-lg animate-in fade-in duration-200" data-idx="${idx}">
-                <span class="text-sm text-white">🏢 ${c.name}</span>
-                ${c.url ? `<span class="text-xs text-slate-500 truncate max-w-[200px]">(${c.url})</span>` : ''}
-                <button onclick="competitorRadar.removeKnownCompetitor(${idx})" class="ml-auto text-slate-500 hover:text-red-400 transition-colors">✕</button>
+            `<div class="flex items-center gap-2 bg-slate-800 border border-slate-700 px-2.5 py-1.5 rounded-lg animate-in fade-in duration-200" data-idx="${idx}">
+                <span class="text-xs text-white">🏢 ${c.name}</span>
+                <button onclick="competitorRadar.removeKnownCompetitor(${idx})" class="ml-1 text-slate-500 hover:text-red-400 transition-colors">✕</button>
             </div>`
         ).join('');
     }
@@ -2517,15 +2500,18 @@ class CompetitorRadarManager {
             currentProjectData.usp = usp;
 
             // Re-trigger market scan
+            // Close modal
+            document.getElementById('qb-modal')?.classList.add('hidden');
+
             this.scanMarket(true);
-
         } catch (error) {
-            console.error('[QuickBriefing] Save failed:', error);
-            alert('저장에 실패했습니다: ' + error.message);
+            console.error('[CompetitorRadar] Error in saveQuickBriefingAndScan:', error);
+            showNotification('Failed to save research briefing.', 'error');
 
+            // Re-enable button
             if (saveBtn) {
                 saveBtn.disabled = false;
-                saveBtn.innerHTML = '💾 저장 후 경쟁사 찾기';
+                saveBtn.innerHTML = t('market.qb.saveAndScan');
             }
         }
     }
@@ -2762,7 +2748,7 @@ class CompetitorRadarManager {
     async stopAllTracking() {
         if (!currentProjectId) return;
 
-        const confirmed = confirm("Are you sure you want to stop tracking all competitors? Monitoring will be disabled.");
+        const confirmed = confirm("Are you sure you want to stop tracking all competitors? Monitoring will be disabled.\n(경쟁사 추적을 중지하시겠습니까? 모니터링이 비활성화됩니다.)");
         if (!confirmed) return;
 
         try {
@@ -2941,15 +2927,15 @@ class CompetitorRadarManager {
                             </div>
                         </div>
                         <div class="flex items-center gap-3">
-                            <span class="px-3 py-1.5 bg-emerald-500/20 text-emerald-400 text-[10px] font-black rounded-full border border-emerald-500/30 flex items-center gap-2">
-                                <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
-                                RADAR ACTIVE
-                            </span>
+                            <button onclick="window.competitorRadar.showQuickBriefingForm()" class="px-3 py-1.5 bg-indigo-500/10 text-indigo-400 text-[10px] font-bold rounded-lg border border-indigo-500/30 hover:bg-indigo-500/20 transition-all flex items-center gap-1.5">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                                Add Competitor (경쟁사 추가)
+                            </button>
                             <button onclick="window.competitorRadar.resetTracking()" class="px-3 py-1.5 bg-slate-800 text-slate-400 text-[10px] font-bold rounded-lg border border-slate-700 hover:border-indigo-500/50 hover:text-white transition-all">
                                 Change Targets
                             </button>
                             <button onclick="window.competitorRadar.stopAllTracking()" class="px-3 py-1.5 bg-slate-800/40 text-slate-500 text-[10px] font-bold rounded-lg border border-slate-800 hover:border-red-500/50 hover:text-red-400 transition-all">
-                                Stop Tracking
+                                Stop Tracking (추적 중지)
                             </button>
                         </div>
                     </div>
@@ -3265,7 +3251,7 @@ class CompetitorRadarManager {
                         <div class="h-4 w-px bg-slate-800"></div>
                         <button onclick="window.competitorRadar.clearSelection()" class="text-xs text-slate-500 hover:text-indigo-400 transition-colors flex items-center gap-1.5">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
-                            Unlock All
+                            Unlock All (록온 해제)
                         </button>
                     </div>
 

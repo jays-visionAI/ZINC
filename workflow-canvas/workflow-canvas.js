@@ -594,6 +594,13 @@ window.WorkflowCanvas = (function () {
             state.workflowId = workflowId;
             state.name = data.name;
             state.pipelineContext = data.pipelineContext || state.pipelineContext;
+            state.projectId = data.projectId || state.projectId;
+
+            // Update UI context if projectId found
+            if (state.projectId) {
+                updateProjectContext(state.projectId);
+            }
+
             state.nodes = data.nodes.map(n => ({
                 id: n.id,
                 type: n.type,
@@ -4430,11 +4437,14 @@ ${agentList}
         const projectId = state.projectId || state.pipelineContext || 'test-project';
         const runId = `run_${Date.now()}`;
 
-        console.warn(`[WorkflowCanvas] 🚀 Executing Agent: ${agentId} for Project ID: ${projectId}`);
+        console.warn(`[WorkflowCanvas] 🚀 Executing Agent: ${agentId} for Project ID: ${projectId} (Context: ${state.pipelineContext})`);
 
-        if (!projectId || projectId === state.pipelineContext) {
-            console.error('[WorkflowCanvas] ❌ Critical: Valid Project ID is missing. Using context as fallback is failing.');
-            return { success: false, error: '유효한 프로젝트를 선택해주세요. (현재 컨텍스트명이 ID로 사용되고 있습니다)' };
+        if (!projectId || projectId === '' || projectId === 'test-project' || projectId === state.pipelineContext) {
+            console.error('[WorkflowCanvas] ❌ Critical: Valid Project ID is missing.', { projectId, pipelineContext: state.pipelineContext });
+            return {
+                success: false,
+                error: `유효한 프로젝트를 선택해주세요. (현재 '${projectId}' 가 ID로 사용되고 있습니다. 우측 상단에서 프로젝트를 선택하세요.)`
+            };
         }
 
         // Build rich context from previous outputs
@@ -4455,8 +4465,8 @@ ${agentList}
             combinedSystemPrompt += `\n\n[ADDITIONAL INSTRUCTIONS]\n${node.data.instruction}`;
         }
 
-        const response = await executeSubAgent({
-            projectId: projectId || 'test-project',
+        const payload = {
+            projectId: projectId,
             teamId: 'workflow-test',
             runId: runId,
             subAgentId: agentId,
@@ -4467,7 +4477,11 @@ ${agentList}
             provider: getProviderFromModel(node.data.model) || 'openai',
             model: node.data.model || 'gpt-4o',
             temperature: parseFloat(node.data.temperature) || 0.7
-        });
+        };
+
+        console.log('[WorkflowCanvas] Calling executeSubAgent with payload:', payload);
+
+        const response = await executeSubAgent(payload);
 
         if (response.data && response.data.success) {
             return {
