@@ -1854,10 +1854,10 @@ class CompetitorRadarManager {
                     </svg>
                 </div>
                 <div class="text-center">
-                    <h3 class="text-lg font-bold text-white mb-2">경쟁사 분석 시작하기</h3>
+                    <h3 class="text-lg font-bold text-white mb-2">Start Competitor Analysis</h3>
                     <p class="text-sm text-slate-500 max-w-md">
-                        ZYNK AI를 사용하여 프로젝트와 관련된 경쟁사를 분석합니다.<br>
-                        분석 결과는 저장되어 다음 방문 시 자동으로 불러옵니다.
+                        Use ZYNK AI to analyze competitors related to your project.<br>
+                        Results are saved and automatically loaded on your next visit.
                     </p>
                 </div>
                 <button onclick="competitorRadar.scanMarket(true)" 
@@ -1872,9 +1872,9 @@ class CompetitorRadarManager {
                         <path d="m4.93 19.07 2.83-2.83"/>
                         <path d="m16.24 7.76 2.83-2.83"/>
                     </svg>
-                    ZYNK AI로 경쟁사 발견하기
+                    Discover Competitors with ZYNK AI
                 </button>
-                <p class="text-[10px] text-slate-600">분석에 약 10-20초 소요됩니다</p>
+                <p class="text-[10px] text-slate-600">Analysis takes approximately 10-20 seconds</p>
             </div>
         `;
     }
@@ -1908,7 +1908,7 @@ class CompetitorRadarManager {
 
         // Check if project is selected
         if (!currentProjectId || !currentProjectData) {
-            this.showInsufficientDataMessage('프로젝트를 먼저 선택해주세요.');
+            this.showInsufficientDataMessage('Please select a project first.');
             this.isScanning = false;
             return;
         }
@@ -1969,7 +1969,7 @@ class CompetitorRadarManager {
 
             if (!check.sufficient) {
                 this.showInsufficientDataMessage(
-                    `정보가 충분하지 못해 경쟁사를 찾지 못했습니다.`,
+                    `Insufficient information to find competitors.`,
                     check.missing
                 );
                 this.isScanning = false;
@@ -1985,8 +1985,8 @@ class CompetitorRadarManager {
 
             if (!competitors || competitors.length === 0) {
                 this.showInsufficientDataMessage(
-                    '경쟁사를 발견하지 못했습니다. 프로젝트 정보를 더 구체적으로 입력해주세요.',
-                    ['더 구체적인 산업 카테고리', '명확한 타겟 고객층 정의', '차별화된 USP 설명']
+                    'No competitors found. Please provide more specific project information.',
+                    ['More specific industry category', 'Clear target audience definition', 'Differentiated USP description']
                 );
                 this.isScanning = false;
                 return;
@@ -2012,7 +2012,7 @@ class CompetitorRadarManager {
         } catch (error) {
             console.error('[CompetitorRadar] AI Discovery failed:', error);
             this.showInsufficientDataMessage(
-                '경쟁사 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+                'An error occurred during competitor analysis. Please try again later.',
                 []
             );
         }
@@ -2624,7 +2624,7 @@ class CompetitorRadarManager {
             this.selectedRivals.delete(id);
         } else {
             if (this.selectedRivals.size >= 3) {
-                showNotification('최대 3개까지만 라이벌로 선정할 수 있습니다.', 'error');
+                showNotification('You can select up to 3 rivals maximum.', 'error');
                 return;
             }
             this.selectedRivals.add(id);
@@ -2847,7 +2847,7 @@ class CompetitorRadarManager {
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-400"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
                                 Trend Analysis
                             </h4>
-                            <p class="text-[10px] text-slate-500 mt-1">매일 오전 6시에 자동 업데이트됩니다</p>
+                            <p class="text-[10px] text-slate-500 mt-1">Auto-updates daily at 6 AM</p>
                         </div>
                     </div>
                     <div class="bg-slate-800/30 rounded-xl p-6 text-center">
@@ -2926,7 +2926,7 @@ class CompetitorRadarManager {
             const allCompetitors = data.competitors || [];
 
             if (allCompetitors.length === 0) {
-                showNotification('발견된 경쟁사가 없습니다. 새로 스캔해주세요.', 'warning');
+                showNotification('No competitors found. Please scan again.', 'warning');
                 return;
             }
 
@@ -2941,7 +2941,7 @@ class CompetitorRadarManager {
 
         } catch (error) {
             console.error('[CompetitorRadar] Error loading all candidates:', error);
-            showNotification('경쟁사 목록을 불러오는 데 실패했습니다.', 'error');
+            showNotification('Failed to load competitor list.', 'error');
         }
     }
 
@@ -2993,7 +2993,7 @@ class CompetitorRadarManager {
                 <div class="p-6 border-b border-white/5 flex items-center justify-between">
                     <div>
                         <h3 class="text-xl font-black text-white">Discovered Competitors</h3>
-                        <p class="text-sm text-slate-500">ZYNK AI가 발견한 모든 경쟁사 (${this.candidates.length}개)</p>
+                        <p class="text-sm text-slate-500">All competitors discovered by ZYNK AI (${this.candidates.length})</p>
                     </div>
                     <button onclick="document.getElementById('all-candidates-modal').classList.add('hidden')" class="w-10 h-10 bg-slate-800 hover:bg-slate-700 rounded-xl flex items-center justify-center text-white">✕</button>
                 </div>
@@ -3003,7 +3003,7 @@ class CompetitorRadarManager {
                     </div>
                 </div>
                 <div class="p-4 bg-slate-900/50 border-t border-white/5 text-center">
-                    <p class="text-[10px] text-slate-600">카드를 클릭하면 상세 정보를 볼 수 있습니다</p>
+                    <p class="text-[10px] text-slate-600">Click a card to view detailed information</p>
                 </div>
             </div>
         `;
@@ -3012,7 +3012,7 @@ class CompetitorRadarManager {
     }
 
     async resetTracking() {
-        if (!confirm('추적 대상을 변경하시겠습니까? 현재 추적 중인 경쟁사는 선택된 상태로 유지됩니다.')) return;
+        if (!confirm('Change tracking targets? Currently tracked competitors will remain selected.')) return;
 
         // Load all discovered competitors from project
         try {
@@ -3022,7 +3022,7 @@ class CompetitorRadarManager {
                 .get();
 
             if (!projectDoc.exists) {
-                showNotification('프로젝트 데이터를 불러올 수 없습니다.', 'error');
+                showNotification('Unable to load project data.', 'error');
                 return;
             }
 
@@ -3030,7 +3030,7 @@ class CompetitorRadarManager {
             const allCompetitors = data.competitors || [];
 
             if (allCompetitors.length === 0) {
-                showNotification('발견된 경쟁사가 없습니다. 새로 스캔해주세요.', 'warning');
+                showNotification('No competitors found. Please scan again.', 'warning');
                 this.showScanPrompt();
                 return;
             }
@@ -3073,11 +3073,11 @@ class CompetitorRadarManager {
             this.updateNavButtons();
             this.updateUI();
 
-            showNotification('경쟁사 목록을 불러왔습니다. 추적 대상을 변경하세요.', 'info');
+            showNotification('Competitor list loaded. Select your tracking targets.', 'info');
 
         } catch (error) {
             console.error('[CompetitorRadar] Error in resetTracking:', error);
-            showNotification('경쟁사 목록을 불러오는 데 실패했습니다.', 'error');
+            showNotification('Failed to load competitor list.', 'error');
         }
     }
 
@@ -3100,12 +3100,12 @@ class CompetitorRadarManager {
                 <div class="relative flex flex-col items-center text-center mb-10">
                     <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black tracking-widest uppercase mb-4">
                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                        추적 대상 변경 모드
+                        Change Target Mode
                     </div>
-                    <h1 class="text-3xl font-black text-white mb-3 tracking-tight">추적 대상 선택</h1>
+                    <h1 class="text-3xl font-black text-white mb-3 tracking-tight">Select Tracking Targets</h1>
                     <p class="text-slate-400 max-w-2xl text-sm leading-relaxed mb-4">
-                        추적할 경쟁사를 선택하거나 취소하세요. 현재 추적 중인 경쟁사는 <span class="text-emerald-400 font-bold">선택된 상태</span>로 표시됩니다.<br>
-                        변경 사항을 저장하려면 <span class="text-indigo-400 font-bold">LOCK TARGETS & START TRACKING</span> 버튼을 클릭하세요.
+                        Select or deselect competitors to track. Currently tracked rivals are shown as <span class="text-emerald-400 font-bold">selected</span>.<br>
+                        Click <span class="text-indigo-400 font-bold">LOCK TARGETS & START TRACKING</span> to save changes.
                     </p>
                 </div>
 
@@ -3397,9 +3397,9 @@ const competitorRadar = window.competitorRadar;
 
 // Expose manual add to global
 window.addCustomRival = function () {
-    const url = prompt('추가하고 싶은 경쟁사의 URL 혹은 브랜드 이름을 입력하세요:');
+    const url = prompt('Enter the URL or brand name of the competitor you want to add:');
     if (url) {
-        showNotification(`${url} 분석을 시작합니다... (ZYNK AI Processing)`, 'info');
+        showNotification(`Analyzing ${url}... (ZYNK AI Processing)`, 'info');
     }
 };
 
@@ -3452,7 +3452,7 @@ function closeCompetitorDetail() {
 
 async function submitRejectionFeedback() {
     if (!currentRejectionTarget || !currentProjectId) {
-        showNotification('프로젝트를 먼저 선택해주세요.', 'error');
+        showNotification('Please select a project first.', 'error');
         return;
     }
 
@@ -3465,7 +3465,7 @@ async function submitRejectionFeedback() {
     const additionalFeedback = document.getElementById('rejection-additional-feedback')?.value || '';
 
     if (selectedReasons.length === 0 && !additionalFeedback.trim()) {
-        showNotification('최소 1개의 사유를 선택하거나 의견을 입력해주세요.', 'error');
+        showNotification('Please select at least one reason or enter your feedback.', 'error');
         return;
     }
 
@@ -3517,11 +3517,11 @@ async function submitRejectionFeedback() {
         competitorRadar.removeCandidate(currentRejectionTarget.id);
 
         closeRejectionModal();
-        showNotification(`${currentRejectionTarget.name}이(가) 경쟁사 목록에서 제외되었습니다. 피드백이 저장되었습니다.`, 'success');
+        showNotification(`${currentRejectionTarget.name} has been excluded from the competitor list. Feedback saved.`, 'success');
 
     } catch (error) {
         console.error('[CompetitorRadar] Failed to save rejection feedback:', error);
-        showNotification('피드백 저장에 실패했습니다.', 'error');
+        showNotification('Failed to save feedback.', 'error');
     }
 }
 
