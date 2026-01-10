@@ -1327,6 +1327,16 @@ async function uploadSourceFile() {
             const file = selectedSourceFiles[i];
             btn.textContent = `Uploading (${i + 1}/${totalFiles})...`;
 
+            // Update specific file status in UI to "Uploading"
+            const listItems = document.querySelectorAll('#file-list-container > div');
+            if (listItems[i]) {
+                const statusBadge = listItems[i].querySelector('span:last-child');
+                if (statusBadge) {
+                    statusBadge.textContent = 'Uploading...';
+                    statusBadge.className = 'text-[9px] font-bold text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded uppercase animate-pulse';
+                }
+            }
+
             try {
                 const fileName = `${Date.now()}_${file.name}`;
                 const storagePath = `projects/${currentProjectId}/knowledgeSources/${fileName}`;
