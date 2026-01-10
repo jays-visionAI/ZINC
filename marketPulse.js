@@ -2751,6 +2751,36 @@ class CompetitorRadarManager {
         }
     }
 
+    clearSelection() {
+        if (this.selectedRivals.size === 0) return;
+        this.selectedRivals.clear();
+        this.renderCandidates();
+        this.updateUI();
+        showNotification('Selection cleared.', 'info');
+    }
+
+    async stopAllTracking() {
+        if (!currentProjectId) return;
+
+        const confirmed = confirm("Are you sure you want to stop tracking all competitors? Monitoring will be disabled.");
+        if (!confirmed) return;
+
+        try {
+            await firebase.firestore()
+                .collection('projects')
+                .doc(currentProjectId)
+                .collection('competitorTracking')
+                .doc('current')
+                .update({ status: 'archived', updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+
+            showNotification('Tracking stopped.', 'info');
+            this.showScanPrompt();
+        } catch (error) {
+            console.error('[CompetitorRadar] Error stopping tracking:', error);
+            showNotification('Failed to stop tracking.', 'error');
+        }
+    }
+
     async handleStartTracking() {
         if (this.selectedRivals.size === 0) return;
 
@@ -2917,6 +2947,9 @@ class CompetitorRadarManager {
                             </span>
                             <button onclick="window.competitorRadar.resetTracking()" class="px-3 py-1.5 bg-slate-800 text-slate-400 text-[10px] font-bold rounded-lg border border-slate-700 hover:border-indigo-500/50 hover:text-white transition-all">
                                 Change Targets
+                            </button>
+                            <button onclick="window.competitorRadar.stopAllTracking()" class="px-3 py-1.5 bg-slate-800/40 text-slate-500 text-[10px] font-bold rounded-lg border border-slate-800 hover:border-red-500/50 hover:text-red-400 transition-all">
+                                Stop Tracking
                             </button>
                         </div>
                     </div>
@@ -3228,6 +3261,11 @@ class CompetitorRadarManager {
                         <button onclick="window.competitorRadar.cancelReset()" class="text-xs text-slate-500 hover:text-red-400 transition-colors flex items-center gap-1.5">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                             Cancel
+                        </button>
+                        <div class="h-4 w-px bg-slate-800"></div>
+                        <button onclick="window.competitorRadar.clearSelection()" class="text-xs text-slate-500 hover:text-indigo-400 transition-colors flex items-center gap-1.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+                            Unlock All
                         </button>
                     </div>
 
