@@ -2358,8 +2358,11 @@ class CompetitorRadarManager {
                     </div>
                 </div>
 
-                <div onclick="competitorRadar.openCompetitorDetail(${idx}); event.stopPropagation();">
-                    <h4 class="text-base font-bold text-white leading-tight hover:text-indigo-400 transition-colors">${cand.name}</h4>
+                <div onclick="competitorRadar.openCompetitorDetail(${idx}); event.stopPropagation();" class="group/info">
+                    <h4 class="text-base font-bold text-white leading-tight group-hover/info:text-indigo-400 transition-colors flex items-center gap-2">
+                        ${cand.name}
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-0 group-hover/info:opacity-100 transition-opacity"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                    </h4>
                     <p class="text-[10px] text-slate-500 mt-1 line-clamp-2 italic">${cand.justification}</p>
                 </div>
 
@@ -2386,10 +2389,16 @@ class CompetitorRadarManager {
                     </div>
                 </div>
 
-                <div class="pt-2 border-t border-white/5 flex items-center justify-between">
-                    <span class="text-[10px] font-bold ${isSelected ? 'text-indigo-400' : 'text-slate-600'}">${isSelected ? '✓ SELECTED' : 'Click to Select'}</span>
-                    <div class="w-5 h-5 rounded-full border-2 ${isSelected ? 'bg-indigo-500 border-indigo-500' : 'border-slate-700'} flex items-center justify-center transition-all">
-                        ${isSelected ? '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+                <div class="pt-3 border-t border-white/5 flex items-center justify-between">
+                    <button onclick="competitorRadar.openCompetitorDetail(${idx}); event.stopPropagation();" class="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold flex items-center gap-1.5 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6"/><path d="M8 11h6"/></svg>
+                        VIEW ANALYSIS
+                    </button>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] font-bold ${isSelected ? 'text-indigo-400' : 'text-slate-600'}">${isSelected ? '✓ SELECTED' : 'SELECT'}</span>
+                        <div class="w-5 h-5 rounded-full border-2 ${isSelected ? 'bg-indigo-500 border-indigo-500' : 'border-slate-700'} flex items-center justify-center transition-all">
+                            ${isSelected ? '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+                        </div>
                     </div>
                 </div>
             `;
@@ -2490,8 +2499,8 @@ class CompetitorRadarManager {
         if (this.selectedRivals.has(id)) {
             this.selectedRivals.delete(id);
         } else {
-            if (this.selectedRivals.size >= 2) {
-                showNotification('최대 2개까지만 라이벌로 선정할 수 있습니다.', 'error');
+            if (this.selectedRivals.size >= 3) {
+                showNotification('최대 3개까지만 라이벌로 선정할 수 있습니다.', 'error');
                 return;
             }
             this.selectedRivals.add(id);
@@ -2516,12 +2525,12 @@ class CompetitorRadarManager {
         }
 
         if (this.dom.startBtn) {
-            this.dom.startBtn.disabled = count !== 2;
+            this.dom.startBtn.disabled = count !== 3;
         }
     }
 
     async handleStartTracking() {
-        if (this.selectedRivals.size !== 2) return;
+        if (this.selectedRivals.size !== 3) return;
 
         const originalText = this.dom.startBtn.innerHTML;
         this.dom.startBtn.disabled = true;
@@ -2545,7 +2554,7 @@ class CompetitorRadarManager {
                                 </div>
                                 <div>
                                     <h3 class="text-white font-bold">Continuous Radar Monitoring: ACTIVE</h3>
-                                    <p class="text-xs text-indigo-300/70">DeepSeek Tracking ${selectedData[0].name} & ${selectedData[1].name} • 24/7 Intelligence Sync</p>
+                                    <p class="text-xs text-indigo-300/70">DeepSeek Tracking ${selectedData.map(d => d.name).join(' & ')} • 24/7 Intelligence Sync</p>
                                 </div>
                             </div>
                             <div class="flex gap-2">
@@ -2627,6 +2636,12 @@ function closeCompetitorDetail() {
     if (modal) {
         modal.classList.add('hidden');
         document.body.style.overflow = '';
+
+        // Reset bars for next animation
+        ['usp', 'audience', 'presence', 'momentum'].forEach(id => {
+            const bar = document.getElementById(`bar-detail-${id}`);
+            if (bar) bar.style.width = '0%';
+        });
     }
 }
 
@@ -2781,7 +2796,7 @@ function removeKeywordAtIndex(index) {
 function clearAISuggestions() {
     const container = document.getElementById('ai-suggestions-container');
     if (container) {
-        container.innerHTML = '<div class="text-xs text-slate-600 italic py-2">Click refresh to generate suggestions using DeepSeek V3.</div>';
+        container.innerHTML = '<div class="text-xs text-slate-600 italic py-2">Powered by ZYNK AI</div>';
     }
 }
 
@@ -2796,7 +2811,7 @@ async function generateAISuggestions() {
     if (icon) icon.classList.add('animate-spin');
     if (btn) btn.disabled = true;
     container.innerHTML = `
-        <div class="flex items-center gap-3 px-2 py-2">
+        <div class="flex items-center justify-center gap-3 px-2 py-2 w-full">
             <div class="w-4 h-4 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin"></div>
             <span class="text-xs text-slate-500 font-medium">Analyzing project DNA and market trends...</span>
         </div>
