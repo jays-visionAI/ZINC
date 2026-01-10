@@ -2815,30 +2815,162 @@ class CompetitorRadarManager {
                     </div>
                 </div>
                 
-                <!-- Footer Stats -->
-                <div class="px-6 py-4 bg-slate-900/50 border-t border-white/5 flex flex-wrap items-center justify-between gap-4">
-                    <div class="flex items-center gap-6">
-                        <div class="text-center">
-                            <div class="text-lg font-black text-white">${selectedData.length}</div>
-                            <div class="text-[9px] text-slate-500 uppercase">Rivals Tracked</div>
-                        </div>
-                        <div class="h-8 w-px bg-slate-800"></div>
-                        <div class="text-center">
-                            <div class="text-lg font-black text-indigo-400">${Math.round(selectedData.reduce((a, b) => a + b.matchScore, 0) / selectedData.length)}%</div>
-                            <div class="text-[9px] text-slate-500 uppercase">Avg Match</div>
-                        </div>
-                        <div class="h-8 w-px bg-slate-800"></div>
-                        <div class="text-center">
-                            <div class="text-lg font-black text-emerald-400">--</div>
-                            <div class="text-[9px] text-slate-500 uppercase">Next Update</div>
+                <!-- Trend Section Placeholder (will be populated by loadTrackingHistory) -->
+                <div id="tracking-trend-section" class="p-6 border-t border-white/5">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h4 class="text-sm font-bold text-white flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-400"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                                Trend Analysis
+                            </h4>
+                            <p class="text-[10px] text-slate-500 mt-1">매일 오전 6시에 자동 업데이트됩니다</p>
                         </div>
                     </div>
-                    <div class="text-[10px] text-slate-600">
-                        Started: ${new Date().toLocaleString()}
+                    <div class="bg-slate-800/30 rounded-xl p-6 text-center">
+                        <div class="text-slate-600 text-xs">
+                            <p class="mb-2">📊 트렌드 데이터가 수집되면 여기에 표시됩니다</p>
+                            <p class="text-[10px] text-slate-700">첫 번째 정기 업데이트 후 경쟁사 점수 변화를 확인할 수 있습니다</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Footer Stats -->
+                <div class="px-6 py-4 bg-slate-900/50 border-t border-white/5">
+                    <div class="flex flex-wrap items-center justify-between gap-4">
+                        <div class="flex items-center gap-6">
+                            <div class="text-center">
+                                <div class="text-lg font-black text-white">${selectedData.length}</div>
+                                <div class="text-[9px] text-slate-500 uppercase">Rivals Tracked</div>
+                            </div>
+                            <div class="h-8 w-px bg-slate-800"></div>
+                            <div class="text-center">
+                                <div class="text-lg font-black text-indigo-400">${Math.round(selectedData.reduce((a, b) => a + b.matchScore, 0) / selectedData.length)}%</div>
+                                <div class="text-[9px] text-slate-500 uppercase">Avg Match</div>
+                            </div>
+                            <div class="h-8 w-px bg-slate-800"></div>
+                            <div class="text-center">
+                                <div class="text-lg font-black text-emerald-400">${this.calculateNextUpdateTime()}</div>
+                                <div class="text-[9px] text-slate-500 uppercase">Next Update</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <button onclick="window.competitorRadar.showAllCandidates()" class="px-3 py-1.5 bg-indigo-500/10 text-indigo-400 text-[10px] font-bold rounded-lg border border-indigo-500/30 hover:bg-indigo-500/20 transition-all flex items-center gap-1.5">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                                View All Discovered
+                            </button>
+                            <span class="text-[10px] text-slate-600">Started: ${new Date().toLocaleString()}</span>
+                        </div>
                     </div>
                 </div>
             </div>
         `;
+    }
+
+    calculateNextUpdateTime() {
+        const now = new Date();
+        const nextUpdate = new Date();
+        nextUpdate.setHours(6, 0, 0, 0); // 6 AM KST
+
+        // If it's already past 6 AM today, set to tomorrow
+        if (now.getHours() >= 6) {
+            nextUpdate.setDate(nextUpdate.getDate() + 1);
+        }
+
+        const diffMs = nextUpdate - now;
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+        if (diffHours > 0) {
+            return `${diffHours}h ${diffMins}m`;
+        }
+        return `${diffMins}m`;
+    }
+
+    async showAllCandidates() {
+        // Load all discovered competitors from project cache
+        if (!currentProjectId) return;
+
+        try {
+            const projectDoc = await firebase.firestore()
+                .collection('projects')
+                .doc(currentProjectId)
+                .get();
+
+            if (!projectDoc.exists) return;
+
+            const data = projectDoc.data();
+            const allCompetitors = data.competitors || [];
+
+            if (allCompetitors.length === 0) {
+                showNotification('발견된 경쟁사가 없습니다. 새로 스캔해주세요.', 'warning');
+                return;
+            }
+
+            // Update candidates and show the selection view
+            this.candidates = allCompetitors.map((c, i) => ({
+                ...c,
+                id: c.id || `rival-${i + 1}`
+            }));
+
+            // Show modal with all candidates
+            this.showCandidatesModal();
+
+        } catch (error) {
+            console.error('[CompetitorRadar] Error loading all candidates:', error);
+            showNotification('경쟁사 목록을 불러오는 데 실패했습니다.', 'error');
+        }
+    }
+
+    showCandidatesModal() {
+        // Create or update modal
+        let modal = document.getElementById('all-candidates-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'all-candidates-modal';
+            modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4';
+            document.body.appendChild(modal);
+        }
+
+        const candidatesHtml = this.candidates.map((cand, idx) => `
+            <div class="bg-slate-800/50 border border-white/5 rounded-2xl p-4 hover:border-indigo-500/30 transition-all cursor-pointer" onclick="window.competitorRadar.openCompetitorDetail(${idx})">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-black">
+                            ${cand.matchScore}%
+                        </div>
+                        <div>
+                            <h4 class="text-white font-bold">${cand.name}</h4>
+                            <span class="text-[10px] text-slate-500">${cand.mainService || 'N/A'}</span>
+                        </div>
+                    </div>
+                    ${this.selectedRivals.has(cand.id) ? '<span class="text-[10px] text-emerald-400 font-bold px-2 py-1 bg-emerald-500/20 rounded-full">TRACKING</span>' : ''}
+                </div>
+                <p class="text-[10px] text-slate-500 italic line-clamp-2">${cand.justification || ''}</p>
+            </div>
+        `).join('');
+
+        modal.innerHTML = `
+            <div class="fixed inset-0 bg-black/80 backdrop-blur-sm" onclick="document.getElementById('all-candidates-modal').classList.add('hidden')"></div>
+            <div class="relative bg-slate-900 border border-white/10 rounded-3xl max-w-4xl w-full max-h-[80vh] overflow-hidden shadow-2xl">
+                <div class="p-6 border-b border-white/5 flex items-center justify-between">
+                    <div>
+                        <h3 class="text-xl font-black text-white">Discovered Competitors</h3>
+                        <p class="text-sm text-slate-500">ZYNK AI가 발견한 모든 경쟁사 (${this.candidates.length}개)</p>
+                    </div>
+                    <button onclick="document.getElementById('all-candidates-modal').classList.add('hidden')" class="w-10 h-10 bg-slate-800 hover:bg-slate-700 rounded-xl flex items-center justify-center text-white">✕</button>
+                </div>
+                <div class="p-6 max-h-[60vh] overflow-y-auto">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        ${candidatesHtml}
+                    </div>
+                </div>
+                <div class="p-4 bg-slate-900/50 border-t border-white/5 text-center">
+                    <p class="text-[10px] text-slate-600">카드를 클릭하면 상세 정보를 볼 수 있습니다</p>
+                </div>
+            </div>
+        `;
+
+        modal.classList.remove('hidden');
     }
 
     resetTracking() {
