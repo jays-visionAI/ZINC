@@ -100,6 +100,57 @@
         font-weight: 600;
         color: #16e0bd;
     }
+
+    /* Workflow ID Badge Styles */
+    .workflow-card-id-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 3px 8px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        user-select: none;
+    }
+
+    .workflow-card-id-badge:hover {
+        background: rgba(0, 240, 255, 0.1);
+        border-color: rgba(0, 240, 255, 0.3);
+    }
+
+    .workflow-card-id-badge.copy-success {
+        background: rgba(22, 224, 189, 0.15);
+        border-color: rgba(22, 224, 189, 0.4);
+        transform: scale(1.02);
+    }
+
+    .id-label {
+        font-size: 10px;
+        font-weight: 700;
+        color: rgba(255, 255, 255, 0.4);
+        text-transform: uppercase;
+    }
+
+    .id-value {
+        font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.8);
+        max-width: 100px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .copy-icon {
+        font-size: 12px;
+        transition: transform 0.2s ease;
+    }
+
+    .workflow-card-id-badge:active .copy-icon {
+        transform: scale(0.8);
+    }
 </style>
 
 <div class="admin-chatbot-container">

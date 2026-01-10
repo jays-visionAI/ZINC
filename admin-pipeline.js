@@ -176,6 +176,11 @@ function renderWorkflowCards(context, workflows) {
                 <h5>${wf.name || 'Untitled Workflow'}</h5>
             </div>
             <div class="workflow-card-meta">
+                <span class="workflow-card-id-badge" onclick="copyWorkflowId('${wf.id}', event)" title="Click to copy ID">
+                    <span class="id-label">ID:</span>
+                    <span class="id-value">${wf.id}</span>
+                    <span class="copy-icon">📋</span>
+                </span>
                 <span class="workflow-card-time">
                     <span>🕐</span>
                     <span>${formatRelativeTime(wf.createdAt)}</span>
@@ -218,18 +223,46 @@ function renderWorkflowCards(context, workflows) {
 
 function formatRelativeTime(timestamp) {
     if (!timestamp) return '방금 전';
-    const now = new Date();
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
-    if (diffMins < 1) return '방금 전';
-    if (diffMins < 60) return `${diffMins}분 전`;
-    if (diffHours < 24) return `${diffHours}시간 전`;
-    if (diffDays < 7) return `${diffDays}일 전`;
+    const now = new Date();
+    const diff = Math.floor((now - date) / 1000);
+
+    if (diff < 60) return '방금 전';
+    if (diff < 3600) return `${Math.floor(diff / 60)}분 전`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전`;
+    if (diff < 604800) return `${Math.floor(diff / 86400)}일 전`;
     return date.toLocaleDateString('ko-KR');
 }
+
+/**
+ * 📋 Copy Workflow ID to Clipboard
+ */
+window.copyWorkflowId = function (id, event) {
+    if (event) event.stopPropagation();
+
+    navigator.clipboard.writeText(id).then(() => {
+        // Find the badge and show success state
+        const badge = event.currentTarget || document.querySelector(`[data-workflow-id="${id}"] .workflow-card-id-badge`);
+        if (badge) {
+            badge.classList.add('copy-success');
+            const iconEl = badge.querySelector('.copy-icon');
+            if (iconEl) iconEl.innerHTML = '✅';
+
+            setTimeout(() => {
+                badge.classList.remove('copy-success');
+                if (iconEl) iconEl.innerHTML = '📋';
+            }, 1000);
+        }
+
+        if (typeof showNotification === 'function') {
+            showNotification('Workflow ID copied to clipboard!', 'success');
+        } else {
+            console.log('Workflow ID copied:', id);
+        }
+    }).catch(err => {
+        console.error('Failed to copy code:', err);
+    });
+};
 
 // Global workflow action functions
 window.openWorkflowCanvas = function (context) {
