@@ -3083,15 +3083,15 @@ async function generateSummary() {
 
     try {
         summaryTitle.textContent = 'Analyzing Deep Brand Intel...';
-        summaryContent.textContent = 'DeepSeek R1 is synthesizing project brief and active sources...';
+        summaryContent.textContent = 'DeepSeek V3 is synthesizing project brief and active sources...';
 
         const projectInfo = `
 [PROJECT BRIEF]
-Name: ${currentProject.name || 'Untitled'}
+Name: ${currentProject.projectName || currentProject.name || currentProject.brandName || 'Untitled'}
 Vision: ${currentProject.vision || 'N/A'}
-Audience: ${currentProject.targetAudience || 'N/A'}
+Audience: ${currentProject.targetAudience || currentProject.audience || 'N/A'}
 Tone: ${currentProject.tone || 'Professional'}
-Industry: ${currentProject.industry || 'N/A'}
+Industry: ${currentProject.industry || currentProject.category || 'N/A'}
 `;
 
         const sourceContext = activeSources.map(s => {
@@ -3125,7 +3125,7 @@ SUGGESTED QUESTIONS: (3개의 추천 질문을 한 줄씩 작성)
             runId: 'ks-' + Date.now(),
             taskPrompt: taskPrompt,
             systemPrompt: systemPrompt,
-            model: 'deepseek-reasoner',
+            model: 'deepseek-chat',
             provider: 'deepseek',
             temperature: 0.3,
             previousOutputs: [] // Provide empty array if no previous history
@@ -3196,6 +3196,7 @@ SUGGESTED QUESTIONS: (3개의 추천 질문을 한 줄씩 작성)
             createdBy: currentUser?.uid
         };
 
+        const db = firebase.firestore();
         const docRef = await db.collection('projects').doc(currentProjectId)
             .collection('brandSummaries').add(summaryData);
 

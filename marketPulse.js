@@ -1950,7 +1950,7 @@ class CompetitorRadarManager {
                         Results are saved and automatically loaded on your next visit.
                     </p>
                 </div>
-                <button onclick="competitorRadar.scanMarket(true)" 
+                <button onclick="competitorRadar.showQuickBriefingForm()" 
                     class="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2 setup-glow">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 2v4"/>
@@ -3188,10 +3188,11 @@ class CompetitorRadarManager {
                 </div>
 
                 <div class="relative flex flex-col items-center text-center mb-10">
-                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black tracking-widest uppercase mb-4">
+                    <button onclick="competitorRadar.showQuickBriefingForm()" 
+                        class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black tracking-widest uppercase mb-4 hover:bg-amber-500/20 transition-all cursor-pointer">
                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                        Change Target Mode
-                    </div>
+                        Edit Research Briefing
+                    </button>
                     <h1 class="text-3xl font-black text-white mb-3 tracking-tight">Select Tracking Targets</h1>
                     <p class="text-slate-400 max-w-2xl text-sm leading-relaxed mb-4">
                         Select or deselect competitors to track. Currently tracked rivals are shown as <span class="text-emerald-400 font-bold">selected</span>.<br>
