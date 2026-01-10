@@ -2329,6 +2329,10 @@ class CompetitorRadarManager {
         if (!this.dom.grid) return;
         this.dom.grid.innerHTML = '';
 
+        // Update candidate count in the header
+        const candCountEl = document.getElementById('radar-cand-count');
+        if (candCountEl) candCountEl.textContent = this.candidates.length;
+
         this.candidates.forEach((cand, idx) => {
             const card = document.createElement('div');
             card.className = `radar-card-wrapper match-card rounded-2xl p-5 cursor-pointer flex flex-col gap-3 animate-in fade-in zoom-in duration-500`;
@@ -2354,8 +2358,8 @@ class CompetitorRadarManager {
                     </div>
                 </div>
 
-                <div>
-                    <h4 class="text-base font-bold text-white leading-tight">${cand.name}</h4>
+                <div onclick="competitorRadar.openCompetitorDetail(${idx}); event.stopPropagation();">
+                    <h4 class="text-base font-bold text-white leading-tight hover:text-indigo-400 transition-colors">${cand.name}</h4>
                     <p class="text-[10px] text-slate-500 mt-1 line-clamp-2 italic">${cand.justification}</p>
                 </div>
 
@@ -2409,6 +2413,47 @@ class CompetitorRadarManager {
         });
 
         this.applyCarouselTransform();
+    }
+
+    openCompetitorDetail(idx) {
+        const cand = this.candidates[idx];
+        if (!cand) return;
+
+        const modal = document.getElementById('competitor-detail-modal');
+        if (!modal) return;
+
+        // Fill data
+        document.getElementById('detail-name').textContent = cand.name;
+        document.getElementById('detail-match-score').textContent = `${cand.matchScore}%`;
+
+        const websiteEl = document.getElementById('detail-website');
+        if (cand.website) {
+            websiteEl.href = cand.website.startsWith('http') ? cand.website : `https://${cand.website}`;
+            websiteEl.classList.remove('hidden');
+        } else {
+            websiteEl.classList.add('hidden');
+        }
+
+        document.getElementById('detail-ceo').textContent = cand.ceo || 'Lack of Data';
+        document.getElementById('detail-service').textContent = cand.mainService || 'Lack of Data';
+        document.getElementById('detail-address').textContent = cand.address || 'Lack of Data';
+        document.getElementById('detail-product').textContent = cand.product || 'Lack of Data';
+        document.getElementById('detail-ai-comment').textContent = cand.aiComment || 'No detailed AI commentary available for this competitor.';
+
+        // Metrics Labels
+        document.getElementById('label-detail-usp').textContent = `${cand.uspOverlap}%`;
+        document.getElementById('label-detail-audience').textContent = `${cand.audienceProximity}%`;
+        document.getElementById('label-detail-presence').textContent = `${cand.marketPresence}%`;
+        document.getElementById('label-detail-momentum').textContent = `${cand.growthMomentum}%`;
+
+        // Animate Bars
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            document.getElementById('bar-detail-usp').style.width = `${cand.uspOverlap}%`;
+            document.getElementById('bar-detail-audience').style.width = `${cand.audienceProximity}%`;
+            document.getElementById('bar-detail-presence').style.width = `${cand.marketPresence}%`;
+            document.getElementById('bar-detail-momentum').style.width = `${cand.growthMomentum}%`;
+        }, 100);
     }
 
     applyCarouselTransform() {
@@ -2575,6 +2620,14 @@ function closeRejectionModal() {
         document.body.style.overflow = '';
     }
     currentRejectionTarget = null;
+}
+
+function closeCompetitorDetail() {
+    const modal = document.getElementById('competitor-detail-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+        document.body.style.overflow = '';
+    }
 }
 
 async function submitRejectionFeedback() {
@@ -2874,3 +2927,4 @@ window.generateAISuggestions = generateAISuggestions;
 window.openRejectionModal = openRejectionModal;
 window.closeRejectionModal = closeRejectionModal;
 window.submitRejectionFeedback = submitRejectionFeedback;
+window.closeCompetitorDetail = closeCompetitorDetail;

@@ -502,7 +502,8 @@
                     <h1 class="text-3xl font-black text-white mb-3 tracking-tight neon-text-glow">Strategic Competitor
                         Radar</h1>
                     <p class="text-slate-400 max-w-2xl text-sm leading-relaxed mb-4">
-                        ZYNK AI가 프로젝트 브리프를 분석하여 시장 위협이 되는 8개의 예비 경쟁자를 발견했습니다. <br>
+                        ZYNK AI가 프로젝트 브리프를 분석하여 시장 위협이 되는 <span id="radar-cand-count"
+                            class="text-white font-black">---</span>개의 예비 경쟁자를 발견했습니다. <br>
                         <span class="text-indigo-400 font-bold">4대 핵심 지표</span>를 기반으로 <span
                             class="text-indigo-400 font-bold">운명의 라이벌 2곳</span>을 선택하여 24시간 추적을 시작하세요.
                     </p>
@@ -1644,6 +1645,146 @@
 
                 </div>
 
+            </div>
+        </div>
+    </div>
+    <!-- 🏢 COMPETITOR DETAIL MODAL -->
+    <div id="competitor-detail-modal" class="fixed inset-0 z-[110] hidden">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-md" onclick="closeCompetitorDetail()"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl p-4">
+            <div
+                class="bg-slate-900 border border-slate-700/50 rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
+                <!-- Header -->
+                <div class="relative h-44 bg-gradient-to-br from-indigo-600/20 to-purple-600/20 flex items-end p-8">
+                    <div class="absolute top-6 right-6 flex gap-2">
+                        <button onclick="closeCompetitorDetail()"
+                            class="w-10 h-10 bg-black/20 hover:bg-black/40 backdrop-blur-md rounded-xl flex items-center justify-center text-white transition-all">✕</button>
+                    </div>
+                    <div class="flex items-center gap-6">
+                        <div id="detail-score-circle"
+                            class="w-20 h-20 rounded-2xl bg-slate-900 border border-indigo-500/50 flex flex-col items-center justify-center shadow-lg">
+                            <span class="text-[10px] text-slate-500 font-black uppercase tracking-tighter">Match</span>
+                            <span id="detail-match-score" class="text-2xl font-black text-indigo-400">--%</span>
+                        </div>
+                        <div>
+                            <h2 id="detail-name" class="text-3xl font-black text-white tracking-tight">Competitor Name
+                            </h2>
+                            <a id="detail-website" href="#" target="_blank"
+                                class="text-indigo-400 text-sm hover:underline flex items-center gap-1.5 mt-1">
+                                <span>Visit Website</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                                    <polyline points="15 3 21 3 21 9" />
+                                    <line x1="10" y1="14" x2="21" y2="3" />
+                                </svg>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Content -->
+                <div class="p-8 grid grid-cols-1 md:grid-cols-2 gap-8 max-h-[70vh] overflow-y-auto">
+                    <!-- Left: Info -->
+                    <div class="space-y-6">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-slate-800/40 p-4 rounded-2xl border border-white/5">
+                                <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1">
+                                    Representative</p>
+                                <p id="detail-ceo" class="text-slate-200 font-bold">Lack of Data</p>
+                            </div>
+                            <div class="bg-slate-800/40 p-4 rounded-2xl border border-white/5">
+                                <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1">Main
+                                    Service</p>
+                                <p id="detail-service" class="text-slate-200 font-bold truncate">Lack of Data</p>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-800/40 p-4 rounded-2xl border border-white/5">
+                            <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1">Legal Address
+                            </p>
+                            <p id="detail-address" class="text-slate-200 font-medium text-sm">Lack of Data</p>
+                        </div>
+
+                        <div class="bg-slate-800/40 p-4 rounded-2xl border border-white/5">
+                            <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1">Key Product
+                            </p>
+                            <p id="detail-product" class="text-slate-200 font-medium text-sm">Lack of Data</p>
+                        </div>
+                    </div>
+
+                    <!-- Right: Metrics & AI Analysis -->
+                    <div class="space-y-6">
+                        <div class="bg-indigo-500/5 p-5 rounded-2xl border border-indigo-500/20">
+                            <p
+                                class="text-[10px] text-indigo-400 font-black uppercase tracking-widest mb-4 flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+                                    <line x1="9" y1="9" x2="9.01" y2="9" />
+                                    <line x1="15" y1="9" x2="15.01" y2="9" />
+                                </svg>
+                                AI Strategic Commentary
+                            </p>
+                            <p id="detail-ai-comment" class="text-slate-300 text-sm leading-relaxed italic">Analyzing
+                                competitor threat vectors...</p>
+                        </div>
+
+                        <div class="space-y-4">
+                            <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1">4-Core
+                                Analysis Metrics</p>
+                            <!-- USP -->
+                            <div class="space-y-1.5">
+                                <div class="flex justify-between text-[11px] font-bold">
+                                    <span class="text-slate-400">USP Overlap</span>
+                                    <span id="label-detail-usp" class="text-indigo-400">0%</span>
+                                </div>
+                                <div class="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                                    <div id="bar-detail-usp" class="h-full bg-indigo-500 transition-all duration-1000"
+                                        style="width: 0%"></div>
+                                </div>
+                            </div>
+                            <!-- Audience -->
+                            <div class="space-y-1.5">
+                                <div class="flex justify-between text-[11px] font-bold">
+                                    <span class="text-slate-400">Audience Proximity</span>
+                                    <span id="label-detail-audience" class="text-purple-400">0%</span>
+                                </div>
+                                <div class="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                                    <div id="bar-detail-audience"
+                                        class="h-full bg-purple-500 transition-all duration-1000" style="width: 0%">
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Presence -->
+                            <div class="space-y-1.5">
+                                <div class="flex justify-between text-[11px] font-bold">
+                                    <span class="text-slate-400">Market Presence</span>
+                                    <span id="label-detail-presence" class="text-cyan-400">0%</span>
+                                </div>
+                                <div class="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                                    <div id="bar-detail-presence"
+                                        class="h-full bg-cyan-500 transition-all duration-1000" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            <!-- Momentum -->
+                            <div class="space-y-1.5">
+                                <div class="flex justify-between text-[11px] font-bold">
+                                    <span class="text-slate-400">Growth Momentum</span>
+                                    <span id="label-detail-momentum" class="text-emerald-400">0%</span>
+                                </div>
+                                <div class="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                                    <div id="bar-detail-momentum"
+                                        class="h-full bg-emerald-500 transition-all duration-1000" style="width: 0%">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

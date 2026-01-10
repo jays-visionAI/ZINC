@@ -1043,20 +1043,26 @@ The user has identified these as competitors. Include them in your analysis and 
 ${context.knownCompetitors.map(c => `- ${c.name}${c.url ? ` (${c.url})` : ''}`).join('\n')}` : ''}
 
 === TASK ===
-Identify 5-8 potential competitors and calculate their match scores using the structured methodology.
+Identify up to 10 potential competitors (minimum 3, ideally 10 if possible) and calculate their match scores using the structured methodology.
+For each competitor, provide detailed company information including their representative/CEO, address, main services, and products.
 
 RESPOND WITH THIS EXACT JSON STRUCTURE:
 {
   "competitors": [
     {
       "name": "Company Name",
+      "website": "https://example.com",
+      "ceo": "Representative/CEO Name",
+      "address": "Legal/Headquarters Address",
+      "mainService": "Core service or category",
+      "product": "Specific key products or solutions",
       "matchScore": 85,
       "uspOverlap": 80,
       "audienceProximity": 75,
       "marketPresence": 70,
       "growthMomentum": 65,
-      "justification": "한국어로 이 회사가 왜 경쟁사인지 2-3문장으로 설명",
-      "website": "https://example.com"
+      "justification": "Why they match (1-2 sentences in Korean)",
+      "aiComment": "Strategic advice or competitive threat analysis (2-3 sentences in Korean)"
     }
   ]
 }
@@ -1112,19 +1118,24 @@ Remember: matchScore = (uspOverlap × 0.35) + (audienceProximity × 0.30) + (mar
                 );
 
                 return {
+                    id: `rival-${idx + 1}`,
                     name: c.name.trim(),
-                    matchScore: calculatedScore, // Use recalculated score
+                    matchScore: calculatedScore,
+                    website: c.website || null,
+                    ceo: c.ceo || null,
+                    address: c.address || null,
+                    mainService: c.mainService || null,
+                    product: c.product || null,
                     uspOverlap,
                     audienceProximity,
                     marketPresence,
                     growthMomentum,
                     justification: c.justification || '분석 결과 경쟁 관계로 판단됨',
-                    website: c.website || null
+                    aiComment: c.aiComment || null
                 };
             })
-            // Sort by matchScore descending (highest first)
             .sort((a, b) => b.matchScore - a.matchScore)
-            .slice(0, 8); // Max 8 competitors
+            .slice(0, 10);
 
         // Save to Firestore for caching
         if (validCompetitors.length > 0) {
