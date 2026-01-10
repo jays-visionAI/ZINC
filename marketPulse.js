@@ -75,6 +75,18 @@ async function init() {
     renderAIActions();
     setupEventListeners();
 
+    // 🚀 Initialize AI Studio Market Intelligence Dashboard (React)
+    if (window.mountMarketIntelligence) {
+        window.mountMarketIntelligence('market-intelligence-root');
+    } else {
+        // Fallback for when the module hasn't loaded yet
+        window.addEventListener('load', () => {
+            if (window.mountMarketIntelligence) {
+                window.mountMarketIntelligence('market-intelligence-root');
+            }
+        });
+    }
+
     // Competitor Radar will be initialized after project data loads in onProjectChange()
 }
 

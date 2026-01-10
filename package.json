@@ -15,7 +15,15 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
     "firebase-tools": "^15.1.0",
     "vite": "^7.2.7"
+  },
+  "dependencies": {
+    "lucide-react": "^0.562.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "recharts": "^3.6.0"
   }
 }
