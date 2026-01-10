@@ -1270,8 +1270,8 @@ function initializeUploadHandlers() {
     btnUpload?.addEventListener('click', uploadSourceFile);
 
     function handleSelectedFile(file) {
-        if (file.size > 10 * 1024 * 1024) {
-            showNotification('File exceeds 10MB limit. Please convert to PDF to reduce file size before uploading.', 'error');
+        if (file.size > 30 * 1024 * 1024) {
+            showNotification('File exceeds 30MB limit. Please convert to PDF to reduce file size before uploading.', 'error');
             return;
         }
         selectedSourceFile = file;

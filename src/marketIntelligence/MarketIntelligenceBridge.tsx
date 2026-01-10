@@ -1,29 +1,47 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MarketTrendsSection } from './components/MarketTrendsSection';
 
-/**
- * Bridge function to mount the React Market Intelligence component 
- * into a non-React (Vanilla JS) application.
- */
-export function mountMarketIntelligence(containerId: string) {
+// State container to allow external updates
+const MarketIntelligenceWrapper: React.FC = () => {
+    const [config, setConfig] = useState<{ projectId?: string; keywords: string[]; data: any[] }>({
+        keywords: [],
+        data: []
+    });
+
+    // Handle updates from Vanilla JS
+    useEffect(() => {
+        (window as any).refreshMarketIntelligence = (projectId: string, keywords: string[], data: any[] = []) => {
+            setConfig({ projectId, keywords, data });
+        };
+    }, []);
+
+    return (
+        <div className="dark">
+            <MarketTrendsSection projectId={config.projectId} keywords={config.keywords} data={config.data} />
+        </div>
+    );
+};
+
+export function mountMarketIntelligence(containerId: string, initialKeywords: string[] = []) {
     const container = document.getElementById(containerId);
-    if (!container) {
-        console.warn(`[MarketIntelligence] Container #${containerId} not found.`);
-        return;
-    }
+    if (!container) return;
 
     const root = createRoot(container);
     root.render(
         <React.StrictMode>
-            <div className="dark">
-                <MarketTrendsSection />
-            </div>
+            <MarketIntelligenceWrapper />
         </React.StrictMode>
     );
+
+    // If keywords provided immediately
+    setTimeout(() => {
+        if ((window as any).refreshMarketIntelligence && initialKeywords.length > 0) {
+            (window as any).refreshMarketIntelligence(null, initialKeywords);
+        }
+    }, 100);
 
     return root;
 }
 
-// Auto-expose to window for easy access from marketPulse.js
 (window as any).mountMarketIntelligence = mountMarketIntelligence;

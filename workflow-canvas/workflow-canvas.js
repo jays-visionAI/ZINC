@@ -2706,7 +2706,7 @@ ${agentList}
         const previousOutputs = getPreviousNodeOutputs(node.id);
 
         // Get project context
-        const projectId = state.pipelineContext || 'test-project';
+        const projectId = state.projectId || state.pipelineContext || 'test-project';
         const runId = `test_${Date.now()}`;
 
         console.log(`[testAgentNode] Calling executeSubAgent for: ${agentId}`);
@@ -4427,8 +4427,15 @@ ${agentList}
             return { success: false, error: 'Agent not selected' };
         }
 
-        const projectId = state.pipelineContext || 'test-project';
+        const projectId = state.projectId || state.pipelineContext || 'test-project';
         const runId = `run_${Date.now()}`;
+
+        console.warn(`[WorkflowCanvas] 🚀 Executing Agent: ${agentId} for Project ID: ${projectId}`);
+
+        if (!projectId || projectId === state.pipelineContext) {
+            console.error('[WorkflowCanvas] ❌ Critical: Valid Project ID is missing. Using context as fallback is failing.');
+            return { success: false, error: '유효한 프로젝트를 선택해주세요. (현재 컨텍스트명이 ID로 사용되고 있습니다)' };
+        }
 
         // Build rich context from previous outputs
         const contextSummary = previousOutputs.map(o =>
@@ -4788,7 +4795,7 @@ ${agentList}
      */
     function updateProjectContext(projectId) {
         state.projectId = projectId;
-        console.log('[WorkflowCanvas] Project context updated:', projectId);
+        console.warn('[WorkflowCanvas] 🎯 Project context changed to:', projectId);
 
         const select = document.getElementById('wf-project-select');
         if (select) select.value = projectId || '';
@@ -4842,9 +4849,10 @@ ${agentList}
         }
     }
 
-    return {
+    const moduleExports = {
         init,
         open,
+        updateProjectContext,
         close,
         reset,
         goToStep,
@@ -4916,6 +4924,9 @@ ${agentList}
         // Utils
         stripUndefined
     };
+
+    console.log('[WorkflowCanvas] 📦 Exported Module Keys:', Object.keys(moduleExports));
+    return moduleExports;
     function getMockProjectBrief() {
         return {
             source: 'Project Brief',

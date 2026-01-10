@@ -47,7 +47,7 @@ export const TrendCard: React.FC<TrendCardProps> = ({ trend, onClick, isActive }
                 <div className="flex justify-between text-[10px] text-slate-500 mb-1.5 uppercase tracking-wider font-semibold">
                     <span>Net Sentiment</span>
                     <span className={trend.sentiment > 0 ? 'text-cyan-400' : 'text-rose-400'}>
-                        {trend.sentiment > 0 ? '+' : ''}{trend.sentiment}
+                        {trend.sentiment > 0 ? '+' : ''}{trend.sentiment.toFixed(2)}
                     </span>
                 </div>
                 <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
@@ -63,12 +63,12 @@ export const TrendCard: React.FC<TrendCardProps> = ({ trend, onClick, isActive }
                 </div>
             </div>
 
-            <div className="flex justify-between items-end h-12 mt-4 pt-4 border-t border-white/5">
+            <div className="flex justify-between items-end h-12 min-h-[48px] mt-4 pt-4 border-t border-white/5">
                 <div className="flex flex-col justify-end pb-1">
                     <Badge value={trend.confidence} type="confidence" className="opacity-80 group-hover:opacity-100" />
                 </div>
 
-                <div className="w-24 h-full opacity-80 group-hover:opacity-100 transition-opacity filter drop-shadow-sm">
+                <div className="w-24 h-full min-w-[96px] min-h-[32px] opacity-80 group-hover:opacity-100 transition-opacity filter drop-shadow-sm">
                     <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={data}>
                             <defs>
