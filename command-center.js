@@ -848,6 +848,20 @@ document.addEventListener("DOMContentLoaded", () => {
     function renderProjectCards(projects) {
         hiveGrid.innerHTML = "";
 
+        // Helper to get industry label
+        const getIndustryLabel = (key, customLabel) => {
+            if (key === 'other' || key === 'Custom') {
+                return customLabel || 'Other';
+            }
+            if (!key) return 'General';
+
+            const ind = availableIndustries.find(i => i.key === key);
+            if (!ind) return key;
+
+            const currentLang = localStorage.getItem('language') || 'en';
+            return currentLang === 'ko' && ind.labelKo ? ind.labelKo : ind.labelEn;
+        };
+
         // 1. Render Project Cards
         projects.forEach(p => {
             const card = document.createElement("div");
@@ -892,7 +906,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 </div>
                 
                 <div class="card-tags" style="margin-top:12px;">
-                    <span class="tag blockchain">${p.industry || 'General'}</span>
+                    <span class="tag blockchain">${getIndustryLabel(p.industry, p.industryCustomLabel)}</span>
                     <span class="tag general">${p.primaryLanguage === 'ko' ? 'Korean' : 'English'}</span>
                 </div>
 

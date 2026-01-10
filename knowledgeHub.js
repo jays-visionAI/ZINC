@@ -1221,7 +1221,7 @@ function initializeAddSourceModal() {
     initializeUploadHandlers();
 }
 
-let selectedSourceFile = null;
+let selectedSourceFiles = [];
 
 function initializeUploadHandlers() {
     const dropzone = document.getElementById('source-upload-dropzone');
@@ -1237,7 +1237,7 @@ function initializeUploadHandlers() {
 
     fileInput.addEventListener('change', (e) => {
         if (e.target.files.length > 0) {
-            handleSelectedFile(e.target.files[0]);
+            handleSelectedFiles(Array.from(e.target.files));
         }
     });
 
@@ -1254,13 +1254,13 @@ function initializeUploadHandlers() {
         e.preventDefault();
         dropzone.classList.remove('border-indigo-500', 'bg-indigo-500/5');
         if (e.dataTransfer.files.length > 0) {
-            handleSelectedFile(e.dataTransfer.files[0]);
+            handleSelectedFiles(Array.from(e.dataTransfer.files));
         }
     });
 
     btnClear?.addEventListener('click', (e) => {
         e.stopPropagation();
-        selectedSourceFile = null;
+        selectedSourceFiles = [];
         fileInput.value = '';
         selectedFileDiv.classList.add('hidden');
         dropzone.classList.remove('hidden');
@@ -1269,13 +1269,43 @@ function initializeUploadHandlers() {
 
     btnUpload?.addEventListener('click', uploadSourceFile);
 
-    function handleSelectedFile(file) {
-        if (file.size > 30 * 1024 * 1024) {
-            showNotification('File exceeds 30MB limit. Please convert to PDF to reduce file size before uploading.', 'error');
-            return;
+    function handleSelectedFiles(files) {
+        if (files.length > 3) {
+            showNotification('You can only upload up to 3 files at once.', 'warning');
+            files = files.slice(0, 3);
         }
-        selectedSourceFile = file;
-        fileNameText.textContent = file.name;
+
+        const validFiles = files.filter(file => {
+            if (file.size > 30 * 1024 * 1024) {
+                showNotification(`File "${file.name}" exceeds 30MB limit.`, 'error');
+                return false;
+            }
+            return true;
+        });
+
+        if (validFiles.length === 0) return;
+
+        selectedSourceFiles = validFiles;
+
+        // Render file list
+        const listContainer = document.getElementById('file-list-container');
+        if (listContainer) {
+            listContainer.innerHTML = selectedSourceFiles.map(file => `
+                <div class="flex items-center justify-between p-2.5 bg-slate-800/50 rounded-lg border border-slate-700/50">
+                    <div class="flex items-center gap-2 overflow-hidden">
+                        <span class="text-emerald-400 flex-shrink-0">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                                <polyline points="14 2 14 8 20 8" />
+                            </svg>
+                        </span>
+                        <span class="text-xs text-slate-200 truncate font-medium">${file.name}</span>
+                    </div>
+                    <span class="text-[9px] font-bold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded uppercase">Selected</span>
+                </div>
+            `).join('');
+        }
+
         selectedFileDiv.classList.remove('hidden');
         dropzone.classList.add('hidden');
         btnUpload.disabled = false;
@@ -1283,54 +1313,94 @@ function initializeUploadHandlers() {
 }
 
 async function uploadSourceFile() {
-    if (!selectedSourceFile || !currentProjectId) return;
+    if (selectedSourceFiles.length === 0 || !currentProjectId) return;
 
     const btn = document.getElementById('btn-upload-source');
     const originalText = btn.textContent;
     btn.disabled = true;
-    btn.textContent = 'Uploading...';
 
     try {
-        const fileName = `${Date.now()}_${selectedSourceFile.name}`;
-        const storagePath = `projects/${currentProjectId}/knowledgeSources/${fileName}`;
-        const storageRef = firebase.storage().ref(storagePath);
+        const totalFiles = selectedSourceFiles.length;
+        let successCount = 0;
 
-        // Upload to Storage
-        await storageRef.put(selectedSourceFile);
-        const downloadUrl = await storageRef.getDownloadURL();
+        for (let i = 0; i < totalFiles; i++) {
+            const file = selectedSourceFiles[i];
+            btn.textContent = `Uploading (${i + 1}/${totalFiles})...`;
 
-        // Save to Firestore
-        const sourceData = {
-            sourceType: 'file',
-            title: selectedSourceFile.name,
-            fileName: fileName,
-            fileUrl: downloadUrl,
-            contentType: selectedSourceFile.type,
-            isActive: true,
-            status: 'pending',
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        };
+            try {
+                const fileName = `${Date.now()}_${file.name}`;
+                const storagePath = `projects/${currentProjectId}/knowledgeSources/${fileName}`;
+                const storageRef = firebase.storage().ref(storagePath);
 
-        await firebase.firestore()
-            .collection('projects')
-            .doc(currentProjectId)
-            .collection('knowledgeSources')
-            .add(sourceData);
+                // Upload to Storage
+                await storageRef.put(file);
+                const downloadUrl = await storageRef.getDownloadURL();
 
-        showNotification('File uploaded successfully!', 'success');
+                // Save to Firestore
+                const sourceData = {
+                    sourceType: 'file',
+                    title: file.name,
+                    fileName: fileName,
+                    fileUrl: downloadUrl,
+                    contentType: file.type,
+                    isActive: true,
+                    status: 'pending',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+
+                await firebase.firestore()
+                    .collection('projects')
+                    .doc(currentProjectId)
+                    .collection('knowledgeSources')
+                    .add(sourceData);
+
+                successCount++;
+
+                // Update specific file status in UI
+                const listItems = document.querySelectorAll('#file-list-container > div');
+                if (listItems[i]) {
+                    const statusBadge = listItems[i].querySelector('span:last-child');
+                    if (statusBadge) {
+                        statusBadge.textContent = 'Uploaded';
+                        statusBadge.className = 'text-[9px] font-bold text-white bg-indigo-500 px-1.5 py-0.5 rounded uppercase';
+                    }
+                }
+            } catch (fileError) {
+                console.error(`Error uploading file ${file.name}:`, fileError);
+                showNotification(`Failed to upload ${file.name}`, 'error');
+            }
+        }
+
+        if (successCount > 0) {
+            btn.textContent = 'Upload Completed';
+            btn.classList.replace('bg-indigo-600', 'bg-emerald-500');
+
+            const readyHeader = document.querySelector('#selected-file-name span');
+            if (readyHeader) {
+                readyHeader.textContent = 'Upload Completed';
+                readyHeader.classList.replace('text-emerald-400', 'text-white');
+            }
+
+            // Wait 1.5 seconds before closing
+            await new Promise(resolve => setTimeout(resolve, 1500));
+        }
+
         closeModal('add-source-modal');
 
         // Reset state
-        selectedSourceFile = null;
+        selectedSourceFiles = [];
         document.getElementById('selected-file-name').classList.add('hidden');
         document.getElementById('source-upload-dropzone').classList.remove('hidden');
         btn.textContent = originalText;
+        btn.disabled = false;
+        btn.classList.remove('bg-emerald-500');
+        btn.classList.add('bg-indigo-600');
 
         await loadSources();
     } catch (error) {
-        console.error('Error uploading source:', error);
-        showNotification('Failed to upload file', 'error');
+        console.error('Error in batch upload:', error);
+        showNotification('An error occurred during upload', 'error');
         btn.disabled = false;
         btn.textContent = originalText;
     }

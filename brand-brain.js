@@ -399,10 +399,14 @@ async function loadBrandBrainForProject(userId, projectId) {
                         // Update local data
                         if (!brandBrainData.coreIdentity) brandBrainData.coreIdentity = {};
                         brandBrainData.coreIdentity.industry = projectData.industry;
+                        if (projectData.industryCustomLabel) {
+                            brandBrainData.coreIdentity.industryCustomLabel = projectData.industryCustomLabel;
+                        }
 
                         // Save to Firestore immediately
                         await brandBrainRef.update({
                             'coreIdentity.industry': projectData.industry,
+                            'coreIdentity.industryCustomLabel': projectData.industryCustomLabel || null,
                             'updatedAt': firebase.firestore.FieldValue.serverTimestamp()
                         });
 
@@ -454,6 +458,7 @@ function mapProjectToBrandBrain(projectData) {
             website: projectData.websiteUrl || '',
             websiteAnalysis: null,
             industry: projectData.industry || '',
+            industryCustomLabel: projectData.industryCustomLabel || '',
             targetAudience: projectData.targetAudience || projectData.targetMarkets?.join(', ') || ''
         },
         strategy: {
@@ -497,6 +502,7 @@ function getDefaultBrandBrainData() {
             website: '',
             websiteAnalysis: null,
             industry: '',
+            industryCustomLabel: '',
             targetAudience: ''
         },
         strategy: {
@@ -553,6 +559,19 @@ function populateUI(data) {
             industrySelect.appendChild(newOption);
         }
         industrySelect.value = ci.industry;
+
+        // Handle custom industry visibility
+        const customContainer = document.getElementById('custom-industry-container');
+        if (customContainer) {
+            if (ci.industry === 'other') {
+                customContainer.classList.remove('hidden');
+                if (document.getElementById('industry-custom')) {
+                    document.getElementById('industry-custom').value = ci.industryCustomLabel || '';
+                }
+            } else {
+                customContainer.classList.add('hidden');
+            }
+        }
     }
 
     if (document.getElementById('target')) document.getElementById('target').value = ci.targetAudience || '';
@@ -668,6 +687,28 @@ function initializeEventListeners() {
             el.addEventListener('input', debounce(() => saveData(), 1000));
         }
     });
+
+    // Special event for industry dropdown
+    const indSelect = document.getElementById('industry');
+    if (indSelect) {
+        indSelect.addEventListener('change', () => {
+            const customContainer = document.getElementById('custom-industry-container');
+            if (customContainer) {
+                if (indSelect.value === 'other') {
+                    customContainer.classList.remove('hidden');
+                } else {
+                    customContainer.classList.add('hidden');
+                }
+            }
+            saveData();
+        });
+    }
+
+    // Special event for custom industry input
+    const customIndInput = document.getElementById('industry-custom');
+    if (customIndInput) {
+        customIndInput.addEventListener('input', debounce(() => saveData(), 1000));
+    }
 
     // Brand Voice Tags
     document.querySelectorAll('#brand-voice-tags .tag').forEach(tag => {
@@ -793,6 +834,7 @@ async function saveData() {
                 website: document.getElementById('website-url').value,
                 websiteAnalysis: brandBrainData?.coreIdentity?.websiteAnalysis || null,
                 industry: document.getElementById('industry').value,
+                industryCustomLabel: document.getElementById('industry-custom')?.value || '',
                 targetAudience: document.getElementById('target').value
             },
             strategy: {
@@ -819,6 +861,16 @@ async function saveData() {
 
         await projectRef.update(updatedData);
         brandBrainData = { ...brandBrainData, ...updatedData };
+
+        // [CRITICAL] Sync back to Master Project (Command Center)
+        const masterProjectRef = db.collection('projects').doc(currentProjectId);
+        await masterProjectRef.update({
+            projectName: updatedData.coreIdentity.projectName,
+            industry: updatedData.coreIdentity.industry,
+            industryCustomLabel: updatedData.coreIdentity.industryCustomLabel || null,
+            description: updatedData.coreIdentity.description,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
 
         // Update sync status UI
         document.getElementById('updates-count').textContent = `${updatedData.syncStatus.pendingChanges} Updates`;
