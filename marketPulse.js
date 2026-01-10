@@ -2740,44 +2740,67 @@ class CompetitorRadarManager {
         const panel = document.getElementById('competitor-matchmaking-panel');
         if (!panel) return;
 
-        const rivalsHtml = selectedData.map(d => `
-            <div class="bg-slate-800/50 border border-white/5 rounded-2xl p-4 hover:border-indigo-500/30 transition-all">
-                <div class="flex items-center justify-between mb-3">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-black text-sm">
-                            ${d.matchScore}%
-                        </div>
-                        <div>
-                            <h4 class="text-white font-bold text-sm">${d.name}</h4>
-                            <span class="text-[9px] text-slate-500 uppercase tracking-wider">MONITORING ACTIVE</span>
-                        </div>
+        // Store tracked rivals in candidates for modal access
+        this.candidates = selectedData.map((d, i) => ({
+            ...d,
+            id: d.id || `tracked-${i + 1}`
+        }));
+
+        const rivalsHtml = selectedData.map((d, idx) => `
+            <div class="match-card tracking-card rounded-2xl p-5 cursor-pointer flex flex-col gap-3 hover:border-indigo-500/50 transition-all" onclick="window.competitorRadar.openCompetitorDetail(${idx})">
+                <div class="flex justify-between items-start">
+                    <div class="circular-progress" style="--progress: ${(d.matchScore * 3.6)}deg">
+                        <span>${d.matchScore}%</span>
                     </div>
-                    <div class="flex items-center gap-1.5">
-                        <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                        <span class="text-[10px] text-emerald-400 font-bold">LIVE</span>
+                    <div class="flex items-center gap-2">
+                        <div class="text-right">
+                            <div class="text-[10px] text-slate-500 uppercase font-bold mb-1">Status</div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                                <span class="text-xs font-black text-emerald-400">LIVE</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                
-                <div class="grid grid-cols-4 gap-2 mb-3">
-                    <div class="text-center">
-                        <div class="text-[10px] text-indigo-400 font-bold">${d.uspOverlap}%</div>
-                        <div class="text-[8px] text-slate-600">USP</div>
+
+                <div class="group/info">
+                    <h4 class="text-base font-bold text-white leading-tight group-hover/info:text-indigo-400 transition-colors flex items-center gap-2">
+                        ${d.name}
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-50"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                    </h4>
+                    <p class="text-[10px] text-slate-500 mt-1 line-clamp-2 italic">${d.justification || 'AI 분석 대기 중...'}</p>
+                </div>
+
+                <div class="space-y-1.5 mt-auto">
+                    <div class="flex items-center gap-2">
+                        <span class="text-[9px] text-slate-500 w-20 shrink-0">USP Overlap</span>
+                        <div class="indicator-bar-wrapper"><div class="indicator-bar-fill bg-indigo-500" style="width: ${d.uspOverlap}%"></div></div>
+                        <span class="text-[10px] font-bold text-slate-300 w-7 text-right">${d.uspOverlap}%</span>
                     </div>
-                    <div class="text-center">
-                        <div class="text-[10px] text-purple-400 font-bold">${d.audienceProximity}%</div>
-                        <div class="text-[8px] text-slate-600">Audience</div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[9px] text-slate-500 w-20 shrink-0">Audience</span>
+                        <div class="indicator-bar-wrapper"><div class="indicator-bar-fill bg-purple-500" style="width: ${d.audienceProximity}%"></div></div>
+                        <span class="text-[10px] font-bold text-slate-300 w-7 text-right">${d.audienceProximity}%</span>
                     </div>
-                    <div class="text-center">
-                        <div class="text-[10px] text-cyan-400 font-bold">${d.marketPresence}%</div>
-                        <div class="text-[8px] text-slate-600">Presence</div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[9px] text-slate-500 w-20 shrink-0">Presence</span>
+                        <div class="indicator-bar-wrapper"><div class="indicator-bar-fill bg-cyan-500" style="width: ${d.marketPresence}%"></div></div>
+                        <span class="text-[10px] font-bold text-slate-300 w-7 text-right">${d.marketPresence}%</span>
                     </div>
-                    <div class="text-center">
-                        <div class="text-[10px] text-emerald-400 font-bold">${d.growthMomentum}%</div>
-                        <div class="text-[8px] text-slate-600">Momentum</div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[9px] text-slate-500 w-20 shrink-0">Momentum</span>
+                        <div class="indicator-bar-wrapper"><div class="indicator-bar-fill bg-emerald-500" style="width: ${d.growthMomentum}%"></div></div>
+                        <span class="text-[10px] font-bold text-slate-300 w-7 text-right">${d.growthMomentum}%</span>
                     </div>
                 </div>
-                
-                <p class="text-[10px] text-slate-500 italic line-clamp-2">${d.justification || 'AI 분석 대기 중...'}</p>
+
+                <div class="pt-3 border-t border-white/5 flex items-center justify-between">
+                    <button class="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold flex items-center gap-1.5 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6"/><path d="M8 11h6"/></svg>
+                        VIEW ANALYSIS
+                    </button>
+                    <span class="text-[10px] text-emerald-400 font-bold px-2 py-1 bg-emerald-500/20 rounded-full">TRACKING</span>
+                </div>
             </div>
         `).join('');
 
