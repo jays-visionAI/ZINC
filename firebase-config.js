@@ -49,3 +49,5 @@ try {
     console.error("Firebase initialization failed:", error);
     console.warn("Please update firebase-config.js with your actual Firebase configuration.");
 }
+
+export { app, auth, db, storage };
