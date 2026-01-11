@@ -10,14 +10,6 @@ vite v7.2.7 building client environment for production...
 <script src="translations.js"> in "/index.html" can't be bundled without type="module" attribute
 <script src="script.js"> in "/index.html" can't be bundled without type="module" attribute
 <script src="scripts/landing.js"> in "/index.html" can't be bundled without type="module" attribute
-<script src="firebase-config.js"> in "/brand-brain.html" can't be bundled without type="module" attribute
-<script src="env-config.js"> in "/brand-brain.html" can't be bundled without type="module" attribute
-<script src="services/credit-service.js"> in "/brand-brain.html" can't be bundled without type="module" attribute
-<script src="brand-brain.js"> in "/brand-brain.html" can't be bundled without type="module" attribute
-<script src="credits.js"> in "/brand-brain.html" can't be bundled without type="module" attribute
-<script src="chatbot-v2.js"> in "/brand-brain.html" can't be bundled without type="module" attribute
-<script src="utils-ui-config.js"> in "/brand-brain.html" can't be bundled without type="module" attribute
-<script src="utils-ui-loader.js"> in "/brand-brain.html" can't be bundled without type="module" attribute
 <script src="firebase-config.js"> in "/command-center.html" can't be bundled without type="module" attribute
 <script src="env-config.js"> in "/command-center.html" can't be bundled without type="module" attribute
 <script src="auth.js"> in "/command-center.html" can't be bundled without type="module" attribute
@@ -29,67 +21,26 @@ vite v7.2.7 building client environment for production...
 <script src="chatbot-v2.js"> in "/command-center.html" can't be bundled without type="module" attribute
 <script src="utils-ui-config.js"> in "/command-center.html" can't be bundled without type="module" attribute
 <script src="utils-ui-loader.js"> in "/command-center.html" can't be bundled without type="module" attribute
-<script src="/firebase-config.js?v=20241225.2"> in "/user-settings.html" can't be bundled without type="module" attribute
-<script src="/env-config.js?v=20241225.2"> in "/user-settings.html" can't be bundled without type="module" attribute
-<script src="/credits.js?v=20241225.2"> in "/user-settings.html" can't be bundled without type="module" attribute
-<script src="/utils-modal.js?v=20241225.2"> in "/user-settings.html" can't be bundled without type="module" attribute
-<script src="/utils-channel-profiles.js?v=20241225.2"> in "/user-settings.html" can't be bundled without type="module" attribute
-<script src="/services/channel-credential-service.js?v=20241225.2"> in "/user-settings.html" can't be bundled without type="module" attribute
-<script src="/utils-ui-config.js"> in "/user-settings.html" can't be bundled without type="module" attribute
-<script src="/utils-ui-loader.js"> in "/user-settings.html" can't be bundled without type="module" attribute
-<script src="/user-settings.js?v=20241225.2"> in "/user-settings.html" can't be bundled without type="module" attribute
-<script src="strategyWarRoom.js"> in "/strategyWarRoom.html" can't be bundled without type="module" attribute
-<script src="chatbot-v2.js"> in "/strategyWarRoom.html" can't be bundled without type="module" attribute
-<script src="chatbot-v2.js"> in "/theFilter.html" can't be bundled without type="module" attribute
 <script src="firebase-config.js"> in "/marketPulse.html" can't be bundled without type="module" attribute
 <script src="translations.js"> in "/marketPulse.html" can't be bundled without type="module" attribute
 <script src="utils-ui-config.js"> in "/marketPulse.html" can't be bundled without type="module" attribute
 <script src="utils-ui-loader.js"> in "/marketPulse.html" can't be bundled without type="module" attribute
 <script src="services/credit-service.js"> in "/marketPulse.html" can't be bundled without type="module" attribute
+<script src="services/market-intelligence-ui.js"> in "/marketPulse.html" can't be bundled without type="module" attribute
 <script src="services/workflow-engine.js"> in "/marketPulse.html" can't be bundled without type="module" attribute
 <script src="marketPulse.js"> in "/marketPulse.html" can't be bundled without type="module" attribute
 <script src="chatbot-v2.js"> in "/marketPulse.html" can't be bundled without type="module" attribute
-<script src="firebase-config.js"> in "/knowledgeHub.html" can't be bundled without type="module" attribute
-<script src="env-config.js"> in "/knowledgeHub.html" can't be bundled without type="module" attribute
-<script src="translations.js"> in "/knowledgeHub.html" can't be bundled without type="module" attribute
-<script src="utils-ui-config.js"> in "/knowledgeHub.html" can't be bundled without type="module" attribute
-<script src="utils-ui-loader.js?v=2"> in "/knowledgeHub.html" can't be bundled without type="module" attribute
-<script src="services/workflow-engine.js"> in "/knowledgeHub.html" can't be bundled without type="module" attribute
-<script src="knowledgeHub.js?v=20260110_1845"> in "/knowledgeHub.html" can't be bundled without type="module" attribute
-<script src="chatbot-v2.js"> in "/knowledgeHub.html" can't be bundled without type="module" attribute
+<script src="firebase-config.js"> in "/brand-brain.html" can't be bundled without type="module" attribute
+<script src="env-config.js"> in "/brand-brain.html" can't be bundled without type="module" attribute
+<script src="services/credit-service.js"> in "/brand-brain.html" can't be bundled without type="module" attribute
+<script src="brand-brain.js"> in "/brand-brain.html" can't be bundled without type="module" attribute
+<script src="credits.js"> in "/brand-brain.html" can't be bundled without type="module" attribute
+<script src="chatbot-v2.js"> in "/brand-brain.html" can't be bundled without type="module" attribute
+<script src="utils-ui-config.js"> in "/brand-brain.html" can't be bundled without type="module" attribute
+<script src="utils-ui-loader.js"> in "/brand-brain.html" can't be bundled without type="module" attribute
 <script src="utils-ui-config.js"> in "/theGrowth.html" can't be bundled without type="module" attribute
 <script src="utils-ui-loader.js"> in "/theGrowth.html" can't be bundled without type="module" attribute
 <script src="chatbot-v2.js"> in "/theGrowth.html" can't be bundled without type="module" attribute
-<script src="utils-event-handler.js"> in "/project-detail.html" can't be bundled without type="module" attribute
-<script src="scripts/config-resolver.js"> in "/project-detail.html" can't be bundled without type="module" attribute
-<script src="firebase-config.js"> in "/project-detail.html" can't be bundled without type="module" attribute
-<script src="env-config.js"> in "/project-detail.html" can't be bundled without type="module" attribute
-<script src="auth.js"> in "/project-detail.html" can't be bundled without type="module" attribute
-<script src="services/channel-credential-service.js"> in "/project-detail.html" can't be bundled without type="module" attribute
-<script src="services/llm-provider-service.js"> in "/project-detail.html" can't be bundled without type="module" attribute
-<script src="services/agent-runtime-service.js"> in "/project-detail.html" can't be bundled without type="module" attribute
-<script src="services/agent-execution-service.js?v=3"> in "/project-detail.html" can't be bundled without type="module" attribute
-<script src="utils-modal.js"> in "/project-detail.html" can't be bundled without type="module" attribute
-<script src="utils-data-generator.js"> in "/project-detail.html" can't be bundled without type="module" attribute
-<script src="utils-channel-orchestrator.js"> in "/project-detail.html" can't be bundled without type="module" attribute
-<script src="utils-channel-profiles.js"> in "/project-detail.html" can't be bundled without type="module" attribute
-<script src="utils-runtime-resolver.js"> in "/project-detail.html" can't be bundled without type="module" attribute
-<script src="mission-control-view-history.js"> in "/project-detail.html" can't be bundled without type="module" attribute
-<script src="project-detail.js"> in "/project-detail.html" can't be bundled without type="module" attribute
-<script src="project-detail-card-handlers.js"> in "/project-detail.html" can't be bundled without type="module" attribute
-<script src="chatbot-v2.js"> in "/project-detail.html" can't be bundled without type="module" attribute
-<script src="report-visualizer.js"> in "/studio/index.html" can't be bundled without type="module" attribute
-<script src="../translations.js"> in "/studio/index.html" can't be bundled without type="module" attribute
-<script src="../firebase-config.js"> in "/studio/index.html" can't be bundled without type="module" attribute
-<script src="../env-config.js"> in "/studio/index.html" can't be bundled without type="module" attribute
-<script src="../auth.js"> in "/studio/index.html" can't be bundled without type="module" attribute
-<script src="../services/llm-router-service.js"> in "/studio/index.html" can't be bundled without type="module" attribute
-<script src="../utils-channel-profiles.js"> in "/studio/index.html" can't be bundled without type="module" attribute
-<script src="dag-executor.js"> in "/studio/index.html" can't be bundled without type="module" attribute
-<script src="studio.js?v=unified_brain_v2"> in "/studio/index.html" can't be bundled without type="module" attribute
-<script src="../chatbot-v2.js"> in "/studio/index.html" can't be bundled without type="module" attribute
-<script src="../utils-ui-config.js"> in "/studio/index.html" can't be bundled without type="module" attribute
-<script src="../utils-ui-loader.js"> in "/studio/index.html" can't be bundled without type="module" attribute
 <script src="firebase-config.js"> in "/admin.html" can't be bundled without type="module" attribute
 <script src="env-config.js"> in "/admin.html" can't be bundled without type="module" attribute
 <script src="scripts/seed-credit-costs.js?v=20251128"> in "/admin.html" can't be bundled without type="module" attribute
@@ -108,37 +59,81 @@ vite v7.2.7 building client environment for production...
 <script src="admin-monitoring.js"> in "/admin.html" can't be bundled without type="module" attribute
 <script src="/services/workflow-engine.js"> in "/admin.html" can't be bundled without type="module" attribute
 <script src="/workflow-canvas/workflow-canvas.js?v=20260110_01"> in "/admin.html" can't be bundled without type="module" attribute
+<script src="chatbot-v2.js"> in "/theFilter.html" can't be bundled without type="module" attribute
+<script src="utils-event-handler.js"> in "/project-detail.html" can't be bundled without type="module" attribute
+<script src="scripts/config-resolver.js"> in "/project-detail.html" can't be bundled without type="module" attribute
+<script src="firebase-config.js"> in "/project-detail.html" can't be bundled without type="module" attribute
+<script src="env-config.js"> in "/project-detail.html" can't be bundled without type="module" attribute
+<script src="auth.js"> in "/project-detail.html" can't be bundled without type="module" attribute
+<script src="services/channel-credential-service.js"> in "/project-detail.html" can't be bundled without type="module" attribute
+<script src="services/llm-provider-service.js"> in "/project-detail.html" can't be bundled without type="module" attribute
+<script src="services/agent-runtime-service.js"> in "/project-detail.html" can't be bundled without type="module" attribute
+<script src="services/agent-execution-service.js?v=3"> in "/project-detail.html" can't be bundled without type="module" attribute
+<script src="utils-modal.js"> in "/project-detail.html" can't be bundled without type="module" attribute
+<script src="utils-data-generator.js"> in "/project-detail.html" can't be bundled without type="module" attribute
+<script src="utils-channel-orchestrator.js"> in "/project-detail.html" can't be bundled without type="module" attribute
+<script src="utils-channel-profiles.js"> in "/project-detail.html" can't be bundled without type="module" attribute
+<script src="utils-runtime-resolver.js"> in "/project-detail.html" can't be bundled without type="module" attribute
+<script src="mission-control-view-history.js"> in "/project-detail.html" can't be bundled without type="module" attribute
+<script src="project-detail.js"> in "/project-detail.html" can't be bundled without type="module" attribute
+<script src="project-detail-card-handlers.js"> in "/project-detail.html" can't be bundled without type="module" attribute
+<script src="chatbot-v2.js"> in "/project-detail.html" can't be bundled without type="module" attribute
+<script src="/firebase-config.js?v=20241225.2"> in "/user-settings.html" can't be bundled without type="module" attribute
+<script src="/env-config.js?v=20241225.2"> in "/user-settings.html" can't be bundled without type="module" attribute
+<script src="/credits.js?v=20241225.2"> in "/user-settings.html" can't be bundled without type="module" attribute
+<script src="/utils-modal.js?v=20241225.2"> in "/user-settings.html" can't be bundled without type="module" attribute
+<script src="/utils-channel-profiles.js?v=20241225.2"> in "/user-settings.html" can't be bundled without type="module" attribute
+<script src="/services/channel-credential-service.js?v=20241225.2"> in "/user-settings.html" can't be bundled without type="module" attribute
+<script src="/utils-ui-config.js"> in "/user-settings.html" can't be bundled without type="module" attribute
+<script src="/utils-ui-loader.js"> in "/user-settings.html" can't be bundled without type="module" attribute
+<script src="/user-settings.js?v=20241225.2"> in "/user-settings.html" can't be bundled without type="module" attribute
+<script src="strategyWarRoom.js"> in "/strategyWarRoom.html" can't be bundled without type="module" attribute
+<script src="chatbot-v2.js"> in "/strategyWarRoom.html" can't be bundled without type="module" attribute
+<script src="firebase-config.js"> in "/knowledgeHub.html" can't be bundled without type="module" attribute
+<script src="env-config.js"> in "/knowledgeHub.html" can't be bundled without type="module" attribute
+<script src="translations.js"> in "/knowledgeHub.html" can't be bundled without type="module" attribute
+<script src="utils-ui-config.js"> in "/knowledgeHub.html" can't be bundled without type="module" attribute
+<script src="utils-ui-loader.js?v=2"> in "/knowledgeHub.html" can't be bundled without type="module" attribute
+<script src="services/workflow-engine.js"> in "/knowledgeHub.html" can't be bundled without type="module" attribute
+<script src="knowledgeHub.js?v=20260110_1845"> in "/knowledgeHub.html" can't be bundled without type="module" attribute
+<script src="chatbot-v2.js"> in "/knowledgeHub.html" can't be bundled without type="module" attribute
+<script src="report-visualizer.js"> in "/studio/index.html" can't be bundled without type="module" attribute
+<script src="../translations.js"> in "/studio/index.html" can't be bundled without type="module" attribute
+<script src="../firebase-config.js"> in "/studio/index.html" can't be bundled without type="module" attribute
+<script src="../env-config.js"> in "/studio/index.html" can't be bundled without type="module" attribute
+<script src="../auth.js"> in "/studio/index.html" can't be bundled without type="module" attribute
+<script src="../services/llm-router-service.js"> in "/studio/index.html" can't be bundled without type="module" attribute
+<script src="../utils-channel-profiles.js"> in "/studio/index.html" can't be bundled without type="module" attribute
+<script src="dag-executor.js"> in "/studio/index.html" can't be bundled without type="module" attribute
+<script src="studio.js?v=unified_brain_v2"> in "/studio/index.html" can't be bundled without type="module" attribute
+<script src="../chatbot-v2.js"> in "/studio/index.html" can't be bundled without type="module" attribute
+<script src="../utils-ui-config.js"> in "/studio/index.html" can't be bundled without type="module" attribute
+<script src="../utils-ui-loader.js"> in "/studio/index.html" can't be bundled without type="module" attribute
 transforming...
-✓ 2373 modules transformed.
+✓ 41 modules transformed.
 rendering chunks...
 computing gzip size...
-dist/strategyWarRoom.html                        17.65 kB │ gzip:   3.40 kB
-dist/theFilter.html                              17.81 kB │ gzip:   4.21 kB
-dist/index.html                                  18.33 kB │ gzip:   4.13 kB
-dist/command-center.html                         21.37 kB │ gzip:   5.11 kB
-dist/admin.html                                  22.56 kB │ gzip:   4.62 kB
-dist/theGrowth.html                              25.68 kB │ gzip:   5.45 kB
-dist/studio/index.html                           43.22 kB │ gzip:   8.84 kB
-dist/project-detail.html                         54.11 kB │ gzip:   9.32 kB
-dist/user-settings.html                          58.63 kB │ gzip:   9.04 kB
-dist/brand-brain.html                            74.25 kB │ gzip:  11.66 kB
-dist/marketPulse.html                           110.35 kB │ gzip:  17.85 kB
-dist/knowledgeHub.html                          149.85 kB │ gzip:  23.58 kB
+dist/strategyWarRoom.html                        17.65 kB │ gzip:  3.40 kB
+dist/theFilter.html                              17.81 kB │ gzip:  4.21 kB
+dist/index.html                                  18.33 kB │ gzip:  4.13 kB
+dist/command-center.html                         21.37 kB │ gzip:  5.11 kB
+dist/admin.html                                  22.56 kB │ gzip:  4.62 kB
+dist/theGrowth.html                              25.68 kB │ gzip:  5.45 kB
+dist/studio/index.html                           43.22 kB │ gzip:  8.84 kB
+dist/project-detail.html                         54.11 kB │ gzip:  9.32 kB
+dist/user-settings.html                          58.63 kB │ gzip:  9.04 kB
+dist/brand-brain.html                            74.25 kB │ gzip: 11.66 kB
+dist/marketPulse.html                           110.24 kB │ gzip: 17.79 kB
+dist/knowledgeHub.html                          149.85 kB │ gzip: 23.58 kB
 dist/assets/favicon-yfBm99fu.png                446.68 kB
-dist/assets/chatbot-D46zo0kw.css                  7.26 kB │ gzip:   1.99 kB
-dist/assets/projectDetail-IBibzTML.css           16.20 kB │ gzip:   3.52 kB
-dist/assets/admin-detail-Bng9TWiT.css            23.63 kB │ gzip:   4.71 kB
-dist/assets/admin-FkAiqHOH.css                   52.27 kB │ gzip:   9.81 kB
-dist/assets/studio-BtmlCha0.css                  58.42 kB │ gzip:  10.93 kB
-dist/assets/styles-DQSpToHx.css                  58.95 kB │ gzip:  10.98 kB
-dist/assets/userSettings-DseTekgV.css            82.58 kB │ gzip:  14.70 kB
-dist/assets/modulepreload-polyfill-B5Qt9EMX.js    0.71 kB │ gzip:   0.40 kB
-dist/assets/theGrowth-B2h1nnmF.js                 7.41 kB │ gzip:   2.78 kB
-dist/assets/theFilter-DpJ5f0PA.js                10.78 kB │ gzip:   4.11 kB
-dist/assets/marketPulse-BwwZayQy.js             564.67 kB │ gzip: 172.24 kB
-
-(!) Some chunks are larger than 500 kB after minification. Consider:
-- Using dynamic import() to code-split the application
-- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
-- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
-✓ built in 2.92s
+dist/assets/chatbot-D46zo0kw.css                  7.26 kB │ gzip:  1.99 kB
+dist/assets/projectDetail-IBibzTML.css           16.20 kB │ gzip:  3.52 kB
+dist/assets/admin-detail-Bng9TWiT.css            23.63 kB │ gzip:  4.71 kB
+dist/assets/admin-FkAiqHOH.css                   52.27 kB │ gzip:  9.81 kB
+dist/assets/studio-BtmlCha0.css                  58.42 kB │ gzip: 10.93 kB
+dist/assets/styles-DQSpToHx.css                  58.95 kB │ gzip: 10.98 kB
+dist/assets/userSettings-DseTekgV.css            82.58 kB │ gzip: 14.70 kB
+dist/assets/modulepreload-polyfill-B5Qt9EMX.js    0.71 kB │ gzip:  0.40 kB
+dist/assets/theGrowth-B2h1nnmF.js                 7.41 kB │ gzip:  2.78 kB
+dist/assets/theFilter-DpJ5f0PA.js                10.78 kB │ gzip:  4.11 kB
+✓ built in 500ms
