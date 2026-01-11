@@ -193,8 +193,8 @@ class LLMRouter {
         // 6. Check if BOOST was requested but premium model not available
         let warning = null;
         if (qualityTier === 'BOOST') {
-            const premiumModels = ['gpt-5', 'gpt-5.2', 'gpt-5-turbo', 'o1-preview', 'claude-3-opus', 'nano-banana-pro', 'gemini-1.5-pro'];
-            if (!premiumModels.includes(model) && !model.includes('gpt-4')) {
+            const premiumModels = ['gpt-5', 'gpt-5.2', 'gpt-5-turbo', 'o1-preview', 'claude-3-opus', 'nano-banana-pro', 'gemini-1.5-pro', 'deepseek-reasoner'];
+            if (!premiumModels.includes(model) && !model.includes('gpt-4') && !model.includes('deepseek-reasoner')) {
                 warning = '⚠️ BOOST 모드: 상위 버전 LLM이 아직 지원되지 않아 가용한 최상위 모델로 처리됩니다.';
             }
         }
@@ -512,9 +512,9 @@ class LLMRouter {
                     } else if (explicitModel) {
                         console.log(`[LLMRouter] Respecting explicit model in ECO mode: ${resolvedProvider}/${resolvedModel}`);
                     } else {
-                        resolvedProvider = 'openai';
-                        resolvedModel = 'gpt-4o-mini';
-                        console.warn('[LLMRouter] Eco defaults missing, falling back to GPT-4o-mini');
+                        resolvedProvider = 'deepseek';
+                        resolvedModel = 'deepseek-chat';
+                        console.warn('[LLMRouter] Eco defaults missing, falling back to Deepseek-chat');
                     }
                     selectedTemp = 0.5;
                     selectedMaxTokens = 1500;

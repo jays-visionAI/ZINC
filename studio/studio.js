@@ -3575,6 +3575,7 @@ function addReviewButton(node, nodeId) {
             if (meta.provider === 'google') modelName = 'Gemini';
             else if (meta.provider === 'openai') modelName = 'GPT-4';
             else if (meta.provider === 'anthropic') modelName = 'Claude';
+            else if (meta.provider === 'deepseek') modelName = 'DeepSeek';
             else modelName = meta.provider;
         } else if (res.isMock) {
             isMock = true;
@@ -3587,6 +3588,7 @@ function addReviewButton(node, nodeId) {
         if (modelName.toLowerCase().includes('gpt-4')) modelName = 'GPT-4';
         else if (modelName.toLowerCase().includes('gemini')) modelName = 'Gemini';
         else if (modelName.toLowerCase().includes('claude')) modelName = 'Claude';
+        else if (modelName.toLowerCase().includes('deepseek')) modelName = 'DeepSeek';
         else if (modelName.toLowerCase().includes('mock')) modelName = t('studio.agentReport.mock');
         else if (modelName.toLowerCase().includes('reused')) modelName = t('studio.agentReport.reused');
         else if (modelName.length > 8) modelName = modelName.substring(0, 6) + '..';

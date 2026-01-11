@@ -131,6 +131,38 @@ const WorkflowEngine = (function () {
                 case 'transform':
                     return await this.runTransformNode(node, context);
                 case 'firestore':
+                    // Special handling for common Market Intelligence workflow nodes
+                    const nodeName = (node.data?.name || '').toLowerCase();
+
+                    // 1. Collective Intelligence - fetch market keywords from project
+                    if (nodeName.includes('collective intelligence') || nodeName.includes('집단지성')) {
+                        this.logger.log(`[WorkflowEngine] 🧠 Collective Intelligence: Auto-fetching market keywords from project...`);
+                        const db = firebase.firestore();
+                        const projectDoc = await db.collection('projects').doc(context.projectId).get();
+                        if (projectDoc.exists) {
+                            const projectData = projectDoc.data();
+                            const keywords = projectData.marketPulseKeywords || projectData.strategy?.keywords || [];
+                            this.logger.log(`[WorkflowEngine] 🧠 Found ${keywords.length} keywords: ${keywords.join(', ')}`);
+                            return {
+                                keywords: keywords,
+                                keywordList: keywords.map(k => ({ keyword: k, status: 'active' })),
+                                projectName: projectData.name,
+                                industry: projectData.industry,
+                                targetAudience: projectData.targetAudience,
+                                description: projectData.description,
+                                source: 'project_document'
+                            };
+                        }
+                        return { keywords: [], keywordList: [], warning: 'Project not found or no keywords configured' };
+                    }
+
+                    // 2. Brand Core Identity - fetch brand brain data
+                    if (nodeName.includes('브랜드') || nodeName.includes('brand') || nodeName.includes('아이덴티티')) {
+                        this.logger.log(`[WorkflowEngine] 🎨 Brand Identity: Auto-fetching brand data...`);
+                        const brandData = await this.fetchBrandBrainData(context);
+                        return brandData;
+                    }
+
                     return await this.runFirestoreNode(node, context);
                 case 'end':
                     let finalResult = previousOutputs;
@@ -178,7 +210,10 @@ const WorkflowEngine = (function () {
         }
 
         async runFirestoreNode(node, context) {
-            const { operation, collection, docId, dataTemplate } = node.data;
+            const operation = node.data.operation;
+            const collection = node.data.collection ? this.resolveVariables(node.data.collection, context) : null;
+            const docId = node.data.docId ? this.resolveVariables(node.data.docId, context) : null;
+            const dataTemplate = node.data.dataTemplate;
             const db = firebase.firestore();
 
             // Optimize for direct output mapping (common for HTML results)
@@ -253,7 +288,14 @@ const WorkflowEngine = (function () {
                 return { success: true, savedAt: targetDocId };
             } else {
                 // Read operation
-                if (!collection || !docId) throw new Error('Collection or DocID missing for Firestore Read');
+                if (!collection || !docId) {
+                    console.error('[WorkflowEngine] Firestore Read Failed: Missing configuration.', {
+                        nodeName: node.data?.name || node.id,
+                        collection,
+                        docId
+                    });
+                    throw new Error(`Collection or DocID missing for Firestore Read (Node: ${node.data?.name || node.id})`);
+                }
                 const doc = await db.collection(collection).doc(docId).get();
                 return doc.exists ? doc.data() : { error: 'Not found' };
             }

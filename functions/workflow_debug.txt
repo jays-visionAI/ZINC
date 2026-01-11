@@ -1,0 +1,18 @@
+Checking workflow: dn0sDJv9EQsM3NicleSL
+Error: Error: Could not load the default credentials. Browse to https://cloud.google.com/docs/authentication/getting-started for more information.
+    at GoogleAuth.getApplicationDefaultAsync (/Users/sangjaeseo/Antigravity/ZINC/functions/node_modules/google-auth-library/build/src/auth/googleauth.js:287:15)
+    at async GoogleAuth._GoogleAuth_determineClient (/Users/sangjaeseo/Antigravity/ZINC/functions/node_modules/google-auth-library/build/src/auth/googleauth.js:834:32)
+    at async GoogleAuth.getClient (/Users/sangjaeseo/Antigravity/ZINC/functions/node_modules/google-auth-library/build/src/auth/googleauth.js:698:20)
+    at async GrpcClient._getCredentials (/Users/sangjaeseo/Antigravity/ZINC/functions/node_modules/google-gax/build/src/grpc.js:145:24)
+    at async GrpcClient.createStub (/Users/sangjaeseo/Antigravity/ZINC/functions/node_modules/google-gax/build/src/grpc.js:318:23)
+Caused by: Error
+    at /Users/sangjaeseo/Antigravity/ZINC/functions/node_modules/@google-cloud/firestore/build/src/index.js:1040:27
+    at /Users/sangjaeseo/Antigravity/ZINC/functions/node_modules/@google-cloud/firestore/build/src/telemetry/enabled-trace-util.js:110:30
+    at NoopContextManager.with (/Users/sangjaeseo/Antigravity/ZINC/functions/node_modules/@opentelemetry/api/build/src/context/NoopContextManager.js:25:19)
+    at ContextAPI.with (/Users/sangjaeseo/Antigravity/ZINC/functions/node_modules/@opentelemetry/api/build/src/api/context.js:60:46)
+    at NoopTracer.startActiveSpan (/Users/sangjaeseo/Antigravity/ZINC/functions/node_modules/@opentelemetry/api/build/src/trace/NoopTracer.js:65:31)
+    at ProxyTracer.startActiveSpan (/Users/sangjaeseo/Antigravity/ZINC/functions/node_modules/@opentelemetry/api/build/src/trace/ProxyTracer.js:36:24)
+    at EnabledTraceUtil.startActiveSpan (/Users/sangjaeseo/Antigravity/ZINC/functions/node_modules/@google-cloud/firestore/build/src/telemetry/enabled-trace-util.js:102:28)
+    at Firestore.getAll (/Users/sangjaeseo/Antigravity/ZINC/functions/node_modules/@google-cloud/firestore/build/src/index.js:1031:32)
+    at /Users/sangjaeseo/Antigravity/ZINC/functions/node_modules/@google-cloud/firestore/build/src/reference/document-reference.js:182:36
+    at /Users/sangjaeseo/Antigravity/ZINC/functions/node_modules/@google-cloud/firestore/build/src/telemetry/enabled-trace-util.js:110:30

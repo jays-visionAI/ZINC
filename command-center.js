@@ -556,8 +556,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 name: 'Core Team',
                 description: 'Unified Brain - Project\'s dedicated agent team',
                 isActive: true,
-                defaultLLMProvider: 'openai', // Uses Global Routing Defaults at runtime
-                defaultLLMModel: 'gpt-4o-mini',
+                defaultLLMProvider: 'deepseek', // Uses Global Routing Defaults at runtime
+                defaultLLMModel: 'deepseek-chat',
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
