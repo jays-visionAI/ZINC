@@ -196,6 +196,46 @@ class MarketIntelligenceUI {
     }
 
     renderContent() {
+        // NEW: Analyzing state with progress bar
+        if (this.state.status === 'analyzing') {
+            const percent = this.state.progressPercent || 0;
+            const message = this.state.progressMessage || 'Processing...';
+            return `
+                <div class="flex flex-col items-center justify-center h-[400px] bg-slate-900/20 rounded-xl border border-cyan-500/20">
+                    <div class="relative w-20 h-20 mb-6">
+                        <svg class="w-20 h-20 -rotate-90" viewBox="0 0 36 36">
+                            <circle cx="18" cy="18" r="16" fill="none" stroke="#1e293b" stroke-width="3"></circle>
+                            <circle cx="18" cy="18" r="16" fill="none" stroke="url(#progress-gradient)" stroke-width="3" 
+                                stroke-dasharray="${percent} 100" stroke-linecap="round" class="transition-all duration-500"></circle>
+                            <defs>
+                                <linearGradient id="progress-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" style="stop-color:#06b6d4" />
+                                    <stop offset="100%" style="stop-color:#8b5cf6" />
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <span class="text-white font-bold text-sm">${percent}%</span>
+                        </div>
+                    </div>
+                    <div class="text-center max-w-md px-4">
+                        <h3 class="text-lg font-bold text-white mb-2 flex items-center justify-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                            AI Agents Working
+                        </h3>
+                        <p class="text-cyan-400 font-medium mb-4">${message}</p>
+                        <div class="w-full max-w-xs mx-auto h-1.5 bg-slate-800 rounded-full overflow-hidden mb-4">
+                            <div class="h-full bg-gradient-to-r from-cyan-500 to-violet-500 rounded-full transition-all duration-500 ease-out" style="width: ${percent}%"></div>
+                        </div>
+                        <p class="text-xs text-slate-500 leading-relaxed">
+                            <span class="text-emerald-400 font-semibold">✓ Safe to leave:</span> 
+                            You can navigate away and return later. Your results will be waiting for you.
+                        </p>
+                    </div>
+                </div>
+            `;
+        }
+
         if (this.state.status === 'loading') {
             return `
                 <div class="grid grid-cols-12 gap-6">
@@ -208,6 +248,7 @@ class MarketIntelligenceUI {
                 </div>
             `;
         }
+
 
         if (this.state.status === 'error') {
             return `

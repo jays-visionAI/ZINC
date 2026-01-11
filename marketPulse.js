@@ -422,11 +422,11 @@ function updateDashboardWithProjectData(data) {
     renderTrendingKeywords();
 
     // 🚀 Update AI Studio Market Intelligence Dashboard with project keywords
-    if (window.refreshMarketIntelligence) {
-        window.refreshMarketIntelligence(currentProjectId, userKeywords);
-    }
+    // Also check for cached results from Firestore
+    loadCachedMarketIntelligence(currentProjectId, userKeywords);
 
     renderRecentMentions();
+
     renderCompetitors();
     renderInvestigations();
     renderAIActions();
@@ -466,30 +466,50 @@ async function triggerMarketIntelligenceResearch() {
         return;
     }
 
-    showNotification('Starting Market Intelligence Workflow...', 'info');
+    // Show progress UI
+    if (window.marketIntelligenceInstance) {
+        window.marketIntelligenceInstance.setState({
+            status: 'analyzing',
+            progressMessage: 'Initializing AI agents...',
+            progressPercent: 5
+        });
+    }
+
+    showNotification('🚀 Starting Market Intelligence analysis. You can leave and come back — results will be ready when you return.', 'info');
 
     try {
         if (typeof WorkflowEngine === 'undefined') {
             throw new Error('WorkflowEngine is not loaded.');
         }
 
+        // Update progress
+        updateMIProgress('Collecting market signals...', 15);
+
         // Execute specific Market Intelligence Workflow
         const workflowId = 'dn0sDJv9EQsM3NicleSL';
         const projectContext = { id: currentProjectId, ...currentProjectData };
 
         console.log('[MarketPulse] Executing Workflow:', workflowId);
+
+        // Update progress
+        updateMIProgress('AI agents processing data...', 40);
+
         const { outputs } = await WorkflowEngine.executeById(workflowId, projectContext);
 
+        // Update progress
+        updateMIProgress('Analyzing trends & sentiment...', 70);
+
         // Find the END node or any node that looks like the final output
-        // Usually, WorkflowEngine returns all node outputs. We look for a node named 'end' or the last one.
         const nodeIds = Object.keys(outputs);
         const endNodeId = nodeIds.find(id => id.startsWith('end')) || nodeIds[nodeIds.length - 1];
         const workflowResult = outputs[endNodeId];
 
         console.log('[MarketPulse] Workflow Result:', workflowResult);
 
+        // Update progress
+        updateMIProgress('Generating insights...', 85);
+
         // Map Workflow output to our Trend format
-        // We expect workflowResult to contain a 'trends' object or similar
         const realTrends = keywords.map((kw, idx) => {
             const agentTrend = (workflowResult.trends && workflowResult.trends[kw]) ||
                 (workflowResult[kw]) || null;
@@ -517,20 +537,93 @@ async function triggerMarketIntelligenceResearch() {
             };
         });
 
-        // Push REAL data to React
+        // Update progress
+        updateMIProgress('Finalizing report...', 95);
+
+        // Save results to Firestore for persistence (user can leave and come back)
+        try {
+            const db = firebase.firestore();
+            await db.collection('projects').doc(currentProjectId)
+                .collection('marketPulse').doc('latest').set({
+                    trends: realTrends,
+                    keywords: keywords,
+                    generatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    status: 'completed'
+                });
+            console.log('[MarketPulse] Results saved to Firestore for later viewing.');
+        } catch (saveErr) {
+            console.warn('[MarketPulse] Could not save results (non-critical):', saveErr.message);
+        }
+
+        // Update UI with results
         if (window.refreshMarketIntelligence) {
             window.refreshMarketIntelligence(currentProjectId, keywords, realTrends);
-            showNotification('Market Intelligence Workflow completed successfully.', 'success');
         }
+
+        updateMIProgress('Complete!', 100);
+        showNotification('✅ Market Intelligence analysis complete!', 'success');
 
     } catch (error) {
         console.error('Market Research via Workflow failed:', error);
+        if (window.marketIntelligenceInstance) {
+            window.marketIntelligenceInstance.setState({ status: 'error', progressMessage: error.message });
+        }
         showNotification('Workflow execution failed. Please check the logs.', 'error');
     }
 }
 
+// Helper to update MI progress UI
+function updateMIProgress(message, percent) {
+    if (window.marketIntelligenceInstance) {
+        window.marketIntelligenceInstance.setState({
+            status: 'analyzing',
+            progressMessage: message,
+            progressPercent: percent
+        });
+    }
+}
+
+// Load cached Market Intelligence results from Firestore
+async function loadCachedMarketIntelligence(projectId, keywords) {
+    if (!projectId) return;
+
+    try {
+        const db = firebase.firestore();
+        const cachedDoc = await db.collection('projects').doc(projectId)
+            .collection('marketPulse').doc('latest').get();
+
+        if (cachedDoc.exists) {
+            const cached = cachedDoc.data();
+            const generatedAt = cached.generatedAt?.toDate();
+            const age = generatedAt ? (Date.now() - generatedAt.getTime()) / (1000 * 60 * 60) : 999;
+
+            // Only use cache if it's less than 24 hours old
+            if (age < 24 && cached.trends && cached.trends.length > 0) {
+                console.log(`[MarketPulse] Loading cached results from ${age.toFixed(1)} hours ago`);
+                if (window.refreshMarketIntelligence) {
+                    window.refreshMarketIntelligence(projectId, cached.keywords || keywords, cached.trends);
+                }
+                return;
+            }
+        }
+
+        // No valid cache, just initialize with keywords
+        if (window.refreshMarketIntelligence) {
+            window.refreshMarketIntelligence(projectId, keywords);
+        }
+    } catch (err) {
+        console.warn('[MarketPulse] Could not load cached results:', err.message);
+        // Fall back to just initializing
+        if (window.refreshMarketIntelligence) {
+            window.refreshMarketIntelligence(projectId, keywords);
+        }
+    }
+}
+
+
 // Global expose
 window.triggerMarketIntelligenceResearch = triggerMarketIntelligenceResearch;
+
 // Reset Metrics to neutral state until real data arrives
 if (dom.mentionCount) dom.mentionCount.textContent = "0";
 if (document.getElementById('mention-growth')) {
