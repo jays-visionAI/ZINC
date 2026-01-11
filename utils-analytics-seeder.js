@@ -1,35 +1,31 @@
-import { db } from './firebase-config.js';
-import {
-    collection,
-    doc,
-    setDoc,
-    writeBatch
-} from "https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore.js";
-
 /**
  * Analytics Seeder
  * Generates 30 days of realistic dummy data for the dashboard.
  */
 export const AnalyticsSeeder = {
+    // Helper to get db instance
+    get db() {
+        return window.firebase ? window.firebase.firestore() : null;
+    },
 
     async seedInitialData(projectId) {
         if (!projectId) return;
 
         console.log(`Starting seeding for project: ${projectId}`);
-        const batch = writeBatch(db);
+        const batch = this.db.batch();
 
         // 1. Generate Daily Analytics (Past 30 Days)
-        const categories = this.generateDailyData(30);
+        const dailyData = this.generateDailyData(30);
 
-        categories.forEach(item => {
-            const docRef = doc(db, 'projects', projectId, 'analytics', item.date);
+        dailyData.forEach(item => {
+            const docRef = this.db.collection('projects').doc(projectId).collection('analytics').doc(item.date);
             batch.set(docRef, item);
         });
 
         // 2. Generate Top Content (5 Items)
         const contentItems = this.generateContentData(projectId);
         contentItems.forEach(item => {
-            const docRef = doc(db, 'projects', projectId, 'content_performance', item.contentId);
+            const docRef = this.db.collection('projects').doc(projectId).collection('content_performance').doc(item.contentId);
             batch.set(docRef, item);
         });
 

@@ -1,18 +1,16 @@
-import { db } from '../firebase-config.js';
-import {
-    doc,
-    getDoc,
-    setDoc,
-    updateDoc,
-    serverTimestamp,
-    collection
-} from "https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore.js";
-
 /**
  * Service for managing Content Filter data in Firestore.
  * Collection: projects/{projectId}/content_filter/{contentId}
  */
 export const FilterService = {
+    // Helper to get db instance
+    get db() {
+        return window.firebase ? window.firebase.firestore() : null;
+    },
+
+    get serverTimestamp() {
+        return window.firebase ? window.firebase.firestore.FieldValue.serverTimestamp() : null;
+    },
 
     /**
      * Fetch filter item by ID.
@@ -28,10 +26,9 @@ export const FilterService = {
         }
 
         try {
-            const docRef = doc(db, 'projects', projectId, 'content_filter', contentId);
-            const docSnap = await getDoc(docRef);
+            const docSnap = await this.db.collection('projects').doc(projectId).collection('content_filter').doc(contentId).get();
 
-            if (docSnap.exists()) {
+            if (docSnap.exists) {
                 return { id: docSnap.id, ...docSnap.data() };
             } else {
                 console.warn(`FilterService: Content ${contentId} not found in project ${projectId}`);
@@ -53,20 +50,15 @@ export const FilterService = {
         if (!projectId || !contentId) return;
 
         try {
-            const docRef = doc(db, 'projects', projectId, 'content_filter', contentId);
+            const docRef = this.db.collection('projects').doc(projectId).collection('content_filter').doc(contentId);
 
             // Add timestamps
             const payload = {
                 ...data,
-                updatedAt: serverTimestamp()
+                updatedAt: this.serverTimestamp
             };
 
-            // If creating new, add createdAt
-            // basic check: we use setDoc with merge: true usually, 
-            // but here we might want to check existence if we care about createdAt strictly.
-            // For simplicity, we just merge.
-
-            await setDoc(docRef, payload, { merge: true });
+            await docRef.set(payload, { merge: true });
             console.log(`FilterService: Saved content ${contentId}`);
             return true;
         } catch (error) {
@@ -96,8 +88,8 @@ export const FilterService = {
                 breakdown: null
             },
             suggestions: [],
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp()
+            createdAt: this.serverTimestamp,
+            updatedAt: this.serverTimestamp
         };
 
         await this.saveContent(projectId, demoId, demoData);

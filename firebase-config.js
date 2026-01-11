@@ -50,4 +50,10 @@ try {
     console.warn("Please update firebase-config.js with your actual Firebase configuration.");
 }
 
-export { app, auth, db, storage };
+// Attach to window for global access (Compatibility for non-module scripts)
+if (typeof window !== 'undefined') {
+    window.app = app;
+    window.auth = auth;
+    window.db = db;
+    window.storage = storage;
+}

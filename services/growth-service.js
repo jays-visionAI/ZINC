@@ -1,19 +1,11 @@
-import { db } from '../firebase-config.js';
-import {
-    collection,
-    query,
-    where,
-    orderBy,
-    limit,
-    getDocs,
-    addDoc,
-    serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore.js";
-
 /**
  * Service for managing Analytics/Growth data in Firestore.
  */
 export const GrowthService = {
+    // Helper to get db instance
+    get db() {
+        return window.firebase ? window.firebase.firestore() : null;
+    },
 
     /**
      * Fetch daily analytics metrics for a date range.
@@ -25,15 +17,11 @@ export const GrowthService = {
         if (!projectId) return [];
 
         try {
-            const analyticsRef = collection(db, 'projects', projectId, 'analytics');
+            const analyticsRef = this.db.collection('projects').doc(projectId).collection('analytics');
             // Logic: Get last N documents ordered by date
-            const q = query(
-                analyticsRef,
-                orderBy('date', 'desc'),
-                limit(days)
-            );
+            const q = analyticsRef.orderBy('date', 'desc').limit(days);
 
-            const snapshot = await getDocs(q);
+            const snapshot = await q.get();
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
             // Return chronologically (oldest to newest) for charts
@@ -54,17 +42,10 @@ export const GrowthService = {
         if (!projectId) return [];
 
         try {
-            // Note: In a real app, we might query 'content_performance' collection.
-            // For this phase, we'll checking a subcollection or specific type of analytic doc.
-            // Let's assume we have a collection 'content_performance' as planned.
-            const contentRef = collection(db, 'projects', projectId, 'content_performance');
-            const q = query(
-                contentRef,
-                orderBy('performance.reach', 'desc'), // Sort by Reach for now
-                limit(limitCount)
-            );
+            const contentRef = this.db.collection('projects').doc(projectId).collection('content_performance');
+            const q = contentRef.orderBy('performance.reach', 'desc').limit(limitCount);
 
-            const snapshot = await getDocs(q);
+            const snapshot = await q.get();
             return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         } catch (error) {
             // If collection doesn't exist yet, return empty
