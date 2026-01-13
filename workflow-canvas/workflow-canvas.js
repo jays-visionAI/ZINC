@@ -3596,6 +3596,8 @@ ${agentList}
             const sourceNode = state.nodes.find(n => n.id === sourceId);
             const targetNode = state.nodes.find(n => n.id === targetId);
 
+            if (!sourceNode || !targetNode) return;
+
             // Check if already connected
             const existingEdge = state.edges.find(e =>
                 (e.source === sourceId && e.target === targetId) ||
@@ -3608,14 +3610,19 @@ ${agentList}
                     notify('연결이 해제되었습니다.', 'info');
                 }
             } else {
-                if (confirm(`${sourceNode.data.name} -> ${targetNode.data.name} 연결을 생성하시겠습니까?`)) {
-                    if (sourceNode.type === 'condition') {
-                        // Condition nodes need port selection
-                        const label = prompt('연결 타입을 입력하세요 (TRUE / FALSE / DEFAULT)', 'TRUE');
-                        if (label) createEdge(sourceId, targetId, label.toUpperCase());
-                    } else {
-                        createEdge(sourceId, targetId);
+                // Determine connection label if applicable
+                let label = '';
+                if (sourceNode.type === 'condition') {
+                    label = prompt('연결 타입을 선택하세요 (TRUE / FALSE / DEFAULT)', 'TRUE');
+                    if (label === null) return; // User cancelled
+                    label = label.toUpperCase();
+                    if (!['TRUE', 'FALSE', 'DEFAULT'].includes(label)) {
+                        label = 'TRUE'; // Fallback
                     }
+                }
+
+                if (confirm(`${sourceNode.data.name} -> ${targetNode.data.name}${label ? ' (' + label + ')' : ''} 연결을 생성하시겠습니까?`)) {
+                    createEdge(sourceId, targetId, label);
                     renderAllEdges();
                     notify('연결이 생성되었습니다.', 'success');
                 }
