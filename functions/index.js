@@ -868,7 +868,19 @@ async function callGeminiInternal(apiKey, model, messages, temperature) {
         });
 
         const result = await chat.sendMessage(prompt);
-        const response = await result.response;
+        let response;
+        try {
+            response = await result.response;
+        } catch (respErr) {
+            console.warn('[callGeminiInternal] SDK failed to retrieve response:', respErr.message);
+            // This is where "model output must contain either output text or tool calls" is often thrown
+            return {
+                content: '[Generation Blocked - The AI was unable to generate a compliant response for this prompt]',
+                model,
+                usage: { total_tokens: 0 },
+                provider: 'gemini'
+            };
+        }
 
         // Check for empty candidates (often due to safety filters)
         if (!response.candidates || response.candidates.length === 0 || !response.candidates[0].content) {
@@ -881,17 +893,27 @@ async function callGeminiInternal(apiKey, model, messages, temperature) {
             };
         }
 
+        let outputText = '';
+        try {
+            outputText = response.text();
+        } catch (textErr) {
+            console.warn('[callGeminiInternal] Error calling response.text():', textErr.message);
+            // Fallback: manually extract parts if text() fails
+            const parts = response.candidates[0].content.parts || [];
+            outputText = parts.map(p => p.text).filter(t => !!t).join('\n') || '[No readable text returned]';
+        }
+
         return {
-            content: response.text(),
+            content: outputText,
             model,
             usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
             provider: 'gemini'
         };
     } catch (err) {
-        console.error('[callGeminiInternal] Error:', err.message);
-        if (err.message.includes('safety') || err.message.includes('blocked')) {
+        console.error('[callGeminiInternal] Outer Error:', err.message);
+        if (err.message.includes('safety') || err.message.includes('blocked') || err.message.includes('output text')) {
             return {
-                content: '[Generation failed due to safety filters or strict content policy]',
+                content: '[Generation failed or blocked due to safety filters or SDK constraints]',
                 model,
                 usage: { total_tokens: 0 },
                 provider: 'gemini'
@@ -2724,8 +2746,26 @@ async function describeImage(buffer, contentType) {
                 }
             }
         ]);
-        const response = await result.response;
-        const text = response.text();
+
+        let response;
+        try {
+            response = await result.response;
+        } catch (respErr) {
+            console.error('[describeImage] SDK error fetching response:', respErr.message);
+            return `[Visual Analysis Blocked: ${respErr.message}]`;
+        }
+
+        let text = '';
+        try {
+            text = response.text();
+        } catch (textErr) {
+            console.warn('[describeImage] response.text() failed, trying fallback:', textErr.message);
+            const candidates = response.candidates || [];
+            if (candidates.length > 0 && candidates[0].content) {
+                text = candidates[0].content.parts.map(p => p.text).filter(t => !!t).join('\n');
+            }
+            if (!text) text = '[No description generated - Check safety filters]';
+        }
 
         console.log(`[describeImage] Gemini Vision Output length: ${text.length}`);
         return `[Visual Description of Image]\n\n${text}`;
