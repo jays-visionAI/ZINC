@@ -98,9 +98,30 @@ exports.analyzeAesthetic = async (request) => {
 
         // 4. Call Vision API
         const result = await model.generateContent([prompt, imagePart]);
-        const responseText = result.response.text();
+        let response;
+        try {
+            response = await result.response;
+        } catch (respErr) {
+            console.error('[Aesthetic Critic] Response blocked or SDK error:', respErr.message);
+            return {
+                success: false,
+                error: "Analysis blocked by safety filters or SDK constraints: " + respErr.message
+            };
+        }
 
-        console.log("[Aesthetic Critic] Raw Response:", responseText);
+        let responseText = '';
+        try {
+            responseText = response.text();
+        } catch (textErr) {
+            console.warn('[Aesthetic Critic] response.text() failed, using potential parts:', textErr.message);
+            responseText = response.candidates?.[0]?.content?.parts?.map(p => p.text).join('\n') || '';
+        }
+
+        if (!responseText) {
+            throw new Error('Empthy or blocked response from Gemini Vision');
+        }
+
+        console.log("[Aesthetic Critic] Raw Response length:", responseText.length);
 
         // 5. Parse JSON (Handle markdown code blocks)
         const cleanedText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
