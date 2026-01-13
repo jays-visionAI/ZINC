@@ -1,7 +1,7 @@
 <div class="admin-page-header">
     <div class="header-left">
-        <h2>Imagen Model Unit Test</h2>
-        <p class="subtitle">Unit test Google's Imagen generation models directly via backend routing.</p>
+        <h2>🎨 Google Imagen Laboratory</h2>
+        <p class="subtitle">Unit test generation models directly via backend routing.</p>
     </div>
     <div class="header-actions">
         <button id="clear-test-logs" class="admin-btn-secondary">
@@ -10,26 +10,32 @@
     </div>
 </div>
 
-<div class="admin-content-grid">
-    <!-- Configuration Panel -->
-    <div class="admin-card config-panel">
+<!-- Main Layout: Flex Container for Robustness -->
+<div id="imagen-lab-container" style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+
+    <!-- Configuration Panel (Left/Top) -->
+    <div class="admin-card config-panel" style="flex: 1 1 320px; min-width: 300px; max-width: 450px;">
         <div class="card-header">
-            <h3>Configuration</h3>
+            <h3>🎛️ Configuration</h3>
         </div>
         <div class="card-body">
-            <!-- Project Selection (Required for Context) -->
-            <div class="form-group">
-                <label>Target Project (Context)</label>
-                <select id="test-project-select" class="admin-select">
+            <!-- Project Selection -->
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label style="display:block; margin-bottom:8px; font-weight:600; color:#ccc;">Target Project
+                    (Context)</label>
+                <select id="test-project-select" class="admin-select"
+                    style="width:100%; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid #444; color: white; border-radius: 6px;">
                     <option value="" disabled selected>Loading projects...</option>
                 </select>
-                <small class="hint">Required for API Key lookup and logging.</small>
+                <small class="hint" style="color:#888; display:block; margin-top:4px;">Required for API Key
+                    lookup.</small>
             </div>
 
             <!-- Model Selection -->
-            <div class="form-group">
-                <label>Generation Model</label>
-                <select id="imagen-model-select" class="admin-select">
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label style="display:block; margin-bottom:8px; font-weight:600; color:#ccc;">Generation Model</label>
+                <select id="imagen-model-select" class="admin-select"
+                    style="width:100%; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid #444; color: white; border-radius: 6px;">
                     <option value="imagen-3.0-generate-001">Imagen 3.0 (Vertex AI)</option>
                     <option value="imagen-4.0-generate-001">Imagen 4.0 (Vertex AI)</option>
                     <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash (Native Image)</option>
@@ -39,132 +45,67 @@
             </div>
 
             <!-- Prompt Input -->
-            <div class="form-group">
-                <label>Image Prompt</label>
-                <textarea id="imagen-prompt" class="admin-textarea" rows="4"
-                    placeholder="Enter a detailed visual description (e.g., A futuristic city in a glass sphere, high detail, 8k resolution...)"></textarea>
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label style="display:block; margin-bottom:8px; font-weight:600; color:#ccc;">Image Prompt</label>
+                <textarea id="imagen-prompt" class="admin-textarea" rows="6"
+                    style="width:100%; padding: 12px; background: rgba(0,0,0,0.3); border: 1px solid #444; color: white; border-radius: 6px; line-height: 1.5;"
+                    placeholder="Enter a detailed visual description..."></textarea>
             </div>
 
-            <div class="form-group">
-                <label>Negative Prompt (Optional)</label>
+            <div class="form-group" style="margin-bottom: 24px;">
+                <label style="display:block; margin-bottom:8px; font-weight:600; color:#ccc;">Negative Prompt</label>
                 <input type="text" id="imagen-negative-prompt" class="admin-input"
-                    placeholder="blur, low quality, text, watermark" />
+                    style="width:100%; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid #444; color: white; border-radius: 6px;"
+                    placeholder="Optional (blur, text, watermark...)" />
             </div>
 
-            <button id="btn-generate-image" class="admin-btn-primary full-width">
-                <span id="btn-icon">🎨</span>
-                <span id="btn-text">Generate Image</span>
+            <button id="btn-generate-image" class="admin-btn-primary full-width"
+                style="width:100%; padding: 14px; font-size: 16px; font-weight: bold; background: linear-gradient(135deg, #00f260 0%, #0575e6 100%); border: none; border-radius: 8px; color: white; cursor: pointer;">
+                Generate Image
             </button>
+            <div id="gen-status-msg"
+                style="margin-top:10px; text-align:center; font-size:13px; color:#aaa; min-height:20px;"></div>
         </div>
     </div>
 
-    <!-- Results Panel -->
-    <div class="admin-card results-panel">
+    <!-- Results Panel (Right/Bottom) -->
+    <div class="admin-card results-panel" style="flex: 2 1 500px; min-width: 300px;">
         <div class="card-header">
-            <h3>Generation Result</h3>
+            <h3>🖼️ Generation Result</h3>
         </div>
         <div class="card-body">
-            <div id="imagen-result-container" class="image-preview-container">
-                <div class="placeholder-state">
-                    <i class="fas fa-image fa-3x"></i>
+            <div id="imagen-result-container" class="image-preview-container"
+                style="width: 100%; min-height: 500px; background: #000; border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;">
+                <div class="placeholder-state" style="text-align:center; color:#555;">
+                    <i class="fas fa-image fa-4x" style="margin-bottom:16px;"></i>
                     <p>Generated image will appear here</p>
                 </div>
             </div>
-            <div id="result-meta" class="result-meta" style="display:none;">
-                <span class="badge" id="meta-model"></span>
-                <span class="badge" id="meta-time"></span>
+            <div id="result-meta" class="result-meta" style="display:none; margin-top: 16px; gap: 12px;">
+                <span class="badge" id="meta-model"
+                    style="background:#333; padding:4px 12px; border-radius:12px; font-size:12px;"></span>
+                <span class="badge" id="meta-time"
+                    style="background:#333; padding:4px 12px; border-radius:12px; font-size:12px;"></span>
             </div>
         </div>
     </div>
 </div>
 
 <!-- Logs Panel -->
-<div class="admin-card logs-panel">
+<div class="admin-card logs-panel" style="margin-top: 24px;">
     <div class="card-header">
-        <h3>Execution Logs</h3>
+        <h3>📝 Execution Logs</h3>
     </div>
-    <div class="card-body terminal-view">
-        <div id="imagen-logs" class="console-output"></div>
+    <div class="card-body terminal-view" style="padding:0;">
+        <div id="imagen-logs" class="console-output" style="
+            background: #1e1e1e; 
+            padding: 16px; 
+            height: 200px; 
+            overflow-y: auto; 
+            font-family: 'JetBrains Mono', monospace; 
+            font-size: 13px; 
+            color: #ddd;
+            border-radius: 0 0 8px 8px;">
+        </div>
     </div>
 </div>
-
-<style>
-    .admin-content-grid {
-        display: grid;
-        grid-template-columns: 350px 1fr;
-        gap: 20px;
-        margin-bottom: 20px;
-    }
-
-    .image-preview-container {
-        width: 100%;
-        min-height: 400px;
-        background: rgba(0, 0, 0, 0.2);
-        border: 2px dashed rgba(255, 255, 255, 0.1);
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-        position: relative;
-    }
-
-    .image-preview-container img {
-        max-width: 100%;
-        max-height: 600px;
-        border-radius: 8px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-    }
-
-    .placeholder-state {
-        text-align: center;
-        color: rgba(255, 255, 255, 0.3);
-    }
-
-    .result-meta {
-        margin-top: 15px;
-        display: flex;
-        gap: 10px;
-    }
-
-    .badge {
-        background: rgba(255, 255, 255, 0.1);
-        padding: 4px 10px;
-        border-radius: 20px;
-        font-size: 12px;
-        color: #ddd;
-    }
-
-    .terminal-view {
-        background: #0d1117;
-        border-radius: 8px;
-        padding: 15px;
-        height: 200px;
-        overflow-y: auto;
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 13px;
-        border: 1px solid #30363d;
-    }
-
-    .console-output div {
-        margin-bottom: 4px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        padding-bottom: 2px;
-    }
-
-    .console-output .log-info {
-        color: #58a6ff;
-    }
-
-    .console-output .log-success {
-        color: #3fb950;
-    }
-
-    .console-output .log-error {
-        color: #f85149;
-    }
-
-    .console-output .log-warn {
-        color: #d29922;
-    }
-</style>
