@@ -189,9 +189,15 @@
         const startTime = Date.now();
 
         try {
+            // Determine provider
+            let provider = 'openai';
+            if (model.startsWith('claude')) provider = 'anthropic';
+            else if (model.startsWith('deepseek')) provider = 'deepseek';
+            else if (model.includes('gemini') || model.includes('imagen') || model.includes('veo') || model.includes('nano')) provider = 'google';
+
             // Call the LLM via Cloud Function
             const response = await firebase.functions().httpsCallable('generateLLMResponse')({
-                provider: model.startsWith('claude') ? 'anthropic' : (model.startsWith('deepseek') ? 'deepseek' : 'openai'),
+                provider: provider,
                 model: model,
                 systemPrompt: selectedVersion.systemPrompt,
                 userMessage: userMessage,
@@ -200,13 +206,46 @@
             });
 
             const duration = Date.now() - startTime;
+            const resData = response.data;
 
-            if (response.data.success) {
-                outputDiv.innerHTML = escapeHtml(response.data.response);
+            if (resData.success) {
+                const content = resData.response;
+
+                // Check if content looks like an image URL or Markdown Image
+                const isImageModel = model.includes('imagen') || model.includes('nano') || model.includes('veo') || model.includes('dall-e');
+                const isUrl = typeof content === 'string' && (content.startsWith('http') || content.startsWith('data:image'));
+                const isMdImage = typeof content === 'string' && content.match(/!\[.*?\]\((.*?)\)/);
+
+                if (isImageModel || isUrl || isMdImage) {
+                    let imageUrl = content;
+                    if (isMdImage) imageUrl = isMdImage[1]; // Extract URL from markdown
+
+                    if (model.includes('veo')) {
+                        outputDiv.innerHTML = `
+                            <div style="text-align:center;">
+                                <video controls autoplay loop style="max-width:100%; border-radius:8px;">
+                                    <source src="${imageUrl}" type="video/mp4">
+                                    Your browser does not support the video tag.
+                                </video>
+                                <p style="font-size:12px; color:#aaa; margin-top:8px;">Generated Video</p>
+                            </div>
+                         `;
+                    } else {
+                        outputDiv.innerHTML = `
+                            <div style="text-align:center;">
+                                <img src="${imageUrl}" style="max-width:100%; border-radius:8px; box-shadow:0 5px 15px rgba(0,0,0,0.3);" onclick="window.open(this.src)" title="Click to open full size">
+                                <p style="font-size:12px; color:#aaa; margin-top:8px;">Generated Image (Click to Expand)</p>
+                            </div>
+                        `;
+                    }
+                } else {
+                    outputDiv.innerHTML = escapeHtml(content);
+                }
+
                 statsDiv.textContent = `✓ Completed in ${(duration / 1000).toFixed(2)}s • ${model}`;
                 statsDiv.style.color = '#3fb950';
             } else {
-                outputDiv.innerHTML = `<span style="color: #f85149;">Error: ${response.data.error || 'Unknown error'}</span>`;
+                outputDiv.innerHTML = `<span style="color: #f85149;">Error: ${resData.error || 'Unknown error'}</span>`;
                 statsDiv.textContent = `✗ Failed after ${(duration / 1000).toFixed(2)}s`;
                 statsDiv.style.color = '#f85149';
             }

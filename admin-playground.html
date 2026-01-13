@@ -87,11 +87,26 @@ Select an agent to preview its system prompt...
                     <div class="admin-form-group">
                         <label class="admin-form-label">Model</label>
                         <select id="playground-model" class="admin-select" style="width: 100%;">
-                            <option value="gpt-4o">GPT-4o</option>
-                            <option value="gpt-4o-mini">GPT-4o Mini</option>
-                            <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
-                            <option value="deepseek-chat">DeepSeek V3</option>
-                            <option value="deepseek-reasoner">DeepSeek R1</option>
+                            <optgroup label="Text Generation">
+                                <option value="gpt-4o">GPT-4o (OpenAI)</option>
+                                <option value="gpt-4o-mini">GPT-4o Mini (OpenAI)</option>
+                                <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet (Anthropic)</option>
+                                <option value="deepseek-chat">DeepSeek V3</option>
+                                <option value="deepseek-reasoner">DeepSeek R1</option>
+                                <option value="gemini-1.5-pro">Gemini 1.5 Pro (Google)</option>
+                                <option value="gemini-1.5-flash">Gemini 1.5 Flash (Google)</option>
+                            </optgroup>
+                            <optgroup label="Image Generation">
+                                <option value="imagen-3.0-generate-001">Imagen 3.0 (Vertex AI)</option>
+                                <option value="imagen-4.0-generate-001">Imagen 4.0 (Vertex AI)</option>
+                                <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash (Native Image)</option>
+                                <option value="nano-banana">Nano Banana</option>
+                                <option value="nano-banana-pro">Nano Banana Pro</option>
+                            </optgroup>
+                            <optgroup label="Video Generation">
+                                <option value="veo">Veo (Google)</option>
+                                <option value="veo-2">Veo 2 (Google)</option>
+                            </optgroup>
                         </select>
                     </div>
                     <div class="admin-form-group">
