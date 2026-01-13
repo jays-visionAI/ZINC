@@ -3030,10 +3030,14 @@ ${agentList}
      */
     function getProviderFromModel(model) {
         if (!model) return 'openai';
-        if (model.includes('gpt')) return 'openai';
-        if (model.includes('gemini')) return 'google';
-        if (model.includes('claude')) return 'anthropic';
-        if (model.includes('deepseek')) return 'deepseek';
+        const m = model.toLowerCase();
+        if (m.includes('gpt')) return 'openai';
+        if (m.includes('gemini')) return 'google';
+        if (m.includes('imagen')) return 'google';
+        if (m.includes('claude')) return 'anthropic';
+        if (m.includes('deepseek')) return 'deepseek';
+        if (m.includes('dall-e')) return 'openai';
+        if (m.includes('stable-diffusion')) return 'stability';
         return 'openai';
     }
 
@@ -4507,6 +4511,11 @@ ${agentList}
             combinedSystemPrompt += `\n\n[ADDITIONAL INSTRUCTIONS]\n${node.data.instruction}`;
         }
 
+        // Normalize model ID for backward compatibility and backend technical IDs
+        let targetModel = node.data.model || 'gpt-4o';
+        if (targetModel === 'imagen-3') targetModel = 'imagen-3.0-generate-001';
+        if (targetModel === 'imagen-4') targetModel = 'imagen-4.0-generate-001';
+
         const payload = {
             projectId: projectId,
             teamId: 'workflow-test',
@@ -4516,8 +4525,8 @@ ${agentList}
             systemPrompt: combinedSystemPrompt,
             taskPrompt: taskPrompt,
             previousOutputs: previousOutputs || [],
-            provider: getProviderFromModel(node.data.model) || 'openai',
-            model: node.data.model || 'gpt-4o',
+            provider: getProviderFromModel(targetModel) || 'openai',
+            model: targetModel,
             temperature: parseFloat(node.data.temperature) || 0.7
         };
 
