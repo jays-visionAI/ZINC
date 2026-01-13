@@ -4242,7 +4242,13 @@ Create only visual design elements.`;
             contents: [{ role: 'user', parts: [{ text: enhancedPrompt }] }],
         });
 
-        const response = result.response;
+        let response;
+        try {
+            response = await result.response;
+        } catch (respErr) {
+            console.error('[generateWithGeminiFlashImage] SDK error fetching response:', respErr.message);
+            throw new Error(`Gemini Image Generation Blocked (Safety Filter): ${respErr.message}`);
+        }
         const parts = response.candidates?.[0]?.content?.parts || [];
 
         for (const part of parts) {
