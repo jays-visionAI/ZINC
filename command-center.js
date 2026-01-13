@@ -23,9 +23,25 @@ document.addEventListener("DOMContentLoaded", () => {
     let agentTemplates = [];
 
     // 🔹 Auth Listener
-    firebase.auth().onAuthStateChanged((user) => {
+    firebase.auth().onAuthStateChanged(async (user) => {
         if (user) {
             currentUser = user;
+
+            // [NEW] Onboarding Check
+            try {
+                const userDoc = await db.collection('users').doc(user.uid).get();
+                if (userDoc.exists) {
+                    const userData = userDoc.data();
+                    if (userData.onboardingCompleted === false) {
+                        console.log("➡️ Redirecting to onboarding.html...");
+                        window.location.href = 'onboarding.html';
+                        return;
+                    }
+                }
+            } catch (err) {
+                console.warn("Onboarding check failed:", err);
+            }
+
             loadProjects(); // Load non-draft projects
             loadIndustries(); // Load industry options
 
@@ -37,6 +53,7 @@ document.addEventListener("DOMContentLoaded", () => {
             // Redirect handled in HTML script
         }
     });
+
 
     // 🔹 Modal Logic
     const openModal = () => {

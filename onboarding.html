@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to ZYNK - Onboarding</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Inter:wght@400;500;600&display=swap"
+        rel="stylesheet">
+
+    <!-- Tailwind CSS (via CDN for rapid development, but with custom config) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        outfit: ['Outfit', 'sans-serif'],
+                    },
+                    colors: {
+                        slate: {
+                            950: '#020617',
+                        },
+                        zinc: {
+                            950: '#09090b',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <link rel="stylesheet" href="onboarding.css">
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+</head>
+
+<body class="bg-slate-950 text-slate-200 font-sans min-h-screen selection:bg-cyan-500/30">
+
+    <!-- Background Decoration -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none -z-10">
+        <div
+            class="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-cyan-500/10 rounded-full blur-[120px] animate-pulse">
+        </div>
+        <div class="absolute -bottom-[10%] -right-[10%] w-[40%] h-[40%] bg-violet-600/10 rounded-full blur-[120px] animate-pulse"
+            style="animation-delay: 2s;"></div>
+    </div>
+
+    <!-- Main Container -->
+    <main class="max-w-2xl mx-auto px-6 py-12 md:py-24">
+
+        <!-- Header -->
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-outfit font-bold text-white mb-4 tracking-tight">
+                Welcome to <span
+                    class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-violet-500">ZYNK</span>
+            </h1>
+            <p class="text-slate-400 text-lg max-w-md mx-auto" id="step-meta">
+                Let's set up your personal marketing engine in seconds.
+            </p>
+        </header>
+
+        <!-- Progress Bar -->
+        <div class="mb-12">
+            <div class="flex justify-between items-center mb-4">
+                <span class="text-xs font-bold uppercase tracking-widest text-slate-500" id="step-indicator">Step 1 of
+                    3</span>
+                <span class="text-xs font-bold uppercase tracking-widest text-cyan-400" id="step-title">Persona
+                    Selection</span>
+            </div>
+            <div class="h-1 w-full bg-slate-900 rounded-full overflow-hidden">
+                <div id="progress-line"
+                    class="h-full bg-gradient-to-r from-cyan-500 to-violet-500 transition-all duration-700 ease-out"
+                    style="width: 33.33%;"></div>
+            </div>
+        </div>
+
+        <!-- Wizard Steps Content -->
+        <div id="wizard-content" class="min-h-[400px]">
+            <!-- Content will be injected by onboarding.js -->
+            <div class="flex items-center justify-center h-full py-20">
+                <div class="w-10 h-10 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin"></div>
+            </div>
+        </div>
+
+        <!-- Navigation Footer -->
+        <footer class="mt-12 flex items-center justify-between gap-4">
+            <button id="btn-back"
+                class="px-6 py-3 rounded-xl font-semibold text-slate-400 hover:text-white hover:bg-slate-900 transition-all invisible">
+                Back
+            </button>
+            <div class="flex gap-3">
+                <button id="btn-skip"
+                    class="px-6 py-3 rounded-xl font-semibold text-slate-500 hover:text-slate-300 transition-all hidden">
+                    Skip for now
+                </button>
+                <button id="btn-next"
+                    class="px-8 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 text-white font-bold hover:shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none">
+                    Next Step
+                </button>
+            </div>
+        </footer>
+
+    </main>
+
+    <!-- Scripts -->
+    <script src="firebase-config.js"></script>
+    <script src="utils-channel-profiles.js"></script>
+    <script src="onboarding.js"></script>
+</body>
+
+</html>

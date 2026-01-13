@@ -112,6 +112,7 @@ window.WorkflowCanvas = (function () {
                 { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'google', tier: 'standard', description: 'Multimodal capable' }
             ],
             image: [
+                { id: 'imagen-4.0-generate-001', name: 'Imagen 4 (Google Cloud)', provider: 'google', tier: 'premium', description: 'Next-gen photorealistic image generation' },
                 { id: 'imagen-3', name: 'Imagen 3', provider: 'google', tier: 'premium', description: 'Photorealistic images' },
                 { id: 'gemini-2.5-flash-image', name: 'Gemini 2.5 Flash (Nano Banana)', provider: 'google', tier: 'standard', description: 'Fast image generation' },
                 { id: 'gemini-3.0-pro', name: 'Gemini 3 pro (Nano Banana Pro)', provider: 'google', tier: 'premium', description: 'Advanced image synthesis' },
@@ -2364,7 +2365,8 @@ ${agentList}
 
             // Get agent's capability for model filtering
             const selectedAgent = agents.find(a => a.id === node.data.agentId);
-            const capability = selectedAgent?.capability || node.data.capability || 'text';
+            // [FIX] Prefer existing node capability to avoid resetting tabs when re-selecting node
+            const capability = node.data.capability || selectedAgent?.capability || 'text';
             node.data.capability = capability;
 
             // Populate model selector based on capability
@@ -3279,14 +3281,11 @@ ${agentList}
             code: '💻 Code Models'
         };
 
-        // Put current capability groups first
-        const sortedCaps = [capability, ...capabilities.filter(c => c !== capability)];
+        // Strictly filter models by capability
+        const models = state.modelCatalog[capability] || [];
 
-        sortedCaps.forEach(cap => {
-            const models = state.modelCatalog[cap] || [];
-            if (models.length === 0) return;
-
-            optionsHTML += `<optgroup label="${labels[cap]}">`;
+        if (models.length > 0) {
+            optionsHTML += `<optgroup label="${labels[capability]}">`;
             models.forEach(m => {
                 const tierBadge = m.tier === 'premium' ? '⭐' : m.tier === 'economy' ? '💰' : '';
                 const disabled = m.disabled ? 'disabled' : '';
@@ -3294,10 +3293,10 @@ ${agentList}
                 optionsHTML += `<option value="${m.id}" ${selected} ${disabled}>${tierBadge} ${m.name} (${m.provider})</option>`;
             });
             optionsHTML += `</optgroup>`;
-        });
+        }
 
-        // Add multimodal as fallback/alternative for image tasks
-        if (capability === 'image' && !optionsHTML.includes('gpt-4o')) {
+        // Add multimodal as fallback/alternative for image tasks if not already present
+        if (capability === 'image' && !models.some(m => m.id === 'gpt-4o')) {
             optionsHTML += `
                 <optgroup label="✨ Multimodal (Vision)">
                     <option value="gpt-4o" ${currentModel === 'gpt-4o' ? 'selected' : ''}>GPT-4o (Vision supported)</option>
@@ -3671,6 +3670,7 @@ ${agentList}
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         path.setAttribute('d', `M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`);
         path.setAttribute('class', 'wf-connection-line temporary');
+        path.style.pointerEvents = 'none'; // [FIX] Don't block mouse events for target nodes
         elements.connectionsSvg.appendChild(path);
     }
 
@@ -3693,13 +3693,12 @@ ${agentList}
 
                     const targetNode = state.nodes.find(n => n.id === targetNodeId);
 
-                    // Smart replacement: if node is not parallel-capable, replace old connection
-                    if (targetNode && targetNode.type !== 'parallel') {
-                        // For non-condition sources, or same-label condition sources, replace
+                    // Smart replacement: [FIX] Only replace if it's a branching node (Condition/Start)
+                    // We allow merging multiple paths into Agent, Transform, and End nodes.
+                    if (targetNode && (targetNode.type === 'condition' || targetNode.type === 'start')) {
+                        // For branching nodes, we replace the edge of the same type/label
                         state.edges = state.edges.filter(edge => {
-                            // Keep if it's not pointing to this target, OR if it's from a different source port
                             if (edge.target !== targetNodeId) return true;
-                            // If it's from the same category (label), we replace it
                             return edge.label !== label;
                         });
                     }
