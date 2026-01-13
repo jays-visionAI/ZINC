@@ -1448,6 +1448,7 @@ ${agentList}
             case 'start':
                 el.classList.add('can-test');
                 el.innerHTML = `
+        <div class="wf-node-elapsed"></div>
         <div class="wf-node-start-inner">
             <span class="wf-node-icon">${SVG_ICONS.play}</span>
             <span>START</span>
@@ -1459,6 +1460,7 @@ ${agentList}
 
             case 'end':
                 el.innerHTML = `
+        <div class="wf-node-elapsed"></div>
         <div class="wf-node-end-inner">
             <span class="wf-node-icon">${SVG_ICONS.stop}</span>
             <span>END</span>
@@ -1469,6 +1471,7 @@ ${agentList}
 
             case 'agent':
                 el.innerHTML = `
+        <div class="wf-node-elapsed"></div>
         <div class="wf-node-agent-inner">
             <div class="wf-node-agent-header">
                 <span class="wf-node-agent-icon">${getIcon(node.data.icon)}</span>
@@ -1490,6 +1493,7 @@ ${agentList}
 
             case 'condition':
                 el.innerHTML = `
+        <div class="wf-node-elapsed"></div>
         <div class="wf-node-condition-inner">
             <div class="wf-node-condition-content">
                 <span class="wf-node-icon">${SVG_ICONS.condition}</span>
@@ -1512,6 +1516,7 @@ ${agentList}
 
             case 'parallel':
                 el.innerHTML = `
+        <div class="wf-node-elapsed"></div>
         <div class="wf-node-parallel-inner">
             <span class="wf-node-icon">${SVG_ICONS.parallel}</span>
             <span>PARALLEL</span>
@@ -1542,6 +1547,7 @@ ${agentList}
                 }
 
                 el.innerHTML = `
+        <div class="wf-node-elapsed"></div>
         <div class="wf-node-data-inner wf-node-${node.type === 'input' ? 'input' : 'datasource'}">
             <div class="wf-node-data-header">
                 <span class="wf-node-data-icon">${dataIcon}</span>
@@ -1560,6 +1566,7 @@ ${agentList}
             case 'firestore':
                 el.classList.add('wf-node-data');
                 el.innerHTML = `
+        <div class="wf-node-elapsed"></div>
         <div class="wf-node-data-inner wf-node-firestore">
             <div class="wf-node-data-header">
                 <span class="wf-node-data-icon">${SVG_ICONS.database}</span>
@@ -1578,6 +1585,7 @@ ${agentList}
             case 'transform':
                 el.classList.add('wf-node-data');
                 el.innerHTML = `
+        <div class="wf-node-elapsed"></div>
         <div class="wf-node-data-inner wf-node-transform">
             <div class="wf-node-data-header">
                 <span class="wf-node-data-icon">${SVG_ICONS.filter}</span>
@@ -2681,7 +2689,7 @@ ${agentList}
                 : `✗ 오류: ${result.error || 'Unknown error'}`;
 
             // Re-render node to show status indicator
-            renderNodeStatus(node.id, result.success ? 'success' : 'error');
+            renderNodeStatus(node.id, result.success ? 'success' : 'error', duration);
 
             notify(result.success ? '노드 테스트 완료!' : '노드 테스트 실패', result.success ? 'success' : 'error');
 
@@ -3044,7 +3052,7 @@ ${agentList}
     /**
      * Render node status indicator (success/error badge)
      */
-    function renderNodeStatus(nodeId, status) {
+    function renderNodeStatus(nodeId, status, durationMs = null) {
         const nodeEl = document.getElementById(nodeId);
         if (!nodeEl) return;
 
@@ -3058,6 +3066,21 @@ ${agentList}
             nodeEl.classList.add('wf-node-error');
         } else if (status === 'running') {
             nodeEl.classList.add('wf-node-running');
+        }
+
+        // [NEW] Handle elapsed time display
+        const elapsedEl = nodeEl.querySelector('.wf-node-elapsed');
+        if (elapsedEl) {
+            if (durationMs !== null) {
+                const seconds = (durationMs / 1000).toFixed(1);
+                elapsedEl.textContent = `${seconds}s`;
+                elapsedEl.classList.add('active');
+            } else if (status === 'running') {
+                elapsedEl.textContent = 'Executing...';
+                elapsedEl.classList.add('active');
+            } else {
+                elapsedEl.classList.remove('active');
+            }
         }
     }
 
@@ -4381,7 +4404,7 @@ ${agentList}
                 node.data.executionDuration = duration;
 
                 // Update UI
-                renderNodeStatus(node.id, result.success ? 'success' : 'error');
+                renderNodeStatus(node.id, result.success ? 'success' : 'error', duration);
 
                 executionResults.push({
                     nodeId: node.id,
