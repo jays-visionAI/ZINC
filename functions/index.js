@@ -693,9 +693,62 @@ function getApiKeyFromData(data) {
 
 /**
  * Unified LLM Call Function
- * Supports: OpenAI, Gemini, Anthropic (Claude)
+ * Supports: OpenAI, Gemini, Anthropic (Claude), Vertex AI (Imagen)
  */
 async function callLLM(provider, model, messages, temperature = 0.7) {
+    // [NEW] Route Image Generation requests to specialized handler
+    const modelLower = (model || '').toLowerCase();
+    const isImageModel = modelLower.includes('imagen') ||
+        modelLower.includes('dall-e') ||
+        modelLower.includes('banana') ||
+        modelLower.endsWith('-image') ||
+        modelLower === 'gemini-3.0-pro'; // Pro-image
+
+    if (isImageModel) {
+        console.log(`[callLLM] 🖼️ Image generation requested for model: ${model}`);
+        const lastMessage = messages[messages.length - 1];
+        const prompt = lastMessage.content || 'Generate a high-quality professional image.';
+
+        try {
+            // Map technical IDs for Vertex AI / Imagen
+            if (modelLower.includes('imagen')) {
+                let targetModel = model;
+                if (model === 'imagen-3') targetModel = 'imagen-3.0-generate-001';
+                if (model === 'imagen-3.0-generate-001') targetModel = 'imagen-3.0-generate-001';
+                if (model === 'imagen-4') targetModel = 'imagen-4.0-generate-001';
+                if (model === 'imagen-4.0-generate-001') targetModel = 'imagen-4.0-generate-001';
+
+                const url = await generateWithVertexAI(prompt, targetModel);
+                return {
+                    content: url,
+                    model: targetModel,
+                    usage: { total_tokens: 0 },
+                    provider: 'google_vertex'
+                };
+            }
+
+            // Map technical IDs for Nano Banana (Gemini Image Modality)
+            if (modelLower.includes('banana') || modelLower.includes('gemini')) {
+                const url = await generateWithNanoBananaPro(prompt);
+                return {
+                    content: url,
+                    model: model,
+                    usage: { total_tokens: 0 },
+                    provider: 'google_nano'
+                };
+            }
+
+            // DALL-E Fallback if explicitly requested or as last resort
+            if (modelLower.includes('dall-e')) {
+                // OpenAI DALL-E logic can be added here if needed
+                throw new Error('DALL-E 3 support not yet implemented in callLLM');
+            }
+        } catch (err) {
+            console.error('[callLLM] Image generation failed:', err.message);
+            throw err;
+        }
+    }
+
     const apiKey = await getSystemApiKey(provider);
 
     if (!apiKey) {

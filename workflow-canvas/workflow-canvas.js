@@ -113,7 +113,7 @@ window.WorkflowCanvas = (function () {
             ],
             image: [
                 { id: 'imagen-4.0-generate-001', name: 'Imagen 4 (Google Cloud)', provider: 'google', tier: 'premium', description: 'Next-gen photorealistic image generation' },
-                { id: 'imagen-3', name: 'Imagen 3', provider: 'google', tier: 'premium', description: 'Photorealistic images' },
+                { id: 'imagen-3.0-generate-001', name: 'Imagen 3 (Google Cloud)', provider: 'google', tier: 'premium', description: 'Photorealistic images' },
                 { id: 'gemini-2.5-flash-image', name: 'Gemini 2.5 Flash (Nano Banana)', provider: 'google', tier: 'standard', description: 'Fast image generation' },
                 { id: 'gemini-3.0-pro', name: 'Gemini 3 pro (Nano Banana Pro)', provider: 'google', tier: 'premium', description: 'Advanced image synthesis' },
                 { id: 'stable-diffusion-xl', name: 'Stable Diffusion XL', provider: 'stability', tier: 'standard', description: 'Open source, customizable' },
