@@ -806,54 +806,99 @@ async function callOpenAIInternal(apiKey, model, messages, temperature) {
 
 /**
  * Gemini Internal Call
+ * Refactored to handle strict role requirements and safety filters
  */
 async function callGeminiInternal(apiKey, model, messages, temperature) {
     const genAI = new GoogleGenerativeAI(apiKey);
     const geminiModel = genAI.getGenerativeModel({ model });
 
-    // Convert OpenAI message format to Gemini format
+    // 1. Separate system message
     const systemMessage = messages.find(m => m.role === 'system')?.content || '';
-    const userMessages = messages.filter(m => m.role !== 'system');
+    const otherMessages = messages.filter(m => m.role !== 'system');
 
-    // Build conversation history
-    const history = [];
-    for (let i = 0; i < userMessages.length - 1; i++) {
-        const msg = userMessages[i];
-        history.push({
-            role: msg.role === 'assistant' ? 'model' : 'user',
-            parts: [{ text: msg.content }]
-        });
+    // 2. Merge consecutive roles and normalize for Gemini (must alternate user/model)
+    // Also ensures it starts with 'user'
+    const normalizedHistory = [];
+    let currentRole = null;
+    let currentContent = '';
+
+    for (let i = 0; i < otherMessages.length - 1; i++) {
+        const msg = otherMessages[i];
+        const role = msg.role === 'assistant' ? 'model' : 'user';
+
+        if (role === currentRole) {
+            currentContent += '\n\n' + msg.content;
+        } else {
+            if (currentRole) {
+                normalizedHistory.push({ role: currentRole, parts: [{ text: currentContent }] });
+            }
+            currentRole = role;
+            currentContent = msg.content;
+        }
     }
 
-    // Get the last user message
-    const lastMessage = userMessages[userMessages.length - 1];
+    // Push the last accumulated history message
+    if (currentRole) {
+        normalizedHistory.push({ role: currentRole, parts: [{ text: currentContent }] });
+    }
+
+    // Gemini RULE: History MUST start with 'user'
+    // If it starts with 'model', prepend a dummy user message or merge with system
+    if (normalizedHistory.length > 0 && normalizedHistory[0].role === 'model') {
+        normalizedHistory.unshift({ role: 'user', parts: [{ text: 'Please analyze the following context.' }] });
+    }
+
+    // 3. Prepare the final prompt
+    const lastMessage = otherMessages[otherMessages.length - 1];
     const prompt = systemMessage ? `${systemMessage}\n\n${lastMessage.content}` : lastMessage.content;
 
     const config = {
         maxOutputTokens: 4000
     };
 
-    // Special handling for models that enforce default temperature (e.g. Gemini 3.0 Preview, Thinking models)
-    // Error observed: "temperature does not support 0.7 with this model. Only the default (1) value is supported."
     const isRestrictedModel = model.includes('thinking');
     if (!isRestrictedModel && temperature != null) {
         config.temperature = temperature;
     }
 
-    const chat = geminiModel.startChat({
-        history,
-        generationConfig: config
-    });
+    try {
+        const chat = geminiModel.startChat({
+            history: normalizedHistory,
+            generationConfig: config
+        });
 
-    const result = await chat.sendMessage(prompt);
-    const response = await result.response;
+        const result = await chat.sendMessage(prompt);
+        const response = await result.response;
 
-    return {
-        content: response.text(),
-        model,
-        usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }, // Gemini doesn't return token counts in same way
-        provider: 'gemini'
-    };
+        // Check for empty candidates (often due to safety filters)
+        if (!response.candidates || response.candidates.length === 0 || !response.candidates[0].content) {
+            console.warn('[callGeminiInternal] Empty response or safety filter trigger');
+            return {
+                content: '[Response Blocked or Empty - Potential Safety Filter Trigger]',
+                model,
+                usage: { total_tokens: 0 },
+                provider: 'gemini'
+            };
+        }
+
+        return {
+            content: response.text(),
+            model,
+            usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+            provider: 'gemini'
+        };
+    } catch (err) {
+        console.error('[callGeminiInternal] Error:', err.message);
+        if (err.message.includes('safety') || err.message.includes('blocked')) {
+            return {
+                content: '[Generation failed due to safety filters or strict content policy]',
+                model,
+                usage: { total_tokens: 0 },
+                provider: 'gemini'
+            };
+        }
+        throw err;
+    }
 }
 
 /**
