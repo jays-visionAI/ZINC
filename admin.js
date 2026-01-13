@@ -188,6 +188,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             settings: "Settings",
             'ui-menu': "UI & Menu Management",
             'vision-test': "👁️ Vision QA Test (Aesthetic Critic)",
+            'imagen-test': "🎨 Google Imagen Test Lab",
             monitoring: "📊 System Monitoring & Analytics"
         };
         document.getElementById("admin-page-title").textContent = titles[actualPage] || "Admin";

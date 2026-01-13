@@ -402,26 +402,50 @@ exports.executeSubAgent = onCall({
         // Determine quality tier (Use passed tier if available, otherwise legacy auto-boost for specific agents)
         const qualityTier = payload.qualityTier || (['planner', 'manager', 'compliance'].includes(subAgentId) ? 'BOOST' : 'DEFAULT');
 
-        const routingResult = await llmRouter.route({
-            feature: 'agent_execution',
-            engineType: subAgentId,     // Secondary Fallback
-            runtimeProfileId: runtimeProfileId, // Primary Source of Truth
-            qualityTier,
-            messages,
-            temperature: temperature || 0.7,
-            userId: request.auth?.uid,
-            projectId,
-            provider, // Explicit overrides still respected
-            model,
-            callLLM
-        });
+        // [NEW] Wrapped LLM Call for better Error Handling
+        let output = '';
+        let modelResult = null;
+        try {
+            const result = await llmRouter.route({
+                feature: 'agent_execution',
+                engineType: subAgentId,     // Secondary Fallback
+                runtimeProfileId: runtimeProfileId, // Primary Source of Truth
+                qualityTier,
+                messages,
+                temperature: temperature || 0.7,
+                userId: request.auth?.uid,
+                projectId,
+                provider, // Explicit overrides still respected
+                model,
+                callLLM
+            });
 
-        let output = routingResult.content;
+            modelResult = result;
+            output = result.content;
 
-        // [Fix] Strip markdown code blocks to ensure raw format (especially for Designer/HTML agents)
-        if (typeof output === 'string') {
-            output = output.replace(/^```[a-z]*\s*/i, '').replace(/```\s*$/, '').trim();
+            // [Fix] Strip markdown code blocks (especially for Designer/HTML agents)
+            if (typeof output === 'string') {
+                output = output.replace(/^```[a-z]*\s*/i, '').replace(/```\s*$/, '').trim();
+            }
+
+        } catch (llmError) {
+            console.error(`[executeSubAgent] 🛑 LLM Routing/Call Failed for ${subAgentId}:`, llmError.message);
+
+            // Check for Axios/API 400 Bad Request (Context too long, Invalid prompt, etc.)
+            if (llmError.message && llmError.message.includes('400')) {
+                console.warn('[executeSubAgent] ⚠️ Detected 400 Bad Request from LLM Provider. Returning fallback message.');
+                return {
+                    success: false,
+                    error: `Model Provider Error (400): The inputs may be too long or invalid. (${llmError.message})`,
+                    rawError: llmError.message,
+                    usage: { total_tokens: 0 }
+                };
+            }
+
+            throw llmError;
         }
+
+        const routingResult = modelResult;
 
         // Calculate Metadata & Weights for UI Visualization
         const metadata = {
