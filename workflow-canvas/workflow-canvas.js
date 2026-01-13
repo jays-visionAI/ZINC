@@ -151,9 +151,19 @@ window.WorkflowCanvas = (function () {
         mcpServers: []
     };
 
-    // Node ID counter
-    let nodeIdCounter = 0;
-    let edgeIdCounter = 0;
+    /**
+     * [NEW] Generate the next sequential ID for a given prefix by finding the first available hole.
+     * Ensures node/edge numbers stay compact and manageable.
+     */
+    function getNextId(prefix, collection) {
+        let i = 1;
+        // Use a Set for O(1) lookups if the collection is large
+        const ids = new Set(collection.map(item => item.id));
+        while (ids.has(`${prefix}_${i}`)) {
+            i++;
+        }
+        return `${prefix}_${i}`;
+    }
 
     // ============================================
     // DOM Elements
@@ -620,18 +630,7 @@ window.WorkflowCanvas = (function () {
                 };
             }
 
-            // Update ID counters to avoid collisions
-            const maxNodeId = state.nodes.reduce((max, n) => {
-                const num = parseInt(n.id.replace(/^\D+/g, ''));
-                return !isNaN(num) ? Math.max(max, num) : max;
-            }, 0);
-            nodeIdCounter = maxNodeId;
-
-            const maxEdgeId = state.edges.reduce((max, e) => {
-                const num = parseInt(e.id.replace(/^\D+/g, ''));
-                return !isNaN(num) ? Math.max(max, num) : max;
-            }, 0);
-            edgeIdCounter = maxEdgeId;
+            // ID counters are now handled dynamically via getNextId
 
             // Render everything
             renderAllNodes();
@@ -661,8 +660,6 @@ window.WorkflowCanvas = (function () {
         state.edges = [];
         state.selectedNodeId = null;
         state.analysisResult = null;
-        nodeIdCounter = 0;
-        edgeIdCounter = 0;
 
         if (elements.nodesContainer) elements.nodesContainer.innerHTML = '';
         if (elements.connectionsSvg) elements.connectionsSvg.innerHTML = '';
@@ -1140,8 +1137,6 @@ ${agentList}
         state.edges = [];
         if (elements.nodesContainer) elements.nodesContainer.innerHTML = '';
         if (elements.connectionsSvg) elements.connectionsSvg.innerHTML = '';
-        nodeIdCounter = 0;
-        edgeIdCounter = 0;
 
         const analysis = state.analysisResult;
 
@@ -1298,7 +1293,7 @@ ${agentList}
     }
 
     function createNode(type, x, y, data = {}) {
-        const id = `node_${++nodeIdCounter}`;
+        const id = getNextId('node', state.nodes);
         const node = {
             id,
             type,
@@ -1350,7 +1345,7 @@ ${agentList}
     }
 
     function createEdge(sourceId, targetId, label = '') {
-        const id = `edge_${++edgeIdCounter}`;
+        const id = getNextId('edge', state.edges);
         const edge = { id, source: sourceId, target: targetId, label };
         state.edges.push(edge);
         return edge;
@@ -2205,7 +2200,7 @@ ${agentList}
     // Node Selection & Properties
     // ============================================
     function selectNode(nodeId, isShift = false) {
-        console.log(`[WorkflowCanvas] selectNode: ${nodeId} (Shift: ${isShift})`);
+        // console.log(`[WorkflowCanvas] selectNode: ${nodeId} (Shift: ${isShift})`);
 
         if (!isShift) {
             // Normal click: Clear all and select single

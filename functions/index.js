@@ -416,7 +416,12 @@ exports.executeSubAgent = onCall({
             callLLM
         });
 
-        const output = routingResult.content;
+        let output = routingResult.content;
+
+        // [Fix] Strip markdown code blocks to ensure raw format (especially for Designer/HTML agents)
+        if (typeof output === 'string') {
+            output = output.replace(/^```[a-z]*\s*/i, '').replace(/```\s*$/, '').trim();
+        }
 
         // Calculate Metadata & Weights for UI Visualization
         const metadata = {
@@ -911,9 +916,14 @@ async function callGeminiInternal(apiKey, model, messages, temperature) {
         };
     } catch (err) {
         console.error('[callGeminiInternal] Outer Error:', err.message);
-        if (err.message.includes('safety') || err.message.includes('blocked') || err.message.includes('output text')) {
+        const errorLower = err.message.toLowerCase();
+        if (errorLower.includes('safety') ||
+            errorLower.includes('blocked') ||
+            errorLower.includes('output text') ||
+            errorLower.includes('stop reason') ||
+            errorLower.includes('improper format')) {
             return {
-                content: '[Generation failed or blocked due to safety filters or SDK constraints]',
+                content: '[Generation failed or blocked due to safety filters, improper stop reason, or SDK constraints]',
                 model,
                 usage: { total_tokens: 0 },
                 provider: 'gemini'

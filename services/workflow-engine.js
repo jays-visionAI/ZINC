@@ -400,6 +400,14 @@ const WorkflowEngine = (function () {
                     }
                     return typeof obj === 'object' ? JSON.stringify(obj) : obj;
                 }
+                if (parts[0] === 'advancedOptions') {
+                    let obj = context.projectContext?.advancedOptions || {};
+                    for (let i = 1; i < parts.length; i++) {
+                        if (obj && obj[parts[i]] !== undefined) obj = obj[parts[i]];
+                        else return match;
+                    }
+                    return typeof obj === 'object' ? JSON.stringify(obj) : obj;
+                }
                 if (parts[0] === 'nodes') {
                     const nodeId = parts[1];
                     const nodeOutput = context.allOutputs ? context.allOutputs[nodeId] : null;
