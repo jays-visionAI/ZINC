@@ -3525,15 +3525,19 @@ ${agentList}
             // Only attempt auto-reconnect if it's a single node being deleted
             // to avoid complex/unexpected side effects for mass deletions
             if (count === 1) {
+                let reconnected = false;
                 incomingEdges.forEach(inEdge => {
                     outgoingEdges.forEach(outEdge => {
-                        // Avoid duplicates if already exists
                         const exists = state.edges.some(e => e.source === inEdge.source && e.target === outEdge.target);
                         if (!exists) {
                             createEdge(inEdge.source, outEdge.target);
+                            reconnected = true;
                         }
                     });
                 });
+                if (reconnected) {
+                    notify('노드 삭제 후 인접 노드를 자동으로 연결했습니다.', 'info');
+                }
             }
 
             // Remove edges connected to this node
@@ -3556,8 +3560,43 @@ ${agentList}
     function handleNodeMouseDown(e, nodeId) {
         e.stopPropagation(); // Stop background click from firing
         const isShift = e.shiftKey;
+        const isAlt = e.altKey;
 
-        // If the node isn't part of current selection, update selection
+        // [NEW] Alt-key Connection/Disconnection Shortcut
+        if (isAlt && state.selectedNodeId && state.selectedNodeId !== nodeId) {
+            const sourceId = state.selectedNodeId;
+            const targetId = nodeId;
+            const sourceNode = state.nodes.find(n => n.id === sourceId);
+            const targetNode = state.nodes.find(n => n.id === targetId);
+
+            // Check if already connected
+            const existingEdge = state.edges.find(e =>
+                (e.source === sourceId && e.target === targetId) ||
+                (e.source === targetId && e.target === sourceId)
+            );
+
+            if (existingEdge) {
+                if (confirm(`${sourceNode.data.name} -> ${targetNode.data.name} 연결을 해제하시겠습니까?`)) {
+                    deleteEdge(existingEdge.id);
+                    notify('연결이 해제되었습니다.', 'info');
+                }
+            } else {
+                if (confirm(`${sourceNode.data.name} -> ${targetNode.data.name} 연결을 생성하시겠습니까?`)) {
+                    if (sourceNode.type === 'condition') {
+                        // Condition nodes need port selection
+                        const label = prompt('연결 타입을 입력하세요 (TRUE / FALSE / DEFAULT)', 'TRUE');
+                        if (label) createEdge(sourceId, targetId, label.toUpperCase());
+                    } else {
+                        createEdge(sourceId, targetId);
+                    }
+                    renderAllEdges();
+                    notify('연결이 생성되었습니다.', 'success');
+                }
+            }
+            return;
+        }
+
+        // Normal selection logic
         if (!state.selectedNodeIds.includes(nodeId)) {
             selectNode(nodeId, isShift);
         }
@@ -3611,13 +3650,16 @@ ${agentList}
     function handleCanvasMouseMove(e) {
         // Handle multi-node dragging
         if (state.isDragging && state.selectedNodeIds.length > 0) {
+            const dragX = e.clientX / state.zoom;
+            const dragY = e.clientY / state.zoom;
+
             state.selectedNodeIds.forEach(id => {
                 const node = state.nodes.find(n => n.id === id);
                 const offset = state.dragNodeOffsets[id];
                 if (!node || !offset) return;
 
-                node.x = (e.clientX / state.zoom) - offset.x;
-                node.y = (e.clientY / state.zoom) - offset.y;
+                node.x = dragX - offset.x;
+                node.y = dragY - offset.y;
 
                 const el = document.getElementById(id);
                 if (el) {
@@ -3751,8 +3793,9 @@ ${agentList}
         if (!type) return;
 
         const rect = elements.canvasArea.getBoundingClientRect();
-        const x = (e.clientX - rect.left) / state.zoom;
-        const y = (e.clientY - rect.top) / state.zoom;
+        // [FIX] Correct drop coordinates accounting for Pan and Zoom
+        const x = (e.clientX - rect.left - state.panX) / state.zoom;
+        const y = (e.clientY - rect.top - state.panY) / state.zoom;
 
         const node = createNode(type, x, y);
         renderAllNodes();
