@@ -4178,6 +4178,8 @@ Do not include any text, letters, numbers, logos, or watermarks in the image.`;
             // If modelName implies Imagen, use the proper endpoint or helper.
             if (modelName.includes('Nano') || modelName.includes('gemini-3') || modelName === 'imagen4' || modelName === 'imagen-4') {
                 // Map to highest quality available: Imagen 4.0 if enabled, else Imagen 3.0
+                console.log(`[generateWithNanoBananaPro] 🔀 Routing '${modelName}' request to specialized Imagen handler.`);
+
                 // User requested 'Imagen 4.0' specifically.
                 const targetModel = (modelName === 'imagen4' || modelName === 'imagen-4') ? 'imagen-4.0-generate-001' : 'imagen-3.0-generate-001';
 
