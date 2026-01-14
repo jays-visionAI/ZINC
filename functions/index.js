@@ -4064,22 +4064,11 @@ async function generateWithImagen(prompt, size, model = 'imagen-4.0-fast-generat
 
     console.log(`[generateWithImagen] Using model: ${model}, aspect: ${aspectRatio}, prompt: "${prompt.substring(0, 50)}..."`);
 
-    // Map Nano Banana aliases to actual Imagen models if needed
+    // Map Nano Banana aliases to actual Imagen models if needed - THOUGH THIS SHOULD NOT BE REACHED BY NANO BANANA ANYMORE
     let targetModel = model;
-    if (targetModel.includes('nano-banana')) {
-        targetModel = 'imagen-3.0-generate-001'; // Map premium alias to Imagen 3.0
-    }
 
-    // Try the requested model first, then fall back to others
-    const modelsToTry = [
-        targetModel,
-        'imagen-3.0-generate-001',
-        'imagen-3.0-fast-generate-001',
-        'imagen-3.0-generate-002',
-        'imagen-3-generate-001'
-    ].filter((v, i, a) => a.indexOf(v) === i && v && v !== 'undefined'); // Unique valid values
-
-    console.log(`[generateWithImagen] Will try models: ${modelsToTry.join(', ')}`);
+    // STRICT MODE: No Fallback Loop
+    console.log(`[generateWithImagen] Will try ONLY model: ${targetModel}`);
 
     let lastError = null;
     for (const modelName of modelsToTry) {
@@ -4137,8 +4126,8 @@ async function generateWithImagen(prompt, size, model = 'imagen-4.0-fast-generat
     }
 
     // All Imagen models failed - try DALL-E as reliable fallback (Gemini Flash often returns text, not images)
-    console.warn(`[generateWithImagen] ⚠️ All Imagen models failed. Falling back to Nano Banana Pro (gemini-3-pro-image-preview)...`);
-    return await generateWithNanoBananaPro(prompt, size);
+    // Strict Mode: No Fallback
+    throw new Error('Imagen generation failed for all attempts. Fallback disabled.');
 }
 
 /**
