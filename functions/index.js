@@ -119,11 +119,11 @@ exports.callOpenAI = functions.https.onCall(async (data, context) => {
  */
 exports.generateLLMResponse = onCall({ cors: true }, async (request) => {
     const payload = request.data || {};
-    const { provider, model, systemPrompt, userMessage, image, temperature = 0.7, source } = payload;
+    const { provider, model, systemPrompt, userMessage, image, images = [], temperature = 0.7, source } = payload;
 
-    console.log(`[generateLLMResponse] provider=${provider}, model=${model}, source=${source}, image=${!!image}`);
+    console.log(`[generateLLMResponse] provider=${provider}, model=${model}, source=${source}, imageCount=${images.length || (image ? 1 : 0)}`);
 
-    if (!userMessage && !image) {
+    if (!userMessage && !image && (!images || images.length === 0)) {
         return { success: false, error: 'userMessage or image is required' };
     }
 
@@ -135,14 +135,22 @@ exports.generateLLMResponse = onCall({ cors: true }, async (request) => {
             messages.push({ role: 'system', content: systemPrompt });
         }
 
-        if (image) {
+        // Handle multiple images or single image backward compatibility
+        const attachedImages = (images && images.length > 0) ? images : (image ? [image] : []);
+
+        if (attachedImages.length > 0) {
             // Multimodal content format
+            const content = [
+                { type: 'text', text: userMessage || ' ' } // Ensure non-empty text
+            ];
+
+            attachedImages.forEach(imgUrl => {
+                content.push({ type: 'image_url', image_url: { url: imgUrl } });
+            });
+
             messages.push({
                 role: 'user',
-                content: [
-                    { type: 'text', text: userMessage || ' ' }, // Ensure non-empty text
-                    { type: 'image_url', image_url: { url: image } }
-                ]
+                content: content
             });
         } else {
             messages.push({ role: 'user', content: userMessage });

@@ -155,7 +155,7 @@
 
 
     // Image attachment state
-    let currentAttachedImage = null;
+    let currentAttachedImages = [];
 
     // Initialize logic
     function initDragAndDrop() {
@@ -203,12 +203,14 @@
     function handlePaste(e) {
         if (e.clipboardData && e.clipboardData.items) {
             const items = e.clipboardData.items;
+            const files = [];
             for (let i = 0; i < items.length; i++) {
                 if (items[i].type.indexOf('image') !== -1) {
-                    const blob = items[i].getAsFile();
-                    handleFiles([blob]);
-                    break;
+                    files.push(items[i].getAsFile());
                 }
+            }
+            if (files.length > 0) {
+                handleFiles(files);
             }
         }
     }
@@ -218,36 +220,77 @@
     };
 
     function handleFiles(files) {
-        if (files.length > 0) {
-            const file = files[0];
+        if (files.length === 0) return;
+
+        // Calculate how many we can add
+        const remainingSlots = 5 - currentAttachedImages.length;
+        if (remainingSlots <= 0) {
+            alert('Maximum 5 images allowed.');
+            return;
+        }
+
+        const filesToProcess = Array.from(files).slice(0, remainingSlots);
+        if (files.length > remainingSlots) {
+            alert(`Only ${remainingSlots} more image(s) allowed. First ${remainingSlots} added.`);
+        }
+
+        let processedCount = 0;
+
+        filesToProcess.forEach(file => {
             if (!file.type.startsWith('image/')) {
-                alert('Only image files are allowed');
+                alert(`Skipped non-image file: ${file.name}`);
+                processedCount++;
                 return;
             }
 
             const reader = new FileReader();
             reader.onloadend = function () {
-                currentAttachedImage = reader.result; // base64 string
-                showImagePreview(currentAttachedImage);
+                currentAttachedImages.push(reader.result); // base64 string
+                processedCount++;
+                if (processedCount === filesToProcess.length) {
+                    updateImagePreviews();
+                }
             };
             reader.readAsDataURL(file);
-        }
+        });
     }
 
-    function showImagePreview(src) {
-        const previewArea = document.getElementById('playground-image-preview');
-        const img = document.getElementById('playground-preview-img');
-        if (previewArea && img) {
-            img.src = src;
-            previewArea.style.display = 'block';
+    function updateImagePreviews() {
+        const previewContainer = document.getElementById('playground-image-preview');
+        const list = document.getElementById('playground-preview-list');
+
+        if (!previewContainer || !list) return;
+
+        if (currentAttachedImages.length === 0) {
+            previewContainer.style.display = 'none';
+            list.innerHTML = '';
+            return;
         }
+
+        previewContainer.style.display = 'block';
+        list.innerHTML = currentAttachedImages.map((src, index) => `
+            <div style="position: relative; display: inline-block;">
+                <img src="${src}" 
+                    style="height: 60px; width: auto; border-radius: 4px; border: 1px solid #333; object-fit: cover;">
+                <button onclick="removePlaygroundImage(${index})"
+                    style="position: absolute; top: -6px; right: -6px; background: #f85149; color: white; border: none; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `).join('');
     }
+
+    window.removePlaygroundImage = function (index) {
+        if (index >= 0 && index < currentAttachedImages.length) {
+            currentAttachedImages.splice(index, 1);
+            updateImagePreviews();
+        }
+    };
 
     window.clearPlaygroundImage = function () {
-        currentAttachedImage = null;
-        const previewArea = document.getElementById('playground-image-preview');
+        currentAttachedImages = [];
+        updateImagePreviews();
         const fileInput = document.getElementById('playground-file-input');
-        if (previewArea) previewArea.style.display = 'none';
         if (fileInput) fileInput.value = '';
     };
 
@@ -263,9 +306,9 @@
         if (!selectedAgent || !selectedVersion || isRunning) return;
 
         const userMessage = document.getElementById('playground-user-message').value.trim();
-        // Allow ONLY image if message is empty? Usually models need text, but some multimodal accept just image.
-        // Let's require at least one.
-        if (!userMessage && !currentAttachedImage) {
+        const hasImages = currentAttachedImages.length > 0;
+
+        if (!userMessage && !hasImages) {
             alert('Please enter a message or attach an image');
             return;
         }
@@ -302,7 +345,7 @@
                 model: model,
                 systemPrompt: selectedVersion.systemPrompt,
                 userMessage: userMessage,
-                image: currentAttachedImage, // Attach image if present
+                images: currentAttachedImages, // Send array of images
                 temperature: temperature,
                 source: 'agent_playground'
             });
