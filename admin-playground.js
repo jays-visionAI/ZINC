@@ -11,10 +11,7 @@
     let isRunning = false;
 
     // Initialize
-    window.initPlayground = function (user) {
-        console.log("[AgentPlayground] Loading playground...");
-        loadPlaygroundAgents();
-    };
+
 
     // Load agents from Registry
     window.loadPlaygroundAgents = async function () {
@@ -156,13 +153,120 @@
         }
     };
 
+
+    // Image attachment state
+    let currentAttachedImage = null;
+
+    // Initialize logic
+    function initDragAndDrop() {
+        const dropZone = document.getElementById('playground-drop-zone');
+        const userMsg = document.getElementById('playground-user-message');
+        const overlay = document.getElementById('playground-drag-overlay');
+
+        if (!dropZone || !userMsg) return;
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => {
+                overlay.style.display = 'flex';
+                dropZone.style.border = '2px dashed #4ecdc4';
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => {
+                overlay.style.display = 'none';
+                dropZone.style.border = '2px dashed rgba(78, 205, 196, 0.2)';
+            }, false);
+        });
+
+        dropZone.addEventListener('drop', handleDrop, false);
+
+        // Paste support
+        userMsg.addEventListener('paste', handlePaste);
+    }
+
+    function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        handleFiles(files);
+    }
+
+    function handlePaste(e) {
+        if (e.clipboardData && e.clipboardData.items) {
+            const items = e.clipboardData.items;
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    const blob = items[i].getAsFile();
+                    handleFiles([blob]);
+                    break;
+                }
+            }
+        }
+    }
+
+    window.handlePlaygroundFileSelect = function (input) {
+        handleFiles(input.files);
+    };
+
+    function handleFiles(files) {
+        if (files.length > 0) {
+            const file = files[0];
+            if (!file.type.startsWith('image/')) {
+                alert('Only image files are allowed');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onloadend = function () {
+                currentAttachedImage = reader.result; // base64 string
+                showImagePreview(currentAttachedImage);
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    function showImagePreview(src) {
+        const previewArea = document.getElementById('playground-image-preview');
+        const img = document.getElementById('playground-preview-img');
+        if (previewArea && img) {
+            img.src = src;
+            previewArea.style.display = 'block';
+        }
+    }
+
+    window.clearPlaygroundImage = function () {
+        currentAttachedImage = null;
+        const previewArea = document.getElementById('playground-image-preview');
+        const fileInput = document.getElementById('playground-file-input');
+        if (previewArea) previewArea.style.display = 'none';
+        if (fileInput) fileInput.value = '';
+    };
+
+    // Modified initPlayground to include DnD init
+    window.initPlayground = function (user) {
+        console.log("[AgentPlayground] Loading playground...");
+        loadPlaygroundAgents();
+        setTimeout(initDragAndDrop, 100); // Async init
+    };
+
     // Run test
     window.runPlaygroundTest = async function () {
         if (!selectedAgent || !selectedVersion || isRunning) return;
 
         const userMessage = document.getElementById('playground-user-message').value.trim();
-        if (!userMessage) {
-            alert('Please enter a test message');
+        // Allow ONLY image if message is empty? Usually models need text, but some multimodal accept just image.
+        // Let's require at least one.
+        if (!userMessage && !currentAttachedImage) {
+            alert('Please enter a message or attach an image');
             return;
         }
 
@@ -198,6 +302,7 @@
                 model: model,
                 systemPrompt: selectedVersion.systemPrompt,
                 userMessage: userMessage,
+                image: currentAttachedImage, // Attach image if present
                 temperature: temperature,
                 source: 'agent_playground'
             });

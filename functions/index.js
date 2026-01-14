@@ -119,12 +119,12 @@ exports.callOpenAI = functions.https.onCall(async (data, context) => {
  */
 exports.generateLLMResponse = onCall({ cors: true }, async (request) => {
     const payload = request.data || {};
-    const { provider, model, systemPrompt, userMessage, temperature = 0.7, source } = payload;
+    const { provider, model, systemPrompt, userMessage, image, temperature = 0.7, source } = payload;
 
-    console.log(`[generateLLMResponse] provider=${provider}, model=${model}, source=${source}`);
+    console.log(`[generateLLMResponse] provider=${provider}, model=${model}, source=${source}, image=${!!image}`);
 
-    if (!userMessage) {
-        return { success: false, error: 'userMessage is required' };
+    if (!userMessage && !image) {
+        return { success: false, error: 'userMessage or image is required' };
     }
 
     try {
@@ -134,7 +134,19 @@ exports.generateLLMResponse = onCall({ cors: true }, async (request) => {
         if (systemPrompt) {
             messages.push({ role: 'system', content: systemPrompt });
         }
-        messages.push({ role: 'user', content: userMessage });
+
+        if (image) {
+            // Multimodal content format
+            messages.push({
+                role: 'user',
+                content: [
+                    { type: 'text', text: userMessage || ' ' }, // Ensure non-empty text
+                    { type: 'image_url', image_url: { url: image } }
+                ]
+            });
+        } else {
+            messages.push({ role: 'user', content: userMessage });
+        }
 
         // callLLM internally handles API key lookup via getSystemApiKey
         const result = await callLLM(providerName, model || 'deepseek-chat', messages, temperature);
@@ -737,7 +749,17 @@ async function callLLM(provider, model, messages, temperature = 0.7) {
     if (isImageModel) {
         console.log(`[callLLM] 🖼️ Image generation requested for model: ${model}`);
         const lastMessage = messages[messages.length - 1];
-        const prompt = lastMessage.content || 'Generate a high-quality professional image.';
+        let prompt = lastMessage.content;
+
+        // Handle multimodal array content
+        if (Array.isArray(prompt)) {
+            prompt = prompt
+                .filter(p => p.type === 'text')
+                .map(p => p.text)
+                .join(' ') || 'Generate a high-quality image.';
+        }
+
+        prompt = prompt || 'Generate a high-quality professional image.';
 
         try {
             // Map technical IDs for Vertex AI / Imagen
@@ -875,8 +897,41 @@ async function callGeminiInternal(apiKey, model, messages, temperature) {
     }
 
     // 3. Prepare the final prompt
+    // 3. Prepare the final prompt
     const lastMessage = otherMessages[otherMessages.length - 1];
-    const prompt = systemMessage ? `${systemMessage}\n\n${lastMessage.content}` : lastMessage.content;
+    let prompt;
+
+    if (Array.isArray(lastMessage.content)) {
+        // Multimodal
+        const parts = [];
+        let systemAppended = false;
+
+        lastMessage.content.forEach(item => {
+            if (item.type === 'text') {
+                let text = item.text;
+                if (!systemAppended && systemMessage) {
+                    text = systemMessage + '\n\n' + text;
+                    systemAppended = true;
+                }
+                parts.push({ text });
+            } else if (item.type === 'image_url') {
+                const matches = item.image_url.url.match(/^data:([^;]+);base64,(.+)$/);
+                if (matches) {
+                    parts.push({ inlineData: { mimeType: matches[1], data: matches[2] } });
+                } else {
+                    console.warn('[callGeminiInternal] Invalid data URI format');
+                }
+            }
+        });
+
+        if (!systemAppended && systemMessage) {
+            parts.unshift({ text: systemMessage });
+        }
+
+        prompt = parts;
+    } else {
+        prompt = systemMessage ? `${systemMessage}\n\n${lastMessage.content}` : lastMessage.content;
+    }
 
     const config = {
         maxOutputTokens: 4000
