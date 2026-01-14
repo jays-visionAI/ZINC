@@ -255,7 +255,9 @@
                     outputDiv.innerHTML = escapeHtml(content);
                 }
 
-                statsDiv.textContent = `✓ Completed in ${(duration / 1000).toFixed(2)}s • ${model}`;
+                // Display actual model used from response if available
+                const actualModel = resData.model || model;
+                statsDiv.textContent = `✓ Completed in ${(duration / 1000).toFixed(2)}s • ${actualModel}`;
                 statsDiv.style.color = '#3fb950';
             } else {
                 outputDiv.innerHTML = `<span style="color: #f85149;">Error: ${resData.error || 'Unknown error'}</span>`;
