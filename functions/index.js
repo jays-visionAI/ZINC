@@ -3860,7 +3860,8 @@ exports.generateImage = functions.https.onCall(async (data, context) => {
 
         switch (provider) {
             case 'nano-banana':
-                imageUrl = await generateWithImagen(prompt, size, 'nano-banana-pro-preview');
+                const res = await generateWithNanoBananaPro(prompt, 'nano-banana');
+                imageUrl = res.content;
                 break;
             case 'imagen':
             case 'imagen-fast':
