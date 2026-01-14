@@ -726,6 +726,7 @@ function getApiKeyFromData(data) {
  */
 async function callLLM(provider, model, messages, temperature = 0.7) {
     // [NEW] Route Image Generation requests to specialized handler
+    console.log(`[callLLM] v20260114-STRICT Executing for model: ${model}`); // Version marker
     const modelLower = (model || '').toLowerCase();
     const isImageModel = modelLower.includes('imagen') ||
         modelLower.includes('dall-e') ||
