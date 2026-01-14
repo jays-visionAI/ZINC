@@ -758,10 +758,10 @@ async function callLLM(provider, model, messages, temperature = 0.7) {
 
             // Map technical IDs for Nano Banana (Gemini Image Modality)
             if (modelLower.includes('banana') || modelLower.includes('gemini')) {
-                const url = await generateWithNanoBananaPro(prompt);
+                const result = await generateWithNanoBananaPro(prompt);
                 return {
-                    content: url,
-                    model: model,
+                    content: result.content,
+                    model: result.model, // Return the actual model used (e.g., might have fallen back to simpler model)
                     usage: { total_tokens: 0 },
                     provider: 'google_nano'
                 };
@@ -4185,7 +4185,7 @@ Do not include any text, letters, numbers, logos, or watermarks in the image.`;
                     // Use Vertex AI directly (ADC Auth) instead of API Key based Imagen helper
                     const imagenResult = await generateWithVertexAI(prompt, targetModel);
                     console.log(`[generateWithNanoBananaPro] ✅ Image generated via Vertex AI (${targetModel})`);
-                    return imagenResult;
+                    return { content: imagenResult, model: targetModel };
                 } catch (imagenErr) {
                     console.warn(`[generateWithNanoBananaPro] Vertex AI (${targetModel}) failed: ${imagenErr.message}. Trying standard fallback...`);
                 }
@@ -4212,7 +4212,8 @@ Do not include any text, letters, numbers, logos, or watermarks in the image.`;
             for (const part of parts) {
                 if (part.inlineData && part.inlineData.mimeType?.startsWith('image/')) {
                     console.log(`[generateWithNanoBananaPro] ✅ Image generated successfully with ${modelName}`);
-                    return await uploadBase64ToStorage(part.inlineData.data, modelName);
+                    const url = await uploadBase64ToStorage(part.inlineData.data, modelName);
+                    return { content: url, model: modelName };
                 }
             }
 
