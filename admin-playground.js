@@ -27,15 +27,19 @@
         `;
 
         try {
+            // [Fix] Removed complex query that requires index. Fetch all and filter client-side.
             const snapshot = await db.collection('agentRegistry')
-                .where('status', '==', 'active')
                 .orderBy('category')
                 .orderBy('name')
                 .get();
 
             registryAgents = [];
             snapshot.forEach(doc => {
-                registryAgents.push({ id: doc.id, ...doc.data() });
+                const data = doc.data();
+                // Client-side status filter
+                if (data.status === 'active') {
+                    registryAgents.push({ id: doc.id, ...data });
+                }
             });
 
             console.log(`[AgentPlayground] Loaded ${registryAgents.length} agents`);
@@ -52,13 +56,9 @@
         }
     };
 
-    // Filter agents by category
+    // Filter agents by category - Deprecated: Now just re-renders all
     window.filterPlaygroundAgents = function () {
-        const category = document.getElementById('playground-category-filter').value;
-        const filtered = category
-            ? registryAgents.filter(a => a.category === category)
-            : registryAgents;
-        renderAgentList(filtered);
+        renderAgentList(registryAgents);
     };
 
     // Render agent list
@@ -77,15 +77,6 @@
 
         container.innerHTML = agents.map(agent => {
             const isSelected = selectedAgent?.id === agent.id;
-            const categoryColors = {
-                'Intelligence': '#3b82f6',
-                'Design': '#8b5cf6',
-                'QA': '#f59e0b',
-                'Strategy': '#10b981',
-                'Studio': '#f43f5e',
-                'Growth': '#06b6d4'
-            };
-            const color = categoryColors[agent.category] || '#64748b';
 
             return `
                 <div class="playground-agent-item" 
@@ -96,10 +87,9 @@
                      onmouseover="this.style.background='${isSelected ? 'rgba(78, 205, 196, 0.15)' : 'rgba(255,255,255,0.06)'}'"
                      onmouseout="this.style.background='${isSelected ? 'rgba(78, 205, 196, 0.15)' : 'rgba(255,255,255,0.03)'}'">
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <div style="width: 4px; height: 30px; background: ${color}; border-radius: 2px;"></div>
                         <div style="flex: 1;">
-                            <div style="font-weight: 600; font-size: 14px;">${agent.name}</div>
-                            <div style="font-size: 11px; color: rgba(255,255,255,0.5);">${agent.category} • ${agent.id}</div>
+                            <div style="font-weight: 600; font-size: 14px; color: #fff;">${agent.name}</div>
+                            <div style="font-size: 11px; color: rgba(255,255,255,0.5); font-family: 'JetBrains Mono', monospace;">${agent.id}</div> 
                         </div>
                         ${isSelected ? '<i class="fas fa-check-circle" style="color: #4ecdc4;"></i>' : ''}
                     </div>
