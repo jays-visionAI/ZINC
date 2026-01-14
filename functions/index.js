@@ -4198,12 +4198,14 @@ async function generateWithNanoBananaPro(prompt, requestedModel) {
     const axios = require('axios');
 
     // Strict Mapping: User Friendly Name -> Actual API Model ID
-    // If exact match not found, default to gemini-2.0-flash-exp as the "Nano Banana" engine
-    let apiModelId = 'gemini-2.0-flash-exp';
+    // Nano Banana -> gemini-2.5-flash-image
+    // Nano Banana Pro -> gemini-3-pro-image-preview
+    let apiModelId;
 
-    if (requestedModel === 'nano-banana-pro') apiModelId = 'gemini-2.0-flash-exp'; // Update to Pro ID if available
-    else if (requestedModel === 'nano-banana') apiModelId = 'gemini-2.0-flash-exp';
+    if (requestedModel === 'nano-banana') apiModelId = 'gemini-2.5-flash-image';
+    else if (requestedModel === 'nano-banana-pro') apiModelId = 'gemini-3-pro-image-preview';
     else if (requestedModel) apiModelId = requestedModel; // Allow direct ID usage
+    else apiModelId = 'gemini-2.5-flash-image'; // Default logic if null passed, though ideally should not happen strict mode
 
     const enhancedPrompt = `Generate a high-quality image: ${prompt}. 
 Style: Professional, visually striking, relevant to the content.
