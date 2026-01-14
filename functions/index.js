@@ -767,11 +767,7 @@ async function callLLM(provider, model, messages, temperature = 0.7) {
                 };
             }
 
-            // DALL-E Fallback if explicitly requested or as last resort
-            if (modelLower.includes('dall-e')) {
-                // OpenAI DALL-E logic can be added here if needed
-                throw new Error('DALL-E 3 support not yet implemented in callLLM');
-            }
+
         } catch (err) {
             console.error('[callLLM] Image generation failed:', err.message);
             throw err;
@@ -788,7 +784,7 @@ async function callLLM(provider, model, messages, temperature = 0.7) {
 
     switch (provider.toLowerCase()) {
         case 'openai':
-            return await callOpenAIInternal(apiKey, model || 'gpt-4o-mini', messages, temperature);
+            throw new Error('OpenAI provider is globally disabled in this environment.');
 
         case 'gemini':
         case 'google':
@@ -805,7 +801,7 @@ async function callLLM(provider, model, messages, temperature = 0.7) {
             return await callDeepSeekInternal(apiKey, model || 'deepseek-chat', messages, temperature);
 
         default:
-            // Fallback to DeepSeek instead of OpenAI to respect user preference
+            // Fallback to DeepSeek
             console.warn(`[callLLM] Unknown provider ${provider}, falling back to DeepSeek`);
             return await callDeepSeekInternal(apiKey, model || 'deepseek-chat', messages, temperature);
     }

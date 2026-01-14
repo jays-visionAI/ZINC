@@ -27,7 +27,6 @@
         `;
 
         try {
-            // [Fix] Removed complex query that requires index. Fetch all and filter client-side.
             // [Fix] Fetch all documents without sorting to avoid index requirements
             const snapshot = await db.collection('agentRegistry').get();
 
@@ -185,10 +184,13 @@
 
         try {
             // Determine provider
-            let provider = 'openai';
+            let provider = '';
             if (model.startsWith('claude')) provider = 'anthropic';
             else if (model.startsWith('deepseek')) provider = 'deepseek';
             else if (model.includes('gemini') || model.includes('imagen') || model.includes('veo') || model.includes('nano')) provider = 'google';
+
+            // Default fallback if not matched
+            if (!provider) provider = 'deepseek';
 
             // Call the LLM via Cloud Function
             const response = await firebase.functions().httpsCallable('generateLLMResponse')({
@@ -204,36 +206,52 @@
             const resData = response.data;
 
             if (resData.success) {
-                const content = resData.response;
+                let content = resData.response;
+                if (typeof content === 'string') content = content.trim();
 
-                // Check if content looks like an image URL or Markdown Image
-                const isImageModel = model.includes('imagen') || model.includes('nano') || model.includes('veo') || model.includes('dall-e');
+                console.log("[AgentPlayground] Response:", content);
+
+                // Detect content type
+                const isImageModel = model.includes('imagen') || model.includes('nano');
+                const isVideoModel = model.includes('veo');
                 const isUrl = typeof content === 'string' && (content.startsWith('http') || content.startsWith('data:image'));
-                const isMdImage = typeof content === 'string' && content.match(/!\[.*?\]\((.*?)\)/);
+                const mdImageMatch = typeof content === 'string' && content.match(/!\[.*?\]\((.*?)\)/);
 
-                if (isImageModel || isUrl || isMdImage) {
+                if (isVideoModel) {
+                    // Video Rendering (Veo)
+                    let videoUrl = content;
+                    if (mdImageMatch) videoUrl = mdImageMatch[1];
+
+                    outputDiv.innerHTML = `
+                        <div style="text-align:center; padding: 20px;">
+                            <video controls autoplay loop style="max-width:100%; max-height: 400px; border-radius:8px; border: 1px solid #333;">
+                                <source src="${videoUrl}" type="video/mp4">
+                                Your browser does not support the video tag.
+                            </video>
+                            <div style="margin-top:12px; font-size:12px; color:#888;">
+                                <i class="fas fa-video"></i> Generated Video • <a href="${videoUrl}" target="_blank" style="color:#4ecdc4;">Download</a>
+                            </div>
+                        </div>
+                     `;
+                } else if (isImageModel || isUrl || mdImageMatch) {
+                    // Image Rendering
                     let imageUrl = content;
-                    if (isMdImage) imageUrl = isMdImage[1]; // Extract URL from markdown
+                    if (mdImageMatch) imageUrl = mdImageMatch[1];
 
-                    if (model.includes('veo')) {
-                        outputDiv.innerHTML = `
-                            <div style="text-align:center;">
-                                <video controls autoplay loop style="max-width:100%; border-radius:8px;">
-                                    <source src="${imageUrl}" type="video/mp4">
-                                    Your browser does not support the video tag.
-                                </video>
-                                <p style="font-size:12px; color:#aaa; margin-top:8px;">Generated Video</p>
+                    outputDiv.innerHTML = `
+                        <div style="text-align:center; padding: 20px;">
+                            <img src="${imageUrl}" 
+                                 style="max-width:100%; max-height: 400px; border-radius:8px; box-shadow:0 5px 15px rgba(0,0,0,0.3); cursor: pointer;" 
+                                 onclick="window.open(this.src)" 
+                                 title="Click to open full size"
+                                 onerror="this.onerror=null; this.src=''; this.parentElement.innerHTML='<p style=\'color:#f85149\'>Failed to load image. URL expired or invalid.</p><p style=\'font-size:10px\'>'+'${imageUrl}'+'</p>';">
+                            <div style="margin-top:12px; font-size:12px; color:#888;">
+                                <i class="fas fa-image"></i> Generated Image • <a href="${imageUrl}" target="_blank" style="color:#4ecdc4;">Open Original</a>
                             </div>
-                         `;
-                    } else {
-                        outputDiv.innerHTML = `
-                            <div style="text-align:center;">
-                                <img src="${imageUrl}" style="max-width:100%; border-radius:8px; box-shadow:0 5px 15px rgba(0,0,0,0.3);" onclick="window.open(this.src)" title="Click to open full size">
-                                <p style="font-size:12px; color:#aaa; margin-top:8px;">Generated Image (Click to Expand)</p>
-                            </div>
-                        `;
-                    }
+                        </div>
+                    `;
                 } else {
+                    // Text Rendering
                     outputDiv.innerHTML = escapeHtml(content);
                 }
 
