@@ -758,7 +758,7 @@ async function callLLM(provider, model, messages, temperature = 0.7) {
 
             // Map technical IDs for Nano Banana (Gemini Image Modality)
             if (modelLower.includes('banana') || modelLower.includes('gemini')) {
-                const result = await generateWithNanoBananaPro(prompt);
+                const result = await generateWithNanoBananaPro(prompt, model);
                 return {
                     content: result.content,
                     model: result.model, // Return the actual model used (e.g., might have fallen back to simpler model)
@@ -4143,108 +4143,70 @@ async function generateWithImagen(prompt, size, model = 'imagen-4.0-fast-generat
  * Fallback: Nano Banana Pro (gemini-3-pro-image-preview)
  * Uses REST API directly for reliable image generation
  */
-async function generateWithNanoBananaPro(prompt, size) {
+async function generateWithNanoBananaPro(prompt, requestedModel) {
     const apiKey = await getSystemApiKey('google');
     if (!apiKey) {
-        throw new Error('Google API key not configured for Nano Banana Pro');
+        throw new Error('Google API key not configured for Nano Banana');
     }
 
     const axios = require('axios');
 
-    // Try multiple Nano Banana models in order of preference (using REST API)
-    const modelsToTry = [
-        'gemini-3-pro-image-preview',  // Actual ID for 'Nano Banana Pro'
-        'gemini-2.5-flash-preview-image', // Actual ID for 'Nano Banana'
-        'Nano Banana Pro',             // Fallback literal just in case
-        'Nano Banana'
-    ];
+    // Strict Mapping: User Friendly Name -> Actual API Model ID
+    // If exact match not found, default to gemini-2.0-flash-exp as the "Nano Banana" engine
+    let apiModelId = 'gemini-2.0-flash-exp';
+
+    if (requestedModel === 'nano-banana-pro') apiModelId = 'gemini-2.0-flash-exp'; // Update to Pro ID if available
+    else if (requestedModel === 'nano-banana') apiModelId = 'gemini-2.0-flash-exp';
+    else if (requestedModel) apiModelId = requestedModel; // Allow direct ID usage
 
     const enhancedPrompt = `Generate a high-quality image: ${prompt}. 
 Style: Professional, visually striking, relevant to the content.
 Do not include any text, letters, numbers, logos, or watermarks in the image.`;
 
-    console.log(`[generateWithNanoBananaPro] Starting image generation with prompt: "${prompt.substring(0, 50)}..."`);
+    console.log(`[generateWithNanoBananaPro] 🔒 STRICT MODE. Target Model: ${apiModelId} (Requested: ${requestedModel})`);
 
-    for (const modelName of modelsToTry) {
-        // SPECIAL HANDLING: If 'Nano Banana' is requested but fails, or if we just want reliability,
-        // we can route to Imagen 3 which is the underlying engine for high-quality Google images.
-        // For now, let's try to map 'gemini-3-pro' requests to 'imagen-3.0-generate-001' if direct call fails
-        // But first, try the direct call.
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${apiModelId}:generateContent?key=${apiKey}`;
 
-        try {
-            console.log(`[generateWithNanoBananaPro] 🔄 Trying REST API with model: ${modelName}`);
-
-            // Direct mapping for Tuned Models or specific IDs might be needed.
-            // If modelName implies Imagen, use the proper endpoint or helper.
-            if (modelName.includes('Nano') || modelName.includes('gemini-3') || modelName === 'imagen4' || modelName === 'imagen-4') {
-                // Map to highest quality available: Imagen 4.0 if enabled, else Imagen 3.0
-                console.log(`[generateWithNanoBananaPro] 🔀 Routing '${modelName}' request to specialized Imagen handler.`);
-
-                // User requested 'Imagen 4.0' specifically.
-                const targetModel = (modelName === 'imagen4' || modelName === 'imagen-4') ? 'imagen-4.0-generate-001' : 'imagen-3.0-generate-001';
-
-                try {
-                    // Use Vertex AI directly (ADC Auth) instead of API Key based Imagen helper
-                    const imagenResult = await generateWithVertexAI(prompt, targetModel);
-                    console.log(`[generateWithNanoBananaPro] ✅ Image generated via Vertex AI (${targetModel})`);
-                    return { content: imagenResult, model: targetModel };
-                } catch (imagenErr) {
-                    console.warn(`[generateWithNanoBananaPro] Vertex AI (${targetModel}) failed: ${imagenErr.message}. Trying standard fallback...`);
-                }
+    try {
+        const response = await axios.post(url, {
+            contents: [{
+                parts: [{ text: enhancedPrompt }]
+            }],
+            generationConfig: {
+                responseModalities: ['IMAGE', 'TEXT'],
+                temperature: 1
             }
+        }, {
+            headers: { 'Content-Type': 'application/json' },
+            timeout: 120000
+        });
 
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+        const parts = response.data?.candidates?.[0]?.content?.parts || [];
 
-            const response = await axios.post(url, {
-                contents: [{
-                    parts: [{ text: enhancedPrompt }]
-                }],
-                generationConfig: {
-                    responseModalities: ['IMAGE', 'TEXT'],
-                    temperature: 1
-                }
-            }, {
-                headers: { 'Content-Type': 'application/json' },
-                timeout: 120000 // 2 minute timeout for image generation
-            });
-
-            const parts = response.data?.candidates?.[0]?.content?.parts || [];
-
-            // Look for image data in response
-            for (const part of parts) {
-                if (part.inlineData && part.inlineData.mimeType?.startsWith('image/')) {
-                    console.log(`[generateWithNanoBananaPro] ✅ Image generated successfully with ${modelName}`);
-                    const url = await uploadBase64ToStorage(part.inlineData.data, modelName);
-                    return { content: url, model: modelName };
-                }
+        // Look for image data
+        for (const part of parts) {
+            if (part.inlineData && part.inlineData.mimeType?.startsWith('image/')) {
+                console.log(`[generateWithNanoBananaPro] ✅ Image generated successfully with ${apiModelId}`);
+                const url = await uploadBase64ToStorage(part.inlineData.data, apiModelId);
+                return { content: url, model: apiModelId };
             }
-
-            // Check if text was returned instead
-            const textPart = parts.find(p => p.text);
-            if (textPart) {
-                console.warn(`[generateWithNanoBananaPro] ${modelName} returned text instead of image: "${textPart.text.substring(0, 100)}..."`);
-            } else {
-                console.warn(`[generateWithNanoBananaPro] ${modelName} returned empty response`);
-            }
-
-            // Continue to next model
-
-        } catch (error) {
-            const status = error.response?.status;
-            const errorMsg = error.response?.data?.error?.message || error.message;
-            console.error(`[generateWithNanoBananaPro] ${modelName} failed (${status}):`, errorMsg);
-
-            // If it's a model not found error (404), try next model
-            // If it's a quota error (429/403), throw immediately
-            if (status === 429 || status === 403) {
-                throw new Error(`Google API quota/billing issue: ${errorMsg}`);
-            }
-
-            // Continue to next model
         }
+
+        // Check for text refusal
+        const textPart = parts.find(p => p.text);
+        if (textPart) {
+            throw new Error(`Model returned text instead of image: "${textPart.text.substring(0, 100)}..."`);
+        }
+
+        throw new Error(`Model returned empty response (No image, no text).`);
+
+    } catch (error) {
+        const status = error.response?.status;
+        const errorMsg = error.response?.data?.error?.message || error.message;
+        console.error(`[generateWithNanoBananaPro] Generation failed:`, errorMsg);
+        throw new Error(`Image Generation Failed (${apiModelId}): ${errorMsg}`);
     }
 
-    throw new Error('All Nano Banana models failed to generate an image. Check Google API key and model availability.');
 }
 
 /**
