@@ -28,10 +28,8 @@
 
         try {
             // [Fix] Removed complex query that requires index. Fetch all and filter client-side.
-            const snapshot = await db.collection('agentRegistry')
-                .orderBy('category')
-                .orderBy('name')
-                .get();
+            // [Fix] Fetch all documents without sorting to avoid index requirements
+            const snapshot = await db.collection('agentRegistry').get();
 
             registryAgents = [];
             snapshot.forEach(doc => {
@@ -40,6 +38,13 @@
                 if (data.status === 'active') {
                     registryAgents.push({ id: doc.id, ...data });
                 }
+            });
+
+            // Client-side sorting
+            registryAgents.sort((a, b) => {
+                const catDiff = a.category.localeCompare(b.category);
+                if (catDiff !== 0) return catDiff;
+                return a.name.localeCompare(b.name);
             });
 
             console.log(`[AgentPlayground] Loaded ${registryAgents.length} agents`);
