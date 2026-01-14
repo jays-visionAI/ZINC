@@ -114,8 +114,8 @@ window.WorkflowCanvas = (function () {
             image: [
                 { id: 'imagen-4.0-generate-001', name: 'Imagen 4 (Google Cloud)', provider: 'google', tier: 'premium', description: 'Next-gen photorealistic image generation' },
                 { id: 'imagen-3.0-generate-001', name: 'Imagen 3 (Google Cloud)', provider: 'google', tier: 'premium', description: 'Photorealistic images' },
-                { id: 'gemini-2.5-flash-image', name: 'Gemini 2.5 Flash (Nano Banana)', provider: 'google', tier: 'standard', description: 'Fast image generation' },
-                { id: 'gemini-3.0-pro', name: 'Gemini 3 pro (Nano Banana Pro)', provider: 'google', tier: 'premium', description: 'Advanced image synthesis' },
+                { id: 'nano-banana', name: 'Nano Banana (Gemini 2.5 Flash)', provider: 'google', tier: 'standard', description: 'Fast image generation' },
+                { id: 'nano-banana-pro', name: 'Nano Banana Pro (Gemini 3 Pro Preview)', provider: 'google', tier: 'premium', description: 'Advanced image synthesis' },
                 { id: 'stable-diffusion-xl', name: 'Stable Diffusion XL', provider: 'stability', tier: 'standard', description: 'Open source, customizable' },
                 { id: 'midjourney-v6', name: 'Midjourney v6', provider: 'midjourney', tier: 'premium', description: 'Artistic style' }
             ],
