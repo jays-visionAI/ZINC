@@ -74,11 +74,15 @@ document.addEventListener("DOMContentLoaded", () => {
     // Close events
     if (closeBtn) closeBtn.addEventListener("click", closeModal);
     // [MODIFIED] Prevent modal from closing when clicking outside (backdrop)
-    // if (modal) {
-    //     modal.addEventListener("click", (e) => {
-    //         if (e.target === modal) closeModal();
-    //     });
-    // }
+    if (modal) {
+        modal.addEventListener("click", (e) => {
+            if (e.target === modal) {
+                // Do strictly nothing and stop propagation to prevent any global handlers
+                e.stopPropagation();
+                // closeModal(); // Removed
+            }
+        });
+    }
 
     // 🔹 Wizard Navigation
     btnNext.addEventListener("click", async () => {
