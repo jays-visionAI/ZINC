@@ -6401,3 +6401,204 @@ const competitorIntel = require('./competitorIntelligence');
 exports.scheduledCompetitorUpdate = competitorIntel.scheduledCompetitorUpdate;
 exports.getCompetitorHistory = competitorIntel.getCompetitorHistory;
 exports.getCompetitorAlerts = competitorIntel.getCompetitorAlerts;
+
+// ============================================
+// Enhanced Keyword Suggestion with News Trends
+// ============================================
+
+/**
+ * Helper: Get NewsAPI key from Firestore
+ */
+async function getNewsApiKey() {
+    try {
+        const doc = await db.collection('systemLLMProviders').doc('newsapi').get();
+        if (doc.exists) {
+            return doc.data().apiKey;
+        }
+        // Fallback: check systemSettings
+        const settingsDoc = await db.collection('systemSettings').doc('newsapi').get();
+        if (settingsDoc.exists) {
+            return settingsDoc.data().apiKey;
+        }
+        return null;
+    } catch (error) {
+        console.error('[getNewsApiKey] Error:', error);
+        return null;
+    }
+}
+
+/**
+ * Helper: Fetch news headlines from NewsAPI
+ */
+async function fetchNewsHeadlines(industry) {
+    const newsApiKey = await getNewsApiKey();
+
+    if (!newsApiKey) {
+        console.warn('[fetchNewsHeadlines] NewsAPI key not configured, skipping');
+        return [];
+    }
+
+    // Industry to search query mapping
+    const searchQueries = {
+        'blockchain_crypto': 'blockchain OR cryptocurrency OR Web3 OR DeFi',
+        'ai_ml': 'artificial intelligence OR machine learning OR AI startup OR ChatGPT',
+        'fintech_finance': 'fintech OR digital banking OR payment technology OR neobank',
+        'saas_software': 'SaaS OR software startup OR cloud computing OR B2B software',
+        'ecommerce_retail': 'ecommerce OR retail technology OR online shopping OR D2C',
+        'healthcare_bio': 'healthtech OR biotech OR digital health OR telemedicine',
+        'education_edtech': 'edtech OR online learning OR education technology',
+        'media_content': 'creator economy OR content platform OR streaming OR social media',
+        'gaming_entertainment': 'gaming industry OR esports OR game development OR metaverse',
+        'marketing_adtech': 'martech OR advertising technology OR digital marketing',
+        'default': industry
+    };
+
+    const query = searchQueries[industry] || searchQueries.default || 'technology startup';
+
+    try {
+        const response = await axios.get('https://newsapi.org/v2/everything', {
+            params: {
+                q: query,
+                language: 'en',
+                sortBy: 'publishedAt',
+                pageSize: 20
+            },
+            headers: {
+                'X-Api-Key': newsApiKey
+            },
+            timeout: 10000
+        });
+
+        if (response.data.articles && response.data.articles.length > 0) {
+            console.log(`[fetchNewsHeadlines] Fetched ${response.data.articles.length} articles for ${industry}`);
+            return response.data.articles.map(a => a.title).filter(t => t);
+        }
+        return [];
+    } catch (error) {
+        console.error('[fetchNewsHeadlines] NewsAPI error:', error.message);
+        return [];
+    }
+}
+
+/**
+ * Generate Trending Keywords with News Context
+ * Uses NewsAPI + DeepSeek AI for trend-aware keyword suggestions
+ */
+exports.generateTrendingKeywords = onCall({
+    cors: true,
+    timeoutSeconds: 60,
+    memory: '512MiB'
+}, async (request) => {
+    const data = request.data || {};
+    const { projectId, industry, projectName, description, targetAudience } = data;
+
+    console.log('[generateTrendingKeywords] Request:', { projectId, industry, projectName });
+
+    if (!projectName) {
+        return { success: false, error: 'Project name is required', keywords: [] };
+    }
+
+    try {
+        // [2단계] NewsAPI에서 업계 관련 최신 뉴스 수집
+        const newsHeadlines = await fetchNewsHeadlines(industry || 'technology');
+        console.log(`[generateTrendingKeywords] Fetched ${newsHeadlines.length} news headlines`);
+
+        // [3단계] AI 종합 분석
+        const systemPrompt = `You are a market trend analyst and SEO expert specializing in ${industry || 'technology'}.
+Your task is to analyze project context and recent news to suggest high-impact keywords for brand monitoring and SEO.
+You have deep knowledge of current market trends, viral topics, and search patterns.`;
+
+        const taskPrompt = `
+# PROJECT CONTEXT
+- Project Name: ${projectName}
+- Industry: ${industry || 'Not specified'}
+- Description: ${description || 'Not provided'}
+- Target Audience: ${targetAudience || 'General audience'}
+
+${newsHeadlines.length > 0 ? `
+# RECENT NEWS HEADLINES IN THIS INDUSTRY (Latest 24-48 hours)
+${newsHeadlines.slice(0, 15).map((h, i) => `${i + 1}. ${h}`).join('\n')}
+` : '# No recent news available - use your knowledge of current trends'}
+
+# TASK
+Based on the project and current news/market trends, suggest 8 high-impact keywords for brand monitoring.
+
+For each keyword, provide:
+- keyword: The suggested keyword or phrase (2-4 words ideal)
+- trendScore: Estimated public interest score (0-100) based on:
+  * 90-100: Viral/Breaking news level interest
+  * 70-89: High trending, actively discussed
+  * 50-69: Moderate interest, growing topic
+  * 30-49: Emerging topic, early stage
+  * 0-29: Niche interest, low visibility
+- reason: Brief explanation in Korean (1 sentence) explaining why this is relevant and trending
+
+IMPORTANT:
+- Focus on keywords that are CURRENTLY trending in the market
+- Mix of branded terms (related to project) and market trend terms
+- Consider both English and Korean search behavior
+- Prioritize keywords with high search volume potential
+
+Return ONLY a valid JSON array (no markdown, no explanation):
+[
+  {"keyword": "example keyword", "trendScore": 85, "reason": "이 키워드가 트렌딩인 이유"},
+  ...
+]`;
+
+        // AI 호출
+        const result = await callLLM('deepseek', 'deepseek-v3.2', [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: taskPrompt }
+        ], 0.5);
+
+        console.log('[generateTrendingKeywords] AI Response received');
+
+        // [4단계] 결과 파싱
+        let keywords = [];
+        try {
+            // Extract JSON array from response
+            const jsonMatch = result.content.match(/\[[\s\S]*\]/);
+            if (jsonMatch) {
+                keywords = JSON.parse(jsonMatch[0]);
+            }
+        } catch (parseError) {
+            console.error('[generateTrendingKeywords] Parse error:', parseError.message);
+            // Fallback: try to extract keywords from plain text
+            const fallbackKeywords = result.content.split(',').map(k => k.trim()).filter(k => k);
+            keywords = fallbackKeywords.slice(0, 8).map((kw, i) => ({
+                keyword: kw,
+                trendScore: 70 - (i * 5),
+                reason: '트렌드 분석 기반 추천'
+            }));
+        }
+
+        // Validate and sanitize
+        keywords = keywords
+            .filter(k => k.keyword && typeof k.keyword === 'string')
+            .map(k => ({
+                keyword: k.keyword.trim(),
+                trendScore: Math.min(100, Math.max(0, parseInt(k.trendScore) || 50)),
+                reason: k.reason || '관련 키워드'
+            }))
+            .sort((a, b) => b.trendScore - a.trendScore)
+            .slice(0, 8);
+
+        console.log(`[generateTrendingKeywords] Returning ${keywords.length} keywords`);
+
+        return {
+            success: true,
+            keywords: keywords,
+            newsCount: newsHeadlines.length,
+            model: result.model
+        };
+
+    } catch (error) {
+        console.error('[generateTrendingKeywords] Error:', error);
+        return {
+            success: false,
+            error: error.message,
+            keywords: []
+        };
+    }
+});
+
