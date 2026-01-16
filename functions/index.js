@@ -78,10 +78,10 @@ exports.callOpenAI = functions.https.onCall(async (data, context) => {
 
     try {
         // Get API key from systemLLMProviders
-        const apiKey = await getSystemApiKey(provider || 'openai');
+        const apiKey = await getSystemApiKey(provider || 'deepseek'); // Default to DeepSeek instead of OpenAI
 
         if (!apiKey) {
-            throw new functions.https.HttpsError('failed-precondition', 'API key not configured for provider: ' + provider);
+            throw new functions.https.HttpsError('failed-precondition', 'API key not configured for provider: ' + (provider || 'deepseek'));
         }
 
         // Dynamic import for OpenAI (ES Module)
@@ -157,7 +157,7 @@ exports.generateLLMResponse = onCall({ cors: true }, async (request) => {
         }
 
         // callLLM internally handles API key lookup via getSystemApiKey
-        const result = await callLLM(providerName, model || 'deepseek-chat', messages, temperature);
+        const result = await callLLM(providerName, model || 'deepseek-v3.2', messages, temperature);
 
         return {
             success: true,
@@ -331,7 +331,7 @@ exports.executeSubAgent = onCall({
         // 1. Fetch Context Data (Parallel)
         const [projectDoc, apiKey] = await Promise.all([
             db.collection('projects').doc(projectId).get(),
-            getSystemApiKey(provider || 'openai')
+            getSystemApiKey(provider || 'deepseek') // Default to DeepSeek instead of OpenAI
         ]);
 
         if (!projectDoc.exists) {
@@ -829,12 +829,12 @@ async function callLLM(provider, model, messages, temperature = 0.7) {
             return await callClaudeInternal(apiKey, model || 'claude-3-5-sonnet-20241022', messages, temperature);
 
         case 'deepseek':
-            return await callDeepSeekInternal(apiKey, model || 'deepseek-chat', messages, temperature);
+            return await callDeepSeekInternal(apiKey, model || 'deepseek-v3.2', messages, temperature);
 
         default:
             // Fallback to DeepSeek
             console.warn(`[callLLM] Unknown provider ${provider}, falling back to DeepSeek`);
-            return await callDeepSeekInternal(apiKey, model || 'deepseek-chat', messages, temperature);
+            return await callDeepSeekInternal(apiKey, model || 'deepseek-v3.2', messages, temperature);
     }
 }
 
@@ -1289,7 +1289,7 @@ Remember: matchScore = (uspOverlap × 0.35) + (audienceProximity × 0.30) + (mar
         ];
 
         // Use DeepSeek for competitor discovery
-        const result = await callLLM('deepseek', model || 'deepseek-chat', messages, 0.3);
+        const result = await callLLM('deepseek', model || 'deepseek-v3.2', messages, 0.3);
 
         console.log('[discoverCompetitors] AI Response:', result.content);
 
