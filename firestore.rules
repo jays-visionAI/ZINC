@@ -270,7 +270,7 @@ service cloud.firestore {
       // Market Pulse Data (Scheduler output & Real-time trends)
       match /marketPulse/{docId} {
         allow read: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
-        allow write: if isAdmin(); // Cloud Functions & Admin
+        allow write: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin()); // Allow project owner to sync keywords
       }
 
       // Research History (Intelligence Lab results)
