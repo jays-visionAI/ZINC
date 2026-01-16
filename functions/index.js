@@ -6428,33 +6428,62 @@ async function getNewsApiKey() {
 }
 
 /**
- * Helper: Fetch news headlines from NewsAPI
+ * Helper: Fetch news headlines from NewsAPI with 24-hour caching
+ * - Caches results by industry for 24 hours
+ * - Graceful fallback if API limit exceeded
  */
 async function fetchNewsHeadlines(industry) {
-    const newsApiKey = await getNewsApiKey();
+    const cacheKey = `newsCache_${industry || 'default'}`;
+    const CACHE_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
 
+    // [Step 1] Check cache first
+    try {
+        const cacheDoc = await db.collection('systemCache').doc(cacheKey).get();
+        if (cacheDoc.exists) {
+            const cacheData = cacheDoc.data();
+            const cacheAge = Date.now() - (cacheData.cachedAt?.toMillis?.() || 0);
+
+            if (cacheAge < CACHE_DURATION_MS && cacheData.headlines?.length > 0) {
+                console.log(`[fetchNewsHeadlines] Using cached data for ${industry} (${Math.round(cacheAge / 3600000)}h old)`);
+                return cacheData.headlines;
+            }
+        }
+    } catch (cacheError) {
+        console.warn('[fetchNewsHeadlines] Cache check failed:', cacheError.message);
+    }
+
+    // [Step 2] Get API key
+    const newsApiKey = await getNewsApiKey();
     if (!newsApiKey) {
         console.warn('[fetchNewsHeadlines] NewsAPI key not configured, skipping');
         return [];
     }
 
-    // Industry to search query mapping
+    // Industry to search query mapping (expanded for better coverage)
     const searchQueries = {
-        'blockchain_crypto': 'blockchain OR cryptocurrency OR Web3 OR DeFi',
-        'ai_ml': 'artificial intelligence OR machine learning OR AI startup OR ChatGPT',
-        'fintech_finance': 'fintech OR digital banking OR payment technology OR neobank',
-        'saas_software': 'SaaS OR software startup OR cloud computing OR B2B software',
-        'ecommerce_retail': 'ecommerce OR retail technology OR online shopping OR D2C',
-        'healthcare_bio': 'healthtech OR biotech OR digital health OR telemedicine',
-        'education_edtech': 'edtech OR online learning OR education technology',
-        'media_content': 'creator economy OR content platform OR streaming OR social media',
-        'gaming_entertainment': 'gaming industry OR esports OR game development OR metaverse',
-        'marketing_adtech': 'martech OR advertising technology OR digital marketing',
+        'blockchain_crypto': 'blockchain OR cryptocurrency OR Web3 OR DeFi OR Bitcoin OR Ethereum',
+        'ai_ml': 'artificial intelligence OR machine learning OR AI startup OR ChatGPT OR LLM OR GPT',
+        'fintech_finance': 'fintech OR digital banking OR payment technology OR neobank OR insurtech',
+        'saas_software': 'SaaS OR software startup OR cloud computing OR B2B software OR enterprise software',
+        'ecommerce_retail': 'ecommerce OR retail technology OR online shopping OR D2C OR marketplace',
+        'healthcare_bio': 'healthtech OR biotech OR digital health OR telemedicine OR medtech',
+        'education_edtech': 'edtech OR online learning OR education technology OR e-learning',
+        'media_content': 'creator economy OR content platform OR streaming OR social media OR influencer',
+        'gaming_entertainment': 'gaming industry OR esports OR game development OR metaverse OR VR gaming',
+        'marketing_adtech': 'martech OR advertising technology OR digital marketing OR programmatic',
+        'logistics_mobility': 'logistics tech OR mobility OR autonomous vehicles OR delivery tech',
+        'real_estate': 'proptech OR real estate technology OR smart building',
+        'food_beverage': 'foodtech OR restaurant technology OR food delivery OR ghost kitchen',
+        'travel_hospitality': 'travel tech OR hospitality technology OR booking platform',
+        'hr_recruiting': 'HR tech OR recruiting technology OR workforce management OR payroll tech',
+        'cybersecurity': 'cybersecurity OR information security OR data protection OR zero trust',
+        'cleantech': 'cleantech OR renewable energy OR climate tech OR sustainability',
         'default': industry
     };
 
     const query = searchQueries[industry] || searchQueries.default || 'technology startup';
 
+    // [Step 3] Call NewsAPI
     try {
         const response = await axios.get('https://newsapi.org/v2/everything', {
             params: {
@@ -6470,13 +6499,46 @@ async function fetchNewsHeadlines(industry) {
         });
 
         if (response.data.articles && response.data.articles.length > 0) {
-            console.log(`[fetchNewsHeadlines] Fetched ${response.data.articles.length} articles for ${industry}`);
-            return response.data.articles.map(a => a.title).filter(t => t);
+            const headlines = response.data.articles.map(a => a.title).filter(t => t);
+            console.log(`[fetchNewsHeadlines] Fetched ${headlines.length} articles for ${industry}`);
+
+            // [Step 4] Cache the results
+            try {
+                await db.collection('systemCache').doc(cacheKey).set({
+                    industry: industry,
+                    query: query,
+                    headlines: headlines,
+                    articleCount: headlines.length,
+                    cachedAt: admin.firestore.FieldValue.serverTimestamp()
+                });
+                console.log(`[fetchNewsHeadlines] Cached ${headlines.length} headlines for ${industry}`);
+            } catch (cacheWriteError) {
+                console.warn('[fetchNewsHeadlines] Failed to cache:', cacheWriteError.message);
+            }
+
+            return headlines;
         }
         return [];
     } catch (error) {
-        console.error('[fetchNewsHeadlines] NewsAPI error:', error.message);
-        return [];
+        // [Step 5] Handle API errors gracefully
+        const errorMsg = error.response?.data?.message || error.message;
+        console.error('[fetchNewsHeadlines] NewsAPI error:', errorMsg);
+
+        // If rate limited (426) or other API error, try to return stale cache
+        if (error.response?.status === 426 || error.response?.status === 429) {
+            console.warn('[fetchNewsHeadlines] API rate limited, checking for stale cache');
+            try {
+                const staleCache = await db.collection('systemCache').doc(cacheKey).get();
+                if (staleCache.exists && staleCache.data().headlines?.length > 0) {
+                    console.log('[fetchNewsHeadlines] Using stale cache due to rate limit');
+                    return staleCache.data().headlines;
+                }
+            } catch (e) {
+                // ignore
+            }
+        }
+
+        return []; // Return empty, AI will handle without news context
     }
 }
 

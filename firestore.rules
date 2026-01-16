@@ -299,6 +299,12 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAdmin();
     }
+
+    // System Cache (NewsAPI cache, etc.) - Cloud Functions manage
+    match /systemCache/{cacheId} {
+      allow read: if true;  // Cloud Functions need to read
+      allow write: if true; // Cloud Functions need to write
+    }
     
     // Industries collection
     match /industries/{industryId} {
