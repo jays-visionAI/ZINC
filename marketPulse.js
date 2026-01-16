@@ -2296,8 +2296,10 @@ class CompetitorRadarManager {
         console.log('[CompetitorRadar] Full AI context:', context);
 
         try {
-            // Call Cloud Function for competitor discovery
-            const discoverCompetitorsFunction = firebase.functions().httpsCallable('discoverCompetitors');
+            // Call Cloud Function for competitor discovery with extended timeout
+            const discoverCompetitorsFunction = firebase.functions().httpsCallable('discoverCompetitors', {
+                timeout: 120000 // 120 seconds timeout to match Cloud Function timeout
+            });
             const result = await discoverCompetitorsFunction({
                 projectId: currentProjectId,
                 context: context,

@@ -1,7 +1,32 @@
+# Dependencies
 node_modules/
+functions/node_modules/
+
+# Build output
 dist/
+
+# Environment
 .env
+.env.local
+.env.*.local
+
+# Logs
 *.log
+firestore-debug.log
+build_log.txt
+
+# System files
 .DS_Store
+.Thumbs.db
+
+# Cache
 .npm-cache/
 .npx/
+.firebase/
+
+# Backup files
+*.backup
+*.bak
+
+# Test images
+test-image-*.png

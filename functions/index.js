@@ -1315,7 +1315,7 @@ Remember: matchScore = (uspOverlap × 0.35) + (audienceProximity × 0.30) + (mar
         // Validate, sanitize, and recalculate matchScore using weighted formula
         const validCompetitors = competitors
             .filter(c => c.name && c.name.trim())
-            .map(c => {
+            .map((c, idx) => {
                 // Parse and clamp individual scores
                 const uspOverlap = Math.min(100, Math.max(0, parseInt(c.uspOverlap) || 60));
                 const audienceProximity = Math.min(100, Math.max(0, parseInt(c.audienceProximity) || 60));

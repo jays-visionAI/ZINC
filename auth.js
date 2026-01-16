@@ -35,13 +35,11 @@
             console.log("✅ User signed in successfully:", user.displayName);
 
             // Auto-create or update user document in Firestore
-            let needsOnboarding = false;
             if (user) {
                 const userRef = db.collection('users').doc(user.uid);
                 const userDoc = await userRef.get();
 
                 if (!userDoc.exists) {
-                    needsOnboarding = true;
                     // Create new user document
                     await userRef.set({
                         email: user.email,
@@ -51,15 +49,10 @@
                         lastLogin: firebase.firestore.FieldValue.serverTimestamp(),
                         lastAccess: firebase.firestore.FieldValue.serverTimestamp(),
                         tier: 'free',
-                        role: 'user',
-                        onboardingCompleted: false
+                        role: 'user'
                     });
                     console.log('✨ New user document created in Firestore');
                 } else {
-                    const userData = userDoc.data();
-                    if (!userData.onboardingCompleted) {
-                        needsOnboarding = true;
-                    }
                     // Update last login and last access time
                     await userRef.update({
                         lastLogin: firebase.firestore.FieldValue.serverTimestamp(),
@@ -72,14 +65,9 @@
                 }
             }
 
-            // Redirect to appropriate page
-            if (needsOnboarding) {
-                console.log("➡️ Redirecting to onboarding.html...");
-                window.location.href = 'onboarding.html';
-            } else {
-                console.log("➡️ Redirecting to command-center.html...");
-                window.location.href = 'command-center.html';
-            }
+            // Redirect to command center
+            console.log("➡️ Redirecting to command-center.html...");
+            window.location.href = 'command-center.html';
 
         } catch (error) {
             console.error("❌ Error signing in:", error);
