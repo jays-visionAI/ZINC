@@ -6546,11 +6546,11 @@ async function fetchNewsHeadlines(industry) {
  * Generate Trending Keywords with News Context
  * Uses NewsAPI + DeepSeek AI for trend-aware keyword suggestions
  */
-exports.generateTrendingKeywords = onCall({
-    cors: true,
+exports.generateTrendingKeywordsV2 = onCall({
+    cors: { origin: true }, // Auto-reflect origin
     timeoutSeconds: 60,
     memory: '512MiB',
-    invoker: 'public' // Allow unauthenticated calls
+    invoker: 'public'
 }, async (request) => {
     const data = request.data || {};
     const { projectId, industry, projectName, description, targetAudience } = data;

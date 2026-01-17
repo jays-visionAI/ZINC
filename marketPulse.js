@@ -3838,7 +3838,7 @@ async function generateAISuggestions() {
 
     try {
         // Use new trending keywords function with NewsAPI
-        const generateTrending = firebase.functions().httpsCallable('generateTrendingKeywords', {
+        const generateTrending = firebase.functions().httpsCallable('generateTrendingKeywordsV2', {
             timeout: 60000
         });
 
