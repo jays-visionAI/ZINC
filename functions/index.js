@@ -6549,7 +6549,8 @@ async function fetchNewsHeadlines(industry) {
 exports.generateTrendingKeywords = onCall({
     cors: true,
     timeoutSeconds: 60,
-    memory: '512MiB'
+    memory: '512MiB',
+    invoker: 'public' // Allow unauthenticated calls
 }, async (request) => {
     const data = request.data || {};
     const { projectId, industry, projectName, description, targetAudience } = data;
