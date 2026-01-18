@@ -3830,121 +3830,56 @@ async function generateAISuggestions() {
     if (icon) icon.classList.add('animate-spin');
     if (btn) btn.disabled = true;
     container.innerHTML = `
-        <div class="flex items-center justify-center gap-3 px-2 py-4 w-full">
-            <div class="w-5 h-5 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin"></div>
-            <span class="text-xs text-slate-400 font-medium">Analyzing market trends & news...</span>
+        <div class="flex items-center justify-center gap-3 px-2 py-2 w-full">
+            <div class="w-4 h-4 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin"></div>
+            <span class="text-xs text-slate-500 font-medium">Analyzing project DNA and market trends...</span>
         </div>
     `;
 
     try {
-        // Use new trending keywords function with NewsAPI
-        const generateTrending = firebase.functions().httpsCallable('generateTrendingKeywordsV2', {
-            timeout: 60000
-        });
-
-        if (!currentProjectData) {
-            console.error('Project data not loaded yet.');
-            container.innerHTML = `
-                <div class="flex items-center justify-center gap-2 text-red-400 p-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
-                    <span class="text-xs">Project data not loaded. Please select a project.</span>
-                </div>`;
-            if (icon) icon.classList.remove('animate-spin');
-            if (btn) btn.disabled = false;
-            return;
-        }
-
-        const response = await generateTrending({
+        const executeSubAgent = firebase.functions().httpsCallable('executeSubAgent');
+        const response = await executeSubAgent({
             projectId: currentProjectId,
-            industry: currentProjectData.industry || 'technology',
-            projectName: currentProjectData.projectName || currentProjectData.name || 'Unknown',
-            description: currentProjectData.description || currentProjectData.brief || '',
-            targetAudience: currentProjectData.targetAudience || ''
+            teamId: 'SYSTEM_INTEL_TEAM',
+            runId: 'keywords_' + Date.now(),
+            subAgentId: 'strategy_analyst',
+            taskPrompt: `Based on the project name "${currentProjectData.projectName}" and its description "${currentProjectData.description || 'No description available'}", suggest 8 high-impact market keywords for monitoring sentiment and competition. Return ONLY a comma-separated list of keywords.`,
+            systemPrompt: "You are an expert market analyst. Suggest optimized search keywords for brand monitoring. Format: Keyword1, Keyword2, Keyword3..."
         });
 
-        if (response.data.success && response.data.keywords && response.data.keywords.length > 0) {
+        if (response.data.success) {
+            const raw = response.data.output || "";
+            const suggestions = raw.split(',').map(s => s.trim()).filter(s => s);
+
             container.innerHTML = '';
-
-            // [5단계] 트렌드 점수와 함께 렌더링
-            response.data.keywords.forEach((kw, idx) => {
-                const chip = document.createElement('div');
-                chip.className = 'group flex items-center gap-2 px-3 py-2 bg-slate-800/50 hover:bg-slate-700/50 rounded-xl border border-slate-700/50 hover:border-cyan-500/30 cursor-pointer transition-all animate-in slide-in-from-bottom-2 duration-300';
-                chip.style.animationDelay = `${idx * 50}ms`;
-
-                chip.innerHTML = `
-                    <button class="text-xs text-slate-300 group-hover:text-white font-medium text-left flex-1 truncate">
-                        + ${kw.keyword}
-                    </button>
-                    <div class="flex items-center gap-1.5 shrink-0">
-                        <div class="w-12 h-1.5 bg-slate-900 rounded-full overflow-hidden">
-                            <div class="h-full rounded-full transition-all ${getTrendColorClass(kw.trendScore)}" 
-                                 style="width: ${kw.trendScore}%"></div>
-                        </div>
-                        <span class="text-[10px] font-bold w-6 text-right ${getTrendTextClass(kw.trendScore)}">${kw.trendScore}</span>
-                    </div>
-                `;
-
-                // 툴팁으로 reason 표시
-                chip.title = kw.reason || '';
-
+            suggestions.forEach(kw => {
+                const chip = document.createElement('button');
+                chip.className = 'px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium rounded-xl border border-slate-700 transition-all active:scale-95 animate-in slide-in-from-bottom-2 duration-300';
+                chip.textContent = `+ ${kw}`;
                 chip.onclick = () => {
                     if (selectedKeywordsForEditor.length >= 10) {
                         showNotification('Maximum 10 keywords allowed.', 'warning');
                         return;
                     }
-                    if (!selectedKeywordsForEditor.includes(kw.keyword)) {
-                        selectedKeywordsForEditor.push(kw.keyword);
+                    if (!selectedKeywordsForEditor.includes(kw)) {
+                        selectedKeywordsForEditor.push(kw);
                         renderActiveTags();
                         chip.classList.add('opacity-40', 'pointer-events-none');
-                        chip.querySelector('button').textContent = '✓ Added';
+                        chip.textContent = `Added`;
                     }
                 };
-
                 container.appendChild(chip);
             });
-
-            // 뉴스 소스 표시
-            if (response.data.newsCount > 0) {
-                const sourceInfo = document.createElement('div');
-                sourceInfo.className = 'text-[9px] text-slate-600 mt-3 text-center';
-                sourceInfo.innerHTML = `<span class="inline-flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg> Based on ${response.data.newsCount} recent news articles</span>`;
-                container.appendChild(sourceInfo);
-            }
         } else {
-            throw new Error(response.data.error || "No keywords generated");
+            throw new Error(response.data.error || "Failed to generate suggestions");
         }
     } catch (error) {
         console.error('Error generating suggestions:', error);
-        container.innerHTML = `
-            <div class="text-center py-3">
-                <div class="text-[10px] text-red-500/80 font-bold uppercase tracking-wider mb-2">
-                    Trend analysis failed
-                </div>
-                <button onclick="generateAISuggestions()" class="text-[10px] text-cyan-400 hover:text-cyan-300 font-medium">
-                    Try again
-                </button>
-            </div>
-        `;
+        container.innerHTML = '<div class="text-[10px] text-red-500 font-bold px-2 py-2 uppercase tracking-wider">AI analysis failed. Please try again or enter manually.</div>';
     } finally {
         if (icon) icon.classList.remove('animate-spin');
         if (btn) btn.disabled = false;
     }
-}
-
-// 점수별 색상 클래스 (막대그래프)
-function getTrendColorClass(score) {
-    if (score >= 80) return 'bg-gradient-to-r from-cyan-400 to-emerald-400';
-    if (score >= 60) return 'bg-gradient-to-r from-blue-400 to-cyan-400';
-    if (score >= 40) return 'bg-gradient-to-r from-violet-400 to-blue-400';
-    return 'bg-slate-500';
-}
-
-// 점수별 텍스트 색상
-function getTrendTextClass(score) {
-    if (score >= 80) return 'text-emerald-400';
-    if (score >= 60) return 'text-cyan-400';
-    if (score >= 40) return 'text-blue-400';
-    return 'text-slate-500';
 }
 
 async function saveResonanceKeywords() {
