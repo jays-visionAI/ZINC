@@ -6558,12 +6558,21 @@ const functionsV1 = require('firebase-functions/v1');
 exports.generateTrendingKeywordsV2 = functionsV1
     .runWith({
         timeoutSeconds: 60,
-        memory: '512MB',
-        invoker: 'public' // Explicitly set public invoker for V1
+        memory: '512MB'
+        // invoker: 'public' removed to avoid IAM Org Policy conflicts
     })
-    .https.onCall(async (data, context) => {
+    .https.onCall(async (data, context) => { // [V1] data, context
 
-        // [V1] data is the first argument, context is the second
+        // 1. Check Authentication (Strict Mode)
+        if (!context.auth) {
+            console.warn('[generateTrendingKeywordsV2] Unauthenticated call rejected.');
+            throw new functionsV1.https.HttpsError(
+                'unauthenticated',
+                'User must be authenticated to call this function.'
+            );
+        }
+
+        // [V1] data is the first argument
         const { projectId, industry, projectName, description, targetAudience } = data || {};
 
         console.log('[generateTrendingKeywordsV2] Request:', { projectId, industry, projectName });
@@ -6587,12 +6596,22 @@ exports.generateTrendingKeywordsV2 = functionsV1
             return { success: false, error: 'Project name is required', keywords: [] };
         }
 
+        // [2단계] NewsAPI에서 업계 관련 최신 뉴스 수집
+        let newsHeadlines = [];
+        /* [DEBUG] Temporarily disabled NewsAPI to isolate Internal Error cause
         try {
-            // [2단계] NewsAPI에서 업계 관련 최신 뉴스 수집
-            const newsHeadlines = await fetchNewsHeadlines(industry || 'technology');
+            console.log('[generateTrendingKeywordsV2] Fetching news for:', industry);
+            newsHeadlines = await fetchNewsHeadlines(industry || 'technology');
             console.log(`[generateTrendingKeywordsV2] Fetched ${newsHeadlines.length} news headlines`);
+        } catch (newsError) {
+            console.error('[generateTrendingKeywordsV2] NewsAPI Failed (Non-fatal):', newsError);
+            // Continue execution without news data (Fallback to AI only)
+        }
+        */
+        console.log('[generateTrendingKeywordsV2] NewsAPI Skipped for Debugging');
 
-            // [3단계] AI 종합 분석
+        try {
+            // [3단계] AI 종합 분석 (Try block for AI part)
             const systemPrompt = `You are a market trend analyst and SEO expert specializing in ${industry || 'technology'}.
 Your task is to analyze project context and recent news to suggest high-impact keywords for brand monitoring and SEO.
 You have deep knowledge of current market trends, viral topics, and search patterns.`;
