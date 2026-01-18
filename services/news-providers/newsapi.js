@@ -25,7 +25,7 @@ class NewsAPIProvider {
     }
 
     /**
-     * Get API key from Firestore systemSettings
+     * Get API key from Firestore systemSettings/apiKeys
      */
     async getApiKey() {
         if (this.apiKey) return this.apiKey;
@@ -33,24 +33,18 @@ class NewsAPIProvider {
         try {
             const db = firebase.firestore();
 
-            // Try systemSettings first
+            // Read from systemSettings/apiKeys (correct location for external service keys)
             const settingsDoc = await db.collection('systemSettings').doc('apiKeys').get();
             if (settingsDoc.exists && settingsDoc.data().newsapi) {
                 this.apiKey = settingsDoc.data().newsapi;
+                console.log('[NewsAPI] API key loaded from systemSettings/apiKeys');
                 return this.apiKey;
             }
 
-            // Fallback to systemLLMProviders (where other API keys are stored)
-            const newsDoc = await db.collection('systemLLMProviders').doc('newsapi').get();
-            if (newsDoc.exists && newsDoc.data().apiKey) {
-                this.apiKey = newsDoc.data().apiKey;
-                return this.apiKey;
-            }
-
-            console.warn('[NewsAPI] API Key not found in Firestore');
+            console.warn('[NewsAPI] API Key not found in systemSettings/apiKeys');
             return null;
         } catch (error) {
-            console.error('[NewsAPI] Error fetching API key:', error);
+            console.error('[NewsAPI] Error fetching API key:', error.message);
             return null;
         }
     }

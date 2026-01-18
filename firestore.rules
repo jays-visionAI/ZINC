@@ -288,8 +288,9 @@ service cloud.firestore {
       }
     }
 
-    // System Settings (Admin only)
+    // System Settings (Admin only, except apiKeys which authenticated users can read)
     match /systemSettings/{settingId} {
+      allow read: if isAuthenticated() && settingId == 'apiKeys';
       allow read: if isAdmin();
       allow write: if isAdmin();
     }
