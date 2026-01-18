@@ -3837,9 +3837,10 @@ async function generateAISuggestions() {
     `;
 
     try {
-        // Step 1: Try to fetch news context from NewsAPI (client-side, no CORS issues)
+        // Step 1: Fetch news with auto-detection based on project target markets
         let newsContext = '';
         let newsCount = 0;
+        let detectedRegions = [];
 
         if (window.NewsProviderRegistry) {
             const industry = currentProjectData?.industry || 'technology';
@@ -3847,17 +3848,20 @@ async function generateAISuggestions() {
             const searchQuery = `${industry} ${projectName}`.trim() || 'technology trends';
 
             try {
-                const newsResult = await window.NewsProviderRegistry.fetchNews(searchQuery, ['GLOBAL'], {
-                    pageSize: 5,
-                    language: 'en'
-                });
+                // Use auto-detection based on project's target audience/markets
+                const newsResult = await window.NewsProviderRegistry.fetchNewsForProject(
+                    searchQuery,
+                    currentProjectData,
+                    { maxResults: 5 }
+                );
 
                 if (newsResult.success && newsResult.articles.length > 0) {
                     newsCount = newsResult.articles.length;
+                    detectedRegions = newsResult.regions || [];
                     newsContext = newsResult.articles
                         .map(a => `- ${a.headline || a.title}`)
                         .join('\n');
-                    console.log(`[KeywordSuggestions] Fetched ${newsCount} news articles for context`);
+                    console.log(`[KeywordSuggestions] Fetched ${newsCount} news articles from ${detectedRegions.join(', ')}`);
                 }
             } catch (newsErr) {
                 console.warn('[KeywordSuggestions] News fetch failed, continuing with AI-only:', newsErr.message);
