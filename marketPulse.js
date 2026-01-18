@@ -455,7 +455,7 @@ function updateDashboardWithProjectData(data) {
 }
 
 /**
- * 🕵️ Trigger AI-powered Market Research to find REAL news and trends
+ * Trigger AI-powered Market Research to find REAL news and trends
  */
 async function triggerMarketIntelligenceResearch() {
     if (!currentProjectId || !currentProjectData) return;
@@ -475,7 +475,7 @@ async function triggerMarketIntelligenceResearch() {
         });
     }
 
-    showNotification('🚀 Starting Market Intelligence analysis. You can leave and come back — results will be ready when you return.', 'info');
+    showNotification('Starting Market Intelligence analysis...', 'info');
 
     try {
         if (typeof WorkflowEngine === 'undefined') {
@@ -485,6 +485,35 @@ async function triggerMarketIntelligenceResearch() {
         // Update progress
         updateMIProgress('Collecting market signals...', 15);
 
+        // Step 1: Fetch real news for all keywords
+        let keywordNewsMap = {};
+
+        if (window.NewsProviderRegistry) {
+            updateMIProgress('Fetching real-time news data...', 25);
+
+            for (let i = 0; i < keywords.length; i++) {
+                const kw = keywords[i];
+                try {
+                    const newsResult = await window.NewsProviderRegistry.fetchNewsForProject(
+                        kw,
+                        currentProjectData,
+                        { maxResults: 5 }
+                    );
+
+                    if (newsResult.success && newsResult.articles.length > 0) {
+                        keywordNewsMap[kw] = newsResult.articles;
+                        console.log(`[MarketPulse] Found ${newsResult.articles.length} articles for "${kw}"`);
+                    }
+                } catch (newsErr) {
+                    console.warn(`[MarketPulse] News fetch for "${kw}" failed:`, newsErr.message);
+                }
+
+                // Update progress
+                const progressPercent = 25 + Math.floor((i / keywords.length) * 15);
+                updateMIProgress(`Scanning news for: ${kw}...`, progressPercent);
+            }
+        }
+
         // Execute specific Market Intelligence Workflow
         const workflowId = 'dn0sDJv9EQsM3NicleSL';
         const projectContext = { id: currentProjectId, ...currentProjectData };
@@ -492,7 +521,7 @@ async function triggerMarketIntelligenceResearch() {
         console.log('[MarketPulse] Executing Workflow:', workflowId);
 
         // Update progress
-        updateMIProgress('AI agents processing data...', 40);
+        updateMIProgress('AI agents processing data...', 45);
 
         const { outputs } = await WorkflowEngine.executeById(workflowId, projectContext);
 
@@ -509,10 +538,32 @@ async function triggerMarketIntelligenceResearch() {
         // Update progress
         updateMIProgress('Generating insights...', 85);
 
-        // Map Workflow output to our Trend format
+        // Map Workflow output to our Trend format with REAL news evidence
         const realTrends = keywords.map((kw, idx) => {
             const agentTrend = (workflowResult.trends && workflowResult.trends[kw]) ||
                 (workflowResult[kw]) || null;
+
+            // Get real news articles for this keyword
+            const realArticles = keywordNewsMap[kw] || [];
+
+            // Build evidence array from real news
+            const evidence = realArticles.length > 0
+                ? realArticles.map((article, artIdx) => ({
+                    id: `ev-${idx}-${artIdx}-${Date.now()}`,
+                    title: article.headline || article.title || 'News Article',
+                    publisher: article.source || article.publisher || 'News Source',
+                    date: article.publishedAt ? formatRelativeTimeForEvidence(article.publishedAt) : 'Recent',
+                    snippet: article.snippet || article.description || `News coverage about ${kw}.`,
+                    url: article.url || article.link || '#'
+                }))
+                : [{
+                    id: `ev-${idx}-${Date.now()}`,
+                    title: `Workflow Scan: ${kw} insights`,
+                    publisher: 'ZYNK Intelligence',
+                    date: 'Just now',
+                    snippet: `Advanced workflow analysis completed for ${kw}. No external news sources found.`,
+                    url: '#'
+                }];
 
             return {
                 id: `wf-trend-${idx}-${Date.now()}`,
@@ -524,16 +575,7 @@ async function triggerMarketIntelligenceResearch() {
                 history: agentTrend?.history || Array.from({ length: 7 }, () => Math.floor(Math.random() * 100)),
                 summary: agentTrend?.summary || `${kw} is being analyzed via the intelligent workflow engine.`,
                 drivers: agentTrend?.drivers || ['Market Research Workflow', 'Real-time Analysis'],
-                evidence: agentTrend?.evidence || [
-                    {
-                        id: `ev-${idx}-${Date.now()}`,
-                        title: `Workflow Scan: ${kw} insights`,
-                        publisher: 'ZYNK Intelligence',
-                        date: 'Just now',
-                        snippet: `Advanced workflow analysis completed for ${kw}.`,
-                        url: '#'
-                    }
-                ]
+                evidence: evidence
             };
         });
 
@@ -561,7 +603,7 @@ async function triggerMarketIntelligenceResearch() {
         }
 
         updateMIProgress('Complete!', 100);
-        showNotification('✅ Market Intelligence analysis complete!', 'success');
+        showNotification('Market Intelligence analysis complete!', 'success');
 
     } catch (error) {
         console.error('Market Research via Workflow failed:', error);
@@ -569,6 +611,26 @@ async function triggerMarketIntelligenceResearch() {
             window.marketIntelligenceInstance.setState({ status: 'error', progressMessage: error.message });
         }
         showNotification('Workflow execution failed. Please check the logs.', 'error');
+    }
+}
+
+// Helper function for evidence date formatting
+function formatRelativeTimeForEvidence(dateString) {
+    if (!dateString) return 'Recent';
+    try {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        if (diffMins < 60) return `${diffMins} min ago`;
+        if (diffHours < 24) return `${diffHours} hours ago`;
+        if (diffDays < 7) return `${diffDays} days ago`;
+        return date.toLocaleDateString();
+    } catch (e) {
+        return 'Recent';
     }
 }
 
