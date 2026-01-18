@@ -3832,19 +3832,54 @@ async function generateAISuggestions() {
     container.innerHTML = `
         <div class="flex items-center justify-center gap-3 px-2 py-2 w-full">
             <div class="w-4 h-4 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin"></div>
-            <span class="text-xs text-slate-500 font-medium">Analyzing project DNA and market trends...</span>
+            <span class="text-xs text-slate-500 font-medium">Scanning global news & analyzing market trends...</span>
         </div>
     `;
 
     try {
+        // Step 1: Try to fetch news context from NewsAPI (client-side, no CORS issues)
+        let newsContext = '';
+        let newsCount = 0;
+
+        if (window.NewsProviderRegistry) {
+            const industry = currentProjectData?.industry || 'technology';
+            const projectName = currentProjectData?.projectName || currentProjectData?.name || '';
+            const searchQuery = `${industry} ${projectName}`.trim() || 'technology trends';
+
+            try {
+                const newsResult = await window.NewsProviderRegistry.fetchNews(searchQuery, ['GLOBAL'], {
+                    pageSize: 5,
+                    language: 'en'
+                });
+
+                if (newsResult.success && newsResult.articles.length > 0) {
+                    newsCount = newsResult.articles.length;
+                    newsContext = newsResult.articles
+                        .map(a => `- ${a.headline || a.title}`)
+                        .join('\n');
+                    console.log(`[KeywordSuggestions] Fetched ${newsCount} news articles for context`);
+                }
+            } catch (newsErr) {
+                console.warn('[KeywordSuggestions] News fetch failed, continuing with AI-only:', newsErr.message);
+            }
+        }
+
+        // Step 2: Call AI with or without news context
         const executeSubAgent = firebase.functions().httpsCallable('executeSubAgent');
+
+        const basePrompt = `Based on the project name "${currentProjectData?.projectName || 'Unknown'}" and its description "${currentProjectData?.description || 'No description available'}", suggest 8 high-impact market keywords for monitoring sentiment and competition.`;
+
+        const newsEnhancedPrompt = newsContext
+            ? `${basePrompt}\n\nRecent news headlines for context:\n${newsContext}\n\nConsider trending topics from these headlines when suggesting keywords.`
+            : basePrompt;
+
         const response = await executeSubAgent({
             projectId: currentProjectId,
             teamId: 'SYSTEM_INTEL_TEAM',
             runId: 'keywords_' + Date.now(),
             subAgentId: 'strategy_analyst',
-            taskPrompt: `Based on the project name "${currentProjectData.projectName}" and its description "${currentProjectData.description || 'No description available'}", suggest 8 high-impact market keywords for monitoring sentiment and competition. Return ONLY a comma-separated list of keywords.`,
-            systemPrompt: "You are an expert market analyst. Suggest optimized search keywords for brand monitoring. Format: Keyword1, Keyword2, Keyword3..."
+            taskPrompt: newsEnhancedPrompt + ' Return ONLY a comma-separated list of keywords.',
+            systemPrompt: "You are an expert market analyst. Suggest optimized search keywords for brand monitoring based on project context and current news trends. Format: Keyword1, Keyword2, Keyword3..."
         });
 
         if (response.data.success) {
@@ -3870,6 +3905,19 @@ async function generateAISuggestions() {
                 };
                 container.appendChild(chip);
             });
+
+            // Show news source info if available
+            if (newsCount > 0) {
+                const sourceInfo = document.createElement('div');
+                sourceInfo.className = 'w-full mt-3 pt-3 border-t border-slate-800/50';
+                sourceInfo.innerHTML = `
+                    <p class="text-[9px] text-slate-600 flex items-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>
+                        Enhanced with ${newsCount} recent global news articles
+                    </p>
+                `;
+                container.appendChild(sourceInfo);
+            }
         } else {
             throw new Error(response.data.error || "Failed to generate suggestions");
         }
