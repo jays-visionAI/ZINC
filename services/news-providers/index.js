@@ -120,32 +120,69 @@ class NewsProviderRegistry {
 
     /**
      * Map target markets to region codes with language/country config
+     * Supports all major Google News regions
      */
     static mapMarketsToRegions(targetMarkets) {
         const mapping = {
-            'korea': 'KR',
-            'korean': 'KR',
-            'kr': 'KR',
-            '한국': 'KR',
-            'japan': 'JP',
-            'japanese': 'JP',
-            'jp': 'JP',
-            '일본': 'JP',
-            'singapore': 'SG',
-            'sg': 'SG',
-            '싱가포르': 'SG',
-            'malaysia': 'MY',
-            'my': 'MY',
-            '말레이시아': 'MY',
-            'thailand': 'TH',
-            'thai': 'TH',
-            'th': 'TH',
-            '태국': 'TH',
-            'global': 'GLOBAL',
-            'international': 'GLOBAL',
-            'worldwide': 'GLOBAL',
-            'us': 'GLOBAL',
-            'usa': 'GLOBAL'
+            // Asia Pacific
+            'korea': 'KR', 'korean': 'KR', 'kr': 'KR', '한국': 'KR', 'south korea': 'KR',
+            'japan': 'JP', 'japanese': 'JP', 'jp': 'JP', '일본': 'JP',
+            'china': 'CN', 'chinese': 'CN', 'cn': 'CN', '중국': 'CN', '中国': 'CN',
+            'taiwan': 'TW', 'tw': 'TW', '대만': 'TW', '台灣': 'TW',
+            'hong kong': 'HK', 'hongkong': 'HK', 'hk': 'HK', '홍콩': 'HK', '香港': 'HK',
+            'singapore': 'SG', 'sg': 'SG', '싱가포르': 'SG',
+            'malaysia': 'MY', 'my': 'MY', '말레이시아': 'MY',
+            'thailand': 'TH', 'thai': 'TH', 'th': 'TH', '태국': 'TH', 'ประเทศไทย': 'TH',
+            'vietnam': 'VN', 'vietnamese': 'VN', 'vn': 'VN', '베트남': 'VN', 'việt nam': 'VN',
+            'indonesia': 'ID', 'indonesian': 'ID', 'id': 'ID', '인도네시아': 'ID',
+            'philippines': 'PH', 'ph': 'PH', '필리핀': 'PH',
+            'india': 'IN', 'indian': 'IN', 'in': 'IN', '인도': 'IN', 'भारत': 'IN',
+            'australia': 'AU', 'australian': 'AU', 'au': 'AU', '호주': 'AU',
+            'new zealand': 'NZ', 'newzealand': 'NZ', 'nz': 'NZ', '뉴질랜드': 'NZ',
+
+            // Europe
+            'uk': 'GB', 'united kingdom': 'GB', 'gb': 'GB', 'britain': 'GB', 'england': 'GB', '영국': 'GB',
+            'germany': 'DE', 'german': 'DE', 'de': 'DE', '독일': 'DE', 'deutschland': 'DE',
+            'france': 'FR', 'french': 'FR', 'fr': 'FR', '프랑스': 'FR',
+            'spain': 'ES', 'spanish': 'ES', 'es': 'ES', '스페인': 'ES', 'españa': 'ES',
+            'italy': 'IT', 'italian': 'IT', 'it': 'IT', '이탈리아': 'IT', 'italia': 'IT',
+            'netherlands': 'NL', 'dutch': 'NL', 'nl': 'NL', '네덜란드': 'NL', 'holland': 'NL',
+            'belgium': 'BE', 'be': 'BE', '벨기에': 'BE',
+            'switzerland': 'CH', 'swiss': 'CH', 'ch': 'CH', '스위스': 'CH',
+            'austria': 'AT', 'at': 'AT', '오스트리아': 'AT',
+            'sweden': 'SE', 'swedish': 'SE', 'se': 'SE', '스웨덴': 'SE',
+            'norway': 'NO', 'norwegian': 'NO', 'no': 'NO', '노르웨이': 'NO',
+            'denmark': 'DK', 'danish': 'DK', 'dk': 'DK', '덴마크': 'DK',
+            'finland': 'FI', 'finnish': 'FI', 'fi': 'FI', '핀란드': 'FI',
+            'poland': 'PL', 'polish': 'PL', 'pl': 'PL', '폴란드': 'PL',
+            'russia': 'RU', 'russian': 'RU', 'ru': 'RU', '러시아': 'RU', 'россия': 'RU',
+            'ukraine': 'UA', 'ukrainian': 'UA', 'ua': 'UA', '우크라이나': 'UA',
+            'portugal': 'PT', 'portuguese': 'PT', 'pt': 'PT', '포르투갈': 'PT',
+            'greece': 'GR', 'greek': 'GR', 'gr': 'GR', '그리스': 'GR',
+            'turkey': 'TR', 'turkish': 'TR', 'tr': 'TR', '터키': 'TR', 'türkiye': 'TR',
+            'ireland': 'IE', 'irish': 'IE', 'ie': 'IE', '아일랜드': 'IE',
+
+            // Americas
+            'usa': 'US', 'us': 'US', 'united states': 'US', 'america': 'US', '미국': 'US',
+            'canada': 'CA', 'canadian': 'CA', 'ca': 'CA', '캐나다': 'CA',
+            'mexico': 'MX', 'mexican': 'MX', 'mx': 'MX', '멕시코': 'MX', 'méxico': 'MX',
+            'brazil': 'BR', 'brazilian': 'BR', 'br': 'BR', '브라질': 'BR', 'brasil': 'BR',
+            'argentina': 'AR', 'ar': 'AR', '아르헨티나': 'AR',
+            'chile': 'CL', 'cl': 'CL', '칠레': 'CL',
+            'colombia': 'CO', 'co': 'CO', '콜롬비아': 'CO',
+            'peru': 'PE', 'pe': 'PE', '페루': 'PE',
+
+            // Middle East & Africa
+            'israel': 'IL', 'israeli': 'IL', 'il': 'IL', '이스라엘': 'IL',
+            'uae': 'AE', 'united arab emirates': 'AE', 'ae': 'AE', 'dubai': 'AE', '아랍에미리트': 'AE',
+            'saudi arabia': 'SA', 'saudi': 'SA', 'sa': 'SA', '사우디아라비아': 'SA',
+            'egypt': 'EG', 'egyptian': 'EG', 'eg': 'EG', '이집트': 'EG',
+            'south africa': 'ZA', 'za': 'ZA', '남아프리카': 'ZA',
+            'nigeria': 'NG', 'ng': 'NG', '나이지리아': 'NG',
+            'kenya': 'KE', 'ke': 'KE', '케냐': 'KE',
+
+            // Global/Default
+            'global': 'GLOBAL', 'international': 'GLOBAL', 'worldwide': 'GLOBAL', 'world': 'GLOBAL'
         };
 
         if (!targetMarkets || targetMarkets.length === 0) {
@@ -164,14 +201,68 @@ class NewsProviderRegistry {
 
     /**
      * Get language and country config for a region
+     * Complete mapping for all supported countries
      */
     static getRegionConfig(region) {
         const configs = {
+            // Asia Pacific
             'KR': { language: 'ko', country: 'KR', name: '한국' },
             'JP': { language: 'ja', country: 'JP', name: '日本' },
+            'CN': { language: 'zh-CN', country: 'CN', name: '中国' },
+            'TW': { language: 'zh-TW', country: 'TW', name: '台灣' },
+            'HK': { language: 'zh-HK', country: 'HK', name: '香港' },
             'SG': { language: 'en', country: 'SG', name: 'Singapore' },
             'MY': { language: 'en', country: 'MY', name: 'Malaysia' },
             'TH': { language: 'th', country: 'TH', name: 'ประเทศไทย' },
+            'VN': { language: 'vi', country: 'VN', name: 'Việt Nam' },
+            'ID': { language: 'id', country: 'ID', name: 'Indonesia' },
+            'PH': { language: 'en', country: 'PH', name: 'Philippines' },
+            'IN': { language: 'en', country: 'IN', name: 'India' },
+            'AU': { language: 'en', country: 'AU', name: 'Australia' },
+            'NZ': { language: 'en', country: 'NZ', name: 'New Zealand' },
+
+            // Europe
+            'GB': { language: 'en', country: 'GB', name: 'United Kingdom' },
+            'DE': { language: 'de', country: 'DE', name: 'Deutschland' },
+            'FR': { language: 'fr', country: 'FR', name: 'France' },
+            'ES': { language: 'es', country: 'ES', name: 'España' },
+            'IT': { language: 'it', country: 'IT', name: 'Italia' },
+            'NL': { language: 'nl', country: 'NL', name: 'Nederland' },
+            'BE': { language: 'nl', country: 'BE', name: 'België' },
+            'CH': { language: 'de', country: 'CH', name: 'Schweiz' },
+            'AT': { language: 'de', country: 'AT', name: 'Österreich' },
+            'SE': { language: 'sv', country: 'SE', name: 'Sverige' },
+            'NO': { language: 'no', country: 'NO', name: 'Norge' },
+            'DK': { language: 'da', country: 'DK', name: 'Danmark' },
+            'FI': { language: 'fi', country: 'FI', name: 'Suomi' },
+            'PL': { language: 'pl', country: 'PL', name: 'Polska' },
+            'RU': { language: 'ru', country: 'RU', name: 'Россия' },
+            'UA': { language: 'uk', country: 'UA', name: 'Україна' },
+            'PT': { language: 'pt-PT', country: 'PT', name: 'Portugal' },
+            'GR': { language: 'el', country: 'GR', name: 'Ελλάδα' },
+            'TR': { language: 'tr', country: 'TR', name: 'Türkiye' },
+            'IE': { language: 'en', country: 'IE', name: 'Ireland' },
+
+            // Americas
+            'US': { language: 'en', country: 'US', name: 'United States' },
+            'CA': { language: 'en', country: 'CA', name: 'Canada' },
+            'MX': { language: 'es', country: 'MX', name: 'México' },
+            'BR': { language: 'pt-BR', country: 'BR', name: 'Brasil' },
+            'AR': { language: 'es', country: 'AR', name: 'Argentina' },
+            'CL': { language: 'es', country: 'CL', name: 'Chile' },
+            'CO': { language: 'es', country: 'CO', name: 'Colombia' },
+            'PE': { language: 'es', country: 'PE', name: 'Perú' },
+
+            // Middle East & Africa
+            'IL': { language: 'he', country: 'IL', name: 'ישראל' },
+            'AE': { language: 'ar', country: 'AE', name: 'الإمارات' },
+            'SA': { language: 'ar', country: 'SA', name: 'السعودية' },
+            'EG': { language: 'ar', country: 'EG', name: 'مصر' },
+            'ZA': { language: 'en', country: 'ZA', name: 'South Africa' },
+            'NG': { language: 'en', country: 'NG', name: 'Nigeria' },
+            'KE': { language: 'en', country: 'KE', name: 'Kenya' },
+
+            // Default
             'GLOBAL': { language: 'en', country: 'US', name: 'Global' }
         };
         return configs[region] || configs['GLOBAL'];
@@ -199,6 +290,16 @@ class NewsProviderRegistry {
             if (audience.includes('singapore') || audience.includes('싱가포르')) targetMarkets.push('SG');
             if (audience.includes('malaysia') || audience.includes('말레이시아')) targetMarkets.push('MY');
             if (audience.includes('thailand') || audience.includes('태국')) targetMarkets.push('TH');
+            if (audience.includes('vietnam') || audience.includes('베트남')) targetMarkets.push('VN');
+            if (audience.includes('indonesia') || audience.includes('인도네시아')) targetMarkets.push('ID');
+            if (audience.includes('china') || audience.includes('중국')) targetMarkets.push('CN');
+            if (audience.includes('taiwan') || audience.includes('대만')) targetMarkets.push('TW');
+            if (audience.includes('india') || audience.includes('인도')) targetMarkets.push('IN');
+            if (audience.includes('australia') || audience.includes('호주')) targetMarkets.push('AU');
+            if (audience.includes('uk') || audience.includes('영국') || audience.includes('united kingdom')) targetMarkets.push('GB');
+            if (audience.includes('germany') || audience.includes('독일')) targetMarkets.push('DE');
+            if (audience.includes('france') || audience.includes('프랑스')) targetMarkets.push('FR');
+            if (audience.includes('brazil') || audience.includes('브라질')) targetMarkets.push('BR');
         }
 
         // Default to GLOBAL if no specific markets
