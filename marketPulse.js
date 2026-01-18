@@ -3842,6 +3842,18 @@ async function generateAISuggestions() {
             timeout: 60000
         });
 
+        if (!currentProjectData) {
+            console.error('Project data not loaded yet.');
+            container.innerHTML = `
+                <div class="flex items-center justify-center gap-2 text-red-400 p-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+                    <span class="text-xs">Project data not loaded. Please select a project.</span>
+                </div>`;
+            if (icon) icon.classList.remove('animate-spin');
+            if (btn) btn.disabled = false;
+            return;
+        }
+
         const response = await generateTrending({
             projectId: currentProjectId,
             industry: currentProjectData.industry || 'technology',

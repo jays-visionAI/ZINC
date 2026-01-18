@@ -133,6 +133,8 @@
             display: block;
         }
     </style>
+    <!-- Load Brand Score Service -->
+    <script src="services/brand-score-service.js"></script>
 </head>
 
 <body class="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-indigo-500/30">
@@ -352,75 +354,75 @@
                         <!-- Right: 5 Pillars Breakdown -->
                         <div class="md:col-span-2 flex flex-col justify-center space-y-4 pl-2">
 
-                            <!-- P1: Sentiment -->
+                            <!-- P1: Identity -->
                             <div>
                                 <div class="flex justify-between text-xs mb-1.5">
                                     <span class="text-slate-400 flex items-center gap-1.5">
-                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Sentiment
+                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Identity
                                     </span>
-                                    <span id="score-text-sentiment" class="text-slate-200 font-bold">0/30</span>
+                                    <span id="score-text-identity" class="text-slate-200 font-bold">0/30</span>
                                 </div>
                                 <div class="w-full bg-slate-800/50 rounded-full h-2 overflow-hidden">
-                                    <div id="bar-sentiment"
+                                    <div id="bar-identity"
                                         class="h-full bg-emerald-500 rounded-full w-0 transition-all duration-1000">
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- P2: Awareness -->
+                            <!-- P2: Strategy -->
                             <div>
                                 <div class="flex justify-between text-xs mb-1.5">
                                     <span class="text-slate-400 flex items-center gap-1.5">
-                                        <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span> Awareness
+                                        <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span> Strategy
                                     </span>
-                                    <span id="score-text-awareness" class="text-slate-200 font-bold">0/25</span>
+                                    <span id="score-text-strategy" class="text-slate-200 font-bold">0/25</span>
                                 </div>
                                 <div class="w-full bg-slate-800/50 rounded-full h-2 overflow-hidden">
-                                    <div id="bar-awareness"
+                                    <div id="bar-strategy"
                                         class="h-full bg-blue-500 rounded-full w-0 transition-all duration-1000"></div>
                                 </div>
                             </div>
 
-                            <!-- P3: Engagement -->
+                            <!-- P3: Knowledge -->
                             <div>
                                 <div class="flex justify-between text-xs mb-1.5">
                                     <span class="text-slate-400 flex items-center gap-1.5">
-                                        <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Engagement
+                                        <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Knowledge
                                     </span>
-                                    <span id="score-text-engagement" class="text-slate-200 font-bold">0/20</span>
+                                    <span id="score-text-knowledge" class="text-slate-200 font-bold">0/25</span>
                                 </div>
                                 <div class="w-full bg-slate-800/50 rounded-full h-2 overflow-hidden">
-                                    <div id="bar-engagement"
+                                    <div id="bar-knowledge"
                                         class="h-full bg-amber-500 rounded-full w-0 transition-all duration-1000"></div>
                                 </div>
                             </div>
 
                             <div class="grid grid-cols-2 gap-4">
-                                <!-- P4: Competitive -->
+                                <!-- P4: Update Frequency -->
                                 <div>
                                     <div class="flex justify-between text-xs mb-1.5">
                                         <span class="text-slate-400 flex items-center gap-1.5">
-                                            <span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span> Competitive
+                                            <span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span> Update Freq
                                         </span>
-                                        <span id="score-text-competitive" class="text-slate-200 font-bold">0/15</span>
+                                        <span id="score-text-update" class="text-slate-200 font-bold">0/10</span>
                                     </div>
                                     <div class="w-full bg-slate-800/50 rounded-full h-2 overflow-hidden">
-                                        <div id="bar-competitive"
+                                        <div id="bar-update"
                                             class="h-full bg-purple-500 rounded-full w-0 transition-all duration-1000">
                                         </div>
                                     </div>
                                 </div>
 
-                                <!-- P5: Consistency -->
+                                <!-- P5: Quality -->
                                 <div>
                                     <div class="flex justify-between text-xs mb-1.5">
                                         <span class="text-slate-400 flex items-center gap-1.5">
-                                            <span class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span> Consistency
+                                            <span class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span> Quality
                                         </span>
-                                        <span id="score-text-consistency" class="text-slate-200 font-bold">0/10</span>
+                                        <span id="score-text-quality" class="text-slate-200 font-bold">0/10</span>
                                     </div>
                                     <div class="w-full bg-slate-800/50 rounded-full h-2 overflow-hidden">
-                                        <div id="bar-consistency"
+                                        <div id="bar-quality"
                                             class="h-full bg-indigo-500 rounded-full w-0 transition-all duration-1000">
                                         </div>
                                     </div>
@@ -1128,6 +1130,7 @@
     <script src="firebase-config.js"></script>
     <script src="env-config.js"></script>
     <script src="services/credit-service.js"></script>
+    <script src="services/brand-score-service.js"></script>
     <script src="brand-brain.js"></script>
 
     <!-- Auth Check -->

@@ -1544,123 +1544,155 @@ function formatRelativeTime(date) {
 /**
  * Calculate Brand Health Score (Real-time)
  */
+/**
+ * Calculate Brand Scores (Brand Health & Knowledge Score)
+ * Uses BrandScoreService to calculate scores based on project data completeness
+ */
 async function calculateRealBrandHealth(simulationType = null) {
-    console.log('Calculating Real Brand Health...');
+    console.log('Calculating Brand Scores...');
 
-    // Default Empty State (Neutral)
-    let pulseData = {
-        sentiment: { positive: 0, neutral: 100, negative: 0 },
-        mentions: { total: 0, growth: 0 },
-        engagement: { score: 0, trend: 'stable' },
-        competitors: { rank: 0, gap: 0 }
-    };
-
-    // REAL DATA FETCH
-    if (currentProjectId) {
-        try {
-            // Priority 1: Check for the latest AI Intelligence Report from Market Pulse
-            const historySnapshot = await firebase.firestore()
-                .collection('projects')
-                .doc(currentProjectId)
-                .collection('brandHealthHistory')
-                .orderBy('createdAt', 'desc')
-                .limit(1)
-                .get();
-
-            if (!historySnapshot.empty) {
-                const report = historySnapshot.docs[0].data();
-
-                if (report.isIntelligenceReport === true) {
-                    console.log('[BrandBrain] 🧠 Found AI Intelligence Report - Prioritizing');
-
-                    const updatedTime = report.createdAt ? report.createdAt.toDate() : new Date();
-                    const timeEl = document.getElementById('health-last-updated');
-                    if (timeEl) {
-                        timeEl.innerText = `Report: Intelligence Center • ${updatedTime.getHours()}:${String(updatedTime.getMinutes()).padStart(2, '0')}`;
-                    }
-
-                    updateBrandHealthUI(report.score, report.breakdown, true);
-                    if (report.results) updateMarketPulseUI(report.results);
-                    updateDebugViewer(report.results, 'AI Intelligence Report');
-                    return;
-                }
-            }
-
-            // Priority 2: Fallback to Raw Market Pulse Calculation
-            const doc = await firebase.firestore()
-                .collection('projects')
-                .doc(currentProjectId)
-                .collection('marketPulse')
-                .doc('latest')
-                .get();
-
-            if (doc.exists) {
-                const realData = doc.data().metrics;
-                if (realData) {
-                    console.log('[BrandBrain] Loaded real Market Pulse data:', realData);
-                    pulseData = realData;
-
-                    const updatedTime = doc.data().updatedAt ? new Date(doc.data().updatedAt.seconds * 1000) : new Date();
-                    const timeEl = document.getElementById('health-last-updated');
-                    if (timeEl) {
-                        timeEl.innerText = `Source: Market Pulse • ${updatedTime.getHours()}:${String(updatedTime.getMinutes()).padStart(2, '0')}`;
-                    }
-
-                    updateDebugViewer(realData, 'Firestore (Realtime)');
-                }
-            } else {
-                console.log('[BrandBrain] No Market Pulse data found.');
-                const timeEl = document.getElementById('health-last-updated');
-                if (timeEl) timeEl.innerText = 'No Pulse Data Sync';
-            }
-        } catch (e) {
-            console.error('[BrandBrain] Error fetching real data:', e);
-        }
+    if (!currentProjectId || !brandBrainData) {
+        console.warn('Cannot calculate scores: Missing project or brand data');
+        return;
     }
 
-    updateDebugViewer(pulseData, 'Current Logic');
+    try {
+        const db = firebase.firestore();
 
-    let scores = {
-        sentiment: 0,   // Max 30
-        awareness: 0,   // Max 25
-        engagement: 0,  // Max 20
-        competitive: 0, // Max 15
-        consistency: 0  // Max 10
-    };
+        // Fetch Knowledge Sources for score calculation
+        // (Optimizable: cache this or use passed data if available)
+        const sourcesSnapshot = await db.collection('projects')
+            .doc(currentProjectId)
+            .collection('knowledgeSources')
+            .get();
 
-    // --- Metric 1: Sentiment (30 pts) ---
-    const pos = pulseData.sentiment ? pulseData.sentiment.positive : 0;
-    scores.sentiment = Math.min(30, Math.floor((pos / 100) * 30) + 5);
+        const knowledgeSources = sourcesSnapshot.docs.map(doc => doc.data());
 
-    // --- Metric 2: Awareness (25 pts) ---
-    const growth = pulseData.mentions ? pulseData.mentions.growth : 0;
-    scores.awareness = Math.min(25, 15 + (growth > 0 ? growth : 0));
+        // Get Project Data (already loaded in projectData global, but ensuring fresh)
+        // If global projectData is reliable, use it. Otherwise fetch.
+        // brandBrainData is available globally.
+        let projectInfo = { ...brandBrainData.coreIdentity }; // Mapping from brandBrainData structure
 
-    // --- Metric 3: Engagement (20 pts) ---
-    const engagementScore = pulseData.engagement ? pulseData.engagement.score : 0;
-    scores.engagement = Math.floor((engagementScore / 100) * 20);
+        // Also merge with root project data if needed, but brandBrainData usually has what we need
+        // projectData global is set in loadProjectData
 
-    // --- Metric 4: Competitive (15 pts) ---
-    const rank = pulseData.competitors ? pulseData.competitors.rank : 0;
-    if (rank === 1) scores.competitive = 15;
-    else if (rank <= 3 && rank > 0) scores.competitive = 10;
-    else scores.competitive = 5;
+        const scoreService = new BrandScoreService();
+        const scores = scoreService.calculateBrandHealthScore(projectInfo, brandBrainData.strategy || {}, knowledgeSources);
 
-    // --- Metric 5: Consistency (10 pts) ---
-    scores.consistency = 8;
+        // Update UI
+        updateBrandHealthUI(scores.total, scores);
 
-    // Total
-    const totalScore = scores.sentiment + scores.awareness + scores.engagement + scores.competitive + scores.consistency;
+        // Save calculated score to History
+        if (!simulationType) {
+            saveBrandHealthHistory(scores.total, scores);
+        }
 
-    // Update UI
-    updateBrandHealthUI(totalScore, scores);
+        // Also calculate Knowledge Score and update if there's a UI for it
+        // The plan says Knowledge Score is separate. 
+        // For now, let's log it or display it if we added a place for it.
+        const knowledgeScore = scoreService.calculateKnowledgeScore(knowledgeSources);
+        console.log('Knowledge Score:', knowledgeScore);
 
-    // Update Market Pulse Card UI
-    updateMarketPulseUI(pulseData);
+        // Update Market Pulse Card (Keep existing logic if possible, or leave it to specific Market Pulse function)
+        // The previous function also updated Market Pulse UI. We should keep that if it fetches separate data.
+        // But here we are focusing on Brand Readiness. 
+        // Let's separate Market Pulse update to a different function or call it here.
+        updateMarketPulseData();
 
-    // Save calculated score to History (Only if REAL data)
-    if (!simulationType && currentProjectId) {
-        saveBrandHealthHistory(totalScore, scores);
+    } catch (error) {
+        console.error('Error calculating brand scores:', error);
+    }
+}
+
+/**
+ * Fetch and Update Market Pulse Data (Separated from Brand Health Score)
+ */
+async function updateMarketPulseData() {
+    if (!currentProjectId) return;
+    try {
+        const doc = await firebase.firestore()
+            .collection('projects')
+            .doc(currentProjectId)
+            .collection('marketPulse')
+            .doc('latest')
+            .get();
+
+        if (doc.exists) {
+            const realData = doc.data().metrics;
+            if (realData) {
+                updateMarketPulseUI(realData);
+            }
+        }
+    } catch (e) {
+        console.error('Error updating market pulse:', e);
+    }
+}
+
+/**
+ * Update Brand Health UI with new Score Pillars
+ */
+function updateBrandHealthUI(totalScore, scores) {
+    // 1. Total Score Circle
+    const circle = document.getElementById('brand-health-circle');
+    const totalEl = document.getElementById('brand-health-total');
+    const gradeEl = document.getElementById('brand-health-grade');
+
+    // Animate Circle
+    const circumference = 2 * Math.PI * 70; // r=70
+    const offset = circumference - (totalScore / 100) * circumference;
+
+    if (circle) {
+        circle.style.strokeDasharray = `${circumference} ${circumference}`;
+        circle.style.strokeDashoffset = offset;
+
+        // Color based on score
+        if (totalScore >= 80) circle.classList.replace('text-emerald-500', 'text-emerald-400');
+        else if (totalScore >= 50) circle.classList.replace('text-emerald-500', 'text-amber-400');
+        else circle.classList.replace('text-emerald-500', 'text-red-400');
+    }
+
+    // Animate Number
+    if (totalEl) {
+        animateValue(totalEl, parseInt(totalEl.innerText) || 0, totalScore, 1000);
+    }
+
+    // Grade Text
+    if (gradeEl) {
+        let gradeText = 'Needs Work';
+        let gradeClass = 'bg-red-500/10 text-red-400 border-red-500/20';
+
+        if (totalScore >= 90) { gradeText = 'World Class'; gradeClass = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'; }
+        else if (totalScore >= 75) { gradeText = 'Excellent'; gradeClass = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'; }
+        else if (totalScore >= 50) { gradeText = 'Growing'; gradeClass = 'bg-amber-500/10 text-amber-400 border-amber-500/20'; }
+
+        gradeEl.className = `px-3 py-1 rounded-full text-xs font-bold border ${gradeClass}`;
+        gradeEl.innerText = gradeText;
+    }
+
+    // 2. Update Pillar Bars
+    updatePillar('identity', scores.identity, 30);
+    updatePillar('strategy', scores.strategy, 25);
+    updatePillar('knowledge', scores.knowledge, 25);
+    updatePillar('update', scores.update, 10);
+    updatePillar('quality', scores.quality, 10);
+}
+
+function updatePillar(name, value, max) {
+    const bar = document.getElementById(`bar-${name}`);
+    const text = document.getElementById(`score-text-${name}`);
+
+    if (bar && text) {
+        const percentage = (value / max) * 100;
+        bar.style.width = `${percentage}%`;
+        text.innerText = `${Math.round(value)}/${max}`;
+
+        // Color logic if needed
+        if (percentage >= 80) bar.className = bar.className.replace(/bg-\w+-500/, 'bg-emerald-500');
+        else if (percentage >= 50) bar.className = bar.className.replace(/bg-\w+-500/, 'bg-blue-500');
+        else bar.className = bar.className.replace(/bg-\w+-500/, 'bg-slate-600');
+        // Note: keeping original colors might be better for distinction, 
+        // but dynamic health coloring is also good. 
+        // Retaining original colors for now as the className replacement might be tricky with regrex.
     }
 }
 
@@ -2198,4 +2230,20 @@ async function handleHealthOptimize() {
         btn.disabled = false;
         btn.innerHTML = originalText;
     }
+}
+
+/**
+ * Animate Value Utility
+ */
+function animateValue(obj, start, end, duration) {
+    let startTimestamp = null;
+    const step = (timestamp) => {
+        if (!startTimestamp) startTimestamp = timestamp;
+        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+        obj.innerHTML = Math.floor(progress * (end - start) + start);
+        if (progress < 1) {
+            window.requestAnimationFrame(step);
+        }
+    };
+    window.requestAnimationFrame(step);
 }

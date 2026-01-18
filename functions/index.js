@@ -6543,35 +6543,61 @@ async function fetchNewsHeadlines(industry) {
 }
 
 /**
- * Generate Trending Keywords with News Context
+ * Generate Trending Keywords with News Context (V1 Implementation)
  * Uses NewsAPI + DeepSeek AI for trend-aware keyword suggestions
+ * Reverted to V1 to ensure correct cloudfunctions.net URL routing
  */
-exports.generateTrendingKeywordsV2 = onCall({
-    cors: { origin: true }, // Auto-reflect origin
-    timeoutSeconds: 60,
-    memory: '512MiB',
-    invoker: 'public'
-}, async (request) => {
-    const data = request.data || {};
-    const { projectId, industry, projectName, description, targetAudience } = data;
+// Explicitly use V1 to ensure Gen 1 deployment (cloudfunctions.net)
+const functionsV1 = require('firebase-functions/v1');
 
-    console.log('[generateTrendingKeywords] Request:', { projectId, industry, projectName });
+/**
+ * Generate Trending Keywords with News Context (V1 Implementation)
+ * Uses NewsAPI + DeepSeek AI for trend-aware keyword suggestions
+ * Reverted to V1 with runWith to ensure correct cloudfunctions.net URL routing
+ */
+exports.generateTrendingKeywordsV2 = functionsV1
+    .runWith({
+        timeoutSeconds: 60,
+        memory: '512MB',
+        invoker: 'public' // Explicitly set public invoker for V1
+    })
+    .https.onCall(async (data, context) => {
 
-    if (!projectName) {
-        return { success: false, error: 'Project name is required', keywords: [] };
-    }
+        // [V1] data is the first argument, context is the second
+        const { projectId, industry, projectName, description, targetAudience } = data || {};
 
-    try {
-        // [2단계] NewsAPI에서 업계 관련 최신 뉴스 수집
-        const newsHeadlines = await fetchNewsHeadlines(industry || 'technology');
-        console.log(`[generateTrendingKeywords] Fetched ${newsHeadlines.length} news headlines`);
+        console.log('[generateTrendingKeywordsV2] Request:', { projectId, industry, projectName });
 
-        // [3단계] AI 종합 분석
-        const systemPrompt = `You are a market trend analyst and SEO expert specializing in ${industry || 'technology'}.
+        // [Check DeepSeek Key]
+        const deepseekKey = await getSystemApiKey('deepseek');
+        if (!deepseekKey) {
+            console.warn('[generateTrendingKeywordsV2] DeepSeek key missing. Using MOCK mode.');
+            return {
+                success: true,
+                keywords: [
+                    { keyword: 'DeepSeek API Missing', trendScore: 90, reason: 'Please add DeepSeek API Key to Firestore' },
+                    { keyword: 'Mock Trend 1', trendScore: 80, reason: 'System running in safe mode' },
+                    { keyword: 'Mock Trend 2', trendScore: 70, reason: 'Fix configuration to enable AI' }
+                ],
+                isMock: true
+            };
+        }
+
+        if (!projectName) {
+            return { success: false, error: 'Project name is required', keywords: [] };
+        }
+
+        try {
+            // [2단계] NewsAPI에서 업계 관련 최신 뉴스 수집
+            const newsHeadlines = await fetchNewsHeadlines(industry || 'technology');
+            console.log(`[generateTrendingKeywordsV2] Fetched ${newsHeadlines.length} news headlines`);
+
+            // [3단계] AI 종합 분석
+            const systemPrompt = `You are a market trend analyst and SEO expert specializing in ${industry || 'technology'}.
 Your task is to analyze project context and recent news to suggest high-impact keywords for brand monitoring and SEO.
 You have deep knowledge of current market trends, viral topics, and search patterns.`;
 
-        const taskPrompt = `
+            const taskPrompt = `
 # PROJECT CONTEXT
 - Project Name: ${projectName}
 - Industry: ${industry || 'Not specified'}
@@ -6608,60 +6634,60 @@ Return ONLY a valid JSON array (no markdown, no explanation):
   ...
 ]`;
 
-        // AI 호출
-        const result = await callLLM('deepseek', 'deepseek-v3.2', [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: taskPrompt }
-        ], 0.5);
+            // AI 호출
+            const result = await callLLM('deepseek', 'deepseek-v3.2', [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: taskPrompt }
+            ], 0.5);
 
-        console.log('[generateTrendingKeywords] AI Response received');
+            console.log('[generateTrendingKeywords] AI Response received');
 
-        // [4단계] 결과 파싱
-        let keywords = [];
-        try {
-            // Extract JSON array from response
-            const jsonMatch = result.content.match(/\[[\s\S]*\]/);
-            if (jsonMatch) {
-                keywords = JSON.parse(jsonMatch[0]);
+            // [4단계] 결과 파싱
+            let keywords = [];
+            try {
+                // Extract JSON array from response
+                const jsonMatch = result.content.match(/\[[\s\S]*\]/);
+                if (jsonMatch) {
+                    keywords = JSON.parse(jsonMatch[0]);
+                }
+            } catch (parseError) {
+                console.error('[generateTrendingKeywords] Parse error:', parseError.message);
+                // Fallback: try to extract keywords from plain text
+                const fallbackKeywords = result.content.split(',').map(k => k.trim()).filter(k => k);
+                keywords = fallbackKeywords.slice(0, 8).map((kw, i) => ({
+                    keyword: kw,
+                    trendScore: 70 - (i * 5),
+                    reason: '트렌드 분석 기반 추천'
+                }));
             }
-        } catch (parseError) {
-            console.error('[generateTrendingKeywords] Parse error:', parseError.message);
-            // Fallback: try to extract keywords from plain text
-            const fallbackKeywords = result.content.split(',').map(k => k.trim()).filter(k => k);
-            keywords = fallbackKeywords.slice(0, 8).map((kw, i) => ({
-                keyword: kw,
-                trendScore: 70 - (i * 5),
-                reason: '트렌드 분석 기반 추천'
-            }));
+
+            // Validate and sanitize
+            keywords = keywords
+                .filter(k => k.keyword && typeof k.keyword === 'string')
+                .map(k => ({
+                    keyword: k.keyword.trim(),
+                    trendScore: Math.min(100, Math.max(0, parseInt(k.trendScore) || 50)),
+                    reason: k.reason || '관련 키워드'
+                }))
+                .sort((a, b) => b.trendScore - a.trendScore)
+                .slice(0, 8);
+
+            console.log(`[generateTrendingKeywords] Returning ${keywords.length} keywords`);
+
+            return {
+                success: true,
+                keywords: keywords,
+                newsCount: newsHeadlines.length,
+                model: result.model
+            };
+
+        } catch (error) {
+            console.error('[generateTrendingKeywords] Error:', error);
+            return {
+                success: false,
+                error: error.message,
+                keywords: []
+            };
         }
-
-        // Validate and sanitize
-        keywords = keywords
-            .filter(k => k.keyword && typeof k.keyword === 'string')
-            .map(k => ({
-                keyword: k.keyword.trim(),
-                trendScore: Math.min(100, Math.max(0, parseInt(k.trendScore) || 50)),
-                reason: k.reason || '관련 키워드'
-            }))
-            .sort((a, b) => b.trendScore - a.trendScore)
-            .slice(0, 8);
-
-        console.log(`[generateTrendingKeywords] Returning ${keywords.length} keywords`);
-
-        return {
-            success: true,
-            keywords: keywords,
-            newsCount: newsHeadlines.length,
-            model: result.model
-        };
-
-    } catch (error) {
-        console.error('[generateTrendingKeywords] Error:', error);
-        return {
-            success: false,
-            error: error.message,
-            keywords: []
-        };
-    }
-});
+    });
 
