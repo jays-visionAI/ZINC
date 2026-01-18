@@ -3819,6 +3819,9 @@ function clearAISuggestions() {
     }
 }
 
+// Store fetched articles for keyword-article mapping
+let cachedNewsArticles = [];
+
 async function generateAISuggestions() {
     const container = document.getElementById('ai-suggestions-container');
     const btn = document.getElementById('btn-generate-suggestions');
@@ -3841,6 +3844,7 @@ async function generateAISuggestions() {
         let newsContext = '';
         let newsCount = 0;
         let detectedRegions = [];
+        cachedNewsArticles = [];
 
         if (window.NewsProviderRegistry) {
             const industry = currentProjectData?.industry || 'technology';
@@ -3852,12 +3856,13 @@ async function generateAISuggestions() {
                 const newsResult = await window.NewsProviderRegistry.fetchNewsForProject(
                     searchQuery,
                     currentProjectData,
-                    { maxResults: 5 }
+                    { maxResults: 8 }
                 );
 
                 if (newsResult.success && newsResult.articles.length > 0) {
                     newsCount = newsResult.articles.length;
                     detectedRegions = newsResult.regions || [];
+                    cachedNewsArticles = newsResult.articles;
                     newsContext = newsResult.articles
                         .map(a => `- ${a.headline || a.title}`)
                         .join('\n');
@@ -3868,13 +3873,13 @@ async function generateAISuggestions() {
             }
         }
 
-        // Step 2: Call AI with or without news context
+        // Step 2: Call AI with or without news context - now asking for keyword-article mapping
         const executeSubAgent = firebase.functions().httpsCallable('executeSubAgent');
 
         const basePrompt = `Based on the project name "${currentProjectData?.projectName || 'Unknown'}" and its description "${currentProjectData?.description || 'No description available'}", suggest 8 high-impact market keywords for monitoring sentiment and competition.`;
 
         const newsEnhancedPrompt = newsContext
-            ? `${basePrompt}\n\nRecent news headlines for context:\n${newsContext}\n\nConsider trending topics from these headlines when suggesting keywords.`
+            ? `${basePrompt}\n\nRecent news headlines for context:\n${newsContext}\n\nFor each keyword, also provide a brief strategy tip (1 sentence).`
             : basePrompt;
 
         const response = await executeSubAgent({
@@ -3882,46 +3887,103 @@ async function generateAISuggestions() {
             teamId: 'SYSTEM_INTEL_TEAM',
             runId: 'keywords_' + Date.now(),
             subAgentId: 'strategy_analyst',
-            taskPrompt: newsEnhancedPrompt + ' Return ONLY a comma-separated list of keywords.',
-            systemPrompt: "You are an expert market analyst. Suggest optimized search keywords for brand monitoring based on project context and current news trends. Format: Keyword1, Keyword2, Keyword3..."
+            taskPrompt: newsEnhancedPrompt + ' Return in format: Keyword1|Strategy tip for keyword1, Keyword2|Strategy tip for keyword2, ...',
+            systemPrompt: "You are an expert market analyst. Suggest optimized search keywords for brand monitoring based on project context and current news trends. Format each keyword with a brief strategy tip separated by |. Example: AI Technology|Monitor competitor adoption rates, Sustainable Products|Track consumer sentiment shifts"
         });
 
         if (response.data.success) {
             const raw = response.data.output || "";
-            const suggestions = raw.split(',').map(s => s.trim()).filter(s => s);
+            // Parse keywords with optional strategy tips
+            const keywordEntries = raw.split(',').map(s => {
+                const parts = s.trim().split('|');
+                return {
+                    keyword: parts[0]?.trim() || '',
+                    strategy: parts[1]?.trim() || ''
+                };
+            }).filter(e => e.keyword);
 
             container.innerHTML = '';
-            suggestions.forEach(kw => {
-                const chip = document.createElement('button');
-                chip.className = 'px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium rounded-xl border border-slate-700 transition-all active:scale-95 animate-in slide-in-from-bottom-2 duration-300';
-                chip.textContent = `+ ${kw}`;
-                chip.onclick = () => {
-                    if (selectedKeywordsForEditor.length >= 10) {
-                        showNotification('Maximum 10 keywords allowed.', 'warning');
-                        return;
-                    }
-                    if (!selectedKeywordsForEditor.includes(kw)) {
-                        selectedKeywordsForEditor.push(kw);
-                        renderActiveTags();
-                        chip.classList.add('opacity-40', 'pointer-events-none');
-                        chip.textContent = `Added`;
-                    }
-                };
-                container.appendChild(chip);
+
+            // Create keyword cards with article sources
+            keywordEntries.forEach((entry, idx) => {
+                const kw = entry.keyword;
+                const strategy = entry.strategy;
+
+                // Find related articles (simple keyword matching)
+                const relatedArticles = cachedNewsArticles.filter(article => {
+                    const title = (article.headline || article.title || '').toLowerCase();
+                    const kwLower = kw.toLowerCase();
+                    // Check if any word from keyword appears in title
+                    return kwLower.split(' ').some(word => word.length > 2 && title.includes(word));
+                }).slice(0, 3);
+
+                const cardId = `keyword-card-${idx}`;
+                const card = document.createElement('div');
+                card.className = 'keyword-strategy-card group animate-in slide-in-from-bottom-2 duration-300';
+                card.style.animationDelay = `${idx * 50}ms`;
+                card.innerHTML = `
+                    <div class="flex flex-col gap-2 p-3 bg-slate-800/80 hover:bg-slate-800 rounded-xl border border-slate-700/50 hover:border-cyan-500/30 transition-all cursor-pointer">
+                        <div class="flex items-start justify-between gap-2">
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <button onclick="addKeywordFromCard('${kw.replace(/'/g, "\\'")}', this)" class="shrink-0 w-6 h-6 flex items-center justify-center bg-cyan-500/20 hover:bg-cyan-500 text-cyan-400 hover:text-white rounded-lg transition-all">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                                    </button>
+                                    <span class="font-semibold text-sm text-white truncate">${kw}</span>
+                                </div>
+                                ${strategy ? `<p class="mt-1.5 text-[11px] text-slate-400 leading-relaxed pl-8">${strategy}</p>` : ''}
+                            </div>
+                            ${relatedArticles.length > 0 ? `
+                                <button onclick="toggleArticleSources('${cardId}')" class="shrink-0 flex items-center gap-1 px-2 py-1 bg-slate-700/50 hover:bg-slate-700 rounded-lg text-[10px] text-slate-400 hover:text-cyan-400 transition-all">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>
+                                    ${relatedArticles.length} sources
+                                    <svg class="article-toggle-icon transition-transform" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                                </button>
+                            ` : ''}
+                        </div>
+                        
+                        <!-- Expandable Article Sources -->
+                        ${relatedArticles.length > 0 ? `
+                            <div id="${cardId}" class="article-sources hidden mt-2 pt-2 border-t border-slate-700/50 space-y-2">
+                                ${relatedArticles.map(article => `
+                                    <a href="${article.url || article.link || '#'}" target="_blank" rel="noopener noreferrer" 
+                                       class="flex items-start gap-2 p-2 bg-slate-900/50 hover:bg-slate-900 rounded-lg transition-all group/article">
+                                        <div class="shrink-0 w-5 h-5 flex items-center justify-center bg-slate-700/50 rounded text-slate-500">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-[11px] text-slate-300 group-hover/article:text-cyan-400 line-clamp-2 leading-relaxed transition-colors">${article.headline || article.title || 'News Article'}</p>
+                                            <p class="mt-0.5 text-[9px] text-slate-600">${article.source || article.publisher || 'Unknown Source'} ${article.publishedAt ? '• ' + formatRelativeTime(article.publishedAt) : ''}</p>
+                                        </div>
+                                    </a>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+                container.appendChild(card);
             });
 
-            // Show news source info if available
+            // Show summary footer
             if (newsCount > 0) {
                 const sourceInfo = document.createElement('div');
                 sourceInfo.className = 'w-full mt-3 pt-3 border-t border-slate-800/50';
                 sourceInfo.innerHTML = `
-                    <p class="text-[9px] text-slate-600 flex items-center gap-1">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>
-                        Enhanced with ${newsCount} recent global news articles
-                    </p>
+                    <div class="flex items-center justify-between">
+                        <p class="text-[10px] text-slate-500 flex items-center gap-1.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>
+                            Analyzed ${newsCount} articles from ${detectedRegions.length > 0 ? detectedRegions.map(r => getRegionName(r)).join(', ') : 'global sources'}
+                        </p>
+                        <button onclick="viewAllNewsSources()" class="text-[10px] text-cyan-500 hover:text-cyan-400 font-medium transition-colors">
+                            View All Sources
+                        </button>
+                    </div>
                 `;
                 container.appendChild(sourceInfo);
             }
+
+            // Show auto-view results banner with countdown
+            showAutoResultsBanner(keywordEntries, cachedNewsArticles, detectedRegions);
         } else {
             throw new Error(response.data.error || "Failed to generate suggestions");
         }
@@ -3933,6 +3995,337 @@ async function generateAISuggestions() {
         if (btn) btn.disabled = false;
     }
 }
+
+// Helper function to toggle article sources visibility
+function toggleArticleSources(cardId) {
+    const sourcesDiv = document.getElementById(cardId);
+    const toggleIcon = sourcesDiv?.previousElementSibling?.querySelector('.article-toggle-icon');
+
+    if (sourcesDiv) {
+        sourcesDiv.classList.toggle('hidden');
+        if (toggleIcon) {
+            toggleIcon.style.transform = sourcesDiv.classList.contains('hidden') ? '' : 'rotate(180deg)';
+        }
+    }
+}
+
+// Helper function to add keyword from card button
+function addKeywordFromCard(keyword, buttonEl) {
+    if (selectedKeywordsForEditor.length >= 10) {
+        showNotification('Maximum 10 keywords allowed.', 'warning');
+        return;
+    }
+    if (!selectedKeywordsForEditor.includes(keyword)) {
+        selectedKeywordsForEditor.push(keyword);
+        renderActiveTags();
+        // Update button to show added state
+        buttonEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+        buttonEl.classList.remove('bg-cyan-500/20', 'text-cyan-400', 'hover:bg-cyan-500', 'hover:text-white');
+        buttonEl.classList.add('bg-green-500/20', 'text-green-400', 'pointer-events-none');
+        showNotification(`Added: ${keyword}`, 'success');
+    }
+}
+
+// Helper function to format relative time
+function formatRelativeTime(dateString) {
+    if (!dateString) return '';
+    try {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        if (diffMins < 60) return `${diffMins}m ago`;
+        if (diffHours < 24) return `${diffHours}h ago`;
+        if (diffDays < 7) return `${diffDays}d ago`;
+        return date.toLocaleDateString();
+    } catch (e) {
+        return '';
+    }
+}
+
+// Helper function to get region display name
+function getRegionName(regionCode) {
+    const names = {
+        'KR': 'Korea', 'JP': 'Japan', 'US': 'USA', 'GB': 'UK', 'DE': 'Germany',
+        'FR': 'France', 'CN': 'China', 'TW': 'Taiwan', 'SG': 'Singapore',
+        'AU': 'Australia', 'GLOBAL': 'Global'
+    };
+    return names[regionCode] || regionCode;
+}
+
+// View all news sources in a modal
+function viewAllNewsSources() {
+    if (cachedNewsArticles.length === 0) {
+        showNotification('No news sources available', 'info');
+        return;
+    }
+
+    // Create modal for all sources
+    const modal = document.createElement('div');
+    modal.id = 'news-sources-modal';
+    modal.className = 'fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm animate-in fade-in duration-200';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+    modal.innerHTML = `
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+            <div class="flex items-center justify-between p-4 border-b border-slate-800">
+                <div>
+                    <h3 class="text-lg font-bold text-white">News Sources</h3>
+                    <p class="text-xs text-slate-500 mt-0.5">${cachedNewsArticles.length} articles analyzed for keyword suggestions</p>
+                </div>
+                <button onclick="document.getElementById('news-sources-modal').remove()" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+            </div>
+            <div class="p-4 overflow-y-auto max-h-[calc(80vh-80px)] space-y-3">
+                ${cachedNewsArticles.map(article => `
+                    <a href="${article.url || article.link || '#'}" target="_blank" rel="noopener noreferrer" 
+                       class="flex items-start gap-3 p-3 bg-slate-800/50 hover:bg-slate-800 rounded-xl border border-slate-700/50 hover:border-cyan-500/30 transition-all group">
+                        <div class="shrink-0 w-8 h-8 flex items-center justify-center bg-slate-700/50 rounded-lg text-slate-400 group-hover:text-cyan-400 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm text-slate-200 group-hover:text-cyan-400 line-clamp-2 leading-relaxed transition-colors font-medium">${article.headline || article.title || 'News Article'}</p>
+                            <div class="flex items-center gap-2 mt-1.5">
+                                <span class="text-[10px] text-cyan-500 font-medium">${article.source || article.publisher || 'Unknown Source'}</span>
+                                ${article.publishedAt ? `<span class="text-[10px] text-slate-600">• ${formatRelativeTime(article.publishedAt)}</span>` : ''}
+                            </div>
+                        </div>
+                        <div class="shrink-0 w-6 h-6 flex items-center justify-center text-slate-600 group-hover:text-cyan-400 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
+                        </div>
+                    </a>
+                `).join('')}
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+}
+
+// Auto-show results banner with countdown timer
+let autoResultsCountdown = null;
+let lastAnalysisResults = null;
+
+function showAutoResultsBanner(keywordEntries, articles, regions) {
+    // Store results for later viewing
+    lastAnalysisResults = { keywordEntries, articles, regions };
+
+    // Remove existing banner if present
+    const existingBanner = document.getElementById('auto-results-banner');
+    if (existingBanner) existingBanner.remove();
+
+    // Clear any existing countdown
+    if (autoResultsCountdown) {
+        clearInterval(autoResultsCountdown);
+        autoResultsCountdown = null;
+    }
+
+    const banner = document.createElement('div');
+    banner.id = 'auto-results-banner';
+    banner.className = 'fixed bottom-6 right-6 z-[9998] animate-in slide-in-from-bottom-4 duration-300';
+
+    let countdown = 10;
+
+    banner.innerHTML = `
+        <div class="flex items-center gap-4 px-5 py-4 bg-gradient-to-r from-slate-900 to-slate-800 border border-cyan-500/30 rounded-2xl shadow-2xl shadow-cyan-500/10">
+            <div class="flex items-center gap-3">
+                <div class="relative w-10 h-10 flex items-center justify-center">
+                    <svg class="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 36 36">
+                        <circle cx="18" cy="18" r="16" fill="none" class="stroke-slate-700" stroke-width="2"></circle>
+                        <circle id="countdown-ring" cx="18" cy="18" r="16" fill="none" class="stroke-cyan-400" stroke-width="2" stroke-dasharray="100" stroke-dashoffset="0" stroke-linecap="round" style="transition: stroke-dashoffset 1s linear;"></circle>
+                    </svg>
+                    <span id="countdown-number" class="text-sm font-bold text-cyan-400">${countdown}</span>
+                </div>
+                <div>
+                    <p class="text-sm font-semibold text-white">Analysis Complete</p>
+                    <p class="text-[11px] text-slate-400">Auto-showing results in <span id="countdown-text">${countdown}</span>s</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="showDetailedResults()" class="px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-slate-900 text-xs font-bold rounded-xl transition-all active:scale-95">
+                    View Now
+                </button>
+                <button onclick="dismissAutoResultsBanner()" class="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-white hover:bg-slate-700 rounded-lg transition-all">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(banner);
+
+    // Start countdown
+    autoResultsCountdown = setInterval(() => {
+        countdown--;
+        const countdownNumber = document.getElementById('countdown-number');
+        const countdownText = document.getElementById('countdown-text');
+        const countdownRing = document.getElementById('countdown-ring');
+
+        if (countdownNumber) countdownNumber.textContent = countdown;
+        if (countdownText) countdownText.textContent = countdown;
+        if (countdownRing) {
+            // 100 is full circle, calculate offset based on remaining time
+            const offset = 100 - ((countdown / 10) * 100);
+            countdownRing.style.strokeDashoffset = offset;
+        }
+
+        if (countdown <= 0) {
+            clearInterval(autoResultsCountdown);
+            autoResultsCountdown = null;
+            const bannerEl = document.getElementById('auto-results-banner');
+            if (bannerEl) bannerEl.remove();
+            showDetailedResults();
+        }
+    }, 1000);
+}
+
+function dismissAutoResultsBanner() {
+    if (autoResultsCountdown) {
+        clearInterval(autoResultsCountdown);
+        autoResultsCountdown = null;
+    }
+    const banner = document.getElementById('auto-results-banner');
+    if (banner) {
+        banner.classList.add('animate-out', 'slide-out-to-bottom-4');
+        setTimeout(() => banner.remove(), 200);
+    }
+}
+
+function showDetailedResults() {
+    // Dismiss banner if still showing
+    dismissAutoResultsBanner();
+
+    if (!lastAnalysisResults) {
+        showNotification('No analysis results available', 'warning');
+        return;
+    }
+
+    const { keywordEntries, articles, regions } = lastAnalysisResults;
+
+    const modal = document.createElement('div');
+    modal.id = 'detailed-results-modal';
+    modal.className = 'fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+    modal.innerHTML = `
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+            <!-- Header -->
+            <div class="relative px-6 py-5 border-b border-slate-800 bg-gradient-to-r from-cyan-500/10 to-transparent">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-cyan-400"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                            Market Resonance Analysis
+                        </h2>
+                        <p class="text-sm text-slate-400 mt-1">Keyword strategies with real-time news insights</p>
+                    </div>
+                    <button onclick="document.getElementById('detailed-results-modal').remove()" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                    </button>
+                </div>
+                
+                <!-- Stats Bar -->
+                <div class="flex items-center gap-6 mt-4">
+                    <div class="flex items-center gap-2 text-xs text-slate-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                        <span><strong class="text-white">${keywordEntries.length}</strong> Keywords</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-xs text-slate-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/></svg>
+                        <span><strong class="text-white">${articles.length}</strong> News Sources</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-xs text-slate-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+                        <span><strong class="text-white">${regions.length > 0 ? regions.map(r => getRegionName(r)).join(', ') : 'Global'}</strong></span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Content -->
+            <div class="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    ${keywordEntries.map((entry, idx) => {
+        const kw = entry.keyword;
+        const strategy = entry.strategy;
+        const relatedArticles = articles.filter(article => {
+            const title = (article.headline || article.title || '').toLowerCase();
+            return kw.toLowerCase().split(' ').some(word => word.length > 2 && title.includes(word));
+        }).slice(0, 2);
+
+        return `
+                            <div class="p-4 bg-slate-800/50 hover:bg-slate-800 rounded-xl border border-slate-700/50 hover:border-cyan-500/20 transition-all">
+                                <div class="flex items-start gap-3">
+                                    <div class="shrink-0 w-8 h-8 flex items-center justify-center bg-cyan-500/20 text-cyan-400 rounded-lg font-bold text-sm">
+                                        ${idx + 1}
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <h3 class="font-semibold text-white text-base">${kw}</h3>
+                                        ${strategy ? `<p class="mt-1 text-sm text-slate-400 leading-relaxed">${strategy}</p>` : ''}
+                                        
+                                        ${relatedArticles.length > 0 ? `
+                                            <div class="mt-3 pt-3 border-t border-slate-700/50 space-y-2">
+                                                <p class="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Related News</p>
+                                                ${relatedArticles.map(article => `
+                                                    <a href="${article.url || article.link || '#'}" target="_blank" rel="noopener noreferrer" 
+                                                       class="flex items-center gap-2 text-xs text-slate-300 hover:text-cyan-400 transition-colors">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
+                                                        <span class="truncate">${article.headline || article.title}</span>
+                                                    </a>
+                                                `).join('')}
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                    <button onclick="addKeywordFromDetailedResults('${kw.replace(/'/g, "\\'")}', this)" 
+                                            class="shrink-0 px-3 py-1.5 bg-slate-700 hover:bg-cyan-500 text-slate-300 hover:text-white text-xs font-medium rounded-lg transition-all">
+                                        + Add
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+    }).join('')}
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div class="px-6 py-4 border-t border-slate-800 bg-slate-900/50 flex items-center justify-between">
+                <p class="text-xs text-slate-500">Analysis powered by AI with real-time news data</p>
+                <button onclick="document.getElementById('detailed-results-modal').remove()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium rounded-xl transition-all">
+                    Close
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+}
+
+function addKeywordFromDetailedResults(keyword, buttonEl) {
+    if (selectedKeywordsForEditor.length >= 10) {
+        showNotification('Maximum 10 keywords allowed.', 'warning');
+        return;
+    }
+    if (!selectedKeywordsForEditor.includes(keyword)) {
+        selectedKeywordsForEditor.push(keyword);
+        renderActiveTags();
+        buttonEl.textContent = 'Added';
+        buttonEl.classList.remove('bg-slate-700', 'hover:bg-cyan-500', 'text-slate-300', 'hover:text-white');
+        buttonEl.classList.add('bg-green-500/20', 'text-green-400', 'pointer-events-none');
+        showNotification(`Added: ${keyword}`, 'success');
+    }
+}
+
+// Expose new functions globally
+window.toggleArticleSources = toggleArticleSources;
+window.addKeywordFromCard = addKeywordFromCard;
+window.viewAllNewsSources = viewAllNewsSources;
+window.showAutoResultsBanner = showAutoResultsBanner;
+window.dismissAutoResultsBanner = dismissAutoResultsBanner;
+window.showDetailedResults = showDetailedResults;
+window.addKeywordFromDetailedResults = addKeywordFromDetailedResults;
 
 async function saveResonanceKeywords() {
     if (!currentProjectId) return;
