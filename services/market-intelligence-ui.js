@@ -529,7 +529,26 @@ class MarketIntelligenceUI {
                     </div>
                 </div>
 
-                <div class="h-[320px] relative rounded-xl border border-slate-800/50 bg-slate-950/30 overflow-hidden">
+                <div class="h-[320px] relative rounded-xl border border-slate-800/50 bg-slate-950/30 overflow-hidden" id="trend-matrix-container">
+                    <!-- Tooltip Element -->
+                    <div id="mi-matrix-tooltip" class="absolute pointer-events-none opacity-0 translate-y-2 transition-all duration-200 z-[100] bg-slate-800 border border-slate-700 rounded-lg shadow-2xl p-3 w-48 hidden">
+                        <div id="mi-tooltip-name" class="text-[10px] font-black text-cyan-400 uppercase tracking-widest mb-2">Keyword</div>
+                        <div class="space-y-1.5">
+                            <div class="flex justify-between items-center text-[10px]">
+                                <span class="text-slate-400">Growth (Velocity)</span>
+                                <span id="mi-tooltip-velocity" class="text-white font-bold text-right">+0%</span>
+                            </div>
+                            <div class="flex justify-between items-center text-[10px]">
+                                <span class="text-slate-400">Reach (Volume)</span>
+                                <span id="mi-tooltip-volume" class="text-white font-bold text-right">0</span>
+                            </div>
+                            <div class="flex justify-between items-center text-[10px]">
+                                <span class="text-slate-400">Sentiment</span>
+                                <span id="mi-tooltip-sentiment" class="text-white font-bold text-right">Neutral</span>
+                            </div>
+                        </div>
+                    </div>
+
                     <svg width="100%" height="100%" viewBox="0 0 ${width} ${height}" class="overflow-visible">
                         <!-- Centering crosshair -->
                         <line x1="${getX(0)}" y1="${padding}" x2="${getX(0)}" y2="${height - padding}" stroke="rgba(34, 211, 238, 0.1)" stroke-width="2" />
@@ -549,15 +568,27 @@ class MarketIntelligenceUI {
             const y = getY(trend.volume);
             const isSelected = this.state.selectedTrendId === trend.id;
             const color = trend.sentiment > 0.2 ? '#06b6d4' : trend.sentiment < -0.2 ? '#f43f5e' : '#8b5cf6';
+            const sentimentLabel = trend.sentiment > 0.2 ? 'Positive' : trend.sentiment < -0.2 ? 'Negative' : 'Neutral';
+
             return `
-                                <g class="trend-node-group cursor-pointer">
+                                <g class="trend-node-group cursor-pointer group/node" 
+                                   onmouseenter="window.marketIntelligenceInstance?.handleNodeHover(event, '${trend.name}', '${trend.velocity}', '${trend.volume}', '${sentimentLabel}')"
+                                   onmouseleave="window.marketIntelligenceInstance?.handleNodeLeave()"
+                                   onclick="window.marketIntelligenceInstance?.setSelectedTrend('${trend.id}')">
                                     <circle 
                                         data-trend-id="${trend.id}"
-                                        class="trend-node transition-all duration-300 hover:r-7"
-                                        cx="${x}" cy="${y}" r="${isSelected ? 8 : 4.5}" 
-                                        fill="${color}" fill-opacity="${isSelected ? 1 : 0.6}"
+                                        class="trend-node transition-all duration-300 group-hover/node:r-8"
+                                        cx="${x}" cy="${y}" r="${isSelected ? 8 : 5}" 
+                                        fill="${color}" fill-opacity="${isSelected ? 1 : 0.7}"
                                         stroke="${isSelected ? '#fff' : color}" stroke-width="${isSelected ? 2.5 : 0}"
                                     ></circle>
+                                    <text 
+                                        x="${x + 8}" y="${y + 4}" 
+                                        fill="#94a3b8" 
+                                        font-size="9" 
+                                        font-weight="bold" 
+                                        class="pointer-events-none opacity-40 group-hover/node:opacity-100 transition-opacity select-none"
+                                    >${trend.name}</text>
                                     ${isSelected ? `<circle cx="${x}" cy="${y}" r="12" fill="none" stroke="${color}" stroke-opacity="0.3" stroke-width="1" class="animate-ping"></circle>` : ''}
                                 </g>
                             `;
@@ -840,9 +871,43 @@ ${data.map(t => {
     }
 
     renderConclusionContent(conclusion) {
+        if (!conclusion) return '';
+
+        let displayText = '';
+
+        // 1. If it's a string, check if it's stringified JSON
+        if (typeof conclusion === 'string') {
+            const trimmed = conclusion.trim();
+            if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+                try {
+                    const parsed = JSON.parse(trimmed);
+                    return this.renderConclusionContent(parsed);
+                } catch (e) {
+                    displayText = conclusion;
+                }
+            } else {
+                displayText = conclusion;
+            }
+        }
+        // 2. If it's an object, pick the best field
+        else if (typeof conclusion === 'object' && conclusion !== null) {
+            displayText = conclusion.content || conclusion.text || conclusion.response || conclusion.result || JSON.stringify(conclusion);
+            // Recursive check if the field itself is stringified JSON
+            if (typeof displayText === 'string' && displayText.trim().startsWith('{')) {
+                return this.renderConclusionContent(displayText);
+            }
+        } else {
+            displayText = String(conclusion);
+        }
+
+        // Apply basic markdown formatting (bold) and line breaks
+        const formatted = displayText
+            .replace(/\n/g, '<br/>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong class="text-white">$1</strong>');
+
         return `
             <div class="space-y-3">
-                <p class="text-sm text-slate-200 leading-relaxed font-medium whitespace-pre-line">${conclusion}</p>
+                <p class="text-sm text-slate-200 leading-relaxed font-medium whitespace-pre-line">${formatted}</p>
                 <div class="flex items-center gap-2 pt-2 border-t border-slate-800/50">
                     <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
                     <span class="text-[10px] text-slate-500 font-medium">Powered by ZYNK Strategic AI</span>
@@ -1178,6 +1243,45 @@ ${data.map(t => {
                 </div>
             </div>
         `;
+    }
+
+    handleNodeHover(event, name, velocity, volume, sentiment) {
+        const tooltip = document.getElementById('mi-matrix-tooltip');
+        if (!tooltip) return;
+
+        // Update content
+        document.getElementById('mi-tooltip-name').textContent = name;
+        document.getElementById('mi-tooltip-velocity').textContent = `${velocity > 0 ? '+' : ''}${velocity}%`;
+        document.getElementById('mi-tooltip-volume').textContent = Number(volume).toLocaleString();
+        document.getElementById('mi-tooltip-sentiment').textContent = sentiment;
+
+        const sentimentEl = document.getElementById('mi-tooltip-sentiment');
+        sentimentEl.className = 'font-bold text-right ' + (sentiment === 'Positive' ? 'text-cyan-400' : sentiment === 'Negative' ? 'text-rose-400' : 'text-purple-400');
+
+        // Position
+        const container = document.getElementById('trend-matrix-container');
+        const rect = container.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+
+        tooltip.style.left = `${Math.min(x + 15, rect.width - 200)}px`;
+        tooltip.style.top = `${Math.min(y - 20, rect.height - 100)}px`;
+        tooltip.style.display = 'block';
+
+        setTimeout(() => {
+            tooltip.style.opacity = '1';
+            tooltip.style.transform = 'translateY(0)';
+        }, 10);
+    }
+
+    handleNodeLeave() {
+        const tooltip = document.getElementById('mi-matrix-tooltip');
+        if (!tooltip) return;
+        tooltip.style.opacity = '0';
+        tooltip.style.transform = 'translateY(10px)';
+        setTimeout(() => {
+            tooltip.style.display = 'none';
+        }, 200);
     }
 
     renderSkeletonMap() {
