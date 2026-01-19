@@ -4982,16 +4982,21 @@ ${agentList}
 
     /**
      * Load project list from Firestore
+     * Admin-only: Shows only projects owned by admin user (Jays@visai.io)
      */
     async function loadProjectList() {
         const select = document.getElementById('wf-project-select');
         const firestore = window.db || (typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null);
         if (!select || !firestore) return;
 
+        // Admin user ID for Jays@visai.io
+        const ADMIN_USER_ID = 'iZVnN5OYw0XeEXuv5h4gNGlJfXM2';
+
         try {
             const snapshot = await firestore.collection('projects')
+                .where('userId', '==', ADMIN_USER_ID)
                 .orderBy('updatedAt', 'desc')
-                .limit(20)
+                .limit(30)
                 .get();
 
             select.innerHTML = '<option value="">Select Test Project...</option>';
