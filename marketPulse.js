@@ -753,7 +753,9 @@ async function triggerMarketIntelligenceResearch() {
             console.warn('[MarketPulse] Save non-critical error:', saveErr.message);
         }
 
-        // Update UI with results immediately
+        updateMIProgress('Complete!', 100);
+
+        // Update UI with results immediately (This sets status to 'success')
         if (window.refreshMarketIntelligence) {
             window.refreshMarketIntelligence(currentProjectId, realTrends.map(t => t.name), realTrends);
         }
@@ -766,7 +768,6 @@ async function triggerMarketIntelligenceResearch() {
         };
         updateDashboardWithRealTimeData(aggregateData);
 
-        updateMIProgress('Complete!', 100);
         showNotification('Analysis complete!', 'success');
 
         // Small delay before releasing lock to let Firestore listeners settle
@@ -807,8 +808,10 @@ function formatRelativeTimeForEvidence(dateString) {
 // Helper to update MI progress UI
 function updateMIProgress(message, percent) {
     if (window.marketIntelligenceInstance) {
+        // Only set status to 'analyzing' if we're not finished
+        const status = percent < 100 ? 'analyzing' : window.marketIntelligenceInstance.state.status;
         window.marketIntelligenceInstance.setState({
-            status: 'analyzing',
+            status: status,
             progressMessage: message,
             progressPercent: percent
         });
