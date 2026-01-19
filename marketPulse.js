@@ -4827,6 +4827,26 @@ function showFullTrendReport(trendId) {
     const sortedEvidence = [...(trend.evidence || [])].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
     modal.innerHTML = `
+        <style>
+            @media print {
+                body * { visibility: hidden; }
+                #full-trend-report-modal, #full-trend-report-modal * { visibility: visible; }
+                #full-trend-report-modal { position: absolute; left: 0; top: 0; width: 100% !important; height: auto !important; background: white !important; color: black !important; }
+                #full-trend-report-modal .bg-slate-900 { background: white !important; border: none !important; color: black !important; shadow: none !important; }
+                #full-trend-report-modal .text-white { color: black !important; }
+                #full-trend-report-modal .text-slate-400, #full-trend-report-modal .text-slate-500 { color: #444 !important; }
+                #full-trend-report-modal .border-slate-800, #full-trend-report-modal .border-white\\/5 { border-color: #eee !important; }
+                #full-trend-report-modal .no-print { display: none !important; }
+                #full-trend-report-modal .overflow-y-auto { overflow: visible !important; height: auto !important; }
+                #full-trend-report-modal .bg-indigo-600\\/10, #full-trend-report-modal .bg-indigo-500\\/5 { background: #f8faff !important; border: 1px solid #e0e7ff !important; }
+                #full-trend-report-modal .bg-gradient-to-br { background: #f9fafb !important; }
+                #full-trend-report-modal .rounded-\\[2.5rem\\], #full-trend-report-modal .rounded-\\[3rem\\], #full-trend-report-modal .rounded-\\[4rem\\] { border-radius: 1rem !important; }
+                #full-trend-report-modal .p-16 { padding: 2rem !important; }
+                #full-trend-report-modal .gap-12 { gap: 1.5rem !important; }
+                #full-trend-report-modal button { display: none !important; }
+                #full-trend-report-modal .absolute { display: none !important; } /* Hide glows */
+            }
+        </style>
         <div class="bg-slate-900 border border-slate-800 rounded-[2.5rem] w-full max-w-7xl h-[90vh] overflow-hidden shadow-[0_48px_96px_-12px_rgba(0,0,0,1)] animate-in zoom-in-95 duration-500 relative">
             <!-- Ambient Glows -->
             <div class="absolute top-0 right-0 w-[600px] h-[600px] bg-cyan-500/10 blur-[150px] -mr-64 -mt-64"></div>
@@ -4859,7 +4879,7 @@ function showFullTrendReport(trendId) {
                              </p>
                         </div>
                     </div>
-                    <button onclick="document.getElementById('full-trend-report-modal').remove()" class="group w-14 h-14 bg-slate-800/50 hover:bg-rose-500 rounded-2xl flex items-center justify-center text-slate-500 hover:text-white transition-all duration-300">
+                    <button onclick="document.getElementById('full-trend-report-modal').remove()" class="no-print group w-14 h-14 bg-slate-800/50 hover:bg-rose-500 rounded-2xl flex items-center justify-center text-slate-500 hover:text-white transition-all duration-300">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                     </button>
                 </div>
@@ -4983,7 +5003,7 @@ function showFullTrendReport(trendId) {
                     </div>
 
                     <!-- SECTION 4: EVIDENCE LOG -->
-                    <div class="space-y-8">
+                    <div class="no-print space-y-8">
                          <div class="flex items-center justify-between border-b border-white/5 pb-8">
                             <h2 class="text-2xl font-black text-white uppercase tracking-tight">Intelligence Log</h2>
                             <span class="px-3 py-1 bg-slate-800 rounded-lg text-[10px] font-black text-slate-500 uppercase tracking-widest">${sortedEvidence.length} Sources Analyzed</span>
@@ -5013,7 +5033,7 @@ function showFullTrendReport(trendId) {
                 </div>
 
                 <!-- Footer Actions -->
-                <div class="px-16 py-10 border-t border-slate-800/50 bg-slate-950/40 flex items-center justify-between">
+                <div class="no-print px-16 py-10 border-t border-slate-800/50 bg-slate-950/40 flex items-center justify-between">
                     <div class="flex items-center gap-4">
                         <div class="w-3 h-3 rounded-full bg-cyan-500 animate-pulse"></div>
                         <p class="text-[11px] font-black text-slate-500 uppercase tracking-[0.4em]">ZYNK Strategic Intelligence Protocol • Level 4 Clearance</p>
