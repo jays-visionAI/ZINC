@@ -590,8 +590,19 @@ async function triggerMarketIntelligenceResearch() {
                     if (isOld || needsRefill) {
                         console.log(`[Warehouse] Expanding intelligence for "${kw}" (Reason: ${isOld ? 'Scan Outdated' : 'Insufficient Volume'})`);
 
+                        // Expansion: Intelligence Refinement
+                        let refinedQuery = kw;
+                        const isWeb3 = currentProjectData?.industry?.toLowerCase().includes('crypto') ||
+                            currentProjectData?.industry?.toLowerCase().includes('blockchain') ||
+                            currentProjectData?.projectName?.toLowerCase().includes('chain');
+
+                        if (isWeb3 && !kw.toLowerCase().includes('blockchain') && !kw.toLowerCase().includes('crypto')) {
+                            refinedQuery = `"${kw}" blockchain`;
+                            console.log(`[MarketPulse] Refining query: "${kw}" -> "${refinedQuery}"`);
+                        }
+
                         const newsResult = await window.NewsProviderRegistry.fetchNewsForProject(
-                            kw,
+                            refinedQuery,
                             currentProjectData,
                             {
                                 maxResults: 50, // Target high volume for statistical significance
@@ -4545,7 +4556,7 @@ function showDetailedResults() {
                                                         <a href="${art.url || art.link || '#'}" target="_blank" class="flex flex-col p-3 bg-slate-900/50 hover:bg-slate-950 rounded-2xl border border-slate-800/50 transition-all group/art">
                                                             <span class="text-xs text-slate-300 font-bold group-hover/art:text-cyan-400 line-clamp-1 mb-1">${art.headline || art.title}</span>
                                                             <div class="flex items-center justify-between">
-                                                                <span class="text-[9px] text-slate-600 font-black uppercase tracking-tighter">${art.source || 'News Source'}</span>
+                                                                <span class="text-[9px] text-slate-600 font-black uppercase tracking-tighter">${(typeof art.source === 'object' ? art.source.name : art.source) || 'News Source'}</span>
                                                                 <span class="text-[9px] text-slate-700">${art.publishedAt ? formatRelativeTime(art.publishedAt) : ''}</span>
                                                             </div>
                                                         </a>
