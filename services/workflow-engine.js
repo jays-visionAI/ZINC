@@ -9,10 +9,11 @@ const WorkflowEngine = (function () {
 
     // Internal state for a single execution run
     class ExecutionRun {
-        constructor(workflow, projectContext, logger) {
+        constructor(workflow, projectContext, logger, onProgress) {
             this.workflow = workflow;
             this.projectContext = projectContext || {};
             this.logger = logger || console;
+            this.onProgress = onProgress || (() => { });
             this.nodeOutputs = {};
             this.status = 'idle';
         }
@@ -27,9 +28,19 @@ const WorkflowEngine = (function () {
             const order = this.buildExecutionOrder(startNode.id);
             this.logger.log(`[WorkflowEngine] Execution Order: ${order.map(n => n.data.name || n.id).join(' -> ')}`);
 
-            for (const node of order) {
+            const totalNodes = order.length;
+            for (let i = 0; i < totalNodes; i++) {
+                const node = order[i];
+                const progress = Math.min(Math.floor((i / totalNodes) * 100), 99);
                 this.logger.log(`[WorkflowEngine] Executing ${node.type}: ${node.data.name || node.id}`);
-                const startTime = Date.now();
+
+                // Report progress
+                this.onProgress({
+                    status: 'executing',
+                    nodeName: node.data.name || node.type,
+                    progress: progress,
+                    nodeId: node.id
+                });
 
                 try {
                     const result = await this.executeNode(node);
@@ -40,7 +51,13 @@ const WorkflowEngine = (function () {
                     const errorDetails = err.message || 'Unknown error';
                     this.logger.error(`[WorkflowEngine] ❌ Node "${node.data.name || node.id}" failed: ${errorDetails}`);
 
-                    // Attach node info to error for easier debugging
+                    // Report failure
+                    this.onProgress({
+                        status: 'failed',
+                        nodeName: node.data.name || node.type,
+                        error: errorDetails
+                    });
+
                     err.nodeId = node.id;
                     err.nodeType = node.type;
                     err.nodeName = node.data.name;
@@ -49,6 +66,7 @@ const WorkflowEngine = (function () {
             }
 
             this.status = 'completed';
+            this.onProgress({ status: 'completed', progress: 100 });
             return this.nodeOutputs;
         }
 
@@ -526,23 +544,23 @@ const WorkflowEngine = (function () {
     }
 
     return {
-        execute: async (workflow, projectContext, logger) => {
-            const run = new ExecutionRun(workflow, projectContext, logger);
+        execute: async (workflow, projectContext, logger, onProgress) => {
+            const run = new ExecutionRun(workflow, projectContext, logger, onProgress);
             const outputs = await run.run();
             return { outputs, workflowId: workflow.id };
         },
 
-        executeById: async (workflowId, projectContext, logger) => {
+        executeById: async (workflowId, projectContext, logger, onProgress) => {
             const db = firebase.firestore();
             const doc = await db.collection('workflowDefinitions').doc(workflowId).get();
             if (!doc.exists) throw new Error('Workflow not found');
             const workflow = { id: doc.id, ...doc.data() };
-            const run = new ExecutionRun(workflow, projectContext, logger);
+            const run = new ExecutionRun(workflow, projectContext, logger, onProgress);
             const outputs = await run.run();
             return { outputs, workflowId: workflow.id };
         },
 
-        findAndExecuteByContext: async (pipelineContext, projectContext, logger) => {
+        findAndExecuteByContext: async (pipelineContext, projectContext, logger, onProgress) => {
             const db = firebase.firestore();
             logger.log(`[WorkflowEngine] Searching for workflow in context: ${pipelineContext}...`);
             const startTimeTotal = Date.now();
@@ -585,7 +603,7 @@ const WorkflowEngine = (function () {
                 }
 
                 logger.log(`[WorkflowEngine] Selected workflow: "${target.name}" (${target.id})`);
-                return await WorkflowEngine.executeById(target.id, projectContext, logger);
+                return await WorkflowEngine.executeById(target.id, projectContext, logger, onProgress);
 
             } catch (err) {
                 const elapsed = (Date.now() - startTimeTotal) / 1000;
