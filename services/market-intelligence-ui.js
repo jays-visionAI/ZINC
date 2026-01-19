@@ -425,52 +425,99 @@ class MarketIntelligenceUI {
         const height = 320;
         const padding = 40;
 
-        const maxVolume = Math.max(...this.state.data.map(t => t.volume), 100000);
-        const maxVelocity = Math.max(...this.state.data.map(t => Math.abs(t.velocity)), 30);
+        const maxVolume = 100000; // Standardized for matrix balance
+        const maxVelocity = 40;    // Standardized for matrix balance
 
         const getX = (v) => padding + ((v + maxVelocity) / (maxVelocity * 2)) * (width - padding * 2);
-        const getY = (v) => height - padding - (v / maxVolume) * (height - padding * 2);
+        const getY = (v) => height - padding - (Math.min(v, maxVolume) / maxVolume) * (height - padding * 2);
+
+        const quadrants = [
+            { id: 'dominant', label: 'Dominant', pos: 'top-8 right-8', advice: 'High growth, High reach. Mainstream trends with high impact. Focus on market leadership.' },
+            { id: 'emerging', label: 'Emerging', pos: 'bottom-8 right-8', advice: 'High growth, Low reach. Early signals of future mainstream. Opportunity to lead early adoption.' },
+            { id: 'niche', label: 'Niche', pos: 'bottom-8 left-12', advice: 'Low growth, Low reach. Specialized interest or fading presence. Monitor for specific use cases.' },
+            { id: 'saturated', label: 'Saturated', pos: 'top-8 left-12', advice: 'Low growth, High reach. Mature marketplace with high competition. Harder to differentiate.' }
+        ];
 
         return `
-            <div class="h-[320px] w-full bg-slate-900 border border-slate-800 rounded-xl p-4 relative overflow-hidden group">
-                <div class="absolute inset-0 opacity-5 bg-[radial-gradient(#22d3ee_1px,transparent_1px)] [background-size:16px_16px] pointer-events-none"></div>
+            <div class="w-full bg-slate-900 border border-slate-800 rounded-2xl p-6 relative overflow-visible group shadow-2xl">
+                <div class="absolute inset-0 opacity-5 bg-[radial-gradient(#22d3ee_1px,transparent_1px)] [background-size:16px_16px] pointer-events-none rounded-2xl"></div>
 
-                <h4 class="absolute top-4 left-4 text-xs font-bold text-slate-500 uppercase tracking-wider z-10 flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
-                    Trend Matrix
-                </h4>
+                <div class="flex justify-between items-center mb-6 relative z-10">
+                    <h4 class="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></span>
+                        Strategic Perception Matrix
+                    </h4>
+                    
+                    <!-- Sentiment Legend -->
+                    <div class="flex items-center gap-4 px-3 py-1.5 rounded-lg bg-slate-950/50 border border-slate-800/50">
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-cyan-500"></span>
+                            <span class="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">Pos</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+                            <span class="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">Neu</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                            <span class="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">Neg</span>
+                        </div>
+                    </div>
+                </div>
 
-                <svg width="100%" height="100%" viewBox="0 0 ${width} ${height}" class="overflow-visible">
-                    <!-- Helper lines -->
-                    <line x1="${getX(0)}" y1="${padding}" x2="${getX(0)}" y2="${height - padding}" stroke="#1e293b" stroke-dasharray="4 4" />
-                    <line x1="${padding}" y1="${getY(50000)}" x2="${width - padding}" y2="${getY(50000)}" stroke="#1e293b" stroke-dasharray="4 4" />
+                <div class="h-[320px] relative rounded-xl border border-slate-800/50 bg-slate-950/30 overflow-hidden">
+                    <svg width="100%" height="100%" viewBox="0 0 ${width} ${height}" class="overflow-visible">
+                        <!-- Centering crosshair -->
+                        <line x1="${getX(0)}" y1="${padding}" x2="${getX(0)}" y2="${height - padding}" stroke="rgba(34, 211, 238, 0.1)" stroke-width="2" />
+                        <line x1="${padding}" y1="${getY(50000)}" x2="${width - padding}" y2="${getY(50000)}" stroke="rgba(34, 211, 238, 0.1)" stroke-width="2" />
+                        
+                        <!-- Grid lines -->
+                        <line x1="${getX(0)}" y1="${padding}" x2="${getX(0)}" y2="${height - padding}" stroke="#1e293b" stroke-dasharray="4 4" />
+                        <line x1="${padding}" y1="${getY(50000)}" x2="${width - padding}" y2="${getY(50000)}" stroke="#1e293b" stroke-dasharray="4 4" />
 
-                    <!-- Axis Labels -->
-                    <text x="${width / 2}" y="${height - 5}" text-anchor="middle" fill="#475569" font-size="10" font-weight="bold">VELOCITY (%)</text>
-                    <text x="5" y="${height / 2}" text-anchor="middle" fill="#475569" font-size="10" font-weight="bold" transform="rotate(-90, 5, ${height / 2})">REACH (hits)</text>
+                        <!-- Axis Labels -->
+                        <text x="${width / 2}" y="${height - 8}" text-anchor="middle" fill="#475569" font-size="9" font-weight="900" class="tracking-widest">VELOCITY % (GROWTH)</text>
+                        <text x="8" y="${height / 2}" text-anchor="middle" fill="#475569" font-size="9" font-weight="900" transform="rotate(-90, 8, ${height / 2})" class="tracking-widest capitalize">REACH / IMPRESSIONS</text>
 
-                    <!-- Points -->
-                    ${this.state.data.map(trend => {
+                        <!-- Nodes -->
+                        ${this.state.data.map(trend => {
             const x = getX(trend.velocity);
             const y = getY(trend.volume);
             const isSelected = this.state.selectedTrendId === trend.id;
             const color = trend.sentiment > 0.2 ? '#06b6d4' : trend.sentiment < -0.2 ? '#f43f5e' : '#8b5cf6';
             return `
-                            <circle 
-                                data-trend-id="${trend.id}"
-                                class="trend-node cursor-pointer transition-all duration-300 hover:opacity-100"
-                                cx="${x}" cy="${y}" r="${isSelected ? 8 : 5}" 
-                                fill="${color}" fill-opacity="${isSelected ? 1 : 0.7}"
-                                stroke="${isSelected ? '#fff' : color}" stroke-width="${isSelected ? 2 : 0}"
-                            ></circle>
-                        `;
+                                <g class="trend-node-group cursor-pointer">
+                                    <circle 
+                                        data-trend-id="${trend.id}"
+                                        class="trend-node transition-all duration-300 hover:r-7"
+                                        cx="${x}" cy="${y}" r="${isSelected ? 8 : 4.5}" 
+                                        fill="${color}" fill-opacity="${isSelected ? 1 : 0.6}"
+                                        stroke="${isSelected ? '#fff' : color}" stroke-width="${isSelected ? 2.5 : 0}"
+                                    ></circle>
+                                    ${isSelected ? `<circle cx="${x}" cy="${y}" r="12" fill="none" stroke="${color}" stroke-opacity="0.3" stroke-width="1" class="animate-ping"></circle>` : ''}
+                                </g>
+                            `;
         }).join('')}
-                </svg>
+                    </svg>
 
-                <div class="absolute top-8 right-8 text-[9px] text-white/20 font-bold uppercase tracking-widest pointer-events-none">Dominant</div>
-                <div class="absolute bottom-8 right-8 text-[9px] text-white/20 font-bold uppercase tracking-widest pointer-events-none">Emerging</div>
-                <div class="absolute bottom-8 left-12 text-[9px] text-white/20 font-bold uppercase tracking-widest pointer-events-none">Niche</div>
-                <div class="absolute top-8 left-12 text-[9px] text-white/20 font-bold uppercase tracking-widest pointer-events-none">Saturated</div>
+                    <!-- Quadrant Labels with Tooltips -->
+                    ${quadrants.map(q => `
+                        <div class="absolute ${q.pos} flex items-center gap-2 group/quad pointer-events-auto">
+                            <span class="text-[10px] text-white/20 font-black uppercase tracking-widest group-hover/quad:text-cyan-400/60 transition-colors">${q.label}</span>
+                            <div class="relative">
+                                <svg class="text-white/10 group-hover/quad:text-cyan-400 transition-colors cursor-help" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                                
+                                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl opacity-0 invisible group-hover/quad:opacity-100 group-hover/quad:visible transition-all z-50">
+                                    <div class="text-[11px] font-bold text-cyan-400 uppercase mb-1">${q.label} Quadrant</div>
+                                    <div class="text-[10px] text-slate-200 leading-relaxed font-medium capitalize">
+                                        ${q.advice}
+                                    </div>
+                                    <div class="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-800"></div>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
             </div>
         `;
     }
