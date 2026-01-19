@@ -586,6 +586,14 @@ async function triggerMarketIntelligenceResearch() {
                     history: agentTrend?.history || Array.from({ length: 7 }, () => Math.floor(Math.random() * 100)),
                     summary: agentTrend?.summary || `${kw} is showing significant market resonance with verified signals across news channels.`,
                     drivers: agentTrend?.drivers || ['Verified News Signals', 'Real-time Market Adoption', 'Strategic Keyword Match'],
+                    strategicSynthesis: agentTrend?.strategicSynthesis || `The convergence of ${kw} with current market dynamics suggests a pivotal shift in user expectations. Based on recent intelligence, the focus is moving from secondary implementation to core architectural integration.`,
+                    actionableAdvice: agentTrend?.actionableAdvice || [
+                        `Prioritize ${kw} integration in the upcoming product roadmap to capture early adopter sentiment.`,
+                        `Optimize marketing collateral to highlight ${kw} capabilities as a key USP.`,
+                        `Monitor competitor response to ${kw} news to maintain first-mover advantage.`
+                    ],
+                    opportunities: agentTrend?.opportunities || ['Market leadership potential', 'Enhanced user trust', 'Operational efficiency gains'],
+                    risks: agentTrend?.risks || ['Regulatory uncertainty', 'Integration complexity', 'Market saturation'],
                     evidence: evidence
                 };
             });
@@ -4571,121 +4579,177 @@ function showFullTrendReport(trendId) {
     const sortedEvidence = [...(trend.evidence || [])].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
     modal.innerHTML = `
-        <div class="bg-slate-900 border border-slate-800 rounded-[2.5rem] w-full max-w-7xl max-h-[95vh] overflow-hidden shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] animate-in zoom-in-95 duration-300 relative">
-            <!-- Ambient Glow -->
-            <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-cyan-500/5 blur-[120px] -mr-64 -mt-64"></div>
-            <div class="absolute bottom-0 left-0 w-[500px] h-[500px] bg-indigo-500/5 blur-[120px] -ml-64 -mb-64"></div>
+        <div class="bg-slate-900 border border-slate-800 rounded-[2.5rem] w-full max-w-7xl max-h-[95vh] overflow-hidden shadow-[0_48px_96px_-12px_rgba(0,0,0,1)] animate-in zoom-in-95 duration-500 relative">
+            <!-- Ambient Glows -->
+            <div class="absolute top-0 right-0 w-[600px] h-[600px] bg-cyan-500/10 blur-[150px] -mr-64 -mt-64"></div>
+            <div class="absolute bottom-0 left-0 w-[600px] h-[600px] bg-indigo-500/10 blur-[150px] -ml-64 -mb-64"></div>
 
-            <div class="relative z-10 flex flex-col h-full max-h-[90vh]">
+            <div class="relative z-10 flex flex-col h-full max-h-[95vh]">
                 <!-- Header -->
-                <div class="px-12 py-10 border-b border-slate-800/50 flex justify-between items-start">
+                <div class="px-16 py-12 border-b border-slate-800/50 bg-slate-900/50 backdrop-blur-md flex justify-between items-start">
                     <div>
-                        <div class="flex items-center gap-3 mb-4">
-                            <span class="px-3 py-1 bg-cyan-500/10 text-cyan-400 text-[10px] font-black uppercase tracking-[0.2em] rounded-full border border-cyan-500/20">Market Intelligence Report</span>
-                            <span class="text-slate-700 text-[10px] font-black uppercase tracking-widest">• Generated ${new Date().toLocaleDateString()}</span>
+                        <div class="flex items-center gap-4 mb-6">
+                            <span class="px-4 py-1.5 bg-cyan-500/10 text-cyan-400 text-[11px] font-black uppercase tracking-[0.3em] rounded-full border border-cyan-500/20 shadow-[0_0_20px_rgba(6,182,212,0.2)]">Strategy Intelligence Report</span>
+                            <span class="text-slate-600 text-[11px] font-black uppercase tracking-widest">• Verified at ${new Date().toLocaleDateString()}</span>
                         </div>
-                        <h1 class="text-4xl font-black text-white px-0 tracking-tight leading-none">${trend.name}</h1>
-                        <p class="text-slate-500 mt-4 text-lg font-medium max-w-2xl">${trend.summary}</p>
+                        <h1 class="text-6xl font-black text-white px-0 tracking-tighter leading-none mb-6">${trend.name}</h1>
+                        <div class="flex items-center gap-8">
+                             <div class="flex flex-col">
+                                <span class="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Growth Index</span>
+                                <span class="text-2xl font-black text-white flex items-center gap-2">
+                                    ${(trend.volume / 1000).toFixed(1)}k <span class="text-emerald-400 text-sm font-bold">+${trend.velocity}%</span>
+                                </span>
+                             </div>
+                             <div class="flex flex-col">
+                                <span class="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Confidence Score</span>
+                                <span class="text-2xl font-black text-white">${impactScore}%</span>
+                             </div>
+                             <div class="h-12 w-px bg-slate-800"></div>
+                             <p class="text-slate-400 text-lg font-medium max-w-xl leading-relaxed italic border-l-4 border-cyan-500 pl-6">
+                                "${trend.summary}"
+                             </p>
+                        </div>
                     </div>
-                    <button onclick="document.getElementById('full-trend-report-modal').remove()" class="p-4 hover:bg-slate-800 rounded-2xl text-slate-500 hover:text-white transition-all">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    <button onclick="document.getElementById('full-trend-report-modal').remove()" class="group w-14 h-14 bg-slate-800/50 hover:bg-rose-500 rounded-2xl flex items-center justify-center text-slate-500 hover:text-white transition-all duration-300">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                     </button>
                 </div>
 
                 <!-- Content Body -->
-                <div class="flex-1 overflow-y-auto p-12 pt-8 scrollbar-thin scrollbar-thumb-slate-700">
-                    <div class="grid grid-cols-12 gap-8">
-                        <!-- Left Column: Metrics & Analysis -->
-                        <div class="col-span-12 lg:col-span-4 space-y-8">
-                            <!-- Metrics Cards -->
-                            <div class="grid grid-cols-2 gap-4">
-                                <div class="p-6 bg-slate-800/30 border border-slate-800 rounded-[2rem]">
-                                    <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Volume</p>
-                                    <p class="text-2xl font-black text-white">${(trend.volume / 1000).toFixed(1)}k</p>
-                                    <div class="mt-2 text-[10px] font-bold text-emerald-400 flex items-center gap-1">
-                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
-                                        +${trend.velocity}% Rise
-                                    </div>
+                <div class="flex-1 overflow-y-auto p-16 pt-10 scrollbar-thin scrollbar-thumb-slate-700 space-y-16">
+                    <!-- SECTION 1: STRATEGIC INTELLIGENCE (The Synthesis) -->
+                    <div class="grid grid-cols-12 gap-12">
+                        <div class="col-span-12 lg:col-span-8">
+                             <h2 class="text-2xl font-black text-white uppercase tracking-tight mb-8 flex items-center gap-4">
+                                <span class="w-2 h-8 bg-cyan-500 rounded-full"></span>
+                                Strategic Intelligence Synthesis
+                             </h2>
+                             <div class="p-10 bg-gradient-to-br from-slate-800/40 to-slate-900/40 border border-slate-700/50 rounded-[3rem] relative overflow-hidden">
+                                <div class="absolute top-0 right-0 p-8 text-cyan-500/10">
+                                    <svg width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
                                 </div>
-                                <div class="p-6 bg-slate-800/30 border border-slate-800 rounded-[2rem]">
-                                    <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Confidence</p>
-                                    <p class="text-2xl font-black text-white">${impactScore}%</p>
-                                    <div class="mt-2 h-1 w-full bg-slate-700 rounded-full overflow-hidden">
-                                        <div class="h-full bg-cyan-500" style="width: ${impactScore}%"></div>
-                                    </div>
+                                <p class="text-xl text-slate-200 leading-chill font-medium relative z-10">
+                                    ${trend.strategicSynthesis || trend.summary}
+                                </p>
+                             </div>
+                        </div>
+                        <div class="col-span-12 lg:col-span-4">
+                             <h2 class="text-xs font-black text-slate-500 uppercase tracking-[0.3em] mb-8">Sentiment Core</h2>
+                             <div class="p-10 bg-slate-800/20 border border-slate-800 rounded-[3rem] h-full">
+                                <div class="text-center mb-10">
+                                    <div class="text-4xl font-black text-${sentimentColor}-400 mb-2">${(trend.sentiment * 100).toFixed(1)}%</div>
+                                    <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Net Pulse Score</div>
                                 </div>
-                            </div>
-
-                            <!-- Sentiment Analysis -->
-                            <div class="p-8 bg-slate-800/30 border border-slate-800 rounded-[2.5rem]">
-                                <h3 class="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Sentiment Spectrum</h3>
-                                <div class="relative h-2 bg-slate-700 rounded-full mb-4">
-                                    <div class="absolute inset-0 bg-gradient-to-r from-amber-500 via-cyan-500 to-emerald-500 rounded-full"></div>
-                                    <div class="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full border-4 border-slate-900 shadow-lg transition-all duration-1000" style="left: calc(${trend.sentiment * 100}% - 8px)"></div>
+                                <div class="relative h-3 bg-slate-900 rounded-full mb-8 border border-white/5">
+                                    <div class="absolute inset-0 bg-gradient-to-r from-rose-500 via-cyan-500 to-emerald-500 rounded-full"></div>
+                                    <div class="absolute top-1/2 -translate-y-1/2 w-6 h-6 bg-white rounded-full border-4 border-slate-900 shadow-2xl transition-all duration-1000" style="left: calc(${trend.sentiment * 100}% - 12px)"></div>
                                 </div>
-                                <div class="flex justify-between text-[10px] font-black text-slate-600 uppercase tracking-widest">
-                                    <span>Negative</span>
-                                    <span class="text-${sentimentColor}-400">${(trend.sentiment * 100).toFixed(1)}% Positive</span>
-                                    <span>Hostile</span>
-                                </div>
-                            </div>
-
-                            <!-- Top Drivers -->
-                            <div class="p-8 bg-slate-800/30 border border-slate-800 rounded-[2.5rem]">
-                                <h3 class="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Market Drivers</h3>
-                                <div class="space-y-4">
-                                    ${trend.drivers.map(driver => `
-                                        <div class="flex items-start gap-3">
-                                            <div class="mt-1.5 w-1.5 h-1.5 rounded-full bg-cyan-500 shrink-0"></div>
-                                            <span class="text-sm text-slate-300 font-medium">${driver}</span>
+                                <div class="flex flex-col gap-4">
+                                    <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Market Signals</h3>
+                                    ${trend.drivers.slice(0, 3).map(driver => `
+                                        <div class="flex items-center gap-3 py-2 border-b border-white/5">
+                                            <div class="w-1.5 h-1.5 rounded-full bg-cyan-500"></div>
+                                            <span class="text-xs text-slate-400 font-bold">${driver}</span>
                                         </div>
                                     `).join('')}
                                 </div>
-                            </div>
+                             </div>
                         </div>
+                    </div>
 
-                        <!-- Right Column: Evidence & Reports -->
-                        <div class="col-span-12 lg:col-span-8 space-y-8">
-                            <div class="flex items-center justify-between mb-2">
-                                <h3 class="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Verified Intelligence Sources</h3>
-                                <span class="text-[10px] font-bold text-slate-600 uppercase tracking-widest">${trend.evidence.length} Articles Analyzed</span>
-                            </div>
-                            
-                            <div class="space-y-4">
-                                ${sortedEvidence.map(ev => `
-                                    <a href="${ev.url}" target="_blank" class="group flex items-start gap-6 p-6 bg-slate-800/30 hover:bg-slate-800/60 border border-slate-800 hover:border-cyan-500/30 rounded-[2rem] transition-all duration-300">
-                                        <div class="shrink-0 w-12 h-12 flex items-center justify-center bg-slate-900 rounded-2xl text-slate-700 group-hover:text-cyan-400 border border-slate-800 transition-colors">
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>
+                    <!-- SECTION 2: OPPORTUNITY & RISK MATRIX -->
+                    <div class="grid grid-cols-12 gap-12">
+                         <div class="col-span-12 lg:col-span-6">
+                             <h3 class="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em] mb-6">Execution Opportunities</h3>
+                             <div class="grid grid-cols-1 gap-4">
+                                ${(trend.opportunities || ['Leverage current market momentum', 'First-mover advantage in tech sector', 'User sentiment optimization']).map(op => `
+                                    <div class="p-6 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl flex items-center gap-5">
+                                        <div class="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400">
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
                                         </div>
-                                        <div class="flex-1 min-w-0">
-                                            <div class="flex items-center gap-3 mb-1">
-                                                <span class="text-[10px] font-black text-cyan-500 uppercase tracking-widest">${typeof ev.publisher === 'object' ? (ev.publisher.name || 'News Source') : ev.publisher}</span>
-                                                <span class="text-[10px] text-slate-600 font-bold">• ${ev.date}</span>
-                                            </div>
-                                            <h4 class="text-lg font-black text-white group-hover:text-cyan-400 transition-colors truncate mb-2">${ev.title}</h4>
-                                            <p class="text-sm text-slate-500 font-medium line-clamp-2 leading-relaxed">${ev.snippet}</p>
-                                        </div>
-                                        <div class="shrink-0 w-10 h-10 flex items-center justify-center text-slate-800 group-hover:text-cyan-400 transition-colors">
-                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-                                        </div>
-                                    </a>
+                                        <span class="text-sm text-slate-200 font-black tracking-tight">${op}</span>
+                                    </div>
                                 `).join('')}
-                            </div>
+                             </div>
+                         </div>
+                         <div class="col-span-12 lg:col-span-6">
+                             <h3 class="text-[10px] font-black text-rose-500 uppercase tracking-[0.3em] mb-6">Strategic Vulnerabilities</h3>
+                             <div class="grid grid-cols-1 gap-4">
+                                ${(trend.risks || ['Potential regulatory headwinds', 'High integration overhead', 'Consumer adoption volatility']).map(rk => `
+                                    <div class="p-6 bg-rose-500/5 border border-rose-500/10 rounded-2xl flex items-center gap-5">
+                                        <div class="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-400">
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                                        </div>
+                                        <span class="text-sm text-slate-200 font-black tracking-tight">${rk}</span>
+                                    </div>
+                                `).join('')}
+                             </div>
+                         </div>
+                    </div>
+
+                    <!-- SECTION 3: ACTIONABLE RECOMMENDATIONS -->
+                    <div class="p-12 bg-indigo-600/10 border border-indigo-500/20 rounded-[4rem] relative overflow-hidden">
+                        <div class="absolute -top-24 -right-24 w-96 h-96 bg-indigo-500/10 blur-[100px] rounded-full"></div>
+                        <h2 class="text-3xl font-black text-white uppercase tracking-tighter mb-10 flex items-center gap-6">
+                            <span class="flex items-center justify-center w-14 h-14 bg-indigo-500 text-white rounded-2xl shadow-xl shadow-indigo-500/40">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 2v20M2 12h20"></path></svg>
+                            </span>
+                            Strategic Action Plan
+                        </h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                             ${(trend.actionableAdvice || ['Accelerate roadmap', 'Relaunch brand identity', 'Internal core audit']).map((advice, i) => `
+                                <div class="flex flex-col gap-6 p-8 bg-slate-900/50 rounded-3xl border border-white/5 hover:border-indigo-500/30 transition-all group">
+                                    <span class="text-4xl font-black text-indigo-500/20 group-hover:text-indigo-400 transition-colors">0${i + 1}</span>
+                                    <p class="text-lg text-white font-bold leading-snug">${advice}</p>
+                                </div>
+                             `).join('')}
                         </div>
+                    </div>
+
+                    <!-- SECTION 4: EVIDENCE LOG -->
+                    <div class="space-y-8">
+                         <div class="flex items-center justify-between border-b border-white/5 pb-8">
+                            <h2 class="text-2xl font-black text-white uppercase tracking-tight">Intelligence Log</h2>
+                            <span class="px-3 py-1 bg-slate-800 rounded-lg text-[10px] font-black text-slate-500 uppercase tracking-widest">${sortedEvidence.length} Sources Analyzed</span>
+                         </div>
+                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                             ${sortedEvidence.map(ev => `
+                                <a href="${ev.url}" target="_blank" class="group flex items-start gap-6 p-8 bg-slate-800/30 hover:bg-slate-800/60 border border-slate-800 hover:border-cyan-500/30 rounded-[2.5rem] transition-all duration-500">
+                                    <div class="shrink-0 w-16 h-16 flex items-center justify-center bg-slate-900 rounded-3xl text-slate-700 group-hover:text-cyan-400 border border-slate-800 group-hover:border-cyan-500/30 transition-all">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-3 mb-3">
+                                            <span class="text-[11px] font-black text-cyan-500 uppercase tracking-widest">${typeof ev.publisher === 'object' ? (ev.publisher.name || 'News Source') : ev.publisher}</span>
+                                            <span class="text-[11px] text-slate-600 font-bold">• ${ev.date}</span>
+                                        </div>
+                                        <h4 class="text-xl font-black text-white group-hover:text-cyan-400 transition-colors truncate mb-3">${ev.title}</h4>
+                                        <p class="text-sm text-slate-500 font-medium line-clamp-2 leading-relaxed mb-4">${ev.snippet}</p>
+                                        <div class="inline-flex items-center gap-2 text-cyan-500/60 group-hover:text-cyan-400 text-[10px] font-black uppercase tracking-widest transition-colors">
+                                            Explore Intelligence 
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                                        </div>
+                                    </div>
+                                </a>
+                             `).join('')}
+                         </div>
                     </div>
                 </div>
 
                 <!-- Footer Actions -->
-                <div class="px-12 py-8 border-t border-slate-800/50 bg-slate-950/20 flex items-center justify-between">
-                    <p class="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em]">Confidential Insight Hub • Powered by ZYNK</p>
-                    <div class="flex gap-4">
-                        <button onclick="saveTrendToLibrary('${trend.id}')" class="px-8 py-4 bg-slate-800/50 hover:bg-slate-800 text-slate-300 font-black text-xs rounded-2xl transition-all flex items-center gap-3">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
-                            SAVE TO LIBRARY
+                <div class="px-16 py-10 border-t border-slate-800/50 bg-slate-950/40 flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <div class="w-3 h-3 rounded-full bg-cyan-500 animate-pulse"></div>
+                        <p class="text-[11px] font-black text-slate-500 uppercase tracking-[0.4em]">ZYNK Strategic Intelligence Protocol • Level 4 Clearance</p>
+                    </div>
+                    <div class="flex gap-6">
+                        <button onclick="saveTrendToLibrary('${trend.id}')" class="px-10 py-5 bg-slate-800/50 hover:bg-slate-800 text-slate-300 font-black text-xs rounded-2xl transition-all flex items-center gap-3 active:scale-95">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+                            SAVE TO STRATEGY LIBRARY
                         </button>
-                        <button id="btn-export-trend-pdf" onclick="exportTrendPDF('${trend.name.replace(/'/g, "\\'")}')" class="px-8 py-4 bg-cyan-600 hover:bg-cyan-500 text-white font-black text-xs rounded-2xl shadow-xl shadow-cyan-500/20 transition-all flex items-center gap-3">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
-                            EXPORT PDF
+                        <button id="btn-export-trend-pdf" onclick="exportTrendPDF('${trend.name.replace(/'/g, "\\'")}')" class="px-10 py-5 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs rounded-2xl shadow-2xl shadow-indigo-500/30 transition-all flex items-center gap-3 active:scale-95">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                            DOWNLOAD STRATEGY BRIEF
                         </button>
                     </div>
                 </div>
