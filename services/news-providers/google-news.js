@@ -154,43 +154,44 @@ class GoogleNewsProvider {
      * Get mock data for fallback
      */
     getMockData(query) {
-        const now = new Date().toISOString();
+        const now = new Date();
+        const timestamp = now.getTime();
         const searchUrl = `https://news.google.com/search?q=${encodeURIComponent(query)}`;
         return [
             {
-                id: `mock-gnews-1`,
+                id: `mock-gnews-1-${query}-${timestamp}`,
                 title: `Strategic Pulse: ${query} Market Resonance`,
                 description: `Signals detected for ${query} across global digital channels. Synthesizing insights...`,
                 content: `AI detected emerging resonance for ${query}...`,
-                url: searchUrl,
+                url: `${searchUrl}&ts=1-${timestamp}`,
                 imageUrl: null,
-                publishedAt: now,
+                publishedAt: now.toISOString(),
                 source: { name: 'ZYNK Network', region: 'GLOBAL', provider: 'google-news' },
                 headline: `Strategic Pulse: ${query} Market Resonance`,
                 snippet: `Latent market signals detected for "${query}".`,
                 isMock: true
             },
             {
-                id: `mock-gnews-2`,
+                id: `mock-gnews-2-${query}-${timestamp}`,
                 title: `${query} Adoption Analysis`,
                 description: `Analyzing adoption patterns and market sentiment for ${query}.`,
                 content: `Detailed adoption analysis for ${query}...`,
-                url: searchUrl,
+                url: `${searchUrl}&ts=2-${timestamp}`,
                 imageUrl: null,
-                publishedAt: now,
+                publishedAt: now.toISOString(),
                 source: { name: 'Market Intelligence', region: 'GLOBAL', provider: 'google-news' },
                 headline: `${query} Adoption Analysis`,
                 snippet: `Predictive models show increasing interest in ${query}.`,
                 isMock: true
             },
             {
-                id: `mock-gnews-3`,
+                id: `mock-gnews-3-${query}-${timestamp}`,
                 title: `Future Outlook: ${query} Ecosystem`,
                 description: `Projected growth and risk factors for the ${query} sector in 2026.`,
                 content: `Ecosystem deep-dive...`,
-                url: searchUrl,
+                url: `${searchUrl}&ts=3-${timestamp}`,
                 imageUrl: null,
-                publishedAt: now,
+                publishedAt: now.toISOString(),
                 source: { name: 'Strategic Forecast', region: 'GLOBAL', provider: 'google-news' },
                 headline: `Future Outlook: ${query} Ecosystem`,
                 snippet: `Long-term strategic importance of ${query} remains high.`,
