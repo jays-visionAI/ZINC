@@ -6,12 +6,13 @@
 class MarketIntelligenceUI {
     constructor(containerId) {
         this.container = document.getElementById(containerId);
+        const savedDefaultRange = localStorage.getItem('mi_default_timerange') || '7D';
         this.state = {
             status: 'idle',
             data: [],
             keywords: [],
             projectId: null,
-            timeRange: '7D',
+            timeRange: savedDefaultRange,
             selectedChannels: ['News', 'Social'],
             selectedTrendId: null
         };
@@ -140,7 +141,10 @@ class MarketIntelligenceUI {
     handleRefresh() {
         this.setState({ selectedTrendId: null });
         if (window.triggerMarketIntelligenceResearch) {
-            window.triggerMarketIntelligenceResearch();
+            window.triggerMarketIntelligenceResearch({
+                timeRange: this.state.timeRange,
+                channels: this.state.selectedChannels
+            });
         } else {
             this.loadData();
         }
@@ -207,12 +211,18 @@ class MarketIntelligenceUI {
                 </div>
 
                 <div class="flex flex-wrap items-center gap-4">
-                    <div class="bg-slate-900 border border-slate-800 rounded-lg p-1 flex">
-                        ${['7D', '30D', '90D'].map(range => `
-                            <button data-range="${range}" class="time-range-btn px-4 py-1.5 text-xs font-semibold rounded-md transition-all ${timeRange === range ? 'bg-slate-800 text-white shadow-sm ring-1 ring-white/5' : 'text-slate-500 hover:text-white'}">
-                                ${range}
-                            </button>
-                        `).join('')}
+                    <div class="flex flex-col items-end gap-1.5">
+                        <div class="bg-slate-900 border border-slate-800 rounded-lg p-1 flex">
+                            ${['7D', '30D', '90D', '180D'].map(range => `
+                                <button data-range="${range}" class="time-range-btn px-4 py-1.5 text-xs font-semibold rounded-md transition-all ${timeRange === range ? 'bg-slate-800 text-white shadow-sm ring-1 ring-white/5' : 'text-slate-500 hover:text-white'}">
+                                    ${range}
+                                </button>
+                            `).join('')}
+                        </div>
+                        <label class="flex items-center gap-1.5 cursor-pointer group">
+                            <input type="checkbox" id="mi-set-default-check" class="w-3.5 h-3.5 rounded border-slate-700 bg-slate-950 text-cyan-500 focus:ring-0 focus:ring-offset-0 transition-all cursor-pointer" ${localStorage.getItem('mi_default_timerange') === timeRange ? 'checked' : ''}>
+                            <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest group-hover:text-cyan-400 transition-colors">Default Range</span>
+                        </label>
                     </div>
 
                     <div class="w-px h-8 bg-slate-800 hidden md:block"></div>
@@ -484,8 +494,8 @@ class MarketIntelligenceUI {
                         <line x1="${padding}" y1="${getY(50000)}" x2="${width - padding}" y2="${getY(50000)}" stroke="#1e293b" stroke-dasharray="4 4" />
 
                         <!-- Axis Labels -->
-                        <text x="${width / 2}" y="${height - 8}" text-anchor="middle" fill="#475569" font-size="9" font-weight="900" class="tracking-widest">VELOCITY % (GROWTH)</text>
-                        <text x="8" y="${height / 2}" text-anchor="middle" fill="#475569" font-size="9" font-weight="900" transform="rotate(-90, 8, ${height / 2})" class="tracking-widest capitalize">REACH / IMPRESSIONS</text>
+                        <text x="${width / 2}" y="${height - 8}" text-anchor="middle" fill="#475569" font-size="11" font-weight="900" class="tracking-widest">VELOCITY % (GROWTH)</text>
+                        <text x="10" y="${height / 2}" text-anchor="middle" fill="#475569" font-size="11" font-weight="900" transform="rotate(-90, 10, ${height / 2})" class="tracking-widest capitalize">REACH / IMPRESSIONS</text>
 
                         <!-- Nodes -->
                         ${this.state.data.map(trend => {
@@ -510,14 +520,14 @@ class MarketIntelligenceUI {
 
                     <!-- Quadrant Labels with Tooltips -->
                     ${quadrants.map(q => `
-                        <div class="absolute ${q.pos} flex items-center gap-2 group/quad pointer-events-auto">
-                            <span class="text-[10px] text-white/20 font-black uppercase tracking-widest group-hover/quad:text-cyan-400/60 transition-colors">${q.label}</span>
+                        <div class="absolute ${q.pos} flex items-center gap-2.5 group/quad pointer-events-auto">
+                            <span class="text-[11px] text-white/30 font-black uppercase tracking-widest group-hover/quad:text-cyan-400 transition-colors">${q.label}</span>
                             <div class="relative">
-                                <svg class="text-white/10 group-hover/quad:text-cyan-400 transition-colors cursor-help" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                                <svg class="text-white/20 group-hover/quad:text-cyan-400 transition-colors cursor-help" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
                                 
-                                <div class="absolute ${q.tooltipPos} w-48 p-3 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl opacity-0 invisible group-hover/quad:opacity-100 group-hover/quad:visible transition-all z-50">
-                                    <div class="text-[11px] font-bold text-cyan-400 uppercase mb-1">${q.label} Quadrant</div>
-                                    <div class="text-[10px] text-slate-200 leading-relaxed font-medium capitalize">
+                                <div class="absolute ${q.tooltipPos} w-56 p-4 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl opacity-0 invisible group-hover/quad:opacity-100 group-hover/quad:visible transition-all z-50">
+                                    <div class="text-xs font-bold text-cyan-400 uppercase mb-1.5">${q.label} Quadrant</div>
+                                    <div class="text-[11px] text-slate-200 leading-relaxed font-medium capitalize">
                                         ${q.advice}
                                     </div>
                                     <div class="absolute ${q.arrowPos} border-8 border-transparent"></div>
@@ -639,8 +649,24 @@ class MarketIntelligenceUI {
         // Time range buttons
         const rangeBtns = this.container.querySelectorAll('.time-range-btn');
         rangeBtns.forEach(btn => {
-            btn.addEventListener('click', () => this.setTimeRange(btn.getAttribute('data-range')));
+            btn.addEventListener('click', () => {
+                const range = btn.getAttribute('data-range');
+                this.setTimeRange(range);
+            });
         });
+
+        // Set Default Checkbox
+        const defaultCheck = this.container.querySelector('#mi-set-default-check');
+        if (defaultCheck) {
+            defaultCheck.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    localStorage.setItem('mi_default_timerange', this.state.timeRange);
+                    showNotification?.(`Default range set to ${this.state.timeRange}`, 'success');
+                } else {
+                    localStorage.removeItem('mi_default_timerange');
+                }
+            });
+        }
 
         // Channel buttons
         const channelBtns = this.container.querySelectorAll('.channel-btn');

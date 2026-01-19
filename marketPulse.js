@@ -535,7 +535,7 @@ const MarketIntelligenceWarehouse = {
 /**
  * Trigger AI-powered Market Research to find REAL news and trends
  */
-async function triggerMarketIntelligenceResearch() {
+async function triggerMarketIntelligenceResearch(options = {}) {
     if (!currentProjectId || !currentProjectData) return;
 
     const keywords = currentProjectData.marketPulseKeywords || [];
@@ -562,6 +562,16 @@ async function triggerMarketIntelligenceResearch() {
 
         // Update progress
         updateMIProgress('Collecting market signals...', 15);
+
+        // Determine lookback period from options or UI state
+        let requestedRange = (options && options.timeRange) || '7D';
+        const rangeMap = {
+            '7D': '7d',
+            '30D': '30d',
+            '90D': '90d',
+            '180D': '6m'
+        };
+        const whenParam = rangeMap[requestedRange] || '7d';
 
         // Step 1: Fetch real news for all keywords (Intelligent Index Warehouse Logic)
         let keywordNewsMap = {};
@@ -590,14 +600,15 @@ async function triggerMarketIntelligenceResearch() {
                             kw,
                             currentProjectData,
                             {
-                                maxResults: 50,
-                                when: lastScanTime ? '7d' : '1y'
+                                maxResults: 200, // Increased from 50
+                                when: whenParam
                             }
                         );
 
                         if (newsResult.success && newsResult.articles.length > 0) {
                             const newArticles = newsResult.articles;
-                            articles = [...newArticles, ...articles].slice(0, 50);
+                            // Keep up to 200 articles for deeper index
+                            articles = [...newArticles, ...articles].slice(0, 200);
 
                             // Save to warehouse in background
                             MarketIntelligenceWarehouse.saveIndices(currentProjectId, kw, newArticles).catch(e => { });
@@ -688,8 +699,25 @@ async function triggerMarketIntelligenceResearch() {
             .map((kw, idx) => {
                 const agentTrend = findTrendInResult(workflowResult, kw);
                 const realArticles = keywordNewsMap[kw] || [];
+                const rangeDaysMap = {
+                    '7D': 7,
+                    '30D': 30,
+                    '90D': 90,
+                    '180D': 180
+                };
+                const now = Date.now();
+                const dayMs = 24 * 60 * 60 * 1000;
+                const maxDays = rangeDaysMap[requestedRange] || 7;
+                const cutoff = now - (maxDays * dayMs);
 
-                const evidence = realArticles.map((article, artIdx) => ({
+                // Filter articles based on requested time range
+                const filteredArticles = realArticles.filter(a => {
+                    if (!a.publishedAt) return true;
+                    const ts = new Date(a.publishedAt).getTime();
+                    return ts > cutoff;
+                });
+
+                const evidence = filteredArticles.map((article, artIdx) => ({
                     id: `ev-${idx}-${artIdx}-${Date.now()}`,
                     title: article.headline || article.title || 'News Article',
                     publisher: (typeof article.source === 'object' ? article.source.name : article.source) || article.publisher || 'News Source',
@@ -700,8 +728,6 @@ async function triggerMarketIntelligenceResearch() {
                 }));
 
                 const totalArticles = evidence.length;
-                const now = Date.now();
-                const dayMs = 24 * 60 * 60 * 1000;
 
                 // Calculate real weekly velocity (7-day distribution)
                 const articleTimestamps = evidence.map(e => e.timestamp).filter(t => t > 0);
@@ -711,8 +737,8 @@ async function triggerMarketIntelligenceResearch() {
                     return articleTimestamps.filter(t => t >= dayStart && t < dayEnd).length;
                 });
 
-                const recentArticles = evidence.filter(e => (now - e.timestamp) < (dayMs * 7)).length;
-                const realMentions = realArticles.filter(a => !a.isMock).length;
+                const recentArticles = evidence.filter(e => (now - e.timestamp) < (dayMs * Math.min(7, maxDays))).length;
+                const realMentions = filteredArticles.filter(a => !a.isMock).length;
 
                 // VOLUME / REACH: Accurate representation based on signals
                 // If real news exists, Reach = real mentions. If AI provides volume, we weight it.
