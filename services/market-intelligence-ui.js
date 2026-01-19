@@ -47,11 +47,11 @@ class MarketIntelligenceUI {
         this.progressInterval = setInterval(() => {
             const target = this.state.progressPercent || 0;
             if (displayPercent < target) {
-                // Catch up slowly
-                displayPercent += 0.5;
+                // Catch up slowly (Halved for 2x slower progress)
+                displayPercent += 0.25;
             } else if (displayPercent < 99) {
-                // Micro-inching to show life while waiting
-                displayPercent += 0.05;
+                // Micro-inching to show life while waiting (Halved for 2x slower progress)
+                displayPercent += 0.025;
             }
 
             const el = document.getElementById('mi-progress-text');
@@ -208,7 +208,7 @@ class MarketIntelligenceUI {
 
                 <div class="flex flex-wrap items-center gap-4">
                     <div class="bg-slate-900 border border-slate-800 rounded-lg p-1 flex">
-                        ${['7D', '30D'].map(range => `
+                        ${['7D', '30D', '90D'].map(range => `
                             <button data-range="${range}" class="time-range-btn px-4 py-1.5 text-xs font-semibold rounded-md transition-all ${timeRange === range ? 'bg-slate-800 text-white shadow-sm ring-1 ring-white/5' : 'text-slate-500 hover:text-white'}">
                                 ${range}
                             </button>
@@ -218,11 +218,19 @@ class MarketIntelligenceUI {
                     <div class="w-px h-8 bg-slate-800 hidden md:block"></div>
 
                     <div class="flex gap-2">
-                        ${['News', 'Social', 'Video'].map(channel => `
-                            <button data-channel="${channel}" class="channel-btn px-4 py-1.5 rounded-full text-xs font-medium border transition-all ${selectedChannels.includes(channel) ? 'bg-cyan-500/10 border-cyan-500/40 text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.1)]' : 'bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-500 hover:text-white'}">
-                                ${channel}
-                            </button>
-                        `).join('')}
+                        ${['News', 'Social', 'Video'].map(channel => {
+            const isActive = channel === 'News';
+            return `
+                                <button ${isActive ? `data-channel="${channel}"` : 'disabled'} 
+                                    class="channel-btn px-4 py-1.5 rounded-full text-xs font-medium border transition-all 
+                                    ${isActive ? (selectedChannels.includes(channel) ? 'bg-cyan-500/10 border-cyan-500/40 text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.1)]' : 'bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-500 hover:text-white')
+                    : 'bg-slate-950 border-slate-900 text-slate-700 cursor-not-allowed opacity-50'}"
+                                    ${!isActive ? 'title="Coming Soon"' : ''}>
+                                    ${channel}
+                                    ${!isActive ? '<span class="ml-1 text-[8px] opacity-50">Soon</span>' : ''}
+                                </button>
+                            `;
+        }).join('')}
                     </div>
 
                     <div class="w-px h-8 bg-slate-800 hidden md:block"></div>
@@ -432,10 +440,10 @@ class MarketIntelligenceUI {
         const getY = (v) => height - padding - (Math.min(v, maxVolume) / maxVolume) * (height - padding * 2);
 
         const quadrants = [
-            { id: 'dominant', label: 'Dominant', pos: 'top-8 right-8', advice: 'High growth, High reach. Mainstream trends with high impact. Focus on market leadership.' },
-            { id: 'emerging', label: 'Emerging', pos: 'bottom-8 right-8', advice: 'High growth, Low reach. Early signals of future mainstream. Opportunity to lead early adoption.' },
-            { id: 'niche', label: 'Niche', pos: 'bottom-8 left-12', advice: 'Low growth, Low reach. Specialized interest or fading presence. Monitor for specific use cases.' },
-            { id: 'saturated', label: 'Saturated', pos: 'top-8 left-12', advice: 'Low growth, High reach. Mature marketplace with high competition. Harder to differentiate.' }
+            { id: 'dominant', label: 'Dominant', pos: 'top-8 right-8', tooltipPos: 'top-full right-0 mt-2', arrowPos: 'bottom-full right-4 border-b-slate-800', advice: 'High growth, High reach. Mainstream trends with high impact. Focus on market leadership.' },
+            { id: 'emerging', label: 'Emerging', pos: 'bottom-8 right-8', tooltipPos: 'bottom-full right-0 mb-2', arrowPos: 'top-full right-4 border-t-slate-800', advice: 'High growth, Low reach. Early signals of future mainstream. Opportunity to lead early adoption.' },
+            { id: 'niche', label: 'Niche', pos: 'bottom-8 left-12', tooltipPos: 'bottom-full left-0 mb-2', arrowPos: 'top-full left-4 border-t-slate-800', advice: 'Low growth, Low reach. Specialized interest or fading presence. Monitor for specific use cases.' },
+            { id: 'saturated', label: 'Saturated', pos: 'top-8 left-12', tooltipPos: 'top-full left-0 mt-2', arrowPos: 'bottom-full left-4 border-b-slate-800', advice: 'Low growth, High reach. Mature marketplace with high competition. Harder to differentiate.' }
         ];
 
         return `
@@ -507,12 +515,12 @@ class MarketIntelligenceUI {
                             <div class="relative">
                                 <svg class="text-white/10 group-hover/quad:text-cyan-400 transition-colors cursor-help" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
                                 
-                                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl opacity-0 invisible group-hover/quad:opacity-100 group-hover/quad:visible transition-all z-50">
+                                <div class="absolute ${q.tooltipPos} w-48 p-3 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl opacity-0 invisible group-hover/quad:opacity-100 group-hover/quad:visible transition-all z-50">
                                     <div class="text-[11px] font-bold text-cyan-400 uppercase mb-1">${q.label} Quadrant</div>
                                     <div class="text-[10px] text-slate-200 leading-relaxed font-medium capitalize">
                                         ${q.advice}
                                     </div>
-                                    <div class="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-800"></div>
+                                    <div class="absolute ${q.arrowPos} border-8 border-transparent"></div>
                                 </div>
                             </div>
                         </div>
