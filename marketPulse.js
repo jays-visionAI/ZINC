@@ -612,24 +612,13 @@ async function triggerMarketIntelligenceResearch() {
                     const needsRefill = existingArticles.length < 30;
 
                     if (isOld || needsRefill) {
-                        console.log(`[Warehouse] Expanding intelligence for "${kw}" (Reason: ${isOld ? 'Scan Outdated' : 'Insufficient Volume'})`);
-
-                        // Expansion: Intelligence Refinement
-                        let refinedQuery = kw;
-                        const isWeb3 = currentProjectData?.industry?.toLowerCase().includes('crypto') ||
-                            currentProjectData?.industry?.toLowerCase().includes('blockchain') ||
-                            currentProjectData?.projectName?.toLowerCase().includes('chain');
-
-                        if (isWeb3 && !kw.toLowerCase().includes('blockchain') && !kw.toLowerCase().includes('crypto')) {
-                            refinedQuery = `${kw} blockchain`;
-                            console.log(`[MarketPulse] Refining query: "${kw}" -> "${refinedQuery}"`);
-                        }
+                        console.log(`[Warehouse] Refreshing intelligence for "${kw}"`);
 
                         const newsResult = await window.NewsProviderRegistry.fetchNewsForProject(
-                            refinedQuery,
+                            kw,
                             currentProjectData,
                             {
-                                maxResults: 50, // Target high volume for statistical significance
+                                maxResults: 40,
                                 when: lastScanTime ? '7d' : '1y'
                             }
                         );
@@ -643,9 +632,9 @@ async function triggerMarketIntelligenceResearch() {
                                 await MarketIntelligenceWarehouse.saveIndices(currentProjectId, kw, newArticles);
                             }
 
-                            // Merge and slice to current analysis pool (up to 60 for better context)
+                            // Merge and slice to current analysis pool
                             const combined = [...newArticles, ...existingArticles];
-                            keywordNewsMap[kw] = combined.slice(0, 60);
+                            keywordNewsMap[kw] = combined.slice(0, 50);
                         } else {
                             keywordNewsMap[kw] = existingArticles;
                         }
@@ -758,15 +747,14 @@ async function triggerMarketIntelligenceResearch() {
 
             const now = Date.now();
             const recentArticles = realArticles.filter(a => (now - new Date(a.publishedAt).getTime()) < (1000 * 60 * 60 * 24 * 7)).length;
-            const calculatedVelocity = count > 0 ? (recentArticles / count) * 25 : (5 + Math.random() * 5);
+            const calculatedVelocity = count > 0 ? (recentArticles / count) * 25 : 0;
 
             return {
                 id: `wf-trend-${idx}-${Date.now()}`,
                 name: kw,
-                velocity: agentTrend?.velocity || Math.floor(calculatedVelocity),
+                velocity: agentTrend?.velocity || Math.floor(calculatedVelocity + 5),
                 volume: agentTrend?.volume || Math.max(count * 10, 15),
-                mentions: count, // This is REAL articles only. UI will use evidence.length only if this is undefined.
-                evidenceCount: evidence.length,
+                mentions: count || 0,
                 sentiment: sentiment,
                 confidence: agentTrend?.confidence || (count > 5 ? 0.95 : 0.85),
                 history: agentTrend?.history || Array.from({ length: 7 }, (_, i) => Math.floor(Math.max(count, 5) * (0.8 + Math.random() * 0.4))),
@@ -777,8 +765,6 @@ async function triggerMarketIntelligenceResearch() {
                     `Monitor ${kw} developments.`,
                     `Identify key stakeholders in the ${kw} space.`
                 ],
-                opportunities: agentTrend?.opportunities || ['Market growth'],
-                risks: agentTrend?.risks || ['Information asymmetry'],
                 evidence: evidence,
                 channels: ['News', 'Social']
             };

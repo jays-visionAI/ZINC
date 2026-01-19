@@ -28,16 +28,13 @@ class GoogleNewsProvider {
      * @param {string} when - Time filter (e.g., '1y', '7d', '1h')
      */
     buildRssUrl(query, language = 'en', country = 'US', when = '1y') {
+        const timeFilter = when ? `+when:${when}` : '+when:1y';
+        const encodedQuery = encodeURIComponent(query + timeFilter);
         const hl = language.toLowerCase();
         const gl = country.toUpperCase();
         const ceid = `${gl}:${hl}`;
 
-        // Standard Google News time filters: h (hour), d (day), w (week), m (month), y (year)
-        const timeCode = when ? when.replace('1', '').replace('7', '') : 'y';
-        const qdr = when ? `qdr:${when.replace('1', '').replace('7', 'w')}` : 'qdr:y';
-
-        // Prefer the 'tbs' parameter for RSS time filtering as it's more reliable than '+when:' in the query
-        return `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=${hl}&gl=${gl}&ceid=${ceid}&tbs=${qdr}`;
+        return `https://news.google.com/rss/search?q=${encodedQuery}&hl=${hl}&gl=${gl}&ceid=${ceid}`;
     }
 
     /**
