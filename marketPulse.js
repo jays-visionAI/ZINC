@@ -52,8 +52,6 @@ const RESEARCH_STEPS = [
 let currentProjectId = null;
 let currentUser = null;
 let currentProjectData = null; // Store project data for simulation
-let marketPulseUnsubscribe = null;
-let isManuallyRefreshing = false;
 let selectedKeywordsForEditor = []; // Temporary storage for modal editing
 
 async function init() {
@@ -178,29 +176,28 @@ async function loadUserProjects() {
     }
 }
 
-async function onProjectChange(projectId, projectData) {
-    if (!projectId) {
-        console.warn('[MarketPulse] onProjectChange called without projectId');
-        return;
-    }
-    currentProjectId = projectId;
-    currentProjectData = projectData;
-    console.log('Project changed to:', projectId);
+let marketPulseUnsubscribe = null;
 
-    // Cleanup old listener
+async function onProjectChange() {
+    if (!currentProjectId) return;
+
+    console.log('Project changed to:', currentProjectId);
+    document.getElementById('last-updated').textContent = 'Syncing...';
+
+    // Unsubscribe previous listener if exists
     if (marketPulseUnsubscribe) {
-        console.log('[MarketPulse] Cleaning up previous listener...');
         marketPulseUnsubscribe();
         marketPulseUnsubscribe = null;
     }
 
-    document.getElementById('last-updated').textContent = 'Syncing...';
-
     try {
-        if (currentProjectData) {
-            console.log('[MarketPulse] Project data loaded:', currentProjectData);
+        // 1. Fetch Basic Project Data (One-time)
+        const doc = await firebase.firestore().collection('projects').doc(currentProjectId).get();
+        if (doc.exists) {
+            currentProjectData = doc.data();
 
-            // 🧠 UNIFIED BRAIN: Reference Core Agent Team
+            // 🧠 UNIFIED BRAIN: Store Core Agent Team reference
+            currentProjectData.coreAgentTeamInstanceId = doc.data().coreAgentTeamInstanceId || null;
             if (currentProjectData.coreAgentTeamInstanceId) {
                 console.log('[MarketPulse] 🧠 Core Agent Team detected:', currentProjectData.coreAgentTeamInstanceId);
             } else {
@@ -252,20 +249,10 @@ async function onProjectChange(projectId, projectData) {
             .doc('latest')
             .onSnapshot((snapshot) => {
                 if (snapshot.exists) {
-                    const data = snapshot.data();
-
-                    // Suppress background updates if we are in the middle of a manual refresh
-                    if (isManuallyRefreshing) {
-                        console.log('[MarketPulse] Suppressing background update during active manual research.');
-                        return;
-                    }
-
                     console.log('[MarketPulse] ⚡ Real-time update received from Scheduler');
-                    updateDashboardWithRealTimeData(data);
+                    updateDashboardWithRealTimeData(snapshot.data());
 
-                    // Support both updatedAt (scheduler) and generatedAt (manual)
-                    const ts = data.updatedAt || data.generatedAt;
-                    const updatedTime = ts ? ts.toDate() : new Date();
+                    const updatedTime = snapshot.data().updatedAt ? snapshot.data().updatedAt.toDate() : new Date();
                     document.getElementById('last-updated').textContent = updatedTime.toLocaleTimeString();
                 } else {
                     console.log('[MarketPulse] No scheduler data yet. Waiting for next run...');
@@ -273,9 +260,6 @@ async function onProjectChange(projectId, projectData) {
                 }
             }, (error) => {
                 console.error('[MarketPulse] Error listening to updates:', error);
-                if (error.code === 'permission-denied') {
-                    showNotification('Permission denied for market data.', 'error');
-                }
             });
 
     } catch (error) {
@@ -506,57 +490,39 @@ const MarketIntelligenceWarehouse = {
     // Load existing indices from Firestore
     loadIndices: async (projectId, keyword) => {
         const db = firebase.firestore();
-        const baseQuery = db.collection('projects').doc(projectId)
+        const snapshot = await db.collection('projects').doc(projectId)
             .collection('marketPulse_warehouse')
-            .where('keyword', '==', keyword);
+            .where('keyword', '==', keyword)
+            .orderBy('publishedAt', 'desc')
+            .limit(100)
+            .get();
 
-        try {
-            // Priority: Attempt ordered query (requires composite index)
-            const snapshot = await baseQuery.orderBy('publishedAt', 'desc').limit(100).get();
-            return snapshot.docs.map(doc => doc.data());
-        } catch (err) {
-            if (err.message && err.message.includes('requires an index')) {
-                console.warn(`[Warehouse] Index missing for "${keyword}" sort. Using memory sort fallback.`);
-                // Fallback: Fetch without order and sort in client memory
-                const snapshot = await baseQuery.limit(100).get();
-                const docs = snapshot.docs.map(doc => doc.data());
-                return docs.sort((a, b) => {
-                    const dateA = new Date(a.publishedAt || 0);
-                    const dateB = new Date(b.publishedAt || 0);
-                    return dateB - dateA;
-                });
-            }
-            throw err;
-        }
+        return snapshot.docs.map(doc => doc.data());
     },
 
     // Save new indices to Firestore with TTL
     saveIndices: async (projectId, keyword, articles) => {
-        try {
-            const db = firebase.firestore();
-            const batch = db.batch();
-            const now = new Date();
-            const expireAt = new Date(now.getTime() + (180 * 24 * 60 * 60 * 1000)); // 180 days TTL
+        const db = firebase.firestore();
+        const batch = db.batch();
+        const now = new Date();
+        const expireAt = new Date(now.getTime() + (180 * 24 * 60 * 60 * 1000)); // 180 days TTL
 
-            articles.forEach(art => {
-                const docId = MarketIntelligenceWarehouse.getHash(art.url);
-                const docRef = db.collection('projects').doc(projectId)
-                    .collection('marketPulse_warehouse').doc(docId);
+        articles.forEach(art => {
+            const docId = MarketIntelligenceWarehouse.getHash(art.url);
+            const docRef = db.collection('projects').doc(projectId)
+                .collection('marketPulse_warehouse').doc(docId);
 
-                batch.set(docRef, {
-                    ...art,
-                    keyword,
-                    projectId,
-                    capturedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    expireAt: firebase.firestore.Timestamp.fromDate(expireAt)
-                }, { merge: true });
-            });
+            batch.set(docRef, {
+                ...art,
+                keyword,
+                projectId,
+                capturedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                expireAt: firebase.firestore.Timestamp.fromDate(expireAt)
+            }, { merge: true });
+        });
 
-            await batch.commit();
-            console.log(`[Warehouse] Indexed ${articles.length} new articles for "${keyword}"`);
-        } catch (err) {
-            console.warn(`[Warehouse] Permission or Write error for "${keyword}":`, err.message);
-        }
+        await batch.commit();
+        console.log(`[Warehouse] Indexed ${articles.length} new articles for "${keyword}"`);
     }
 };
 
@@ -565,7 +531,6 @@ const MarketIntelligenceWarehouse = {
  */
 async function triggerMarketIntelligenceResearch() {
     if (!currentProjectId || !currentProjectData) return;
-    isManuallyRefreshing = true; // Lock the UI updates
 
     const keywords = currentProjectData.marketPulseKeywords || [];
     if (keywords.length === 0) {
@@ -601,30 +566,26 @@ async function triggerMarketIntelligenceResearch() {
             for (let i = 0; i < keywords.length; i++) {
                 const kw = keywords[i];
                 try {
-                    // 1. Load cached indices from warehouse
+                    // 1. Load cached indices
                     const existingArticles = await MarketIntelligenceWarehouse.loadIndices(currentProjectId, kw);
                     const lastScanTime = existingArticles.length > 0 ? new Date(existingArticles[0].publishedAt) : null;
 
-                    // 2. Intelligence Expansion Check:
-                    // - isOld: Was it scanned more than 24h ago?
-                    // - needsRefill: Do we have less than 30 articles? (Breaks the 10-item limit from legacy runs)
-                    const isOld = !lastScanTime || (Date.now() - lastScanTime.getTime()) > (24 * 60 * 60 * 1000);
-                    const needsRefill = existingArticles.length < 30;
+                    // 2. Fetch delta (or fresh if empty)
+                    // If we have recent data (last 24h), we fetch less. If empty, fetch 40.
+                    const isFresh = !lastScanTime || (Date.now() - lastScanTime.getTime()) > (24 * 60 * 60 * 1000);
 
-                    if (isOld || needsRefill) {
-                        console.log(`[Warehouse] Refreshing intelligence for "${kw}"`);
-
+                    if (isFresh) {
                         const newsResult = await window.NewsProviderRegistry.fetchNewsForProject(
                             kw,
                             currentProjectData,
                             {
                                 maxResults: 40,
-                                when: lastScanTime ? '7d' : '1y'
+                                when: lastScanTime ? '7d' : '1y' // Intelligent delta: if we have cache, only grab last 7 days to find new ones
                             }
                         );
 
                         if (newsResult.success && newsResult.articles.length > 0) {
-                            // Filter only new articles to avoid duplicates in the DB
+                            // Filter only new articles
                             const existingUrls = new Set(existingArticles.map(a => a.url));
                             const newArticles = newsResult.articles.filter(a => !existingUrls.has(a.url));
 
@@ -632,14 +593,13 @@ async function triggerMarketIntelligenceResearch() {
                                 await MarketIntelligenceWarehouse.saveIndices(currentProjectId, kw, newArticles);
                             }
 
-                            // Merge and slice to current analysis pool
-                            const combined = [...newArticles, ...existingArticles];
-                            keywordNewsMap[kw] = combined.slice(0, 50);
+                            // Combine for current analysis
+                            keywordNewsMap[kw] = [...newArticles, ...existingArticles].slice(0, 50);
                         } else {
                             keywordNewsMap[kw] = existingArticles;
                         }
                     } else {
-                        console.log(`[Warehouse] Using high-confidence cache for "${kw}" (${existingArticles.length} articles)`);
+                        console.log(`[Warehouse] Using high-confidence cache for "${kw}"`);
                         keywordNewsMap[kw] = existingArticles;
                     }
 
@@ -660,154 +620,100 @@ async function triggerMarketIntelligenceResearch() {
 
         console.log('[MarketPulse] Executing Workflow:', workflowId);
 
-        // Update progress using workflow events
-        const { outputs } = await WorkflowEngine.executeById(
-            workflowId,
-            projectContext,
-            console,
-            {
-                onProgress: (prog) => {
-                    // Map 0-100% of workflow to 45-90% of total MI progress
-                    const totalProgress = 45 + Math.floor(prog.percent * 0.45);
-                    updateMIProgress(prog.message, totalProgress);
-                }
-            }
-        );
+        // Update progress
+        updateMIProgress('AI agents processing data...', 45);
+
+        const { outputs } = await WorkflowEngine.executeById(workflowId, projectContext);
 
         // Update progress
-        updateMIProgress('Analyzing results...', 90);
+        updateMIProgress('Analyzing trends & sentiment...', 70);
 
-        // Find the result node (either specifically named or the last successful one)
+        // Find the END node or any node that looks like the final output
         const nodeIds = Object.keys(outputs);
-        const workflowResult = outputs['seo_update'] || outputs['market_analyst'] || outputs[nodeIds[nodeIds.length - 1]];
+        const endNodeId = nodeIds.find(id => id.startsWith('end')) || nodeIds[nodeIds.length - 1];
+        const workflowResult = outputs[endNodeId];
 
-        console.log('[MarketPulse] Raw Workflow Output Mapping:', workflowResult);
-
-        let totalMentions = 0;
-        let sumSentiment = 0;
-        let trendCount = 0;
+        console.log('[MarketPulse] Workflow Result:', workflowResult);
+        // Update progress
+        updateMIProgress('Generating insights...', 85);
 
         // Map Workflow output to our Trend format with REAL news evidence
-        // NOTE: We no longer filter out keywords if news count is zero. 
-        // We want the AI's trend insights even if real-time news is sparse.
-        const realTrends = keywords.map((kw, idx) => {
-            // Try to find trend data in workflow output (it might be indexed by keyword)
-            const agentTrend = (workflowResult.trends && workflowResult.trends[kw]) ||
-                (workflowResult[kw]) ||
-                (typeof workflowResult === 'object' ? workflowResult : null);
+        // We only include trends that have actual market signals (news articles)
+        const realTrends = keywords
+            .filter(kw => keywordNewsMap[kw] && keywordNewsMap[kw].length > 0)
+            .map((kw, idx) => {
+                const agentTrend = (workflowResult.trends && workflowResult.trends[kw]) ||
+                    (workflowResult[kw]) || null;
 
-            // Get real news articles for this keyword
-            const realArticles = keywordNewsMap[kw] || [];
+                // Get real news articles for this keyword
+                const realArticles = keywordNewsMap[kw] || [];
 
-            // Build evidence array from real news (or mock if none found)
-            const evidence = realArticles.length > 0 ? realArticles.map((article, artIdx) => ({
-                id: `ev-${idx}-${artIdx}-${Date.now()}`,
-                title: article.headline || article.title || 'News Article',
-                publisher: (typeof article.source === 'object' ? article.source.name : article.source) || article.publisher || 'News Source',
-                date: article.publishedAt ? formatRelativeTimeForEvidence(article.publishedAt) : 'Recent',
-                timestamp: article.publishedAt ? new Date(article.publishedAt).getTime() : 0,
-                snippet: article.snippet || article.description || `News coverage about ${kw}.`,
-                url: article.url || article.link || `https://news.google.com/search?q=${encodeURIComponent(kw)}`
-            })) : [
-                {
-                    id: `ev-mock-${idx}-1-${Date.now()}`,
-                    title: `Signal detected for ${kw}`,
-                    publisher: 'ZYNK Market Intelligence',
-                    date: 'Scanning...',
-                    timestamp: Date.now(),
-                    snippet: `Latent market signals detected for "${kw}" across digital channels. Synthesizing insights...`,
-                    url: `https://news.google.com/search?q=${encodeURIComponent(kw)}`
-                },
-                {
-                    id: `ev-mock-${idx}-2-${Date.now()}`,
-                    title: `Emerging Trend Area: ${kw}`,
-                    publisher: 'ZYNK AI Analyst',
-                    date: 'Synthesizing...',
-                    timestamp: Date.now() - 3600000,
-                    snippet: `Predictive models show increasing resonance for "${kw}" in your target markets.`,
-                    url: `https://news.google.com/search?q=${encodeURIComponent(kw)}`
-                },
-                {
-                    id: `ev-mock-${idx}-3-${Date.now()}`,
-                    title: `Market Opportunity: ${kw}`,
-                    publisher: 'Growth Engine',
-                    date: 'Analyzing...',
-                    timestamp: Date.now() - 7200000,
-                    snippet: `Strategic analysis identifies "${kw}" as a critical pillar for upcoming market shifts.`,
-                    url: `https://news.google.com/search?q=${encodeURIComponent(kw)}`
-                }
-            ];
+                // Build evidence array from real news
+                const evidence = realArticles.map((article, artIdx) => ({
+                    id: `ev-${idx}-${artIdx}-${Date.now()}`,
+                    title: article.headline || article.title || 'News Article',
+                    publisher: (typeof article.source === 'object' ? article.source.name : article.source) || article.publisher || 'News Source',
+                    date: article.publishedAt ? formatRelativeTimeForEvidence(article.publishedAt) : 'Recent',
+                    timestamp: article.publishedAt ? new Date(article.publishedAt).getTime() : 0,
+                    snippet: article.snippet || article.description || `News coverage about ${kw}.`,
+                    url: article.url || article.link || `https://news.google.com/search?q=${encodeURIComponent(kw)}`
+                }));
 
-            // Calculate real metrics
-            const count = realArticles.length;
-            totalMentions += count;
-            const sentiment = agentTrend?.sentiment || 0.65;
-            sumSentiment += sentiment;
-            trendCount++;
+                // Calculate real metrics based on evidence
+                const totalArticles = evidence.length;
 
-            const now = Date.now();
-            const recentArticles = realArticles.filter(a => (now - new Date(a.publishedAt).getTime()) < (1000 * 60 * 60 * 24 * 7)).length;
-            const calculatedVelocity = count > 0 ? (recentArticles / count) * 25 : 0;
+                // Velocity: Percentage of articles from the last 7 days (simplified proxy for growth)
+                const now = Date.now();
+                const recentArticles = evidence.filter(e => (now - e.timestamp) < (1000 * 60 * 60 * 24 * 7)).length;
+                const calculatedVelocity = totalArticles > 0 ? (recentArticles / totalArticles) * 25 : 0;
 
-            return {
-                id: `wf-trend-${idx}-${Date.now()}`,
-                name: kw,
-                velocity: agentTrend?.velocity || Math.floor(calculatedVelocity + 5),
-                volume: agentTrend?.volume || Math.max(count * 10, 15),
-                mentions: count || 0,
-                sentiment: sentiment,
-                confidence: agentTrend?.confidence || (count > 5 ? 0.95 : 0.85),
-                history: agentTrend?.history || Array.from({ length: 7 }, (_, i) => Math.floor(Math.max(count, 5) * (0.8 + Math.random() * 0.4))),
-                summary: agentTrend?.summary || `${kw} is showing market resonance based on AI signal analysis.`,
-                drivers: agentTrend?.drivers || ['Market Intelligence', 'Strategic Keywords'],
-                strategicSynthesis: agentTrend?.strategicSynthesis || `Intelligence for ${kw} suggests emerging market opportunities.`,
-                actionableAdvice: agentTrend?.actionableAdvice || [
-                    `Monitor ${kw} developments.`,
-                    `Identify key stakeholders in the ${kw} space.`
-                ],
-                evidence: evidence,
-                channels: ['News', 'Social']
-            };
-        });
-
-        console.log(`[MarketPulse] Finalized ${realTrends.length} trends. Coverage: ${realTrends.filter(t => t.mentions > 0).length}/${realTrends.length} keys had news.`);
+                return {
+                    id: `wf-trend-${idx}-${Date.now()}`,
+                    name: kw,
+                    velocity: agentTrend?.velocity || Math.floor(calculatedVelocity + 5),
+                    volume: agentTrend?.volume || totalArticles * 10, // Base volume + multiplier for impact
+                    mentions: totalArticles,
+                    sentiment: agentTrend?.sentiment || 0.65, // Neutral-positive fallback
+                    confidence: agentTrend?.confidence || (totalArticles > 5 ? 0.95 : 0.85),
+                    history: agentTrend?.history || Array.from({ length: 7 }, (_, i) => Math.floor(totalArticles * (0.8 + Math.random() * 0.4))),
+                    summary: agentTrend?.summary || `${kw} is showing significant market resonance with ${totalArticles} verified signals across news channels.`,
+                    drivers: agentTrend?.drivers || ['Verified News Signals', 'Real-time Market Adoption', 'Strategic Keyword Match'],
+                    strategicSynthesis: agentTrend?.strategicSynthesis || `The convergence of ${kw} with current market dynamics suggests a pivotal shift in user expectations. Based on recent intelligence, the focus is moving from secondary implementation to core architectural integration.`,
+                    actionableAdvice: agentTrend?.actionableAdvice || [
+                        `Prioritize ${kw} integration in the upcoming product roadmap to capture early adopter sentiment.`,
+                        `Optimize marketing collateral to highlight ${kw} capabilities as a key USP.`,
+                        `Monitor competitor response to ${kw} news to maintain first-mover advantage.`
+                    ],
+                    opportunities: agentTrend?.opportunities || ['Market leadership potential', 'Enhanced user trust', 'Operational efficiency gains'],
+                    risks: agentTrend?.risks || ['Regulatory uncertainty', 'Integration complexity', 'Market saturation'],
+                    evidence: evidence
+                };
+            });
 
         // Update progress
         updateMIProgress('Finalizing report...', 95);
 
-        // Save results to Firestore (MERGE to preserve existing scheduler data like heatmap/competitors)
+        // Save results to Firestore for persistence (user can leave and come back)
         try {
             const db = firebase.firestore();
             await db.collection('projects').doc(currentProjectId)
                 .collection('marketPulse').doc('latest').set({
                     trends: realTrends,
                     keywords: realTrends.map(t => t.name),
-                    mentions: { total: totalMentions, growth: 12 },
-                    sentiment: {
-                        positive: Math.round((sumSentiment / Math.max(1, trendCount)) * 100),
-                        neutral: 15,
-                        negative: 5
-                    },
                     generatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    status: 'completed',
-                    source: 'manual'
-                }, { merge: true });
-            console.log('[MarketPulse] Results saved to Firestore (merged).');
+                    status: 'completed'
+                });
+            console.log('[MarketPulse] Results saved to Firestore for later viewing.');
         } catch (saveErr) {
-            console.warn('[MarketPulse] Could not save results:', saveErr.message);
+            console.warn('[MarketPulse] Could not save results (non-critical):', saveErr.message);
         }
 
-        // Update progress to 100% first
-        updateMIProgress('Analysis complete!', 100);
-
-        // Small delay to let user see "100%" before switching to cards
-        await new Promise(resolve => setTimeout(resolve, 800));
-
-        // Update UI to success state with real data
+        // Update UI with results
         if (window.refreshMarketIntelligence) {
             window.refreshMarketIntelligence(currentProjectId, realTrends.map(t => t.name), realTrends);
         }
 
+        updateMIProgress('Complete!', 100);
         showNotification('Market Intelligence analysis complete!', 'success');
 
     } catch (error) {
@@ -815,13 +721,7 @@ async function triggerMarketIntelligenceResearch() {
         if (window.marketIntelligenceInstance) {
             window.marketIntelligenceInstance.setState({ status: 'error', progressMessage: error.message });
         }
-        showNotification('Workflow execution failed.', 'error');
-    } finally {
-        // Keep the lock for a short duration after completion to suppress local Firestore echoes
-        setTimeout(() => {
-            isManuallyRefreshing = false;
-            console.log('[MarketPulse] Manual refresh lock released.');
-        }, 3000);
+        showNotification('Workflow execution failed. Please check the logs.', 'error');
     }
 }
 
@@ -848,17 +748,11 @@ function formatRelativeTimeForEvidence(dateString) {
 // Helper to update MI progress UI
 function updateMIProgress(message, percent) {
     if (window.marketIntelligenceInstance) {
-        const newState = {
+        window.marketIntelligenceInstance.setState({
+            status: 'analyzing',
             progressMessage: message,
             progressPercent: percent
-        };
-
-        // Only force 'analyzing' status if we are not at 100%
-        if (percent < 100) {
-            newState.status = 'analyzing';
-        }
-
-        window.marketIntelligenceInstance.setState(newState);
+        });
     }
 }
 
@@ -4608,7 +4502,7 @@ function showDetailedResults() {
                                                         <a href="${art.url || art.link || '#'}" target="_blank" class="flex flex-col p-3 bg-slate-900/50 hover:bg-slate-950 rounded-2xl border border-slate-800/50 transition-all group/art">
                                                             <span class="text-xs text-slate-300 font-bold group-hover/art:text-cyan-400 line-clamp-1 mb-1">${art.headline || art.title}</span>
                                                             <div class="flex items-center justify-between">
-                                                                <span class="text-[9px] text-slate-600 font-black uppercase tracking-tighter">${(typeof art.source === 'object' ? art.source.name : art.source) || 'News Source'}</span>
+                                                                <span class="text-[9px] text-slate-600 font-black uppercase tracking-tighter">${art.source || 'News Source'}</span>
                                                                 <span class="text-[9px] text-slate-700">${art.publishedAt ? formatRelativeTime(art.publishedAt) : ''}</span>
                                                             </div>
                                                         </a>

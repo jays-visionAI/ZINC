@@ -13,9 +13,7 @@ class GoogleNewsProvider {
         // CORS proxy options (try in order if one fails)
         this.corsProxies = [
             'https://api.allorigins.win/raw?url=',
-            'https://corsproxy.io/?',
-            'https://thingproxy.freeboard.io/fetch/',
-            'https://www.google.com/search?q=' // Dummy fallback to see if we can at least reach google
+            'https://corsproxy.io/?'
         ];
         this.currentProxyIndex = 0;
     }
@@ -46,46 +44,32 @@ class GoogleNewsProvider {
         const {
             language = 'en',
             country = 'US',
-            maxResults = 25,
+            maxResults = 20,
             when = '1y'
         } = options;
 
         const rssUrl = this.buildRssUrl(query, language, country, when);
-        console.log(`[GoogleNews] Fetching: ${rssUrl}`);
 
         // Try each CORS proxy until one works
         for (let i = 0; i < this.corsProxies.length; i++) {
             const proxyIndex = (this.currentProxyIndex + i) % this.corsProxies.length;
             const proxy = this.corsProxies[proxyIndex];
 
-            // Skip dummy proxy
-            if (proxy.includes('google.com/search')) continue;
-
             try {
-                const fetchUrl = proxy + encodeURIComponent(rssUrl);
-                const response = await fetch(fetchUrl);
+                const response = await fetch(proxy + encodeURIComponent(rssUrl));
 
                 if (!response.ok) {
-                    console.warn(`[GoogleNews] Proxy ${proxyIndex} (${proxy}) failed with status ${response.status}`);
+                    console.warn(`[GoogleNews] Proxy ${proxyIndex} failed with status ${response.status}`);
                     continue;
                 }
 
                 const xmlText = await response.text();
-
-                // Safety check for empty or non-XML responses
-                if (!xmlText || xmlText.length < 100) {
-                    console.warn(`[GoogleNews] Proxy ${proxyIndex} returned empty or too short response`);
-                    continue;
-                }
-
                 const articles = this.parseRss(xmlText, maxResults);
 
                 if (articles.length > 0) {
                     this.currentProxyIndex = proxyIndex; // Remember working proxy
-                    console.log(`[GoogleNews] ✅ Fetched ${articles.length} articles via proxy ${proxyIndex}`);
+                    console.log(`[GoogleNews] Fetched ${articles.length} articles via proxy ${proxyIndex}`);
                     return articles;
-                } else {
-                    console.log(`[GoogleNews] Proxy ${proxyIndex} returned 0 articles (Parsed XML but no items)`);
                 }
             } catch (error) {
                 console.warn(`[GoogleNews] Proxy ${proxyIndex} error:`, error.message);
@@ -93,7 +77,7 @@ class GoogleNewsProvider {
         }
 
         // All proxies failed, return mock data
-        console.warn('[GoogleNews] All proxies failed or returned 0 results. Providing fallback signals.');
+        console.warn('[GoogleNews] All proxies failed, returning mock data');
         return this.getMockData(query);
     }
 
@@ -108,61 +92,48 @@ class GoogleNewsProvider {
             // Check for parse errors
             const parseError = xmlDoc.querySelector('parsererror');
             if (parseError) {
-                // Try treating as HTML if XML parsing fails (some proxies might return HTML-wrapped XML)
-                const htmlDoc = parser.parseFromString(xmlText, 'text/html');
-                const items = htmlDoc.querySelectorAll('item');
-                if (items.length > 0) return this.extractItems(items, maxResults);
-
                 console.error('[GoogleNews] XML parse error');
                 return [];
             }
 
             const items = xmlDoc.querySelectorAll('item');
-            return this.extractItems(items, maxResults);
+            const articles = [];
+
+            for (let i = 0; i < Math.min(items.length, maxResults); i++) {
+                const item = items[i];
+
+                const title = item.querySelector('title')?.textContent || '';
+                const link = item.querySelector('link')?.textContent || '';
+                const pubDate = item.querySelector('pubDate')?.textContent || '';
+                const description = item.querySelector('description')?.textContent || '';
+                const source = item.querySelector('source')?.textContent || 'Google News';
+
+                // Clean HTML from description
+                const cleanDescription = description.replace(/<[^>]*>/g, '').trim();
+
+                articles.push({
+                    id: `gnews-${Date.now()}-${i}`,
+                    title: title,
+                    description: cleanDescription,
+                    content: cleanDescription,
+                    url: link,
+                    imageUrl: null, // Google News RSS doesn't include images
+                    publishedAt: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(),
+                    source: {
+                        name: source,
+                        region: 'GLOBAL',
+                        provider: 'google-news'
+                    },
+                    headline: title,
+                    snippet: cleanDescription.substring(0, 200)
+                });
+            }
+
+            return articles;
         } catch (error) {
             console.error('[GoogleNews] Parse error:', error);
             return [];
         }
-    }
-
-    /**
-     * Internal helper to extract content from item nodes
-     */
-    extractItems(items, maxResults) {
-        const articles = [];
-        const limit = Math.min(items.length, maxResults);
-
-        for (let i = 0; i < limit; i++) {
-            const item = items[i];
-
-            // Use more robust selectors
-            const title = item.querySelector('title')?.textContent || '';
-            const link = item.querySelector('link')?.textContent || item.getAttribute('link') || '';
-            const pubDate = item.querySelector('pubDate')?.textContent || item.querySelector('pubdate')?.textContent || '';
-            const description = item.querySelector('description')?.textContent || '';
-            const source = item.querySelector('source')?.textContent || 'Google News';
-
-            // Clean HTML from description
-            const cleanDescription = description.replace(/<[^>]*>/g, '').trim();
-
-            articles.push({
-                id: `gnews-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 5)}`,
-                title: title,
-                description: cleanDescription,
-                content: cleanDescription,
-                url: link,
-                imageUrl: null,
-                publishedAt: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(),
-                source: {
-                    name: source,
-                    region: 'GLOBAL',
-                    provider: 'google-news'
-                },
-                headline: title,
-                snippet: cleanDescription.substring(0, 240)
-            });
-        }
-        return articles;
     }
 
     /**

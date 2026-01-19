@@ -9,11 +9,10 @@ const WorkflowEngine = (function () {
 
     // Internal state for a single execution run
     class ExecutionRun {
-        constructor(workflow, projectContext, logger, options = {}) {
+        constructor(workflow, projectContext, logger) {
             this.workflow = workflow;
             this.projectContext = projectContext || {};
             this.logger = logger || console;
-            this.options = options;
             this.nodeOutputs = {};
             this.status = 'idle';
         }
@@ -28,22 +27,8 @@ const WorkflowEngine = (function () {
             const order = this.buildExecutionOrder(startNode.id);
             this.logger.log(`[WorkflowEngine] Execution Order: ${order.map(n => n.data.name || n.id).join(' -> ')}`);
 
-            for (let i = 0; i < order.length; i++) {
-                const node = order[i];
+            for (const node of order) {
                 this.logger.log(`[WorkflowEngine] Executing ${node.type}: ${node.data.name || node.id}`);
-
-                // Progress tracking
-                if (this.options.onProgress) {
-                    const percent = Math.floor((i / order.length) * 100);
-                    this.options.onProgress({
-                        node,
-                        index: i,
-                        total: order.length,
-                        percent: percent,
-                        message: `Executing: ${node.data.name || node.type}`
-                    });
-                }
-
                 const startTime = Date.now();
 
                 try {
@@ -518,19 +503,12 @@ const WorkflowEngine = (function () {
             if (!projectId) throw new Error('Project ID missing for Brand Brain fetch');
 
             try {
-                // 1. Try root collection first (for system/shared agents)
-                try {
-                    const doc = await db.collection('brandBrain').doc(projectId).get();
-                    if (doc.exists) return doc.data();
-                } catch (err) {
-                    if (err.code === 'permission-denied') {
-                        console.log(`[WorkflowEngine] Root Brand Brain access restricted for ${projectId}, checking project nested...`);
-                    } else {
-                        throw err;
-                    }
-                }
+                // Rules 437 keyed by userId, but we also use brandBrain/{projectId} at root for system agents
+                // Let's try root first, then nested
+                const doc = await db.collection('brandBrain').doc(projectId).get();
+                if (doc.exists) return doc.data();
 
-                // 2. Nested Fallback (standard user-owned project data)
+                // Nested Fallback (Rules 442)
                 const userId = ctx.projectContext?.userId || (firebase.auth().currentUser?.uid);
                 if (userId) {
                     const fallbackDoc = await db.collection('brandBrain').doc(userId).collection('projects').doc(projectId).get();
@@ -539,7 +517,9 @@ const WorkflowEngine = (function () {
 
                 return { error: 'Brand Brain not found' };
             } catch (err) {
-                console.error(`[WorkflowEngine] Error fetching Brand Brain for ${projectId}:`, err.message);
+                if (err.code === 'permission-denied') {
+                    console.warn(`[WorkflowEngine] Permission Denied for Brand Brain at root. Trying nested...`);
+                }
                 return { error: err.message };
             }
         }
@@ -552,12 +532,12 @@ const WorkflowEngine = (function () {
             return { outputs, workflowId: workflow.id };
         },
 
-        executeById: async (workflowId, projectContext, logger, options = {}) => {
+        executeById: async (workflowId, projectContext, logger) => {
             const db = firebase.firestore();
             const doc = await db.collection('workflowDefinitions').doc(workflowId).get();
             if (!doc.exists) throw new Error('Workflow not found');
             const workflow = { id: doc.id, ...doc.data() };
-            const run = new ExecutionRun(workflow, projectContext, logger, options);
+            const run = new ExecutionRun(workflow, projectContext, logger);
             const outputs = await run.run();
             return { outputs, workflowId: workflow.id };
         },
