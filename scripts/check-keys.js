@@ -19,7 +19,7 @@ const db = admin.firestore();
 async function checkKeys() {
     console.log('Checking API Keys in Firestore...');
 
-    const providers = ['newsapi', 'deepseek', 'openai'];
+    const providers = ['deepseek', 'openai'];
     const results = {};
 
     for (const p of providers) {

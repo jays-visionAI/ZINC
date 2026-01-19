@@ -3,7 +3,7 @@
  * Extensible architecture for multi-region news sources
  * 
  * Supported Regions:
- * - GLOBAL: NewsAPI (65+ countries)
+ * - GLOBAL: Google News (Free RSS - 65+ countries)
  * - KR: Naver News (Korea)
  * - JP: Yahoo Japan News (Japan)
  * - SG: Channel NewsAsia (Singapore)

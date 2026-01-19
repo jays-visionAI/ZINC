@@ -13,8 +13,10 @@ class GoogleNewsProvider {
         // CORS proxy options (try in order if one fails)
         this.corsProxies = [
             'https://api.allorigins.win/raw?url=',
+            'https://api.codetabs.com/v1/proxy?quest=',
             'https://corsproxy.io/?',
-            'https://thingproxy.freeboard.io/fetch/'
+            'https://thingproxy.freeboard.io/fetch/',
+            'https://yacdn.org/proxy/'
         ];
         this.currentProxyIndex = 0;
     }
@@ -86,12 +88,12 @@ class GoogleNewsProvider {
                     return articles;
                 }
             } catch (error) {
-                console.warn(`[GoogleNews] Proxy ${proxyIndex} error:`, error.message);
+                // Silent catch for individual proxy errors to avoid console noise
             }
         }
 
         // All proxies failed, return mock data
-        console.warn('[GoogleNews] All proxies failed, returning fallback metadata.');
+        console.warn('[GoogleNews] All CORS proxies failed. Returning fallback metadata.');
         return this.getMockData(query);
     }
 
@@ -209,10 +211,12 @@ class GoogleNewsProvider {
     }
 }
 
-// Register with global registry (replace NewsAPI as default GLOBAL provider)
+// Register with global registry
 if (window.NewsProviderRegistry) {
-    window.NewsProviderRegistry.register('GLOBAL', new GoogleNewsProvider());
-    console.log('[GoogleNews] Provider registered as GLOBAL (replacing NewsAPI)');
+    const providerInstance = new GoogleNewsProvider();
+    window.NewsProviderRegistry.register('GLOBAL', providerInstance);
+    window.NewsProviderRegistry.register('google-news', providerInstance); // Alias for compatibility
+    console.log('[GoogleNews] Provider registered as GLOBAL and google-news');
 }
 
 // Export for module usage
