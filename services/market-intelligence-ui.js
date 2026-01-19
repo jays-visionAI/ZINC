@@ -570,8 +570,79 @@ class MarketIntelligenceUI {
                         </div>
                     `).join('')}
                 </div>
+
+                <!-- AI-Generated Matrix Analysis -->
+                <div class="mt-6 p-5 bg-slate-800/30 border border-slate-800 rounded-xl">
+                    <div class="flex items-center gap-2 mb-3">
+                        <svg class="text-cyan-500" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/><path d="M12 6v6l4 2"/></svg>
+                        <span class="text-[10px] font-black text-cyan-500 uppercase tracking-widest">AI Matrix Analysis</span>
+                    </div>
+                    <p class="text-sm text-slate-300 leading-relaxed font-medium">
+                        ${this.generateMatrixAnalysis()}
+                    </p>
+                </div>
             </div>
         `;
+    }
+
+    generateMatrixAnalysis() {
+        const data = this.state.data || [];
+        if (data.length === 0) {
+            return "No trend data available for analysis. Run a market scan to populate the matrix.";
+        }
+
+        const maxVolume = 100000;
+        const maxVelocity = 40;
+
+        // Categorize trends by quadrant
+        const dominant = data.filter(t => t.velocity > 0 && t.volume > maxVolume / 2);
+        const emerging = data.filter(t => t.velocity > 0 && t.volume <= maxVolume / 2);
+        const saturated = data.filter(t => t.velocity <= 0 && t.volume > maxVolume / 2);
+        const niche = data.filter(t => t.velocity <= 0 && t.volume <= maxVolume / 2);
+
+        // Calculate sentiment distribution
+        const positive = data.filter(t => t.sentiment > 0.2).length;
+        const negative = data.filter(t => t.sentiment < -0.2).length;
+        const neutral = data.length - positive - negative;
+
+        // Generate analysis text
+        let analysis = [];
+
+        // Overall position summary
+        if (dominant.length > 0) {
+            const names = dominant.slice(0, 2).map(t => `"${t.name}"`).join(', ');
+            analysis.push(`${names} ${dominant.length > 1 ? 'are' : 'is'} in the Dominant quadrant, indicating high market reach with strong growth momentum.`);
+        }
+
+        if (emerging.length > 0) {
+            const names = emerging.slice(0, 2).map(t => `"${t.name}"`).join(', ');
+            analysis.push(`${names} ${emerging.length > 1 ? 'show' : 'shows'} emerging potential with rapid growth but limited reach yet - early mover opportunity.`);
+        }
+
+        if (saturated.length > 0) {
+            analysis.push(`${saturated.length} trend${saturated.length > 1 ? 's are' : ' is'} in the Saturated zone - high visibility but slowing momentum.`);
+        }
+
+        if (niche.length > 0 && niche.length === data.length) {
+            analysis.push(`All trends are in the Niche quadrant, suggesting specialized topics with room for market expansion.`);
+        }
+
+        // Sentiment insight
+        if (positive > negative && positive > neutral) {
+            analysis.push(`Overall market sentiment is positive (${Math.round(positive / data.length * 100)}%), suggesting favorable conditions for expansion.`);
+        } else if (negative > positive) {
+            analysis.push(`Caution: Negative sentiment detected in ${Math.round(negative / data.length * 100)}% of trends. Monitor for risks.`);
+        }
+
+        // If only one trend, give specific advice
+        if (data.length === 1) {
+            const t = data[0];
+            const quadrant = t.velocity > 0 ? (t.volume > maxVolume / 2 ? 'Dominant' : 'Emerging') : (t.volume > maxVolume / 2 ? 'Saturated' : 'Niche');
+            const sentimentLabel = t.sentiment > 0.2 ? 'positive' : t.sentiment < -0.2 ? 'negative' : 'neutral';
+            return `Your primary trend "${t.name}" is positioned in the ${quadrant} quadrant with ${sentimentLabel} sentiment. ${quadrant === 'Emerging' ? 'This is an early-stage opportunity - consider increasing visibility investments.' : quadrant === 'Dominant' ? 'Strong market position - focus on maintaining leadership.' : quadrant === 'Saturated' ? 'Consider differentiation strategies to stand out.' : 'Niche positioning offers specialized audience targeting opportunities.'}`;
+        }
+
+        return analysis.length > 0 ? analysis.join(' ') : "Trend data is being analyzed. Additional insights will appear as more signals are collected.";
     }
 
     renderDrawer(trend, isOpen) {
