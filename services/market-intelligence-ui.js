@@ -14,7 +14,8 @@ class MarketIntelligenceUI {
             projectId: null,
             timeRange: savedDefaultRange,
             selectedChannels: ['News', 'Social'],
-            selectedTrendId: null
+            selectedTrendId: null,
+            globalBriefing: ''
         };
 
         if (this.container) {
@@ -187,6 +188,7 @@ class MarketIntelligenceUI {
                 ${this.renderHeader()}
                 
                 <div class="transition-all duration-500 ease-in-out ${isDrawerOpen ? 'md:mr-[24rem]' : ''}">
+                    ${this.renderMainBriefing()}
                     ${this.renderContent()}
                 </div>
 
@@ -263,6 +265,33 @@ class MarketIntelligenceUI {
                     </div>
                 </div>
             </header>
+        `;
+    }
+
+    renderMainBriefing() {
+        const { globalBriefing, status } = this.state;
+        if (status === 'analyzing' || status === 'loading') return '';
+        if (!globalBriefing) return '';
+
+        return `
+            <div class="mb-10 px-8 py-10 bg-indigo-500/5 border border-indigo-500/10 rounded-3xl relative overflow-hidden group">
+                <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 blur-[100px] -mr-32 -mt-32 transition-all group-hover:bg-indigo-500/20"></div>
+                <div class="relative z-10">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                        </div>
+                        <h2 class="text-[10px] font-black text-indigo-400 uppercase tracking-[0.4em]">Project Executive Briefing</h2>
+                    </div>
+                    <p class="text-xl text-slate-200 leading-chill font-bold tracking-tight">
+                        ${globalBriefing}
+                    </p>
+                    <div class="mt-6 flex items-center gap-4">
+                        <span class="text-[10px] text-slate-500 font-bold uppercase tracking-widest italic">Synthesized from ${this.state.data.length} Tracked Industry Trends</span>
+                        <div class="h-px flex-1 bg-slate-800"></div>
+                    </div>
+                </div>
+            </div>
         `;
     }
 
@@ -734,11 +763,12 @@ window.mountMarketIntelligence = function (containerId) {
     return window.marketIntelligenceInstance;
 };
 
-window.refreshMarketIntelligence = function (projectId, keywords, data) {
+window.refreshMarketIntelligence = function (projectId, keywords, data, meta = {}) {
     const freshState = {
         projectId: projectId,
         keywords: keywords,
         data: data || [],
+        globalBriefing: meta.globalBriefing || '',
         status: 'success'
     };
 
