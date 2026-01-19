@@ -2910,6 +2910,78 @@ ${agentList}
                 }
                 break;
 
+            case 'market_intelligence':
+                // Load Market Intelligence Matrix data
+                try {
+                    const targetId = (state.projectId && state.projectId !== '') ? state.projectId : state.pipelineContext;
+                    const isReserved = ['market', 'brand', 'knowledge', 'studio', 'growth', 'all'].includes(targetId);
+
+                    // Try to get data from global marketIntelligenceInstance first
+                    if (window.marketIntelligenceInstance && window.marketIntelligenceInstance.state.data) {
+                        const miData = window.marketIntelligenceInstance.state.data;
+                        const maxVolume = 100000;
+
+                        data = {
+                            source: 'Market Intelligence Matrix',
+                            projectId: targetId,
+                            count: miData.length,
+                            keywords: miData.map(t => {
+                                const quadrant = t.velocity > 0 ? (t.volume > maxVolume / 2 ? 'Dominant' : 'Emerging') : (t.volume > maxVolume / 2 ? 'Saturated' : 'Niche');
+                                const sentiment = t.sentiment > 0.2 ? 'Positive' : t.sentiment < -0.2 ? 'Negative' : 'Neutral';
+                                return {
+                                    name: t.name,
+                                    quadrant,
+                                    sentiment,
+                                    velocity: t.velocity,
+                                    volume: t.volume,
+                                    sentimentScore: t.sentiment,
+                                    summary: t.summary || ''
+                                };
+                            }),
+                            rawText: miData.map(t => {
+                                const quadrant = t.velocity > 0 ? (t.volume > maxVolume / 2 ? 'Dominant' : 'Emerging') : (t.volume > maxVolume / 2 ? 'Saturated' : 'Niche');
+                                const sentiment = t.sentiment > 0.2 ? 'Positive' : t.sentiment < -0.2 ? 'Negative' : 'Neutral';
+                                return `Keyword: ${t.name}\nQuadrant: ${quadrant}\nSentiment: ${sentiment}\nGrowth: ${t.velocity}%\nReach: ${t.volume}`;
+                            }).join('\n\n')
+                        };
+                    } else if (targetId && !isReserved) {
+                        // Fallback: Query from Firestore
+                        const firestore = window.db || (typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null);
+                        if (firestore) {
+                            const snapshot = await firestore.collection('projects').doc(targetId)
+                                .collection('marketPulse_tracking')
+                                .orderBy('createdAt', 'desc')
+                                .limit(1)
+                                .get();
+
+                            if (!snapshot.empty) {
+                                const tracking = snapshot.docs[0].data();
+                                const trends = tracking.trends || [];
+                                const maxVolume = 100000;
+
+                                data = {
+                                    source: 'Market Intelligence Matrix (Firestore)',
+                                    projectId: targetId,
+                                    count: trends.length,
+                                    keywords: trends.map(t => {
+                                        const quadrant = t.velocity > 0 ? (t.volume > maxVolume / 2 ? 'Dominant' : 'Emerging') : (t.volume > maxVolume / 2 ? 'Saturated' : 'Niche');
+                                        const sentiment = t.sentiment > 0.2 ? 'Positive' : t.sentiment < -0.2 ? 'Negative' : 'Neutral';
+                                        return { name: t.name, quadrant, sentiment, velocity: t.velocity, volume: t.volume };
+                                    }),
+                                    rawText: trends.map(t => `Keyword: ${t.name}, Quadrant: ${t.velocity > 0 ? (t.volume > maxVolume / 2 ? 'Dominant' : 'Emerging') : (t.volume > maxVolume / 2 ? 'Saturated' : 'Niche')}`).join('\n')
+                                };
+                            } else {
+                                data = { source: 'Market Intelligence Matrix', message: 'No data found. Run Market Scan first.', keywords: [] };
+                            }
+                        }
+                    } else {
+                        data = { source: 'Market Intelligence Matrix', message: 'Project context not set', keywords: [] };
+                    }
+                } catch (e) {
+                    data = { source: 'Market Intelligence Matrix', error: e.message, keywords: [] };
+                }
+                break;
+
             default:
                 return {
                     success: false,
@@ -3156,6 +3228,7 @@ ${agentList}
     // ============================================
     function updateInputSourceUI(source) {
         document.getElementById('wf-input-knowledge-options').style.display = source === 'knowledge_hub' ? 'block' : 'none';
+        document.getElementById('wf-input-market-intelligence-options').style.display = source === 'market_intelligence' ? 'block' : 'none';
         document.getElementById('wf-input-firestore-options').style.display = source === 'firestore_query' ? 'block' : 'none';
         document.getElementById('wf-input-manual-options').style.display = source === 'manual_json' ? 'block' : 'none';
         updateNodeProperty('inputSource', source);
@@ -3255,6 +3328,7 @@ ${agentList}
             if (source === 'project_brief') return ['name', 'description', 'goals', 'targetAudience'];
             if (source === 'knowledge_hub') return ['items', 'count', 'source'];
             if (source === 'brand_brain') return ['persona', 'tone', 'values'];
+            if (source === 'market_intelligence') return ['keywords', 'count', 'rawText', 'source'];
             return ['data', 'source'];
         }
 
