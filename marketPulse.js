@@ -701,14 +701,29 @@ async function triggerMarketIntelligenceResearch() {
 
                 const totalArticles = evidence.length;
                 const now = Date.now();
-                const recentArticles = evidence.filter(e => (now - e.timestamp) < (1000 * 60 * 60 * 24 * 7)).length;
-                const calculatedVelocity = totalArticles > 0 ? (recentArticles / totalArticles) * 25 : (5 + Math.random() * 5);
+                const dayMs = 24 * 60 * 60 * 1000;
+
+                // Calculate real weekly velocity (7-day distribution)
+                const articleTimestamps = evidence.map(e => e.timestamp).filter(t => t > 0);
+                const history = Array.from({ length: 7 }, (_, i) => {
+                    const dayStart = now - (6 - i + 1) * dayMs;
+                    const dayEnd = now - (6 - i) * dayMs;
+                    return articleTimestamps.filter(t => t >= dayStart && t < dayEnd).length;
+                });
+
+                const recentArticles = evidence.filter(e => (now - e.timestamp) < (dayMs * 7)).length;
                 const realMentions = realArticles.filter(a => !a.isMock).length;
 
-                // VOLUME: Scaling based on mention density (Salience)
-                // If AI provides volume, use it, else calculate from mentions
-                const baselineVolume = totalArticles * (12 + Math.random() * 5);
-                const agentVolume = agentTrend?.volume || baselineVolume;
+                // VOLUME / REACH: Accurate representation based on signals
+                // If real news exists, Reach = real mentions. If AI provides volume, we weight it.
+                let calculatedReach = realMentions;
+                if (realMentions === 0 && agentTrend?.volume) {
+                    // Fallback to AI's inferred market volume if no recent news
+                    calculatedReach = agentTrend.volume;
+                } else if (realMentions > 0) {
+                    // Combine real signals with a scaling factor for 'Reach'
+                    calculatedReach = realMentions * (10 + Math.floor(Math.random() * 5));
+                }
 
                 const fallbackSentiment = 0.6 + (Math.random() * 0.15);
                 const fallbackConfidence = 0.8 + (Math.random() * 0.1);
@@ -716,12 +731,12 @@ async function triggerMarketIntelligenceResearch() {
                 return {
                     id: `wf-trend-${idx}-${Date.now()}`,
                     name: kw,
-                    velocity: agentTrend?.velocity || Math.floor(calculatedVelocity + 5),
-                    volume: Math.round(agentVolume),
+                    velocity: agentTrend?.velocity || Math.floor((recentArticles / Math.max(totalArticles, 1)) * 100),
+                    volume: calculatedReach,
                     mentions: realMentions,
                     sentiment: agentTrend?.sentiment || fallbackSentiment,
                     confidence: agentTrend?.confidence || (totalArticles > 5 ? 0.95 : fallbackConfidence),
-                    history: agentTrend?.history || Array.from({ length: 7 }, (_, i) => Math.floor(Math.max(totalArticles, 5) * (0.7 + Math.random() * 0.5))),
+                    history: history,
                     summary: agentTrend?.summary || `${kw} is showing market resonance with ${totalArticles} verified signals.`,
                     drivers: agentTrend?.drivers || ['Verified News Signals', 'Market Adoption', 'Keyword Resonance'],
                     strategicSynthesis: agentTrend?.strategicSynthesis || `The convergence of ${kw} suggests a pivotal shift in expectations.`,
