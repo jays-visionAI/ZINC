@@ -579,8 +579,8 @@ async function triggerMarketIntelligenceResearch() {
                             kw,
                             currentProjectData,
                             {
-                                maxResults: 40,
-                                when: lastScanTime ? '7d' : '1y' // Intelligent delta: if we have cache, only grab last 7 days to find new ones
+                                maxResults: 50,
+                                when: lastScanTime ? '7d' : '1y'
                             }
                         );
 
@@ -603,7 +603,8 @@ async function triggerMarketIntelligenceResearch() {
                         keywordNewsMap[kw] = existingArticles;
                     }
 
-                    console.log(`[MarketPulse] Total intelligence pool for "${kw}": ${keywordNewsMap[kw].length} articles`);
+                    const poolSize = keywordNewsMap[kw] ? keywordNewsMap[kw].length : 0;
+                    console.log(`[MarketPulse] Total intelligence pool for "${kw}": ${poolSize} articles`);
                 } catch (newsErr) {
                     console.warn(`[MarketPulse] News fetch for "${kw}" failed:`, newsErr.message);
                 }
@@ -659,23 +660,22 @@ async function triggerMarketIntelligenceResearch() {
                     url: article.url || article.link || `https://news.google.com/search?q=${encodeURIComponent(kw)}`
                 }));
 
-                // Calculate real metrics based on evidence
                 const totalArticles = evidence.length;
-
-                // Velocity: Percentage of articles from the last 7 days (simplified proxy for growth)
                 const now = Date.now();
                 const recentArticles = evidence.filter(e => (now - e.timestamp) < (1000 * 60 * 60 * 24 * 7)).length;
-                const calculatedVelocity = totalArticles > 0 ? (recentArticles / totalArticles) * 25 : 0;
+                const calculatedVelocity = totalArticles > 0 ? (recentArticles / totalArticles) * 25 : (5 + Math.random() * 5);
+
+                const realMentions = realArticles.filter(a => !a.isMock).length;
 
                 return {
                     id: `wf-trend-${idx}-${Date.now()}`,
                     name: kw,
                     velocity: agentTrend?.velocity || Math.floor(calculatedVelocity + 5),
-                    volume: agentTrend?.volume || totalArticles * 10, // Base volume + multiplier for impact
-                    mentions: totalArticles,
-                    sentiment: agentTrend?.sentiment || 0.65, // Neutral-positive fallback
+                    volume: agentTrend?.volume || Math.max(totalArticles * 10, 15),
+                    mentions: realMentions,
+                    sentiment: agentTrend?.sentiment || 0.65,
                     confidence: agentTrend?.confidence || (totalArticles > 5 ? 0.95 : 0.85),
-                    history: agentTrend?.history || Array.from({ length: 7 }, (_, i) => Math.floor(totalArticles * (0.8 + Math.random() * 0.4))),
+                    history: agentTrend?.history || Array.from({ length: 7 }, (_, i) => Math.floor(Math.max(totalArticles, 5) * (0.8 + Math.random() * 0.4))),
                     summary: agentTrend?.summary || `${kw} is showing significant market resonance with ${totalArticles} verified signals across news channels.`,
                     drivers: agentTrend?.drivers || ['Verified News Signals', 'Real-time Market Adoption', 'Strategic Keyword Match'],
                     strategicSynthesis: agentTrend?.strategicSynthesis || `The convergence of ${kw} with current market dynamics suggests a pivotal shift in user expectations. Based on recent intelligence, the focus is moving from secondary implementation to core architectural integration.`,

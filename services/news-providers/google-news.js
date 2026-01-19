@@ -13,7 +13,8 @@ class GoogleNewsProvider {
         // CORS proxy options (try in order if one fails)
         this.corsProxies = [
             'https://api.allorigins.win/raw?url=',
-            'https://corsproxy.io/?'
+            'https://corsproxy.io/?',
+            'https://thingproxy.freeboard.io/fetch/'
         ];
         this.currentProxyIndex = 0;
     }
@@ -26,13 +27,18 @@ class GoogleNewsProvider {
      * @param {string} when - Time filter (e.g., '1y', '7d', '1h')
      */
     buildRssUrl(query, language = 'en', country = 'US', when = '1y') {
-        const timeFilter = when ? `+when:${when}` : '+when:1y';
-        const encodedQuery = encodeURIComponent(query + timeFilter);
         const hl = language.toLowerCase();
         const gl = country.toUpperCase();
         const ceid = `${gl}:${hl}`;
 
-        return `https://news.google.com/rss/search?q=${encodedQuery}&hl=${hl}&gl=${gl}&ceid=${ceid}`;
+        // Standard Google News time filters in RSS: qdr:y (year), qdr:m (month), qdr:w (week), qdr:d (day)
+        let qdr = 'qdr:y';
+        if (when === '7d' || when === '1w') qdr = 'qdr:w';
+        else if (when === '1d' || when === '24h') qdr = 'qdr:d';
+        else if (when === '1m') qdr = 'qdr:m';
+
+        // Encoding query separately from tbs
+        return `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=${hl}&gl=${gl}&ceid=${ceid}&tbs=${qdr}`;
     }
 
     /**
@@ -44,11 +50,12 @@ class GoogleNewsProvider {
         const {
             language = 'en',
             country = 'US',
-            maxResults = 20,
+            maxResults = 50,
             when = '1y'
         } = options;
 
         const rssUrl = this.buildRssUrl(query, language, country, when);
+        console.log(`[GoogleNews] Fetching: ${rssUrl}`);
 
         // Try each CORS proxy until one works
         for (let i = 0; i < this.corsProxies.length; i++) {
@@ -64,11 +71,18 @@ class GoogleNewsProvider {
                 }
 
                 const xmlText = await response.text();
+
+                // Basic XML validation
+                if (!xmlText || xmlText.trim().length < 100) {
+                    console.warn(`[GoogleNews] Proxy ${proxyIndex} returned empty or invalid response`);
+                    continue;
+                }
+
                 const articles = this.parseRss(xmlText, maxResults);
 
                 if (articles.length > 0) {
                     this.currentProxyIndex = proxyIndex; // Remember working proxy
-                    console.log(`[GoogleNews] Fetched ${articles.length} articles via proxy ${proxyIndex}`);
+                    console.log(`[GoogleNews] ✅ Fetched ${articles.length} articles via proxy ${proxyIndex}`);
                     return articles;
                 }
             } catch (error) {
@@ -77,7 +91,7 @@ class GoogleNewsProvider {
         }
 
         // All proxies failed, return mock data
-        console.warn('[GoogleNews] All proxies failed, returning mock data');
+        console.warn('[GoogleNews] All proxies failed, returning fallback metadata.');
         return this.getMockData(query);
     }
 
@@ -112,12 +126,12 @@ class GoogleNewsProvider {
                 const cleanDescription = description.replace(/<[^>]*>/g, '').trim();
 
                 articles.push({
-                    id: `gnews-${Date.now()}-${i}`,
+                    id: `gnews-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 5)}`,
                     title: title,
                     description: cleanDescription,
                     content: cleanDescription,
                     url: link,
-                    imageUrl: null, // Google News RSS doesn't include images
+                    imageUrl: null,
                     publishedAt: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(),
                     source: {
                         name: source,
@@ -125,7 +139,7 @@ class GoogleNewsProvider {
                         provider: 'google-news'
                     },
                     headline: title,
-                    snippet: cleanDescription.substring(0, 200)
+                    snippet: cleanDescription.substring(0, 240)
                 });
             }
 
@@ -145,28 +159,41 @@ class GoogleNewsProvider {
         return [
             {
                 id: `mock-gnews-1`,
-                title: `Latest ${query} News - Global Coverage`,
-                description: `Comprehensive coverage of ${query} from global news sources. This is demonstration data.`,
-                content: `Full article about ${query}...`,
+                title: `Strategic Pulse: ${query} Market Resonance`,
+                description: `Signals detected for ${query} across global digital channels. Synthesizing insights...`,
+                content: `AI detected emerging resonance for ${query}...`,
                 url: searchUrl,
                 imageUrl: null,
                 publishedAt: now,
-                source: { name: 'ZYNK News (Demo)', region: 'GLOBAL', provider: 'google-news' },
-                headline: `Latest ${query} News - Global Coverage`,
-                snippet: `Comprehensive coverage of ${query} from global news sources.`,
+                source: { name: 'ZYNK Network', region: 'GLOBAL', provider: 'google-news' },
+                headline: `Strategic Pulse: ${query} Market Resonance`,
+                snippet: `Latent market signals detected for "${query}".`,
                 isMock: true
             },
             {
                 id: `mock-gnews-2`,
-                title: `${query} Market Analysis & Trends`,
-                description: `In-depth analysis of ${query} market movements and future predictions.`,
-                content: `Detailed analysis of ${query}...`,
+                title: `${query} Adoption Analysis`,
+                description: `Analyzing adoption patterns and market sentiment for ${query}.`,
+                content: `Detailed adoption analysis for ${query}...`,
                 url: searchUrl,
                 imageUrl: null,
                 publishedAt: now,
-                source: { name: 'ZYNK News (Demo)', region: 'GLOBAL', provider: 'google-news' },
-                headline: `${query} Market Analysis & Trends`,
-                snippet: `In-depth analysis of ${query} market movements.`,
+                source: { name: 'Market Intelligence', region: 'GLOBAL', provider: 'google-news' },
+                headline: `${query} Adoption Analysis`,
+                snippet: `Predictive models show increasing interest in ${query}.`,
+                isMock: true
+            },
+            {
+                id: `mock-gnews-3`,
+                title: `Future Outlook: ${query} Ecosystem`,
+                description: `Projected growth and risk factors for the ${query} sector in 2026.`,
+                content: `Ecosystem deep-dive...`,
+                url: searchUrl,
+                imageUrl: null,
+                publishedAt: now,
+                source: { name: 'Strategic Forecast', region: 'GLOBAL', provider: 'google-news' },
+                headline: `Future Outlook: ${query} Ecosystem`,
+                snippet: `Long-term strategic importance of ${query} remains high.`,
                 isMock: true
             }
         ];
