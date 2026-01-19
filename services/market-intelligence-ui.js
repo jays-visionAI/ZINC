@@ -708,28 +708,36 @@ class MarketIntelligenceUI {
                 // Correct parsing: WorkflowEngine returns { outputs: { node_id: data, ... }, workflowId: '...' }
                 let conclusion = '';
                 if (result && result.outputs) {
-                    // 1. Find the END node output
-                    const endNodeId = Object.keys(result.outputs).find(id => {
-                        const node = result.outputs[id];
-                        // If it's the result of an 'end' node execution
-                        return id.startsWith('node_') && (typeof result.outputs[id] === 'string' || result.outputs[id]?.text);
+                    // Try to find the most meaningful output
+                    const allKeys = Object.keys(result.outputs);
+
+                    // 1. Check if there's an 'end' node with a specific value
+                    const endNodeKey = allKeys.find(id => {
+                        const val = result.outputs[id];
+                        return typeof val === 'string' && val.length > 20; // Likely a generated text
                     });
 
-                    // 2. If not found by ID, try to find the most 'complete' looking string or text object
-                    if (endNodeId) {
-                        const finalOutput = result.outputs[endNodeId];
-                        conclusion = typeof finalOutput === 'string' ? finalOutput : (finalOutput.text || JSON.stringify(finalOutput));
+                    if (endNodeKey) {
+                        conclusion = result.outputs[endNodeKey];
                     } else {
-                        // Fallback: Get the last node's output (usually the one before end)
-                        const allKeys = Object.keys(result.outputs);
-                        const lastNodeId = allKeys[allKeys.length - 1];
-                        const lastOutput = result.outputs[lastNodeId];
-                        conclusion = typeof lastOutput === 'string' ? lastOutput : (lastOutput?.text || JSON.stringify(lastOutput));
+                        // 2. Iterate backwards from the end to find the first large string or text object
+                        for (let i = allKeys.length - 1; i >= 0; i--) {
+                            const val = result.outputs[allKeys[i]];
+                            if (typeof val === 'string' && val.length > 50 && !val.includes('{{')) {
+                                conclusion = val;
+                                break;
+                            } else if (val && val.text && typeof val.text === 'string' && val.text.length > 50) {
+                                conclusion = val.text;
+                                break;
+                            }
+                        }
                     }
                 }
 
-                if (!conclusion || conclusion === '{}' || conclusion.includes('Workflow started')) {
-                    conclusion = 'Unable to generate strategic recommendations at this time.';
+                // If it's still containing template variables, the workflow produced a literal template instead of generating text
+                if (!conclusion || conclusion === '{}' || conclusion.includes('Workflow started') || conclusion.includes('{{')) {
+                    console.warn('[MarketIntelligence] Workflow produced empty or un-resolved output:', conclusion);
+                    conclusion = 'Unable to generate strategic recommendations at this time. Please check your workflow Agent node configuration.';
                 }
 
                 // Cache the result
@@ -1033,10 +1041,12 @@ ${data.map(t => {
                     <h3 class="text-xl font-black text-white">${item.title || 'Strategic Analysis'}</h3>
                     <div class="text-xs text-slate-500 mt-1">Generated at ${timeStr}</div>
                 </div>
-                ${item.keywords && item.keywords.length > 0 ? `
+                ${item.keywords && Array.isArray(item.keywords) && item.keywords.length > 0 ? `
                     <div class="flex flex-wrap gap-2">
                         ${item.keywords.map(kw => `<span class="px-2 py-1 bg-slate-800 rounded-full text-[10px] font-bold text-slate-400">${kw}</span>`).join('')}
                     </div>
+                ` : typeof item.keywords === 'string' && item.keywords.length > 0 ? `
+                    <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Keywords: ${item.keywords}</div>
                 ` : ''}
                 <div class="p-5 bg-slate-800/30 border border-slate-800 rounded-xl">
                     <p class="text-sm text-slate-200 leading-relaxed whitespace-pre-line">${item.content}</p>
