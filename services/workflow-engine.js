@@ -417,16 +417,19 @@ const WorkflowEngine = (function () {
                 const parts = path.split('.');
                 let val = context;
 
-                // Handle special paths
+                // 1. Core Paths (Original)
                 if (parts[0] === 'projectId') return context.projectId || '';
-                if (parts[0] === 'inputs') {
-                    let obj = context.projectContext?.inputs || {};
+
+                // inputs & aliases
+                if (parts[0] === 'inputs' || parts[0] === 'input' || parts[0] === 'inputData') {
+                    let obj = context.projectContext?.inputs || context.projectContext?.inputData || context.inputs || {};
                     for (let i = 1; i < parts.length; i++) {
                         if (obj && obj[parts[i]] !== undefined) obj = obj[parts[i]];
                         else return match;
                     }
                     return typeof obj === 'object' ? JSON.stringify(obj) : obj;
                 }
+
                 if (parts[0] === 'advancedOptions') {
                     let obj = context.projectContext?.advancedOptions || {};
                     for (let i = 1; i < parts.length; i++) {
@@ -435,6 +438,8 @@ const WorkflowEngine = (function () {
                     }
                     return typeof obj === 'object' ? JSON.stringify(obj) : obj;
                 }
+
+                // nodes path (Original)
                 if (parts[0] === 'nodes') {
                     const nodeId = parts[1];
                     const nodeOutput = context.allOutputs ? context.allOutputs[nodeId] : null;
@@ -444,7 +449,6 @@ const WorkflowEngine = (function () {
                         return typeof nodeOutput === 'object' ? JSON.stringify(nodeOutput) : nodeOutput;
                     }
 
-                    // Handle deeper properties if output is an object
                     let obj = nodeOutput;
                     for (let i = 2; i < parts.length; i++) {
                         if (obj && obj[parts[i]] !== undefined) obj = obj[parts[i]];
@@ -452,13 +456,20 @@ const WorkflowEngine = (function () {
                     }
                     return typeof obj === 'object' ? JSON.stringify(obj) : obj;
                 }
-                if (parts[0] === 'prev') {
-                    // Get output from the first available previous node
+
+                // 2. prev & lastNode Aliases
+                if (parts[0] === 'prev' || parts[0] === 'lastNode') {
                     const keys = Object.keys(context.previousOutputs);
                     if (keys.length > 0) {
                         let obj = context.previousOutputs[keys[0]];
                         for (let i = 1; i < parts.length; i++) {
-                            if (obj && obj[parts[i]] !== undefined) obj = obj[parts[i]];
+                            const key = parts[i];
+                            // Smart mapping for common result keys
+                            if (obj && obj[key] === undefined && (key === 'text' || key === 'content')) {
+                                const fallback = obj.response || obj.result || obj.text || obj.content;
+                                if (fallback !== undefined) { obj = fallback; continue; }
+                            }
+                            if (obj && obj[key] !== undefined) obj = obj[key];
                             else return match;
                         }
                         return typeof obj === 'object' ? JSON.stringify(obj) : obj;
