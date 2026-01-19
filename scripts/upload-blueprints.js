@@ -6,7 +6,7 @@ try {
     admin = require('firebase-admin');
 } catch (e) {
     try {
-        admin = require('../functions/node_modules/firebase-admin');
+        admin = require('../firebase-functions/node_modules/firebase-admin');
     } catch (e2) {
         console.error("❌ Could not find 'firebase-admin' module.");
         process.exit(1);

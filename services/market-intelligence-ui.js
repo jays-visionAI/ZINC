@@ -220,7 +220,7 @@ class MarketIntelligenceUI {
                 <div class="flex flex-wrap items-center gap-4">
                     <div class="flex flex-col items-end gap-1.5">
                         <div class="bg-slate-900 border border-slate-800 rounded-lg p-1 flex">
-                            ${['7D', '30D', '90D', '180D'].map(range => `
+                            ${['7D', '30D', '60D', '90D', '180D'].map(range => `
                                 <button data-range="${range}" class="time-range-btn px-4 py-1.5 text-xs font-semibold rounded-md transition-all ${timeRange === range ? 'bg-slate-800 text-white shadow-sm ring-1 ring-white/5' : 'text-slate-500 hover:text-white'}">
                                     ${range}
                                 </button>

@@ -14,7 +14,7 @@ try {
     admin = require('firebase-admin');
 } catch (e) {
     try {
-        admin = require('../functions/node_modules/firebase-admin');
+        admin = require('../firebase-functions/node_modules/firebase-admin');
     } catch (e2) {
         console.error("❌ Could not find 'firebase-admin' module. Please run 'npm install' in the functions directory.");
         process.exit(1);
@@ -228,7 +228,7 @@ const db = admin.firestore();
             description: "Generates visual content using AI image generation (Imagen, DALL-E, etc.).",
             status: "active",
             currentVersion: "v1.0.0",
-            sourceFiles: ["services/agent-execution-service.js", "functions/generateImage.js"],
+            sourceFiles: ["services/agent-execution-service.js", "firebase-functions/generateImage.js"],
             procedures: [
                 { step: 1, action: "analyze_visual_needs", label: "Analyze Visual Needs", description: "Determine image requirements", color: "#3b82f6" },
                 { step: 2, action: "generate_prompt", label: "Generate Image Prompt", description: "Create optimized prompt for AI model", color: "#10b981" },

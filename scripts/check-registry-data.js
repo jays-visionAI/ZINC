@@ -1,7 +1,7 @@
 // scripts/check-registry-data.js
 // Quick check of existing Agent Registry data
 
-const admin = require('../functions/node_modules/firebase-admin');
+const admin = require('../firebase-functions/node_modules/firebase-admin');
 
 if (admin.apps.length === 0) {
     try {

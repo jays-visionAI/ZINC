@@ -5,7 +5,7 @@
     },
     "functions": [
         {
-            "source": "functions",
+            "source": "firebase-functions",
             "codebase": "default",
             "ignore": [
                 "node_modules",
@@ -25,7 +25,7 @@
             "firestore.indexes.json",
             "**/.*",
             "**/node_modules/**",
-            "functions/**",
+            "firebase-functions/**",
             ".agent/**",
             "design-mockups/**",
             "package.json",

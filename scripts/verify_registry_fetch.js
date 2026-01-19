@@ -10,7 +10,7 @@ if (!admin.apps.length) {
 }
 
 // Require AFTER init to prevent "No App" error in dependent modules
-const { LLMRouter } = require('../functions/llmRouter');
+const { LLMRouter } = require('../firebase-functions/llmRouter');
 
 // Initialize Firebase Admin (Default Creds)
 if (!admin.apps.length) {
