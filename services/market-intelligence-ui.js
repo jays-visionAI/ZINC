@@ -482,11 +482,18 @@ class MarketIntelligenceUI {
         const height = 320;
         const padding = 40;
 
-        const maxVolume = 100000; // Standardized for matrix balance
-        const maxVelocity = 40;    // Standardized for matrix balance
+        // Dynamic scaling based on current data to ensure sensitivity (PRD 12.1)
+        const data = this.state.data || [];
+        const volumes = data.map(d => d.volume || 0);
+        const velocities = data.map(d => Math.abs(d.velocity || 0));
 
-        const getX = (v) => padding + ((v + maxVelocity) / (maxVelocity * 2)) * (width - padding * 2);
-        const getY = (v) => height - padding - (Math.min(v, maxVolume) / maxVolume) * (height - padding * 2);
+        // Find max values but keep a sensible minimum to prevent erratic scaling
+        const currentMaxVol = Math.max(...volumes, 200);
+        const currentMaxVel = Math.max(...velocities, 50);
+
+        const getX = (v) => padding + ((v + currentMaxVel) / (currentMaxVel * 2)) * (width - padding * 2);
+        const getY = (v) => height - padding - (Math.min(v, currentMaxVol) / currentMaxVol) * (height - padding * 2);
+        const midY = getY(currentMaxVol / 2);
 
         const quadrants = [
             { id: 'dominant', label: 'Dominant', pos: 'top-8 right-8', tooltipPos: 'top-full right-0 mt-2', arrowPos: 'bottom-full right-4 border-b-slate-800', advice: 'High growth, High reach. Mainstream trends with high impact. Focus on market leadership.' },
@@ -526,11 +533,11 @@ class MarketIntelligenceUI {
                     <svg width="100%" height="100%" viewBox="0 0 ${width} ${height}" class="overflow-visible">
                         <!-- Centering crosshair -->
                         <line x1="${getX(0)}" y1="${padding}" x2="${getX(0)}" y2="${height - padding}" stroke="rgba(34, 211, 238, 0.1)" stroke-width="2" />
-                        <line x1="${padding}" y1="${getY(50000)}" x2="${width - padding}" y2="${getY(50000)}" stroke="rgba(34, 211, 238, 0.1)" stroke-width="2" />
+                        <line x1="${padding}" y1="${midY}" x2="${width - padding}" y2="${midY}" stroke="rgba(34, 211, 238, 0.1)" stroke-width="2" />
                         
                         <!-- Grid lines -->
                         <line x1="${getX(0)}" y1="${padding}" x2="${getX(0)}" y2="${height - padding}" stroke="#1e293b" stroke-dasharray="4 4" />
-                        <line x1="${padding}" y1="${getY(50000)}" x2="${width - padding}" y2="${getY(50000)}" stroke="#1e293b" stroke-dasharray="4 4" />
+                        <line x1="${padding}" y1="${midY}" x2="${width - padding}" y2="${midY}" stroke="#1e293b" stroke-dasharray="4 4" />
 
                         <!-- Axis Labels -->
                         <text x="${width / 2}" y="${height - 8}" text-anchor="middle" fill="#475569" font-size="11" font-weight="900" class="tracking-widest">VELOCITY % (GROWTH)</text>
@@ -646,14 +653,18 @@ class MarketIntelligenceUI {
 
         const projectData = window.currentProjectData || {};
         const projectName = projectData.projectName || projectData.name || window.currentProjectName || 'Vision Chain';
-        const maxVolume = 100000;
+
+        // Calculate dynamic thresholds for quadrant classification (Consistent with UI scaling)
+        const volumes = data.map(d => d.volume || 0);
+        const maxVol = Math.max(...volumes, 200);
+        const volumeThreshold = maxVol / 2;
 
         // Categorize trends by quadrant
         const quadrantData = {
-            dominant: data.filter(t => t.velocity > 0 && t.volume > maxVolume / 2),
-            emerging: data.filter(t => t.velocity > 0 && t.volume <= maxVolume / 2),
-            saturated: data.filter(t => t.velocity <= 0 && t.volume > maxVolume / 2),
-            niche: data.filter(t => t.velocity <= 0 && t.volume <= maxVolume / 2)
+            dominant: data.filter(t => t.velocity > 0 && t.volume > volumeThreshold),
+            emerging: data.filter(t => t.velocity > 0 && t.volume <= volumeThreshold),
+            saturated: data.filter(t => t.velocity <= 0 && t.volume > volumeThreshold),
+            niche: data.filter(t => t.velocity <= 0 && t.volume <= volumeThreshold)
         };
 
         // Show loading state
@@ -684,7 +695,7 @@ class MarketIntelligenceUI {
                 projectName: projectName,
                 count: data.length,
                 keywords: data.map(t => {
-                    const quadrant = t.velocity > 0 ? (t.volume > maxVolume / 2 ? 'Dominant' : 'Emerging') : (t.volume > maxVolume / 2 ? 'Saturated' : 'Niche');
+                    const quadrant = t.velocity > 0 ? (t.volume > volumeThreshold ? 'Dominant' : 'Emerging') : (t.volume > volumeThreshold ? 'Saturated' : 'Niche');
                     const sentiment = t.sentiment > 0.2 ? 'Positive' : t.sentiment < -0.2 ? 'Negative' : 'Neutral';
                     return {
                         name: t.name,
@@ -696,7 +707,7 @@ class MarketIntelligenceUI {
                     };
                 }),
                 rawText: data.map(t => {
-                    const quadrant = t.velocity > 0 ? (t.volume > maxVolume / 2 ? 'Dominant' : 'Emerging') : (t.volume > maxVolume / 2 ? 'Saturated' : 'Niche');
+                    const quadrant = t.velocity > 0 ? (t.volume > volumeThreshold ? 'Dominant' : 'Emerging') : (t.volume > volumeThreshold ? 'Saturated' : 'Niche');
                     const sentiment = t.sentiment > 0.2 ? 'Positive' : t.sentiment < -0.2 ? 'Negative' : 'Neutral';
                     return `Keyword: ${t.name}\nQuadrant: ${quadrant}\nSentiment: ${sentiment}\nGrowth: ${t.velocity}%\nReach: ${t.volume}`;
                 }).join('\n\n')
