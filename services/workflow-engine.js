@@ -518,12 +518,19 @@ const WorkflowEngine = (function () {
             if (!projectId) throw new Error('Project ID missing for Brand Brain fetch');
 
             try {
-                // Rules 437 keyed by userId, but we also use brandBrain/{projectId} at root for system agents
-                // Let's try root first, then nested
-                const doc = await db.collection('brandBrain').doc(projectId).get();
-                if (doc.exists) return doc.data();
+                // 1. Try root collection first (for system/shared agents)
+                try {
+                    const doc = await db.collection('brandBrain').doc(projectId).get();
+                    if (doc.exists) return doc.data();
+                } catch (err) {
+                    if (err.code === 'permission-denied') {
+                        console.log(`[WorkflowEngine] Root Brand Brain access restricted for ${projectId}, checking project nested...`);
+                    } else {
+                        throw err;
+                    }
+                }
 
-                // Nested Fallback (Rules 442)
+                // 2. Nested Fallback (standard user-owned project data)
                 const userId = ctx.projectContext?.userId || (firebase.auth().currentUser?.uid);
                 if (userId) {
                     const fallbackDoc = await db.collection('brandBrain').doc(userId).collection('projects').doc(projectId).get();
@@ -532,9 +539,7 @@ const WorkflowEngine = (function () {
 
                 return { error: 'Brand Brain not found' };
             } catch (err) {
-                if (err.code === 'permission-denied') {
-                    console.warn(`[WorkflowEngine] Permission Denied for Brand Brain at root. Trying nested...`);
-                }
+                console.error(`[WorkflowEngine] Error fetching Brand Brain for ${projectId}:`, err.message);
                 return { error: err.message };
             }
         }

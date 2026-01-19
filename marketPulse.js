@@ -178,26 +178,29 @@ async function loadUserProjects() {
     }
 }
 
-async function onProjectChange() {
-    if (!currentProjectId) return;
+async function onProjectChange(projectId, projectData) {
+    if (!projectId) {
+        console.warn('[MarketPulse] onProjectChange called without projectId');
+        return;
+    }
+    currentProjectId = projectId;
+    currentProjectData = projectData;
+    console.log('Project changed to:', projectId);
 
-    console.log('Project changed to:', currentProjectId);
-    document.getElementById('last-updated').textContent = 'Syncing...';
-
-    // Unsubscribe previous listener if exists
+    // Cleanup old listener
     if (marketPulseUnsubscribe) {
+        console.log('[MarketPulse] Cleaning up previous listener...');
         marketPulseUnsubscribe();
         marketPulseUnsubscribe = null;
     }
 
-    try {
-        // 1. Fetch Basic Project Data (One-time)
-        const doc = await firebase.firestore().collection('projects').doc(currentProjectId).get();
-        if (doc.exists) {
-            currentProjectData = doc.data();
+    document.getElementById('last-updated').textContent = 'Syncing...';
 
-            // 🧠 UNIFIED BRAIN: Store Core Agent Team reference
-            currentProjectData.coreAgentTeamInstanceId = doc.data().coreAgentTeamInstanceId || null;
+    try {
+        if (currentProjectData) {
+            console.log('[MarketPulse] Project data loaded:', currentProjectData);
+
+            // 🧠 UNIFIED BRAIN: Reference Core Agent Team
             if (currentProjectData.coreAgentTeamInstanceId) {
                 console.log('[MarketPulse] 🧠 Core Agent Team detected:', currentProjectData.coreAgentTeamInstanceId);
             } else {
@@ -249,6 +252,8 @@ async function onProjectChange() {
             .doc('latest')
             .onSnapshot((snapshot) => {
                 if (snapshot.exists) {
+                    const data = snapshot.data();
+
                     // Suppress background updates if we are in the middle of a manual refresh
                     if (isManuallyRefreshing) {
                         console.log('[MarketPulse] Suppressing background update during active manual research.');
@@ -256,9 +261,11 @@ async function onProjectChange() {
                     }
 
                     console.log('[MarketPulse] ⚡ Real-time update received from Scheduler');
-                    updateDashboardWithRealTimeData(snapshot.data());
+                    updateDashboardWithRealTimeData(data);
 
-                    const updatedTime = snapshot.data().updatedAt ? snapshot.data().updatedAt.toDate() : new Date();
+                    // Support both updatedAt (scheduler) and generatedAt (manual)
+                    const ts = data.updatedAt || data.generatedAt;
+                    const updatedTime = ts ? ts.toDate() : new Date();
                     document.getElementById('last-updated').textContent = updatedTime.toLocaleTimeString();
                 } else {
                     console.log('[MarketPulse] No scheduler data yet. Waiting for next run...');
@@ -266,6 +273,9 @@ async function onProjectChange() {
                 }
             }, (error) => {
                 console.error('[MarketPulse] Error listening to updates:', error);
+                if (error.code === 'permission-denied') {
+                    showNotification('Permission denied for market data.', 'error');
+                }
             });
 
     } catch (error) {
@@ -496,14 +506,28 @@ const MarketIntelligenceWarehouse = {
     // Load existing indices from Firestore
     loadIndices: async (projectId, keyword) => {
         const db = firebase.firestore();
-        const snapshot = await db.collection('projects').doc(projectId)
+        const baseQuery = db.collection('projects').doc(projectId)
             .collection('marketPulse_warehouse')
-            .where('keyword', '==', keyword)
-            .orderBy('publishedAt', 'desc')
-            .limit(100)
-            .get();
+            .where('keyword', '==', keyword);
 
-        return snapshot.docs.map(doc => doc.data());
+        try {
+            // Priority: Attempt ordered query (requires composite index)
+            const snapshot = await baseQuery.orderBy('publishedAt', 'desc').limit(100).get();
+            return snapshot.docs.map(doc => doc.data());
+        } catch (err) {
+            if (err.message && err.message.includes('requires an index')) {
+                console.warn(`[Warehouse] Index missing for "${keyword}" sort. Using memory sort fallback.`);
+                // Fallback: Fetch without order and sort in client memory
+                const snapshot = await baseQuery.limit(100).get();
+                const docs = snapshot.docs.map(doc => doc.data());
+                return docs.sort((a, b) => {
+                    const dateA = new Date(a.publishedAt || 0);
+                    const dateB = new Date(b.publishedAt || 0);
+                    return dateB - dateA;
+                });
+            }
+            throw err;
+        }
     },
 
     // Save new indices to Firestore with TTL
@@ -697,12 +721,30 @@ async function triggerMarketIntelligenceResearch() {
                 url: article.url || article.link || `https://news.google.com/search?q=${encodeURIComponent(kw)}`
             })) : [
                 {
-                    id: `ev-mock-${idx}-${Date.now()}`,
+                    id: `ev-mock-${idx}-1-${Date.now()}`,
                     title: `Signal detected for ${kw}`,
                     publisher: 'ZYNK Market Intelligence',
                     date: 'Scanning...',
                     timestamp: Date.now(),
                     snippet: `Latent market signals detected for "${kw}" across digital channels. Synthesizing insights...`,
+                    url: `https://news.google.com/search?q=${encodeURIComponent(kw)}`
+                },
+                {
+                    id: `ev-mock-${idx}-2-${Date.now()}`,
+                    title: `Emerging Trend Area: ${kw}`,
+                    publisher: 'ZYNK AI Analyst',
+                    date: 'Synthesizing...',
+                    timestamp: Date.now() - 3600000,
+                    snippet: `Predictive models show increasing resonance for "${kw}" in your target markets.`,
+                    url: `https://news.google.com/search?q=${encodeURIComponent(kw)}`
+                },
+                {
+                    id: `ev-mock-${idx}-3-${Date.now()}`,
+                    title: `Market Opportunity: ${kw}`,
+                    publisher: 'Growth Engine',
+                    date: 'Analyzing...',
+                    timestamp: Date.now() - 7200000,
+                    snippet: `Strategic analysis identifies "${kw}" as a critical pillar for upcoming market shifts.`,
                     url: `https://news.google.com/search?q=${encodeURIComponent(kw)}`
                 }
             ];
@@ -715,7 +757,7 @@ async function triggerMarketIntelligenceResearch() {
             trendCount++;
 
             const now = Date.now();
-            const recentArticles = evidence.filter(e => (now - e.timestamp) < (1000 * 60 * 60 * 24 * 7)).length;
+            const recentArticles = realArticles.filter(a => (now - new Date(a.publishedAt).getTime()) < (1000 * 60 * 60 * 24 * 7)).length;
             const calculatedVelocity = count > 0 ? (recentArticles / count) * 25 : (5 + Math.random() * 5);
 
             return {
@@ -723,7 +765,8 @@ async function triggerMarketIntelligenceResearch() {
                 name: kw,
                 velocity: agentTrend?.velocity || Math.floor(calculatedVelocity),
                 volume: agentTrend?.volume || Math.max(count * 10, 15),
-                mentions: count,
+                mentions: count, // This is REAL articles only. UI will use evidence.length only if this is undefined.
+                evidenceCount: evidence.length,
                 sentiment: sentiment,
                 confidence: agentTrend?.confidence || (count > 5 ? 0.95 : 0.85),
                 history: agentTrend?.history || Array.from({ length: 7 }, (_, i) => Math.floor(Math.max(count, 5) * (0.8 + Math.random() * 0.4))),
