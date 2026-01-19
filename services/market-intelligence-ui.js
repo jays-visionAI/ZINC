@@ -918,54 +918,48 @@ ${data.map(t => {
             if (snapshot.empty) return null;
             const data = snapshot.docs[0].data();
 
-            // Flexibly find content in various possible fields
-            const content = data.content || data.text || data.response || data.result || (typeof data.output === 'string' ? data.output : null);
-
+            // Standardize on 'content' field
             return {
                 id: snapshot.docs[0].id,
                 ...data,
-                content: content // Standardize to 'content' for the UI
+                content: data.content || data.text || data.response || '' // Fallback for old data, but aim for 'content'
             };
         } catch (err) {
             console.error('[MarketIntelligence] Error loading latest conclusion:', err);
             return null;
         }
     }
+
     async showConclusionHistory() {
         if (!currentProjectId) {
             showNotification('Project not loaded', 'error');
             return;
         }
 
-        // Create modal
-        const existingModal = document.getElementById('conclusion-history-modal');
-        if (existingModal) existingModal.remove();
-
         const modal = document.createElement('div');
         modal.id = 'conclusion-history-modal';
-        modal.className = 'fixed inset-0 z-[1000] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200';
-        modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-
+        modal.className = 'fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200';
         modal.innerHTML = `
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-5xl h-[80vh] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col">
-                <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/80 backdrop-blur-sm shrink-0">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-5xl h-[80vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+                <!-- Header -->
+                <div class="p-6 border-b border-slate-800 flex items-center justify-between">
                     <div>
-                        <h2 class="text-lg font-bold text-white">Strategic Conclusion History</h2>
+                        <h2 class="text-xl font-black text-white">Strategic Conclusion History</h2>
                         <p class="text-xs text-slate-500">Past market analyses and recommendations</p>
                     </div>
-                    <button onclick="document.getElementById('conclusion-history-modal').remove()" class="p-2 hover:bg-slate-800 rounded-lg text-slate-500 hover:text-white transition-colors">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    <button onclick="document.getElementById('conclusion-history-modal').remove()" class="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
                     </button>
                 </div>
-                <div class="flex flex-1 overflow-hidden">
-                    <!-- Left: History List -->
-                    <div id="conclusion-history-list" class="w-1/3 border-r border-slate-800 overflow-y-auto bg-slate-950/50">
-                        <div class="flex items-center justify-center h-full text-slate-600">
-                            <svg class="animate-spin mr-2" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>
-                            Loading...
-                        </div>
+                
+                <!-- Content -->
+                <div class="flex-1 flex overflow-hidden">
+                    <!-- List -->
+                    <div id="conclusion-history-list" class="w-80 border-r border-slate-800 overflow-y-auto bg-slate-950/30">
+                        <div class="p-8 flex justify-center italic text-slate-600">Loading history...</div>
                     </div>
-                    <!-- Right: Content Preview -->
+                    
+                    <!-- Preview -->
                     <div id="conclusion-history-preview" class="flex-1 overflow-y-auto p-6 bg-slate-900/50">
                         <div class="flex items-center justify-center h-full text-slate-600 text-sm">
                             Select an item to preview
@@ -976,8 +970,6 @@ ${data.map(t => {
         `;
 
         document.body.appendChild(modal);
-
-        // Load history
         await this.loadConclusionHistory();
     }
 
@@ -998,146 +990,86 @@ ${data.map(t => {
                     <div class="flex flex-col items-center justify-center h-full text-slate-600 p-6">
                         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="mb-3 opacity-50"><path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
                         <p class="text-sm font-medium">No history yet</p>
-                        <p class="text-xs text-slate-700">Conclusions will appear here after generation</p>
                     </div>
                 `;
                 return;
             }
 
-            const items = snapshot.docs.map(doc => {
-                const data = doc.data();
-                return {
-                    id: doc.id,
-                    ...data,
-                    // Flexibly map content for the list preview
-                    content: data.content || data.text || data.response || data.result || (typeof data.output === 'string' ? data.output : '')
-                };
-            });
+            const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             this.conclusionHistoryItems = items;
 
             listContainer.innerHTML = items.map((item, idx) => {
                 const date = item.createdAt?.toDate ? item.createdAt.toDate() : new Date();
                 const dateStr = date.toLocaleDateString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric' });
                 const timeStr = date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+                const content = item.content || item.text || item.response || '';
 
                 return `
                     <div class="conclusion-history-item group relative p-4 border-b border-slate-800 cursor-pointer hover:bg-slate-800/50 transition-colors ${idx === 0 ? 'bg-indigo-500/10 border-l-2 border-l-indigo-500' : ''}" data-idx="${idx}">
                         <div class="flex justify-between items-start mb-1">
                             <div class="text-[10px] text-slate-500 font-medium">${dateStr} ${timeStr}</div>
-                            <button class="delete-history-btn hidden group-hover:flex items-center justify-center w-6 h-6 rounded-md bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all" data-id="${item.id}" title="Delete">
+                            <button class="delete-history-btn hidden group-hover:flex items-center justify-center w-6 h-6 rounded-md bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all" data-id="${item.id}">
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                             </button>
                         </div>
                         <div class="text-sm font-bold text-white truncate pr-4">${item.title || 'Strategic Analysis'}</div>
-                        <div class="text-xs text-slate-500 mt-1 line-clamp-2">${(item.content || '').substring(0, 100)}...</div>
+                        <div class="text-xs text-slate-500 mt-1 line-clamp-2">${content.substring(0, 100)}...</div>
                     </div>
                 `;
             }).join('');
 
-            // Add click handlers for items
+            // Click Handlers
             listContainer.querySelectorAll('.conclusion-history-item').forEach(el => {
                 el.addEventListener('click', (e) => {
-                    // Skip if clicking delete button
                     if (e.target.closest('.delete-history-btn')) return;
-
                     const idx = parseInt(el.dataset.idx);
                     this.selectConclusionHistoryItem(idx);
-
-                    // Update selected state
-                    listContainer.querySelectorAll('.conclusion-history-item').forEach(item => {
-                        item.classList.remove('bg-indigo-500/10', 'border-l-2', 'border-l-indigo-500');
-                    });
+                    listContainer.querySelectorAll('.conclusion-history-item').forEach(i => i.classList.remove('bg-indigo-500/10', 'border-l-2', 'border-l-indigo-500'));
                     el.classList.add('bg-indigo-500/10', 'border-l-2', 'border-l-indigo-500');
                 });
             });
 
-            // Add click handlers for delete buttons
             listContainer.querySelectorAll('.delete-history-btn').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     e.stopPropagation();
-                    const docId = btn.dataset.id;
-                    if (confirm('Are you sure you want to delete this strategic conclusion?')) {
-                        await this.deleteConclusionHistoryItem(docId);
-                    }
+                    if (confirm('Delete this items?')) await this.deleteConclusionHistoryItem(btn.dataset.id);
                 });
             });
 
-            // Select first item by default
-            if (items.length > 0) {
-                this.selectConclusionHistoryItem(0);
-            }
-
+            if (items.length > 0) this.selectConclusionHistoryItem(0);
         } catch (err) {
-            console.error('[MarketIntelligence] Failed to load history:', err);
-            listContainer.innerHTML = `
-                <div class="flex items-center justify-center h-full text-rose-400 text-sm p-6">
-                    Failed to load history
-                </div>
-            `;
+            console.error('[MarketIntelligence] History load failed:', err);
         }
     }
 
     async deleteConclusionHistoryItem(docId) {
         if (!currentProjectId || !docId) return;
-
         try {
             const db = firebase.firestore();
-            await db.collection('projects').doc(currentProjectId)
-                .collection('strategicConclusions').doc(docId).delete();
-
-            console.log(`[MarketIntelligence] Deleted conclusion item: ${docId}`);
-
-            // Reload history after deletion
+            await db.collection('projects').doc(currentProjectId).collection('strategicConclusions').doc(docId).delete();
             await this.loadConclusionHistory();
-
-            // Also refresh main display if we just deleted the latest one
             const latest = await this.loadLatestConclusion();
             const container = document.getElementById('strategic-conclusion-content');
-            if (container) {
-                if (latest) {
-                    this.state.cachedConclusion = latest.content;
-                    container.innerHTML = this.renderConclusionContent(latest.content);
-                } else {
-                    this.state.cachedConclusion = null;
-                    container.innerHTML = `<p class="text-sm text-slate-400 italic">No historical conclusions found.</p>`;
-                }
-            }
-        } catch (err) {
-            console.error('[MarketIntelligence] Failed to delete history item:', err);
-            alert('Failed to delete the item. Please try again.');
-        }
+            if (container) container.innerHTML = latest ? this.renderConclusionContent(latest.content) : '<p class="text-sm text-slate-400 italic">No history.</p>';
+        } catch (err) { console.error(err); }
     }
 
     selectConclusionHistoryItem(idx) {
         const previewContainer = document.getElementById('conclusion-history-preview');
-        if (!previewContainer || !this.conclusionHistoryItems) return;
-
         const item = this.conclusionHistoryItems[idx];
-        if (!item) return;
+        if (!previewContainer || !item) return;
 
         const date = item.createdAt?.toDate ? item.createdAt.toDate() : new Date();
-        const dateStr = date.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
-        const timeStr = date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
-
-        // Flexibly find content
-        const displayContent = item.content || item.text || item.response || item.result || (typeof item.output === 'string' ? item.output : 'No content available.');
+        const content = item.content || item.text || item.response || 'No content found';
 
         previewContainer.innerHTML = `
             <div class="space-y-4">
                 <div>
-                    <div class="text-xs text-indigo-400 font-bold uppercase tracking-widest mb-1">${dateStr}</div>
+                    <div class="text-xs text-indigo-400 font-bold uppercase mb-1">${date.toLocaleString()}</div>
                     <h3 class="text-xl font-black text-white">${item.title || 'Strategic Analysis'}</h3>
-                    <div class="text-xs text-slate-500 mt-1">Generated at ${timeStr}</div>
                 </div>
-                ${item.keywords && Array.isArray(item.keywords) && item.keywords.length > 0 ? `
-                    <div class="flex flex-wrap gap-2">
-                        ${item.keywords.map(kw => `<span class="px-2 py-1 bg-slate-800 rounded-full text-[10px] font-bold text-slate-400">${kw}</span>`).join('')}
-                    </div>
-                ` : typeof item.keywords === 'string' && item.keywords.length > 0 ? `
-                    <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Keywords: ${item.keywords}</div>
-                ` : ''}
                 <div class="p-5 bg-slate-800/30 border border-slate-800 rounded-xl">
-                    <p class="text-sm text-slate-200 leading-relaxed whitespace-pre-line">${displayContent}</p>
+                    <p class="text-sm text-slate-200 leading-relaxed whitespace-pre-line">${content}</p>
                 </div>
             </div>
         `;
