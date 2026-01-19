@@ -494,14 +494,20 @@ const MarketIntelligenceWarehouse = {
     },
 
     // Load existing indices from Firestore
-    loadIndices: async (projectId, keyword) => {
+    loadIndices: async (projectId, keyword, days = 7) => {
         const db = firebase.firestore();
-        const snapshot = await db.collection('projects').doc(projectId)
+        const now = new Date();
+        const cutoffDate = new Date(now.getTime() - (days * 24 * 60 * 60 * 1000));
+
+        let query = db.collection('projects').doc(projectId)
             .collection('marketPulse_warehouse')
             .where('keyword', '==', keyword)
-            .orderBy('publishedAt', 'desc')
-            .limit(100)
-            .get();
+            .where('publishedAt', '>=', cutoffDate.toISOString())
+            .orderBy('publishedAt', 'desc');
+
+        // Increase limit for longer periods to ensure enough data for AI
+        const limit = days > 30 ? 500 : 200;
+        const snapshot = await query.limit(limit).get();
 
         return snapshot.docs.map(doc => doc.data());
     },
@@ -583,9 +589,10 @@ async function triggerMarketIntelligenceResearch(options = {}) {
                 const kw = keywords[i];
                 let articles = [];
                 try {
-                    // 1. Try Loading from Warehouse (Cache)
+                    // 1. Try Loading from Warehouse (Cache) with period-aware filter
                     try {
-                        const existingArticles = await MarketIntelligenceWarehouse.loadIndices(currentProjectId, kw);
+                        const days = rangeDaysMap[requestedRange] || 7;
+                        const existingArticles = await MarketIntelligenceWarehouse.loadIndices(currentProjectId, kw, days);
                         articles = existingArticles || [];
                     } catch (warehouseErr) {
                         console.warn(`[Warehouse] Could not load cache for "${kw}":`, warehouseErr.message);

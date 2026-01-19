@@ -286,10 +286,10 @@ class NewsProviderRegistry {
         let industryAnchors = [];
 
         if (isBlockchain) {
-            // Anchor search to Blockchain industry to avoid medical/general drift
-            enhancedQuery = `("${query}") AND (Blockchain OR Web3 OR Crypto OR Web 3.0)`;
-            negativeKeywords = ['medical', 'healthcare', 'surgery', 'patient', 'hospital', 'clinical', 'doctor'];
-            industryAnchors = ['blockchain', 'web3', 'crypto', 'token', 'ledger', 'decentralized', 'on-chain', 'mainnet', 'testnet'];
+            // RELAXED: Using OR instead of AND to increase recall, while still prioritizing industry context
+            enhancedQuery = `"${query}" (Blockchain OR Web3 OR Crypto OR Web3.0)`;
+            negativeKeywords = ['surgery', 'clinical trial', 'patient care']; // Only extremely specific medical terms
+            industryAnchors = ['blockchain', 'web3', 'crypto', 'token', 'ledger', 'decentralized', 'on-chain', 'mainnet', 'testnet', 'finance', 'tech', 'digital', 'network'];
         }
 
         console.log(`[NewsRegistry] Context Anchoring Applied: "${enhancedQuery}" (Industry: ${industry || 'General'})`);
@@ -379,12 +379,13 @@ class NewsProviderRegistry {
                 return false;
             }
 
-            // 2. Weak Context Check (If industry is specific, at least some industry context should be present)
+            // 2. Weak Context Check (Softened)
             if (industryAnchors.length > 0) {
                 const hasIndustryContext = industryAnchors.some(anchor => content.includes(anchor));
-                // Allow if title explicitly contains the query even without industry context (might be a new crossover)
-                // but strictly reject if it sounds completely unrelated
-                if (!hasIndustryContext && !titleMatch.includes(query.toLowerCase())) {
+                const hasQueryInTitle = titleMatch.includes(query.toLowerCase());
+
+                // Allow if either industry context is present OR the query is explicitly in the title
+                if (!hasIndustryContext && !hasQueryInTitle) {
                     return false;
                 }
             }

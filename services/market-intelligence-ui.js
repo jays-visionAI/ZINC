@@ -162,7 +162,11 @@ class MarketIntelligenceUI {
     }
 
     setTimeRange(range) {
+        if (this.state.timeRange === range) return;
         this.setState({ timeRange: range });
+
+        // Automatically trigger refresh when period changes to show specific data
+        this.handleRefresh();
     }
 
     setSelectedTrend(id) {
