@@ -5058,16 +5058,23 @@ async function showFullTrendReport(trendId) {
         (async () => {
             try {
                 const articleContext = sortedEvidence.slice(0, 10).map(e => `[${e.publisher}] ${e.title}: ${e.snippet}`).join('\n');
-                const prompt = `Synthesize a highly strategic, 500-character executive briefing for the market trend "${trend.name}". 
+                const systemPrompt = `You are a strategic market intelligence analyst. Synthesize concise, actionable executive briefings.`;
+                const userPrompt = `Synthesize a highly strategic, 500-character executive briefing for the market trend "${trend.name}". 
                 Use these verified market signals for context:
                 ${articleContext}
                 
                 The briefing should be professional, data-driven, and highlight the strategic significance for ${currentProjectData.name}. 
-                Ensure it's approximately 450-550 characters long.`;
+                Ensure it's approximately 450-550 characters long. Write in a confident, executive tone.`;
 
-                // Use the baseline LLM Router for on-demand synthesis
-                const response = await window.NewsProviderRegistry.providers['google-news'].callLLM(prompt);
-                const deepBriefing = response || trend.briefing;
+                // Use the global LLM Router for on-demand synthesis
+                const llmResult = await window.callLLM('deepseek', {
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: userPrompt }
+                    ],
+                    temperature: 0.7
+                });
+                const deepBriefing = (llmResult && llmResult.text) ? llmResult.text : trend.briefing;
 
                 // Update UI
                 const container = document.getElementById('deep-briefing-container');
