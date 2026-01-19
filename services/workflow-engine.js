@@ -249,26 +249,21 @@ const WorkflowEngine = (function () {
             // Template Resolution
             let finalData = {};
 
-            // Handle template resolution (could be string JSON, string variable, or object)
-            if (typeof dataTemplate === 'object' && dataTemplate !== null) {
-                // If it's an object, resolve variables in each string value
-                finalData = {};
-                for (const [key, val] of Object.entries(dataTemplate)) {
-                    finalData[key] = (typeof val === 'string') ? this.resolveVariables(val, context) : val;
-                }
-            } else if (dataTemplate === '{{prev.output}}' && typeof prevOutput === 'string') {
-                finalData = { content: prevOutput };
-            } else {
-                const resolvedData = this.resolveVariables(dataTemplate || "{}", context);
+            // [NEW] Recursive Variable Resolution - ensures nested objects/arrays are resolved
+            finalData = this.resolveVariablesInObject(dataTemplate || "{}", context);
+
+            // If the resolved data is a string that starts with '{', try to parse it as JSON
+            // (Only for string templates, not object templates)
+            if (typeof dataTemplate === 'string' && typeof finalData === 'string' && finalData.trim().startsWith('{')) {
                 try {
-                    if (typeof resolvedData === 'string' && resolvedData.trim().startsWith('{')) {
-                        finalData = JSON.parse(resolvedData);
-                    } else {
-                        finalData = { content: resolvedData };
-                    }
+                    finalData = JSON.parse(finalData);
                 } catch (e) {
-                    finalData = { content: resolvedData };
+                    // Fallback to literal if parse fails
+                    finalData = { content: finalData };
                 }
+            } else if (typeof finalData !== 'object' || finalData === null) {
+                // If it's still a primitive, wrap it in a content field
+                finalData = { content: finalData };
             }
 
             // Always add default metadata if not present
@@ -426,8 +421,10 @@ const WorkflowEngine = (function () {
                 const parts = path.split('.');
                 let val = context;
 
-                // 1. Core Paths (Original)
+                // 1. Core Paths
                 if (parts[0] === 'projectId') return context.projectId || '';
+                if (parts[0] === 'userId') return context.userId || '';
+                if (parts[0] === 'timestamp') return new Date().toISOString();
 
                 // inputs & aliases
                 if (parts[0] === 'inputs' || parts[0] === 'input' || parts[0] === 'inputData') {
@@ -436,7 +433,7 @@ const WorkflowEngine = (function () {
                         if (obj && obj[parts[i]] !== undefined) obj = obj[parts[i]];
                         else return match;
                     }
-                    return typeof obj === 'object' ? JSON.stringify(obj) : obj;
+                    return typeof obj === 'object' && obj !== null ? JSON.stringify(obj) : obj;
                 }
 
                 // 2. Resolve Base Object (prev, lastNode, nodes.ID, or specific node ID)
@@ -445,13 +442,14 @@ const WorkflowEngine = (function () {
 
                 if (parts[0] === 'prev' || parts[0] === 'lastNode') {
                     const keys = Object.keys(context.previousOutputs);
-                    if (keys.length > 0) baseObj = context.previousOutputs[keys[0]];
+                    // Use the most recent output
+                    if (keys.length > 0) baseObj = context.previousOutputs[keys[keys.length - 1]];
                 } else if (parts[0] === 'nodes' && parts[1]) {
                     baseObj = context.allOutputs ? context.allOutputs[parts[1]] : null;
                     startIndex = 2;
-                } else if (context.allOutputs[parts[0]]) {
+                } else if (context.allOutputs && context.allOutputs[parts[0]]) {
                     baseObj = context.allOutputs[parts[0]];
-                } else if (context.previousOutputs[parts[0]]) {
+                } else if (context.previousOutputs && context.previousOutputs[parts[0]]) {
                     baseObj = context.previousOutputs[parts[0]];
                 }
 
@@ -460,31 +458,40 @@ const WorkflowEngine = (function () {
                     for (let i = startIndex; i < parts.length; i++) {
                         const key = parts[i];
 
-                        // RESILIENCE: Skip '.output' if it's not a real property of the object
-                        // Often users write {{node.output.text}} but the object is just {text: ...}
-                        if (key === 'output' && (typeof obj === 'object' && obj !== null && obj.output === undefined)) {
+                        // --- RESILIENCE LOGIC ---
+
+                        // A. If obj is a string, but the path continues...
+                        if (typeof obj === 'string') {
+                            // If they are asking for 'text', 'content', or 'output' resulting in the current string, just keep it
+                            if (key === 'text' || key === 'content' || key === 'output') continue;
+                            // Otherwise, if they ask for something else on a string, it's a mismatch
+                            return match;
+                        }
+
+                        // B. Skip '.output' if it's missing (often used in {{node.output.text}} but object is flat)
+                        if (key === 'output' && (typeof obj !== 'object' || obj === null || obj.output === undefined)) {
                             continue;
                         }
 
-                        // SMART MATCHING: Handle inconsistent naming between LLM providers (text vs response vs result)
-                        if (typeof obj === 'object' && obj !== null && obj[key] === undefined) {
+                        // C. Property lookup with fallbacks
+                        let currentVal = (typeof obj === 'object' && obj !== null) ? obj[key] : undefined;
+
+                        // D. SMART FALLBACKS: Handle naming variations
+                        if (currentVal === undefined && typeof obj === 'object' && obj !== null) {
                             if (key === 'text' || key === 'content') {
-                                const fallback = obj.response || obj.result || obj.text || obj.content;
-                                if (fallback !== undefined) { obj = fallback; continue; }
-                            }
-                            if (key === 'response' || key === 'result') {
-                                const fallback = obj.text || obj.content || obj.response || obj.result;
-                                if (fallback !== undefined) { obj = fallback; continue; }
+                                currentVal = obj.response || obj.result || obj.text || obj.content || obj.output;
+                            } else if (key === 'response' || key === 'result') {
+                                currentVal = obj.text || obj.content || obj.response || obj.result;
                             }
                         }
 
-                        if (obj !== null && obj !== undefined && obj[key] !== undefined) {
-                            obj = obj[key];
-                        } else if (i === parts.length - 1 && typeof obj === 'string') {
-                            // If we've reached a string but user is asking for text/content, just give them the string
-                            if (key === 'text' || key === 'content') return obj;
-                            return match;
+                        if (currentVal !== undefined) {
+                            obj = currentVal;
                         } else {
+                            // If we reached the end and didn't find the key, but the object itself is what they likely wanted
+                            if (i === parts.length - 1 && (key === 'text' || key === 'content') && typeof obj === 'string') {
+                                return obj;
+                            }
                             return match;
                         }
                     }
@@ -493,6 +500,22 @@ const WorkflowEngine = (function () {
 
                 return match;
             });
+        }
+
+        /**
+         * Recursively resolves variables in an object/array structure
+         */
+        resolveVariablesInObject(obj, context) {
+            if (typeof obj === 'string') return this.resolveVariables(obj, context);
+            if (Array.isArray(obj)) return obj.map(item => this.resolveVariablesInObject(item, context));
+            if (typeof obj === 'object' && obj !== null) {
+                const resolved = {};
+                for (const [key, value] of Object.entries(obj)) {
+                    resolved[key] = this.resolveVariablesInObject(value, context);
+                }
+                return resolved;
+            }
+            return obj;
         }
 
         inferProvider(model) {
