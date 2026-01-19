@@ -130,13 +130,23 @@ const WorkflowEngine = (function () {
                 projectContext: this.projectContext,
                 previousOutputs: previousOutputs,
                 allOutputs: this.nodeOutputs,
-                projectId: this.projectContext.id || this.projectContext.projectId
+                projectId: this.projectContext.id || this.projectContext.projectId,
+                // Support both inputs and inputData for convenience
+                inputs: this.projectContext.inputs || this.projectContext.inputData || {},
+                input: this.projectContext.inputs || this.projectContext.inputData || {}
             };
 
             switch (node.type) {
                 case 'start':
-                    return { message: 'Workflow started' };
+                    return { message: 'Workflow started', timestamp: new Date().toISOString() };
                 case 'input':
+                    // If node has a dynamic source, try to fetch it from the execution context first
+                    if (node.data.source && context.inputs[node.data.source]) {
+                        return context.inputs[node.data.source];
+                    }
+                    if (node.data.source === 'market_intelligence' && context.inputs.keywords) {
+                        return context.inputs; // Use the injected market intelligence data
+                    }
                     return node.data.value || node.data.defaultValue || {};
                 case 'knowledge_hub':
                     return await this.fetchKnowledgeHubData(context);
@@ -156,7 +166,7 @@ const WorkflowEngine = (function () {
                     if (nodeName.includes('collective intelligence') || nodeName.includes('집단지성')) {
                         this.logger.log(`[WorkflowEngine] 🧠 Collective Intelligence: Auto-fetching market keywords from project...`);
                         const db = firebase.firestore();
-                        const projectDoc = await db.collection('projects').doc(context.projectId).get();
+                        const projectDoc = await db.collection('projects').doc(context.projectId || context.projectContext?.projectId).get();
                         if (projectDoc.exists) {
                             const projectData = projectDoc.data();
                             const keywords = projectData.marketPulseKeywords || projectData.strategy?.keywords || [];
@@ -216,8 +226,7 @@ const WorkflowEngine = (function () {
                             await this.runFirestoreNode(fsConfig, exportContext);
                             this.logger.log(`[WorkflowEngine] ✅ Auto-export saved successfully.`);
                         } catch (exportErr) {
-                            this.logger.log(`[WorkflowEngine] ⚠️ Auto-export failed but continuing: ${exportErr.message}`, 'warn');
-                            console.warn('[WorkflowEngine] Auto-export error detail:', exportErr);
+                            console.error('[WorkflowEngine] Auto-export failed', exportErr);
                         }
                     }
 
