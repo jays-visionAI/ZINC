@@ -5066,18 +5066,17 @@ async function showFullTrendReport(trendId) {
                 The briefing should be professional, data-driven, and highlight the strategic significance for ${currentProjectData.name}. 
                 Ensure it's approximately 450-550 characters long. Write in a confident, executive tone.`;
 
-                // Use Firebase Cloud Functions for on-demand synthesis
-                const callLLMDirect = firebase.functions().httpsCallable('callLLMDirect');
-                const llmResult = await callLLMDirect({
+                // Use Firebase Cloud Functions for on-demand synthesis (generateLLMResponse has CORS enabled)
+                const generateLLMResponse = firebase.functions().httpsCallable('generateLLMResponse');
+                const llmResult = await generateLLMResponse({
                     provider: 'deepseek',
                     model: 'deepseek-chat',
-                    messages: [
-                        { role: 'system', content: systemPrompt },
-                        { role: 'user', content: userPrompt }
-                    ],
-                    temperature: 0.7
+                    systemPrompt: systemPrompt,
+                    userMessage: userPrompt,
+                    temperature: 0.7,
+                    source: 'market-pulse-deep-briefing'
                 });
-                const deepBriefing = (llmResult?.data?.text) ? llmResult.data.text : trend.briefing;
+                const deepBriefing = (llmResult?.data?.response) ? llmResult.data.response : trend.briefing;
 
                 // Update UI
                 const container = document.getElementById('deep-briefing-container');
