@@ -569,23 +569,34 @@ class MarketIntelligenceUI {
 }
 
 // Global Bridge
+window.marketIntelligenceDataQueue = null;
+
 window.mountMarketIntelligence = function (containerId) {
     if (!window.marketIntelligenceInstance) {
         window.marketIntelligenceInstance = new MarketIntelligenceUI(containerId);
+
+        // Check for queued data
+        if (window.marketIntelligenceDataQueue) {
+            console.log('[MarketIntelligence] applying queued data');
+            window.marketIntelligenceInstance.setState(window.marketIntelligenceDataQueue);
+            window.marketIntelligenceDataQueue = null;
+        }
     }
     return window.marketIntelligenceInstance;
 };
 
 window.refreshMarketIntelligence = function (projectId, keywords, data) {
+    const freshState = {
+        projectId: projectId,
+        keywords: keywords,
+        data: data || [],
+        status: 'success'
+    };
+
     if (window.marketIntelligenceInstance) {
-        window.marketIntelligenceInstance.setState({
-            projectId: projectId,
-            keywords: keywords,
-            data: data || [],
-            status: 'success'
-        });
+        window.marketIntelligenceInstance.setState(freshState);
     } else {
-        // If not mounted yet, it will be handled by the constructor when it mounts
-        console.warn('MarketIntelligenceUI instance not found. Make sure mountMarketIntelligence is called first.');
+        console.log('[MarketIntelligence] No instance yet, queuing data');
+        window.marketIntelligenceDataQueue = freshState;
     }
 };

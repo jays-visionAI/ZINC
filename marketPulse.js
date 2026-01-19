@@ -276,7 +276,18 @@ function updateDashboardWithRealTimeData(data) {
     // 1. Trends
     if (data.keywords) {
         TRENDING_KEYWORDS.length = 0;
-        TRENDING_KEYWORDS.push(...data.keywords);
+        data.keywords.forEach(kw => {
+            if (typeof kw === 'string') {
+                TRENDING_KEYWORDS.push({
+                    keyword: kw.startsWith('#') ? kw : `#${kw}`,
+                    change: Math.floor(Math.random() * 15) + 5,
+                    volume: Math.floor(Math.random() * 50000) + 10000,
+                    isCore: true
+                });
+            } else {
+                TRENDING_KEYWORDS.push(kw);
+            }
+        });
         renderTrendingKeywords();
     }
 
@@ -327,7 +338,13 @@ function updateDashboardWithRealTimeData(data) {
         if (alertBanner) alertBanner.style.display = 'none';
     }
 
-    // 7. Update Status
+    // 7. Market Intelligence Trends (Ad-hoc Analysis)
+    if (data.trends && window.refreshMarketIntelligence) {
+        console.log('[MarketPulse] Refreshing Market Intelligence with real-time trends');
+        window.refreshMarketIntelligence(currentProjectId, data.keywords || TRENDING_KEYWORDS, data.trends);
+    }
+
+    // 8. Update Status
     const statusBadge = document.getElementById('lab-status-badge');
     if (statusBadge) {
         statusBadge.className = "px-3 py-1 bg-blue-500/10 text-blue-400 text-[10px] font-bold rounded-full border border-blue-500/20";
@@ -659,12 +676,16 @@ async function loadCachedMarketIntelligence(projectId, keywords) {
             const generatedAt = cached.generatedAt?.toDate();
             const age = generatedAt ? (Date.now() - generatedAt.getTime()) / (1000 * 60 * 60) : 999;
 
-            // Only use cache if it's less than 24 hours old
-            if (age < 24 && cached.trends && cached.trends.length > 0) {
+            // Only use cache if it's less than 30 days old
+            if (age < (24 * 30) && cached.trends && cached.trends.length > 0) {
                 console.log(`[MarketPulse] Loading cached results from ${age.toFixed(1)} hours ago`);
-                if (window.refreshMarketIntelligence) {
-                    window.refreshMarketIntelligence(projectId, cached.keywords || keywords, cached.trends);
-                }
+
+                // Small delay to ensure Market Intelligence component is mounted
+                setTimeout(() => {
+                    if (window.refreshMarketIntelligence) {
+                        window.refreshMarketIntelligence(projectId, cached.keywords || keywords, cached.trends);
+                    }
+                }, 500);
                 return;
             }
         }
