@@ -275,6 +275,25 @@ class NewsProviderRegistry {
      * @param {object} options - Additional options
      */
     async fetchNewsForProject(query, projectData, options = {}) {
+        // --- STEP 0: Contextual Anchoring (Industry Awareness) ---
+        const industry = projectData?.industry || projectData?.coreIdentity?.industry || '';
+        const isBlockchain = industry.toLowerCase().includes('blockchain') ||
+            industry.toLowerCase().includes('web3') ||
+            industry.toLowerCase().includes('crypto');
+
+        let enhancedQuery = query;
+        let negativeKeywords = [];
+        let industryAnchors = [];
+
+        if (isBlockchain) {
+            // Anchor search to Blockchain industry to avoid medical/general drift
+            enhancedQuery = `("${query}") AND (Blockchain OR Web3 OR Crypto OR Web 3.0)`;
+            negativeKeywords = ['medical', 'healthcare', 'surgery', 'patient', 'hospital', 'clinical', 'doctor'];
+            industryAnchors = ['blockchain', 'web3', 'crypto', 'token', 'ledger', 'decentralized', 'on-chain', 'mainnet', 'testnet'];
+        }
+
+        console.log(`[NewsRegistry] Context Anchoring Applied: "${enhancedQuery}" (Industry: ${industry || 'General'})`);
+
         // Extract target markets from project data
         let targetMarkets = [];
 
@@ -317,7 +336,7 @@ class NewsProviderRegistry {
         for (const region of regions) {
             const config = NewsProviderRegistry.getRegionConfig(region);
             try {
-                const articles = await provider.fetch(query, {
+                const articles = await provider.fetch(enhancedQuery, {
                     ...options,
                     language: config.language,
                     country: config.country
@@ -337,7 +356,7 @@ class NewsProviderRegistry {
             console.log(`[NewsRegistry] No articles found in ${regions.join(', ')}. Falling back to GLOBAL...`);
             const globalConfig = NewsProviderRegistry.getRegionConfig('GLOBAL');
             try {
-                const globalArticles = await provider.fetch(query, {
+                const globalArticles = await provider.fetch(enhancedQuery, {
                     ...options,
                     language: globalConfig.language,
                     country: globalConfig.country
@@ -348,11 +367,38 @@ class NewsProviderRegistry {
             }
         }
 
+        // --- STEP 3: Post-Filtering & Relevancy Scoring ---
+        const filteredArticles = allArticles.filter(art => {
+            const titleMatch = (art.title || art.headline || '').toLowerCase();
+            const snippetMatch = (art.snippet || art.description || '').toLowerCase();
+            const content = `${titleMatch} ${snippetMatch}`;
+
+            // 1. Hard Exclusion (Negative Keywords)
+            if (negativeKeywords.some(neg => content.includes(neg))) {
+                console.log(`[NewsRegistry] Dropped irrelevant article (Negative Kw hit): ${art.title.substring(0, 30)}...`);
+                return false;
+            }
+
+            // 2. Weak Context Check (If industry is specific, at least some industry context should be present)
+            if (industryAnchors.length > 0) {
+                const hasIndustryContext = industryAnchors.some(anchor => content.includes(anchor));
+                // Allow if title explicitly contains the query even without industry context (might be a new crossover)
+                // but strictly reject if it sounds completely unrelated
+                if (!hasIndustryContext && !titleMatch.includes(query.toLowerCase())) {
+                    return false;
+                }
+            }
+
+            return true;
+        });
+
+        console.log(`[NewsRegistry] Filtering complete: ${allArticles.length} -> ${filteredArticles.length} articles`);
+
         return {
-            success: allArticles.length > 0,
-            articles: allArticles,
+            success: filteredArticles.length > 0,
+            articles: filteredArticles,
             regions: regions,
-            totalCount: allArticles.length
+            totalCount: filteredArticles.length
         };
     }
 }
