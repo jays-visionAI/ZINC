@@ -598,11 +598,26 @@ async function triggerMarketIntelligenceResearch(options = {}) {
                         console.warn(`[Warehouse] Could not load cache for "${kw}":`, warehouseErr.message);
                     }
 
-                    // 2. Fetch Fresh Data if needed (missing or old)
+                    // 2. Fetch Fresh Data only if Warehouse is outdated, has gaps, or forced
                     const lastScanTime = articles.length > 0 ? new Date(articles[0].publishedAt) : null;
-                    const isFresh = !lastScanTime || (Date.now() - lastScanTime.getTime()) > (24 * 60 * 60 * 1000);
+                    const oldestScanTime = articles.length > 0 ? new Date(articles[articles.length - 1].publishedAt) : null;
 
-                    if (isFresh || articles.length === 0) {
+                    const nowTs = Date.now();
+                    const dayMs = 24 * 60 * 60 * 1000;
+                    const requestedDays = rangeDaysMap[requestedRange] || 7;
+                    const requestedCutoff = nowTs - (requestedDays * dayMs);
+
+                    // Logic: Needs fetch if:
+                    // - No data at all
+                    // - Latest data is > 24h old
+                    // - Oldest data doesn't reach back far enough for the requested range
+                    // - User explicitly clicked "Refresh" (forceRefresh)
+                    const isOutdated = !lastScanTime || (nowTs - lastScanTime.getTime()) > dayMs;
+                    const hasCoverageGap = !oldestScanTime || oldestScanTime.getTime() > (requestedCutoff + dayMs); // Buffer of 1 day
+                    const shouldFetchRSS = isOutdated || hasCoverageGap || articles.length === 0 || (options && options.forceRefresh);
+
+                    if (shouldFetchRSS) {
+                        console.log(`[MarketPulse] RSS Scan required for "${kw}" (Range: ${requestedRange}). Outdated: ${isOutdated}, Gap: ${hasCoverageGap}`);
                         const newsResult = await window.NewsProviderRegistry.fetchNewsForProject(
                             kw,
                             currentProjectData,
@@ -640,40 +655,58 @@ async function triggerMarketIntelligenceResearch(options = {}) {
             }
         }
 
-        // Execute specific Market Intelligence Workflow
+        // Check for cached Analysis in Firestore to avoid redundant AI expense
         const workflowId = 'dn0sDJv9EQsM3NicleSL';
         const projectContext = { id: currentProjectId, ...currentProjectData };
-
-        console.log('[MarketPulse] Executing Workflow:', workflowId);
-        isManuallyRefreshing = true;
-
-        // Execute workflow with real-time progress tracking
-        const { outputs } = await WorkflowEngine.executeById(
-            workflowId,
-            projectContext,
-            console,
-            (progress) => {
-                // Sync progress to UI
-                updateMIProgress(progress.nodeName || 'Processing...', progress.progress || 45);
-                console.log(`[WorkflowProgress] ${progress.progress}% - ${progress.nodeName}`);
-            }
-        );
-
-        updateMIProgress('Analyzing trends & sentiment...', 80);
-
-        // Find the most relevant output node
-        const nodeIds = Object.keys(outputs);
-        // Preference: check for specific keys first across all outputs
+        const db = firebase.firestore();
         let workflowResult = null;
-        for (const id of nodeIds.reverse()) { // Check later nodes first
-            const out = outputs[id];
-            if (out && (out.trends || out.analysis || out.keywords)) {
-                workflowResult = out;
-                console.log(`[MarketPulse] Selected node "${id}" for intelligence data`);
-                break;
+        let shouldRunWorkflow = true;
+
+        if (!options.forceRefresh) {
+            updateMIProgress('Checking for existing analysis...', 42);
+            try {
+                const cachedSnap = await db.collection('projects').doc(currentProjectId)
+                    .collection('marketPulse').doc('latest').get();
+
+                if (cachedSnap.exists) {
+                    const cachedData = cachedSnap.data();
+                    const ageMs = Date.now() - (cachedData.generatedAt?.toDate() || 0).getTime();
+
+                    // Logic: Reuse if < 24h old AND keywords haven't changed
+                    const sameKeywords = JSON.stringify(cachedData.keywords || []) === JSON.stringify(keywords);
+                    if (ageMs < (24 * 60 * 60 * 1000) && sameKeywords) {
+                        workflowResult = cachedData;
+                        shouldRunWorkflow = false;
+                        console.log('[MarketPulse] Re-using recent AI analysis from cache');
+                    }
+                }
+            } catch (cacheErr) {
+                console.warn('[MarketPulse] Cache check error:', cacheErr.message);
             }
         }
-        if (!workflowResult) workflowResult = outputs[nodeIds[nodeIds.length - 1]];
+
+        if (shouldRunWorkflow) {
+            console.log('[MarketPulse] Executing AI Workflow:', workflowId);
+            const { outputs } = await WorkflowEngine.executeById(
+                workflowId,
+                projectContext,
+                console,
+                (progress) => {
+                    updateMIProgress(progress.nodeName || 'Processing...', progress.progress || 45);
+                }
+            );
+
+            // Find the most relevant output node
+            const nodeIds = Object.keys(outputs);
+            for (const id of nodeIds.reverse()) {
+                const out = outputs[id];
+                if (out && (out.trends || out.analysis || out.keywords)) {
+                    workflowResult = out;
+                    break;
+                }
+            }
+            if (!workflowResult) workflowResult = outputs[nodeIds[nodeIds.length - 1]];
+        }
 
         console.log('[MarketPulse] Final Workflow Result:', workflowResult);
         updateMIProgress('Generating insights...', 90);

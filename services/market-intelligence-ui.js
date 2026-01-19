@@ -138,12 +138,13 @@ class MarketIntelligenceUI {
         }, 800);
     }
 
-    handleRefresh() {
+    handleRefresh(force = false) {
         this.setState({ selectedTrendId: null });
         if (window.triggerMarketIntelligenceResearch) {
             window.triggerMarketIntelligenceResearch({
                 timeRange: this.state.timeRange,
-                channels: this.state.selectedChannels
+                channels: this.state.selectedChannels,
+                forceRefresh: force
             });
         } else {
             this.loadData();
@@ -684,10 +685,10 @@ class MarketIntelligenceUI {
             addBtn.addEventListener('click', () => window.openKeywordEditor?.());
         }
 
-        // Refresh
+        // Refresh (Explicit button click means FORCE fresh scan)
         const refreshBtn = this.container.querySelector('#refresh-intelligence-btn');
         if (refreshBtn) {
-            refreshBtn.addEventListener('click', () => this.handleRefresh());
+            refreshBtn.addEventListener('click', () => this.handleRefresh(true));
         }
 
         // Trend cards
