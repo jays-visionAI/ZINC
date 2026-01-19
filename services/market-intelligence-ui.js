@@ -578,13 +578,25 @@ class MarketIntelligenceUI {
 
                 <!-- AI-Generated Strategic Conclusion -->
                 <div id="strategic-conclusion-container" class="mt-6 p-6 bg-gradient-to-br from-indigo-900/20 to-slate-900/40 border border-indigo-500/20 rounded-2xl">
-                    <div class="flex items-center gap-3 mb-4">
-                        <div class="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center">
-                            <svg class="text-indigo-400" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center">
+                                <svg class="text-indigo-400" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                            </div>
+                            <div>
+                                <span class="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Strategic Conclusion</span>
+                                <p class="text-[10px] text-slate-500 font-medium">AI-generated recommendations for your business</p>
+                            </div>
                         </div>
-                        <div>
-                            <span class="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Strategic Conclusion</span>
-                            <p class="text-[10px] text-slate-500 font-medium">AI-generated recommendations for your business</p>
+                        <div class="flex items-center gap-2">
+                            <button id="btn-conclusion-history" onclick="window.marketIntelligenceInstance?.showConclusionHistory()" class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/50 hover:bg-slate-700 border border-slate-700 rounded-lg text-[10px] font-bold text-slate-400 hover:text-white transition-all">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
+                                History
+                            </button>
+                            <button id="btn-conclusion-regenerate" onclick="window.marketIntelligenceInstance?.regenerateConclusion()" class="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-500/30 rounded-lg text-[10px] font-bold text-indigo-400 hover:text-white transition-all">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 0 0 4.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 0 1-15.357-2m15.357 2H15"/></svg>
+                                Regenerate
+                            </button>
                         </div>
                     </div>
                     <div id="strategic-conclusion-content" class="min-h-[80px]">
@@ -598,15 +610,26 @@ class MarketIntelligenceUI {
         `;
     }
 
-    async generateStrategicConclusion() {
+    async generateStrategicConclusion(forceRegenerate = false) {
         const data = this.state.data || [];
         const container = document.getElementById('strategic-conclusion-content');
         if (!container) return;
 
-        // Check cache first
-        if (this.state.cachedConclusion && this.state.cachedConclusionDataHash === JSON.stringify(data.map(d => d.id))) {
+        // Check memory cache first (for current session)
+        if (!forceRegenerate && this.state.cachedConclusion && this.state.cachedConclusionDataHash === JSON.stringify(data.map(d => d.id))) {
             container.innerHTML = this.renderConclusionContent(this.state.cachedConclusion);
             return;
+        }
+
+        // Try loading from Firestore if not forcing regenerate
+        if (!forceRegenerate) {
+            const savedConclusion = await this.loadLatestConclusion();
+            if (savedConclusion && savedConclusion.content) {
+                this.state.cachedConclusion = savedConclusion.content;
+                this.state.cachedConclusionDataHash = JSON.stringify(data.map(d => d.id));
+                container.innerHTML = this.renderConclusionContent(savedConclusion.content);
+                return;
+            }
         }
 
         if (data.length === 0) {
@@ -679,6 +702,9 @@ Provide actionable, project-specific recommendations.`,
 
             container.innerHTML = this.renderConclusionContent(conclusion);
 
+            // Save to Firestore for history
+            await this.saveConclusion(conclusion);
+
         } catch (err) {
             console.error('[MarketIntelligence] Strategic conclusion generation failed:', err);
             container.innerHTML = `
@@ -724,6 +750,216 @@ Provide actionable, project-specific recommendations.`,
         }
 
         return recommendations.join(' ');
+    }
+
+    async regenerateConclusion() {
+        // Clear cache and regenerate
+        this.state.cachedConclusion = null;
+        this.state.cachedConclusionDataHash = null;
+
+        const container = document.getElementById('strategic-conclusion-content');
+        if (container) {
+            container.innerHTML = `
+                <div class="flex items-center gap-3 text-indigo-400/60">
+                    <svg class="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>
+                    <span class="text-xs font-medium">Regenerating strategic analysis...</span>
+                </div>
+            `;
+        }
+
+        await this.generateStrategicConclusion(true); // Force regenerate
+    }
+
+    async saveConclusion(conclusion) {
+        if (!window.currentProjectId || !conclusion) return;
+
+        try {
+            const db = firebase.firestore();
+            const topKeywords = (this.state.data || []).slice(0, 3).map(t => t.name).join(', ');
+            const title = `Strategic Analysis: ${topKeywords || 'Market Overview'}`;
+
+            await db.collection('projects').doc(window.currentProjectId)
+                .collection('strategicConclusions').add({
+                    content: conclusion,
+                    title: title,
+                    keywords: (this.state.data || []).map(t => t.name),
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+            console.log('[MarketIntelligence] Conclusion saved to Firestore');
+        } catch (err) {
+            console.error('[MarketIntelligence] Failed to save conclusion:', err);
+        }
+    }
+
+    async loadLatestConclusion() {
+        if (!window.currentProjectId) return null;
+
+        try {
+            const db = firebase.firestore();
+            const snapshot = await db.collection('projects').doc(window.currentProjectId)
+                .collection('strategicConclusions')
+                .orderBy('createdAt', 'desc')
+                .limit(1)
+                .get();
+
+            if (!snapshot.empty) {
+                const doc = snapshot.docs[0];
+                return { id: doc.id, ...doc.data() };
+            }
+        } catch (err) {
+            console.error('[MarketIntelligence] Failed to load conclusion:', err);
+        }
+        return null;
+    }
+
+    async showConclusionHistory() {
+        if (!window.currentProjectId) {
+            showNotification('Project not loaded', 'error');
+            return;
+        }
+
+        // Create modal
+        const existingModal = document.getElementById('conclusion-history-modal');
+        if (existingModal) existingModal.remove();
+
+        const modal = document.createElement('div');
+        modal.id = 'conclusion-history-modal';
+        modal.className = 'fixed inset-0 z-[1000] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200';
+        modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+        modal.innerHTML = `
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-5xl h-[80vh] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col">
+                <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/80 backdrop-blur-sm shrink-0">
+                    <div>
+                        <h2 class="text-lg font-bold text-white">Strategic Conclusion History</h2>
+                        <p class="text-xs text-slate-500">Past market analyses and recommendations</p>
+                    </div>
+                    <button onclick="document.getElementById('conclusion-history-modal').remove()" class="p-2 hover:bg-slate-800 rounded-lg text-slate-500 hover:text-white transition-colors">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+                <div class="flex flex-1 overflow-hidden">
+                    <!-- Left: History List -->
+                    <div id="conclusion-history-list" class="w-1/3 border-r border-slate-800 overflow-y-auto bg-slate-950/50">
+                        <div class="flex items-center justify-center h-full text-slate-600">
+                            <svg class="animate-spin mr-2" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>
+                            Loading...
+                        </div>
+                    </div>
+                    <!-- Right: Content Preview -->
+                    <div id="conclusion-history-preview" class="flex-1 overflow-y-auto p-6 bg-slate-900/50">
+                        <div class="flex items-center justify-center h-full text-slate-600 text-sm">
+                            Select an item to preview
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Load history
+        await this.loadConclusionHistory();
+    }
+
+    async loadConclusionHistory() {
+        const listContainer = document.getElementById('conclusion-history-list');
+        if (!listContainer || !window.currentProjectId) return;
+
+        try {
+            const db = firebase.firestore();
+            const snapshot = await db.collection('projects').doc(window.currentProjectId)
+                .collection('strategicConclusions')
+                .orderBy('createdAt', 'desc')
+                .limit(50)
+                .get();
+
+            if (snapshot.empty) {
+                listContainer.innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-full text-slate-600 p-6">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="mb-3 opacity-50"><path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
+                        <p class="text-sm font-medium">No history yet</p>
+                        <p class="text-xs text-slate-700">Conclusions will appear here after generation</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            this.conclusionHistoryItems = items;
+
+            listContainer.innerHTML = items.map((item, idx) => {
+                const date = item.createdAt?.toDate ? item.createdAt.toDate() : new Date();
+                const dateStr = date.toLocaleDateString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric' });
+                const timeStr = date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+
+                return `
+                    <div class="conclusion-history-item p-4 border-b border-slate-800 cursor-pointer hover:bg-slate-800/50 transition-colors ${idx === 0 ? 'bg-indigo-500/10 border-l-2 border-l-indigo-500' : ''}" data-idx="${idx}">
+                        <div class="text-[10px] text-slate-500 font-medium mb-1">${dateStr} ${timeStr}</div>
+                        <div class="text-sm font-bold text-white truncate">${item.title || 'Strategic Analysis'}</div>
+                        <div class="text-xs text-slate-500 mt-1 line-clamp-2">${(item.content || '').substring(0, 100)}...</div>
+                    </div>
+                `;
+            }).join('');
+
+            // Add click handlers
+            listContainer.querySelectorAll('.conclusion-history-item').forEach(el => {
+                el.addEventListener('click', () => {
+                    const idx = parseInt(el.dataset.idx);
+                    this.selectConclusionHistoryItem(idx);
+
+                    // Update selected state
+                    listContainer.querySelectorAll('.conclusion-history-item').forEach(item => {
+                        item.classList.remove('bg-indigo-500/10', 'border-l-2', 'border-l-indigo-500');
+                    });
+                    el.classList.add('bg-indigo-500/10', 'border-l-2', 'border-l-indigo-500');
+                });
+            });
+
+            // Select first item by default
+            if (items.length > 0) {
+                this.selectConclusionHistoryItem(0);
+            }
+
+        } catch (err) {
+            console.error('[MarketIntelligence] Failed to load history:', err);
+            listContainer.innerHTML = `
+                <div class="flex items-center justify-center h-full text-rose-400 text-sm p-6">
+                    Failed to load history
+                </div>
+            `;
+        }
+    }
+
+    selectConclusionHistoryItem(idx) {
+        const previewContainer = document.getElementById('conclusion-history-preview');
+        if (!previewContainer || !this.conclusionHistoryItems) return;
+
+        const item = this.conclusionHistoryItems[idx];
+        if (!item) return;
+
+        const date = item.createdAt?.toDate ? item.createdAt.toDate() : new Date();
+        const dateStr = date.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+        const timeStr = date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+
+        previewContainer.innerHTML = `
+            <div class="space-y-4">
+                <div>
+                    <div class="text-xs text-indigo-400 font-bold uppercase tracking-widest mb-1">${dateStr}</div>
+                    <h3 class="text-xl font-black text-white">${item.title || 'Strategic Analysis'}</h3>
+                    <div class="text-xs text-slate-500 mt-1">Generated at ${timeStr}</div>
+                </div>
+                ${item.keywords && item.keywords.length > 0 ? `
+                    <div class="flex flex-wrap gap-2">
+                        ${item.keywords.map(kw => `<span class="px-2 py-1 bg-slate-800 rounded-full text-[10px] font-bold text-slate-400">${kw}</span>`).join('')}
+                    </div>
+                ` : ''}
+                <div class="p-5 bg-slate-800/30 border border-slate-800 rounded-xl">
+                    <p class="text-sm text-slate-200 leading-relaxed whitespace-pre-line">${item.content}</p>
+                </div>
+            </div>
+        `;
     }
 
     renderDrawer(trend, isOpen) {

@@ -198,6 +198,13 @@ service cloud.firestore {
         allow delete: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
       }
 
+      // Strategic Conclusions (Market Intelligence History)
+      match /strategicConclusions/{conclusionId} {
+        allow read: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
+        allow create: if isAuthenticated() && isProjectOwner(projectId);
+        allow update, delete: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
+      }
+
       // One Pagers (Marketing Assets)
       match /onePagers/{docId} {
         allow read: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
