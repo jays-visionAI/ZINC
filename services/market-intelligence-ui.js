@@ -660,38 +660,46 @@ class MarketIntelligenceUI {
         const STRATEGIC_CONCLUSION_WORKFLOW_ID = 'ae6QGTVPEQodxbhAlYFc';
 
         try {
-            // Prepare market intelligence data for workflow input
+            // Prepare structured input data matching the sources in Workflow Canvas
             const marketIntelligenceInput = {
-                source: 'Market Intelligence Matrix',
-                projectId: currentProjectId,
-                projectName: projectData.name || 'Unknown',
-                industry: projectData.industry || 'Technology',
-                targetAudience: projectData.targetAudience || 'General',
-                description: projectData.description || '',
-                count: data.length,
-                keywords: data.map(t => {
-                    const quadrant = t.velocity > 0 ? (t.volume > maxVolume / 2 ? 'Dominant' : 'Emerging') : (t.volume > maxVolume / 2 ? 'Saturated' : 'Niche');
-                    const sentiment = t.sentiment > 0.2 ? 'Positive' : t.sentiment < -0.2 ? 'Negative' : 'Neutral';
-                    return {
-                        name: t.name,
-                        quadrant,
-                        sentiment,
-                        velocity: t.velocity,
-                        volume: t.volume,
-                        sentimentScore: t.sentiment
-                    };
-                }),
-                quadrantDistribution: {
-                    dominant: quadrantData.dominant.length,
-                    emerging: quadrantData.emerging.length,
-                    saturated: quadrantData.saturated.length,
-                    niche: quadrantData.niche.length
+                // Data for node with source "project_brief"
+                project_brief: {
+                    projectName: projectData.projectName || projectData.name || 'Vision Chain',
+                    name: projectData.projectName || projectData.name || 'Vision Chain',
+                    industry: projectData.industry || 'Technology',
+                    targetAudience: projectData.targetAudience || 'General',
+                    description: projectData.description || ''
                 },
-                rawText: data.map(t => {
-                    const quadrant = t.velocity > 0 ? (t.volume > maxVolume / 2 ? 'Dominant' : 'Emerging') : (t.volume > maxVolume / 2 ? 'Saturated' : 'Niche');
-                    const sentiment = t.sentiment > 0.2 ? 'Positive' : t.sentiment < -0.2 ? 'Negative' : 'Neutral';
-                    return `Keyword: ${t.name}\nQuadrant: ${quadrant}\nSentiment: ${sentiment}\nGrowth: ${t.velocity}%\nReach: ${t.volume}`;
-                }).join('\n\n')
+                // Data for node with source "market_intelligence"
+                market_intelligence: {
+                    source: 'Market Intelligence Matrix',
+                    projectId: currentProjectId,
+                    projectName: projectData.projectName || projectData.name || 'Vision Chain',
+                    count: data.length,
+                    keywords: data.map(t => {
+                        const quadrant = t.velocity > 0 ? (t.volume > maxVolume / 2 ? 'Dominant' : 'Emerging') : (t.volume > maxVolume / 2 ? 'Saturated' : 'Niche');
+                        const sentiment = t.sentiment > 0.2 ? 'Positive' : t.sentiment < -0.2 ? 'Negative' : 'Neutral';
+                        return {
+                            name: t.name,
+                            quadrant,
+                            sentiment,
+                            velocity: t.velocity,
+                            volume: t.volume,
+                            sentimentScore: t.sentiment
+                        };
+                    }),
+                    quadrantDistribution: {
+                        dominant: quadrantData.dominant.length,
+                        emerging: quadrantData.emerging.length,
+                        saturated: quadrantData.saturated.length,
+                        niche: quadrantData.niche.length
+                    },
+                    rawText: data.map(t => {
+                        const quadrant = t.velocity > 0 ? (t.volume > maxVolume / 2 ? 'Dominant' : 'Emerging') : (t.volume > maxVolume / 2 ? 'Saturated' : 'Niche');
+                        const sentiment = t.sentiment > 0.2 ? 'Positive' : t.sentiment < -0.2 ? 'Negative' : 'Neutral';
+                        return `Keyword: ${t.name}\nQuadrant: ${quadrant}\nSentiment: ${sentiment}\nGrowth: ${t.velocity}%\nReach: ${t.volume}`;
+                    }).join('\n\n')
+                }
             };
 
             // Execute workflow
