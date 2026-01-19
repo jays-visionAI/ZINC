@@ -569,8 +569,9 @@ async function triggerMarketIntelligenceResearch() {
                 const evidence = realArticles.map((article, artIdx) => ({
                     id: `ev-${idx}-${artIdx}-${Date.now()}`,
                     title: article.headline || article.title || 'News Article',
-                    publisher: article.source || article.publisher || 'News Source',
+                    publisher: (typeof article.source === 'object' ? article.source.name : article.source) || article.publisher || 'News Source',
                     date: article.publishedAt ? formatRelativeTimeForEvidence(article.publishedAt) : 'Recent',
+                    timestamp: article.publishedAt ? new Date(article.publishedAt).getTime() : 0,
                     snippet: article.snippet || article.description || `News coverage about ${kw}.`,
                     url: article.url || article.link || `https://news.google.com/search?q=${encodeURIComponent(kw)}`
                 }));
@@ -4566,8 +4567,11 @@ function showFullTrendReport(trendId) {
     const sentimentColor = trend.sentiment > 0.6 ? 'emerald' : trend.sentiment > 0.4 ? 'cyan' : 'amber';
     const impactScore = Math.floor(trend.confidence * 100);
 
+    // Sort evidence by latest date (timestamp)
+    const sortedEvidence = [...(trend.evidence || [])].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
     modal.innerHTML = `
-        <div class="bg-slate-900 border border-slate-800 rounded-[2.5rem] w-full max-w-5xl max-h-[90vh] overflow-hidden shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] animate-in zoom-in-95 duration-300 relative">
+        <div class="bg-slate-900 border border-slate-800 rounded-[2.5rem] w-full max-w-7xl max-h-[95vh] overflow-hidden shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] animate-in zoom-in-95 duration-300 relative">
             <!-- Ambient Glow -->
             <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-cyan-500/5 blur-[120px] -mr-64 -mt-64"></div>
             <div class="absolute bottom-0 left-0 w-[500px] h-[500px] bg-indigo-500/5 blur-[120px] -ml-64 -mb-64"></div>
@@ -4648,14 +4652,14 @@ function showFullTrendReport(trendId) {
                             </div>
                             
                             <div class="space-y-4">
-                                ${trend.evidence.map(ev => `
+                                ${sortedEvidence.map(ev => `
                                     <a href="${ev.url}" target="_blank" class="group flex items-start gap-6 p-6 bg-slate-800/30 hover:bg-slate-800/60 border border-slate-800 hover:border-cyan-500/30 rounded-[2rem] transition-all duration-300">
                                         <div class="shrink-0 w-12 h-12 flex items-center justify-center bg-slate-900 rounded-2xl text-slate-700 group-hover:text-cyan-400 border border-slate-800 transition-colors">
                                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>
                                         </div>
                                         <div class="flex-1 min-w-0">
                                             <div class="flex items-center gap-3 mb-1">
-                                                <span class="text-[10px] font-black text-cyan-500 uppercase tracking-widest">${ev.publisher}</span>
+                                                <span class="text-[10px] font-black text-cyan-500 uppercase tracking-widest">${typeof ev.publisher === 'object' ? (ev.publisher.name || 'News Source') : ev.publisher}</span>
                                                 <span class="text-[10px] text-slate-600 font-bold">• ${ev.date}</span>
                                             </div>
                                             <h4 class="text-lg font-black text-white group-hover:text-cyan-400 transition-colors truncate mb-2">${ev.title}</h4>
@@ -4679,7 +4683,7 @@ function showFullTrendReport(trendId) {
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
                             SAVE TO LIBRARY
                         </button>
-                        <button onclick="window.print()" class="px-8 py-4 bg-cyan-600 hover:bg-cyan-500 text-white font-black text-xs rounded-2xl shadow-xl shadow-cyan-500/20 transition-all flex items-center gap-3">
+                        <button id="btn-export-trend-pdf" onclick="exportTrendPDF('${trend.name.replace(/'/g, "\\'")}')" class="px-8 py-4 bg-cyan-600 hover:bg-cyan-500 text-white font-black text-xs rounded-2xl shadow-xl shadow-cyan-500/20 transition-all flex items-center gap-3">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
                             EXPORT PDF
                         </button>
@@ -4702,7 +4706,23 @@ function saveTrendToLibrary(trendId) {
     showNotification(`Trend "${trend.name}" saved to strategy library`, 'success');
 }
 
+function exportTrendPDF(trendName) {
+    const originalTitle = document.title;
+    const dateStr = new Date().toISOString().split('T')[0];
+    document.title = `ZYNK_Market_Intelligence_${trendName.replace(/\s+/g, '_')}_${dateStr}`;
+
+    window.print();
+
+    // Restore title after print dialog starts
+    setTimeout(() => {
+        document.title = originalTitle;
+    }, 1000);
+}
+
 // Global expose
+window.showFullTrendReport = showFullTrendReport;
+window.saveTrendToLibrary = saveTrendToLibrary;
+window.exportTrendPDF = exportTrendPDF;
 window.openKeywordEditor = openKeywordEditor;
 window.closeKeywordEditor = closeKeywordEditor;
 window.saveResonanceKeywords = saveResonanceKeywords;
