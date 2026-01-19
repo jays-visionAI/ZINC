@@ -4473,18 +4473,27 @@ async function saveResonanceKeywords() {
 
         // Update local state
         currentProjectData.marketPulseKeywords = keywords;
-        if (!currentProjectData.strategy) currentProjectData.strategy = {};
+        if (!currentProjectData.strategy) currentProjectData.strategy = {}
         currentProjectData.strategy.keywords = keywords;
 
         // Immediately close modal to prevent user frustration if refresh is slow or buggy
         closeKeywordEditor();
-        showNotification('Resonance strategy synced with Brand Brain successfully!', 'success');
+        showNotification('Keywords synced! Starting Market Intelligence analysis...', 'success');
 
         // Trigger UI refresh (wrapped in try-catch to not block modal closing/message)
         try {
             updateDashboardWithProjectData(currentProjectData);
         } catch (refreshError) {
             console.warn('[MarketPulse] UI refresh partially failed after save:', refreshError);
+        }
+
+        // Automatically trigger Market Intelligence analysis with new keywords
+        if (keywords.length > 0 && typeof triggerMarketIntelligenceResearch === 'function') {
+            // Small delay to let the UI update first
+            setTimeout(() => {
+                console.log('[MarketPulse] Auto-triggering Market Intelligence analysis...');
+                triggerMarketIntelligenceResearch();
+            }, 500);
         }
 
     } catch (error) {
