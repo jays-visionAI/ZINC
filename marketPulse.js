@@ -52,6 +52,8 @@ const RESEARCH_STEPS = [
 let currentProjectId = null;
 let currentUser = null;
 let currentProjectData = null; // Store project data for simulation
+let marketPulseUnsubscribe = null;
+let isManuallyRefreshing = false;
 let selectedKeywordsForEditor = []; // Temporary storage for modal editing
 
 async function init() {
@@ -176,8 +178,6 @@ async function loadUserProjects() {
     }
 }
 
-let marketPulseUnsubscribe = null;
-
 async function onProjectChange() {
     if (!currentProjectId) return;
 
@@ -249,6 +249,12 @@ async function onProjectChange() {
             .doc('latest')
             .onSnapshot((snapshot) => {
                 if (snapshot.exists) {
+                    // Suppress background updates if we are in the middle of a manual refresh
+                    if (isManuallyRefreshing) {
+                        console.log('[MarketPulse] Suppressing background update during active manual research.');
+                        return;
+                    }
+
                     console.log('[MarketPulse] ⚡ Real-time update received from Scheduler');
                     updateDashboardWithRealTimeData(snapshot.data());
 
@@ -535,6 +541,7 @@ const MarketIntelligenceWarehouse = {
  */
 async function triggerMarketIntelligenceResearch() {
     if (!currentProjectId || !currentProjectData) return;
+    isManuallyRefreshing = true; // Lock the UI updates
 
     const keywords = currentProjectData.marketPulseKeywords || [];
     if (keywords.length === 0) {
@@ -629,30 +636,37 @@ async function triggerMarketIntelligenceResearch() {
 
         console.log('[MarketPulse] Executing Workflow:', workflowId);
 
+        // Update progress using workflow events
+        const { outputs } = await WorkflowEngine.executeById(
+            workflowId,
+            projectContext,
+            console,
+            {
+                onProgress: (prog) => {
+                    // Map 0-100% of workflow to 45-90% of total MI progress
+                    const totalProgress = 45 + Math.floor(prog.percent * 0.45);
+                    updateMIProgress(prog.message, totalProgress);
+                }
+            }
+        );
+
         // Update progress
-        updateMIProgress('AI agents processing data...', 45);
+        updateMIProgress('Analyzing results...', 90);
 
-        const { outputs } = await WorkflowEngine.executeById(workflowId, projectContext);
-
-        // Update progress
-        updateMIProgress('Analyzing trends & sentiment...', 70);
-
-        // Find the END node or any node that looks like the final output
+        // Find the result node (either specifically named or the last successful one)
         const nodeIds = Object.keys(outputs);
-        const endNodeId = nodeIds.find(id => id.startsWith('end')) || nodeIds[nodeIds.length - 1];
-        const workflowResult = outputs[endNodeId];
+        const workflowResult = outputs['seo_update'] || outputs['market_analyst'] || outputs[nodeIds[nodeIds.length - 1]];
 
-        console.log('[MarketPulse] Workflow Result:', workflowResult);
-        // Update progress
-        updateMIProgress('Generating insights...', 85);
+        console.log('[MarketPulse] Raw Workflow Output Mapping:', workflowResult);
 
         // Map Workflow output to our Trend format with REAL news evidence
-        // We only include trends that have actual market signals (news articles)
         const realTrends = keywords
             .filter(kw => keywordNewsMap[kw] && keywordNewsMap[kw].length > 0)
             .map((kw, idx) => {
+                // Try to find trend data in workflow output (it might be indexed by keyword)
                 const agentTrend = (workflowResult.trends && workflowResult.trends[kw]) ||
-                    (workflowResult[kw]) || null;
+                    (workflowResult[kw]) ||
+                    (typeof workflowResult === 'object' ? workflowResult : null);
 
                 // Get real news articles for this keyword
                 const realArticles = keywordNewsMap[kw] || [];
@@ -668,10 +682,8 @@ async function triggerMarketIntelligenceResearch() {
                     url: article.url || article.link || `https://news.google.com/search?q=${encodeURIComponent(kw)}`
                 }));
 
-                // Calculate real metrics based on evidence
+                // Calculate real metrics
                 const totalArticles = evidence.length;
-
-                // Velocity: Percentage of articles from the last 7 days (simplified proxy for growth)
                 const now = Date.now();
                 const recentArticles = evidence.filter(e => (now - e.timestamp) < (1000 * 60 * 60 * 24 * 7)).length;
                 const calculatedVelocity = totalArticles > 0 ? (recentArticles / totalArticles) * 25 : 0;
@@ -680,30 +692,29 @@ async function triggerMarketIntelligenceResearch() {
                     id: `wf-trend-${idx}-${Date.now()}`,
                     name: kw,
                     velocity: agentTrend?.velocity || Math.floor(calculatedVelocity + 5),
-                    volume: agentTrend?.volume || totalArticles * 10, // Base volume + multiplier for impact
+                    volume: agentTrend?.volume || totalArticles * 10,
                     mentions: totalArticles,
-                    sentiment: agentTrend?.sentiment || 0.65, // Neutral-positive fallback
+                    sentiment: agentTrend?.sentiment || 0.65,
                     confidence: agentTrend?.confidence || (totalArticles > 5 ? 0.95 : 0.85),
                     history: agentTrend?.history || Array.from({ length: 7 }, (_, i) => Math.floor(totalArticles * (0.8 + Math.random() * 0.4))),
-                    summary: agentTrend?.summary || `${kw} is showing significant market resonance with ${totalArticles} verified signals across news channels.`,
-                    drivers: agentTrend?.drivers || ['Verified News Signals', 'Real-time Market Adoption', 'Strategic Keyword Match'],
-                    strategicSynthesis: agentTrend?.strategicSynthesis || `The convergence of ${kw} with current market dynamics suggests a pivotal shift in user expectations. Based on recent intelligence, the focus is moving from secondary implementation to core architectural integration.`,
+                    summary: agentTrend?.summary || `${kw} is showing market resonance with ${totalArticles} verified signals.`,
+                    drivers: agentTrend?.drivers || ['Verified News Signals', 'Market Intelligence'],
+                    strategicSynthesis: agentTrend?.strategicSynthesis || `Verified intelligence for ${kw} shows active engagement.`,
                     actionableAdvice: agentTrend?.actionableAdvice || [
-                        `Prioritize ${kw} integration in the upcoming product roadmap to capture early adopter sentiment.`,
-                        `Optimize marketing collateral to highlight ${kw} capabilities as a key USP.`,
-                        `Monitor competitor response to ${kw} news to maintain first-mover advantage.`
+                        `Monitor ${kw} trends.`,
+                        `Optimize for ${kw} related queries.`
                     ],
-                    opportunities: agentTrend?.opportunities || ['Market leadership potential', 'Enhanced user trust', 'Operational efficiency gains'],
-                    risks: agentTrend?.risks || ['Regulatory uncertainty', 'Integration complexity', 'Market saturation'],
+                    opportunities: agentTrend?.opportunities || ['Market growth'],
+                    risks: agentTrend?.risks || ['Standard market volatility'],
                     evidence: evidence,
-                    channels: ['News', 'Social'] // Force channels match to ensure UI visibility by default
+                    channels: ['News', 'Social']
                 };
             });
 
         // Update progress
         updateMIProgress('Finalizing report...', 95);
 
-        // Save results to Firestore for persistence (user can leave and come back)
+        // Save results to Firestore
         try {
             const db = firebase.firestore();
             await db.collection('projects').doc(currentProjectId)
@@ -713,12 +724,12 @@ async function triggerMarketIntelligenceResearch() {
                     generatedAt: firebase.firestore.FieldValue.serverTimestamp(),
                     status: 'completed'
                 });
-            console.log('[MarketPulse] Results saved to Firestore for later viewing.');
+            console.log('[MarketPulse] Results saved to Firestore.');
         } catch (saveErr) {
-            console.warn('[MarketPulse] Could not save results (non-critical):', saveErr.message);
+            console.warn('[MarketPulse] Could not save results:', saveErr.message);
         }
 
-        // Update UI with results
+        // Update UI
         if (window.refreshMarketIntelligence) {
             window.refreshMarketIntelligence(currentProjectId, realTrends.map(t => t.name), realTrends);
         }
@@ -731,7 +742,9 @@ async function triggerMarketIntelligenceResearch() {
         if (window.marketIntelligenceInstance) {
             window.marketIntelligenceInstance.setState({ status: 'error', progressMessage: error.message });
         }
-        showNotification('Workflow execution failed. Please check the logs.', 'error');
+        showNotification('Workflow execution failed.', 'error');
+    } finally {
+        isManuallyRefreshing = false; // Release the lock
     }
 }
 

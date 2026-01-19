@@ -9,10 +9,11 @@ const WorkflowEngine = (function () {
 
     // Internal state for a single execution run
     class ExecutionRun {
-        constructor(workflow, projectContext, logger) {
+        constructor(workflow, projectContext, logger, options = {}) {
             this.workflow = workflow;
             this.projectContext = projectContext || {};
             this.logger = logger || console;
+            this.options = options;
             this.nodeOutputs = {};
             this.status = 'idle';
         }
@@ -27,8 +28,22 @@ const WorkflowEngine = (function () {
             const order = this.buildExecutionOrder(startNode.id);
             this.logger.log(`[WorkflowEngine] Execution Order: ${order.map(n => n.data.name || n.id).join(' -> ')}`);
 
-            for (const node of order) {
+            for (let i = 0; i < order.length; i++) {
+                const node = order[i];
                 this.logger.log(`[WorkflowEngine] Executing ${node.type}: ${node.data.name || node.id}`);
+
+                // Progress tracking
+                if (this.options.onProgress) {
+                    const percent = Math.floor((i / order.length) * 100);
+                    this.options.onProgress({
+                        node,
+                        index: i,
+                        total: order.length,
+                        percent: percent,
+                        message: `Executing: ${node.data.name || node.type}`
+                    });
+                }
+
                 const startTime = Date.now();
 
                 try {
@@ -532,12 +547,12 @@ const WorkflowEngine = (function () {
             return { outputs, workflowId: workflow.id };
         },
 
-        executeById: async (workflowId, projectContext, logger) => {
+        executeById: async (workflowId, projectContext, logger, options = {}) => {
             const db = firebase.firestore();
             const doc = await db.collection('workflowDefinitions').doc(workflowId).get();
             if (!doc.exists) throw new Error('Workflow not found');
             const workflow = { id: doc.id, ...doc.data() };
-            const run = new ExecutionRun(workflow, projectContext, logger);
+            const run = new ExecutionRun(workflow, projectContext, logger, options);
             const outputs = await run.run();
             return { outputs, workflowId: workflow.id };
         },
