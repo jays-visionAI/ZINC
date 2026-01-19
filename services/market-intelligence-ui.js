@@ -703,7 +703,34 @@ class MarketIntelligenceUI {
                     inputData: marketIntelligenceInput
                 });
 
-                const conclusion = result?.finalOutput?.text || result?.finalOutput || result?.output || 'Unable to generate strategic recommendations at this time.';
+                console.log('[MarketIntelligence] Workflow Result:', result);
+
+                // Correct parsing: WorkflowEngine returns { outputs: { node_id: data, ... }, workflowId: '...' }
+                let conclusion = '';
+                if (result && result.outputs) {
+                    // 1. Find the END node output
+                    const endNodeId = Object.keys(result.outputs).find(id => {
+                        const node = result.outputs[id];
+                        // If it's the result of an 'end' node execution
+                        return id.startsWith('node_') && (typeof result.outputs[id] === 'string' || result.outputs[id]?.text);
+                    });
+
+                    // 2. If not found by ID, try to find the most 'complete' looking string or text object
+                    if (endNodeId) {
+                        const finalOutput = result.outputs[endNodeId];
+                        conclusion = typeof finalOutput === 'string' ? finalOutput : (finalOutput.text || JSON.stringify(finalOutput));
+                    } else {
+                        // Fallback: Get the last node's output (usually the one before end)
+                        const allKeys = Object.keys(result.outputs);
+                        const lastNodeId = allKeys[allKeys.length - 1];
+                        const lastOutput = result.outputs[lastNodeId];
+                        conclusion = typeof lastOutput === 'string' ? lastOutput : (lastOutput?.text || JSON.stringify(lastOutput));
+                    }
+                }
+
+                if (!conclusion || conclusion === '{}' || conclusion.includes('Workflow started')) {
+                    conclusion = 'Unable to generate strategic recommendations at this time.';
+                }
 
                 // Cache the result
                 this.state.cachedConclusion = conclusion;
