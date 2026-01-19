@@ -574,12 +574,14 @@ async function triggerMarketIntelligenceResearch(options = {}) {
         const rangeMap = {
             '7D': '7d',
             '30D': '30d',
+            '60D': '60d',
             '90D': '90d',
             '180D': '6m'
         };
         const rangeDaysMap = {
             '7D': 7,
             '30D': 30,
+            '60D': 60,
             '90D': 90,
             '180D': 180
         };
@@ -5073,14 +5075,45 @@ function showFullTrendReport(trendId) {
     document.body.appendChild(modal);
 }
 
-function saveTrendToLibrary(trendId) {
-    if (!window.marketIntelligenceInstance) return;
+async function saveTrendToLibrary(trendId) {
+    if (!window.marketIntelligenceInstance || !currentProjectId) return;
     const trends = window.marketIntelligenceInstance.state.data || [];
     const trend = trends.find(t => t.id === trendId);
 
     if (!trend) return;
 
-    showNotification(`Trend "${trend.name}" saved to strategy library`, 'success');
+    // Loading State
+    const btn = document.querySelector(`button[onclick="saveTrendToLibrary('${trendId}')"]`);
+    const originalContent = btn?.innerHTML;
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<svg class="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg> SAVING...';
+    }
+
+    try {
+        const db = firebase.firestore();
+        await db.collection('projects').doc(currentProjectId)
+            .collection('strategyLibrary').doc(trendId).set({
+                ...trend,
+                savedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                category: 'Market Intelligence',
+                type: 'Verified Trend'
+            }, { merge: true });
+
+        showNotification(`Strategy brief for "${trend.name}" saved to library.`, 'success');
+
+        if (btn) {
+            btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg> SAVED TO LIBRARY';
+            btn.classList.add('bg-emerald-500/20', 'text-emerald-400', 'border-emerald-500/30');
+        }
+    } catch (err) {
+        console.error('[MarketPulse] Save error:', err);
+        showNotification('Failed to save strategy brief.', 'error');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalContent;
+        }
+    }
 }
 
 function exportTrendPDF(trendName) {

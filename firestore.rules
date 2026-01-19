@@ -286,6 +286,13 @@ service cloud.firestore {
         allow write: if isAdmin();
       }
 
+      // Strategy Library (Saved Market Trends & Briefings)
+      match /strategyLibrary/{docId} {
+        allow read: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
+        allow create, update: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
+        allow delete: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
+      }
+
       // Brand Health History (Brand Brain health score tracking)
       match /brandHealthHistory/{historyId} {
         allow read: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
