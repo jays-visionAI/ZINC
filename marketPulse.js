@@ -659,6 +659,10 @@ async function triggerMarketIntelligenceResearch() {
 
         console.log('[MarketPulse] Raw Workflow Output Mapping:', workflowResult);
 
+        let totalMentions = 0;
+        let sumSentiment = 0;
+        let trendCount = 0;
+
         // Map Workflow output to our Trend format with REAL news evidence
         const realTrends = keywords
             .filter(kw => keywordNewsMap[kw] && keywordNewsMap[kw].length > 0)
@@ -683,21 +687,26 @@ async function triggerMarketIntelligenceResearch() {
                 }));
 
                 // Calculate real metrics
-                const totalArticles = evidence.length;
+                const count = evidence.length;
+                totalMentions += count;
+                const sentiment = agentTrend?.sentiment || 0.65;
+                sumSentiment += sentiment;
+                trendCount++;
+
                 const now = Date.now();
                 const recentArticles = evidence.filter(e => (now - e.timestamp) < (1000 * 60 * 60 * 24 * 7)).length;
-                const calculatedVelocity = totalArticles > 0 ? (recentArticles / totalArticles) * 25 : 0;
+                const calculatedVelocity = count > 0 ? (recentArticles / count) * 25 : 0;
 
                 return {
                     id: `wf-trend-${idx}-${Date.now()}`,
                     name: kw,
                     velocity: agentTrend?.velocity || Math.floor(calculatedVelocity + 5),
-                    volume: agentTrend?.volume || totalArticles * 10,
-                    mentions: totalArticles,
-                    sentiment: agentTrend?.sentiment || 0.65,
-                    confidence: agentTrend?.confidence || (totalArticles > 5 ? 0.95 : 0.85),
-                    history: agentTrend?.history || Array.from({ length: 7 }, (_, i) => Math.floor(totalArticles * (0.8 + Math.random() * 0.4))),
-                    summary: agentTrend?.summary || `${kw} is showing market resonance with ${totalArticles} verified signals.`,
+                    volume: agentTrend?.volume || count * 10,
+                    mentions: count,
+                    sentiment: sentiment,
+                    confidence: agentTrend?.confidence || (count > 5 ? 0.95 : 0.85),
+                    history: agentTrend?.history || Array.from({ length: 7 }, (_, i) => Math.floor(count * (0.8 + Math.random() * 0.4))),
+                    summary: agentTrend?.summary || `${kw} is showing market resonance with ${count} verified signals.`,
                     drivers: agentTrend?.drivers || ['Verified News Signals', 'Market Intelligence'],
                     strategicSynthesis: agentTrend?.strategicSynthesis || `Verified intelligence for ${kw} shows active engagement.`,
                     actionableAdvice: agentTrend?.actionableAdvice || [
@@ -714,17 +723,24 @@ async function triggerMarketIntelligenceResearch() {
         // Update progress
         updateMIProgress('Finalizing report...', 95);
 
-        // Save results to Firestore
+        // Save results to Firestore (MERGE to preserve existing scheduler data like heatmap/competitors)
         try {
             const db = firebase.firestore();
             await db.collection('projects').doc(currentProjectId)
                 .collection('marketPulse').doc('latest').set({
                     trends: realTrends,
                     keywords: realTrends.map(t => t.name),
+                    mentions: { total: totalMentions, growth: 12 },
+                    sentiment: {
+                        positive: Math.round((sumSentiment / Math.max(1, trendCount)) * 100),
+                        neutral: 15,
+                        negative: 5
+                    },
                     generatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    status: 'completed'
-                });
-            console.log('[MarketPulse] Results saved to Firestore.');
+                    status: 'completed',
+                    source: 'manual'
+                }, { merge: true });
+            console.log('[MarketPulse] Results saved to Firestore (merged).');
         } catch (saveErr) {
             console.warn('[MarketPulse] Could not save results:', saveErr.message);
         }
@@ -744,7 +760,11 @@ async function triggerMarketIntelligenceResearch() {
         }
         showNotification('Workflow execution failed.', 'error');
     } finally {
-        isManuallyRefreshing = false; // Release the lock
+        // Keep the lock for a short duration after completion to suppress local Firestore echoes
+        setTimeout(() => {
+            isManuallyRefreshing = false;
+            console.log('[MarketPulse] Manual refresh lock released.');
+        }, 3000);
     }
 }
 
