@@ -768,12 +768,17 @@ async function triggerMarketIntelligenceResearch() {
             console.warn('[MarketPulse] Could not save results:', saveErr.message);
         }
 
-        // Update UI
+        // Update progress to 100% first
+        updateMIProgress('Analysis complete!', 100);
+
+        // Small delay to let user see "100%" before switching to cards
+        await new Promise(resolve => setTimeout(resolve, 800));
+
+        // Update UI to success state with real data
         if (window.refreshMarketIntelligence) {
             window.refreshMarketIntelligence(currentProjectId, realTrends.map(t => t.name), realTrends);
         }
 
-        updateMIProgress('Complete!', 100);
         showNotification('Market Intelligence analysis complete!', 'success');
 
     } catch (error) {
@@ -814,11 +819,17 @@ function formatRelativeTimeForEvidence(dateString) {
 // Helper to update MI progress UI
 function updateMIProgress(message, percent) {
     if (window.marketIntelligenceInstance) {
-        window.marketIntelligenceInstance.setState({
-            status: 'analyzing',
+        const newState = {
             progressMessage: message,
             progressPercent: percent
-        });
+        };
+
+        // Only force 'analyzing' status if we are not at 100%
+        if (percent < 100) {
+            newState.status = 'analyzing';
+        }
+
+        window.marketIntelligenceInstance.setState(newState);
     }
 }
 
