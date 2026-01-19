@@ -4313,94 +4313,112 @@ function showDetailedResults() {
 
     const modal = document.createElement('div');
     modal.id = 'detailed-results-modal';
-    modal.className = 'fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200';
+    modal.className = 'fixed inset-0 z-[1000] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-in fade-in duration-300';
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 
     modal.innerHTML = `
-        <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
-            <!-- Header -->
-            <div class="relative px-6 py-5 border-b border-slate-800 bg-gradient-to-r from-cyan-500/10 to-transparent">
-                <div class="flex items-start justify-between">
-                    <div>
-                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-cyan-400"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
-                            Market Resonance Analysis
-                        </h2>
-                        <p class="text-sm text-slate-400 mt-1">Keyword strategies with real-time news insights</p>
+        <div class="bg-slate-900 border border-slate-800 rounded-[2.5rem] w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] animate-in zoom-in-95 duration-300 relative">
+            <!-- Ambient Glow -->
+            <div class="absolute top-0 right-0 w-96 h-96 bg-cyan-500/10 blur-[120px] -mr-48 -mt-48"></div>
+            <div class="absolute bottom-0 left-0 w-96 h-96 bg-indigo-500/10 blur-[120px] -ml-48 -mb-48"></div>
+
+            <div class="relative z-10 flex flex-col h-full max-h-[90vh]">
+                <!-- Header -->
+                <div class="px-10 py-8 border-b border-slate-800/50">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="px-2 py-0.5 bg-cyan-500/10 text-cyan-400 text-[10px] font-black uppercase tracking-widest rounded-full border border-cyan-500/20">Analysis Complete</span>
+                            </div>
+                            <h2 class="text-3xl font-black text-white px-0 flex items-center gap-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-cyan-400"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                                Market Resonance Analysis
+                            </h2>
+                            <p class="text-slate-500 mt-2 font-medium">Deep-dive into keyword strategies and real-time market signals</p>
+                        </div>
+                        <button onclick="document.getElementById('detailed-results-modal').remove()" class="p-3 hover:bg-slate-800 rounded-2xl text-slate-500 hover:text-white transition-all">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
                     </div>
-                    <button onclick="document.getElementById('detailed-results-modal').remove()" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                    </button>
                 </div>
                 
-                <!-- Stats Bar -->
-                <div class="flex items-center gap-6 mt-4">
-                    <div class="flex items-center gap-2 text-xs text-slate-400">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                        <span><strong class="text-white">${keywordEntries.length}</strong> Keywords</span>
+                <!-- Content Section -->
+                <div class="flex-1 overflow-y-auto p-10 pt-6 scrollbar-thin scrollbar-thumb-slate-700">
+                    <!-- Stats Overview -->
+                    <div class="grid grid-cols-3 gap-4 mb-8">
+                        <div class="p-4 bg-slate-950/50 border border-slate-800 rounded-3xl">
+                            <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Generated</p>
+                            <p class="text-lg font-black text-white">${keywordEntries.length} <span class="text-xs font-bold text-slate-500">Keywords</span></p>
+                        </div>
+                        <div class="p-4 bg-slate-950/50 border border-slate-800 rounded-3xl">
+                            <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Sources</p>
+                            <p class="text-lg font-black text-white">${articles.length} <span class="text-xs font-bold text-slate-500">News Articles</span></p>
+                        </div>
+                        <div class="p-4 bg-slate-950/50 border border-slate-800 rounded-3xl">
+                            <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Context</p>
+                            <p class="text-lg font-black text-white">${regions.length > 0 ? getRegionName(regions[0]) : 'Global'} <span class="text-xs font-bold text-slate-500">Intelligence</span></p>
+                        </div>
                     </div>
-                    <div class="flex items-center gap-2 text-xs text-slate-400">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/></svg>
-                        <span><strong class="text-white">${articles.length}</strong> News Sources</span>
-                    </div>
-                    <div class="flex items-center gap-2 text-xs text-slate-400">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
-                        <span><strong class="text-white">${regions.length > 0 ? regions.map(r => getRegionName(r)).join(', ') : 'Global'}</strong></span>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Content -->
-            <div class="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    ${keywordEntries.map((entry, idx) => {
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        ${keywordEntries.map((entry, idx) => {
         const kw = entry.keyword;
         const strategy = entry.strategy;
-        const relatedArticles = articles.filter(article => {
-            const title = (article.headline || article.title || '').toLowerCase();
-            return kw.toLowerCase().split(' ').some(word => word.length > 2 && title.includes(word));
-        }).slice(0, 2);
+        const relatedArticles = entry.articles || [];
+        const isAdded = selectedKeywordsForEditor.includes(kw);
 
         return `
-                            <div class="p-4 bg-slate-800/50 hover:bg-slate-800 rounded-xl border border-slate-700/50 hover:border-cyan-500/20 transition-all">
-                                <div class="flex items-start gap-3">
-                                    <div class="shrink-0 w-8 h-8 flex items-center justify-center bg-cyan-500/20 text-cyan-400 rounded-lg font-bold text-sm">
-                                        ${idx + 1}
-                                    </div>
-                                    <div class="flex-1 min-w-0">
-                                        <h3 class="font-semibold text-white text-base">${kw}</h3>
-                                        ${strategy ? `<p class="mt-1 text-sm text-slate-400 leading-relaxed">${strategy}</p>` : ''}
-                                        
-                                        ${relatedArticles.length > 0 ? `
-                                            <div class="mt-3 pt-3 border-t border-slate-700/50 space-y-2">
-                                                <p class="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Related News</p>
-                                                ${relatedArticles.map(article => `
-                                                    <a href="${article.url || article.link || '#'}" target="_blank" rel="noopener noreferrer" 
-                                                       class="flex items-center gap-2 text-xs text-slate-300 hover:text-cyan-400 transition-colors">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
-                                                        <span class="truncate">${article.headline || article.title}</span>
-                                                    </a>
-                                                `).join('')}
+                                <div class="group relative p-6 bg-slate-800/30 hover:bg-slate-800/60 border border-slate-800 hover:border-cyan-500/30 rounded-[2rem] transition-all duration-300">
+                                    <div class="flex items-start justify-between gap-4">
+                                        <div class="flex-1 min-w-0">
+                                            <div class="flex items-center gap-3 mb-2">
+                                                <span class="w-6 h-6 flex items-center justify-center bg-cyan-500/20 text-cyan-400 rounded-lg text-xs font-black">${idx + 1}</span>
+                                                <h3 class="text-lg font-black text-white truncate tracking-tight">${kw}</h3>
                                             </div>
-                                        ` : ''}
+                                            <p class="text-sm text-slate-400 leading-relaxed font-medium mb-4">${strategy}</p>
+                                            
+                                            ${relatedArticles.length > 0 ? `
+                                                <div class="space-y-2 mt-4 pt-4 border-t border-slate-800/50">
+                                                    <div class="flex items-center gap-2 mb-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/></svg>
+                                                        Intelligence Sources
+                                                    </div>
+                                                    ${relatedArticles.slice(0, 2).map(art => `
+                                                        <a href="${art.url || art.link || '#'}" target="_blank" class="flex flex-col p-3 bg-slate-900/50 hover:bg-slate-950 rounded-2xl border border-slate-800/50 transition-all group/art">
+                                                            <span class="text-xs text-slate-300 font-bold group-hover/art:text-cyan-400 line-clamp-1 mb-1">${art.headline || art.title}</span>
+                                                            <div class="flex items-center justify-between">
+                                                                <span class="text-[9px] text-slate-600 font-black uppercase tracking-tighter">${art.source || 'News Source'}</span>
+                                                                <span class="text-[9px] text-slate-700">${art.publishedAt ? formatRelativeTime(art.publishedAt) : ''}</span>
+                                                            </div>
+                                                        </a>
+                                                    `).join('')}
+                                                </div>
+                                            ` : ''}
+                                        </div>
+                                        <button onclick="addKeywordFromDetailedResults('${kw.replace(/'/g, "\\'")}', this)" 
+                                                class="shrink-0 w-12 h-12 flex items-center justify-center rounded-2xl transition-all shadow-lg ${isAdded ? 'bg-emerald-500/20 text-emerald-400' : 'bg-indigo-500 text-white hover:bg-indigo-400 shadow-indigo-500/20'}"
+                                                ${isAdded ? 'disabled' : ''}>
+                                            ${isAdded ? `
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                            ` : `
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                                            `}
+                                        </button>
                                     </div>
-                                    <button onclick="addKeywordFromDetailedResults('${kw.replace(/'/g, "\\'")}', this)" 
-                                            class="shrink-0 px-3 py-1.5 bg-slate-700 hover:bg-cyan-500 text-slate-300 hover:text-white text-xs font-medium rounded-lg transition-all">
-                                        + Add
-                                    </button>
                                 </div>
-                            </div>
-                        `;
+                            `;
     }).join('')}
+                    </div>
                 </div>
-            </div>
-            
-            <!-- Footer -->
-            <div class="px-6 py-4 border-t border-slate-800 bg-slate-900/50 flex items-center justify-between">
-                <p class="text-xs text-slate-500">Analysis powered by AI with real-time news data</p>
-                <button onclick="document.getElementById('detailed-results-modal').remove()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium rounded-xl transition-all">
-                    Close
-                </button>
+                
+                <!-- Footer -->
+                <div class="px-10 py-6 border-t border-slate-800/50 bg-slate-950/20 flex items-center justify-between">
+                    <p class="text-[10px] font-black text-slate-600 uppercase tracking-[0.2em]">Powered by ZYNK Marketing Engine</p>
+                    <button onclick="document.getElementById('detailed-results-modal').remove()" 
+                            class="px-8 py-3.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[13px] font-black rounded-2full transition-all tracking-wider">
+                        DISMISS RESULTS
+                    </button>
+                </div>
             </div>
         </div>
     `;
@@ -4416,9 +4434,13 @@ function addKeywordFromDetailedResults(keyword, buttonEl) {
     if (!selectedKeywordsForEditor.includes(keyword)) {
         selectedKeywordsForEditor.push(keyword);
         renderActiveTags();
-        buttonEl.textContent = 'Added';
-        buttonEl.classList.remove('bg-slate-700', 'hover:bg-cyan-500', 'text-slate-300', 'hover:text-white');
-        buttonEl.classList.add('bg-green-500/20', 'text-green-400', 'pointer-events-none');
+
+        // Update button UI to show 'Added' state
+        buttonEl.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+        buttonEl.classList.remove('bg-indigo-500', 'hover:bg-indigo-400', 'shadow-indigo-500/20');
+        buttonEl.classList.add('bg-emerald-500/20', 'text-emerald-400');
+        buttonEl.disabled = true;
+
         showNotification(`Added: ${keyword}`, 'success');
     }
 }
