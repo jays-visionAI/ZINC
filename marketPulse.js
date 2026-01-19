@@ -577,6 +577,12 @@ async function triggerMarketIntelligenceResearch(options = {}) {
             '90D': '90d',
             '180D': '6m'
         };
+        const rangeDaysMap = {
+            '7D': 7,
+            '30D': 30,
+            '90D': 90,
+            '180D': 180
+        };
         const whenParam = rangeMap[requestedRange] || '7d';
 
         // Step 1: Fetch real news for all keywords (Intelligent Index Warehouse Logic)
@@ -739,12 +745,6 @@ async function triggerMarketIntelligenceResearch(options = {}) {
             .map((kw, idx) => {
                 const agentTrend = findTrendInResult(workflowResult, kw);
                 const realArticles = keywordNewsMap[kw] || [];
-                const rangeDaysMap = {
-                    '7D': 7,
-                    '30D': 30,
-                    '90D': 90,
-                    '180D': 180
-                };
                 const now = Date.now();
                 const dayMs = 24 * 60 * 60 * 1000;
                 const maxDays = rangeDaysMap[requestedRange] || 7;
