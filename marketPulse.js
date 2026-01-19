@@ -472,6 +472,61 @@ function updateDashboardWithProjectData(data) {
 }
 
 /**
+ * Intelligent Index Warehouse Helper
+ * Manages incremental fetching and persistent storage of indexing metadata
+ */
+const MarketIntelligenceWarehouse = {
+    // Generate a simple unique hash for indexing
+    getHash: (str) => {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash;
+        }
+        return Math.abs(hash).toString(36);
+    },
+
+    // Load existing indices from Firestore
+    loadIndices: async (projectId, keyword) => {
+        const db = firebase.firestore();
+        const snapshot = await db.collection('projects').doc(projectId)
+            .collection('marketPulse_warehouse')
+            .where('keyword', '==', keyword)
+            .orderBy('publishedAt', 'desc')
+            .limit(100)
+            .get();
+
+        return snapshot.docs.map(doc => doc.data());
+    },
+
+    // Save new indices to Firestore with TTL
+    saveIndices: async (projectId, keyword, articles) => {
+        const db = firebase.firestore();
+        const batch = db.batch();
+        const now = new Date();
+        const expireAt = new Date(now.getTime() + (180 * 24 * 60 * 60 * 1000)); // 180 days TTL
+
+        articles.forEach(art => {
+            const docId = MarketIntelligenceWarehouse.getHash(art.url);
+            const docRef = db.collection('projects').doc(projectId)
+                .collection('marketPulse_warehouse').doc(docId);
+
+            batch.set(docRef, {
+                ...art,
+                keyword,
+                projectId,
+                capturedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                expireAt: firebase.firestore.Timestamp.fromDate(expireAt)
+            }, { merge: true });
+        });
+
+        await batch.commit();
+        console.log(`[Warehouse] Indexed ${articles.length} new articles for "${keyword}"`);
+    }
+};
+
+/**
  * Trigger AI-powered Market Research to find REAL news and trends
  */
 async function triggerMarketIntelligenceResearch() {
@@ -502,31 +557,59 @@ async function triggerMarketIntelligenceResearch() {
         // Update progress
         updateMIProgress('Collecting market signals...', 15);
 
-        // Step 1: Fetch real news for all keywords
+        // Step 1: Fetch real news for all keywords (Intelligent Index Warehouse Logic)
         let keywordNewsMap = {};
 
         if (window.NewsProviderRegistry) {
-            updateMIProgress('Fetching real-time news data...', 25);
+            updateMIProgress('Gathering intelligence from warehouse...', 20);
 
             for (let i = 0; i < keywords.length; i++) {
                 const kw = keywords[i];
                 try {
-                    const newsResult = await window.NewsProviderRegistry.fetchNewsForProject(
-                        kw,
-                        currentProjectData,
-                        { maxResults: 10 }
-                    );
+                    // 1. Load cached indices
+                    const existingArticles = await MarketIntelligenceWarehouse.loadIndices(currentProjectId, kw);
+                    const lastScanTime = existingArticles.length > 0 ? new Date(existingArticles[0].publishedAt) : null;
 
-                    if (newsResult.success && newsResult.articles.length > 0) {
-                        keywordNewsMap[kw] = newsResult.articles;
-                        console.log(`[MarketPulse] Found ${newsResult.articles.length} articles for "${kw}"`);
+                    // 2. Fetch delta (or fresh if empty)
+                    // If we have recent data (last 24h), we fetch less. If empty, fetch 40.
+                    const isFresh = !lastScanTime || (Date.now() - lastScanTime.getTime()) > (24 * 60 * 60 * 1000);
+
+                    if (isFresh) {
+                        const newsResult = await window.NewsProviderRegistry.fetchNewsForProject(
+                            kw,
+                            currentProjectData,
+                            {
+                                maxResults: 40,
+                                when: lastScanTime ? '7d' : '1y' // Intelligent delta: if we have cache, only grab last 7 days to find new ones
+                            }
+                        );
+
+                        if (newsResult.success && newsResult.articles.length > 0) {
+                            // Filter only new articles
+                            const existingUrls = new Set(existingArticles.map(a => a.url));
+                            const newArticles = newsResult.articles.filter(a => !existingUrls.has(a.url));
+
+                            if (newArticles.length > 0) {
+                                await MarketIntelligenceWarehouse.saveIndices(currentProjectId, kw, newArticles);
+                            }
+
+                            // Combine for current analysis
+                            keywordNewsMap[kw] = [...newArticles, ...existingArticles].slice(0, 50);
+                        } else {
+                            keywordNewsMap[kw] = existingArticles;
+                        }
+                    } else {
+                        console.log(`[Warehouse] Using high-confidence cache for "${kw}"`);
+                        keywordNewsMap[kw] = existingArticles;
                     }
+
+                    console.log(`[MarketPulse] Total intelligence pool for "${kw}": ${keywordNewsMap[kw].length} articles`);
                 } catch (newsErr) {
                     console.warn(`[MarketPulse] News fetch for "${kw}" failed:`, newsErr.message);
                 }
 
                 // Update progress
-                const progressPercent = 25 + Math.floor((i / keywords.length) * 15);
+                const progressPercent = 20 + Math.floor((i / keywords.length) * 20);
                 updateMIProgress(`Scanning news for: ${kw}...`, progressPercent);
             }
         }

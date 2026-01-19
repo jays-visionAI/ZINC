@@ -23,9 +23,11 @@ class GoogleNewsProvider {
      * @param {string} query - Search query
      * @param {string} language - Language code (en, ko, ja, etc.)
      * @param {string} country - Country code (US, KR, JP, etc.)
+     * @param {string} when - Time filter (e.g., '1y', '7d', '1h')
      */
-    buildRssUrl(query, language = 'en', country = 'US') {
-        const encodedQuery = encodeURIComponent(query);
+    buildRssUrl(query, language = 'en', country = 'US', when = '1y') {
+        const timeFilter = when ? `+when:${when}` : '+when:1y';
+        const encodedQuery = encodeURIComponent(query + timeFilter);
         const hl = language.toLowerCase();
         const gl = country.toUpperCase();
         const ceid = `${gl}:${hl}`;
@@ -42,10 +44,11 @@ class GoogleNewsProvider {
         const {
             language = 'en',
             country = 'US',
-            maxResults = 10
+            maxResults = 20,
+            when = '1y'
         } = options;
 
-        const rssUrl = this.buildRssUrl(query, language, country);
+        const rssUrl = this.buildRssUrl(query, language, country, when);
 
         // Try each CORS proxy until one works
         for (let i = 0; i < this.corsProxies.length; i++) {
