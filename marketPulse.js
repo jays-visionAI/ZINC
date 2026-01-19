@@ -502,27 +502,31 @@ const MarketIntelligenceWarehouse = {
 
     // Save new indices to Firestore with TTL
     saveIndices: async (projectId, keyword, articles) => {
-        const db = firebase.firestore();
-        const batch = db.batch();
-        const now = new Date();
-        const expireAt = new Date(now.getTime() + (180 * 24 * 60 * 60 * 1000)); // 180 days TTL
+        try {
+            const db = firebase.firestore();
+            const batch = db.batch();
+            const now = new Date();
+            const expireAt = new Date(now.getTime() + (180 * 24 * 60 * 60 * 1000)); // 180 days TTL
 
-        articles.forEach(art => {
-            const docId = MarketIntelligenceWarehouse.getHash(art.url);
-            const docRef = db.collection('projects').doc(projectId)
-                .collection('marketPulse_warehouse').doc(docId);
+            articles.forEach(art => {
+                const docId = MarketIntelligenceWarehouse.getHash(art.url);
+                const docRef = db.collection('projects').doc(projectId)
+                    .collection('marketPulse_warehouse').doc(docId);
 
-            batch.set(docRef, {
-                ...art,
-                keyword,
-                projectId,
-                capturedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                expireAt: firebase.firestore.Timestamp.fromDate(expireAt)
-            }, { merge: true });
-        });
+                batch.set(docRef, {
+                    ...art,
+                    keyword,
+                    projectId,
+                    capturedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    expireAt: firebase.firestore.Timestamp.fromDate(expireAt)
+                }, { merge: true });
+            });
 
-        await batch.commit();
-        console.log(`[Warehouse] Indexed ${articles.length} new articles for "${keyword}"`);
+            await batch.commit();
+            console.log(`[Warehouse] Indexed ${articles.length} new articles for "${keyword}"`);
+        } catch (err) {
+            console.warn(`[Warehouse] Permission or Write error for "${keyword}":`, err.message);
+        }
     }
 };
 
@@ -691,7 +695,8 @@ async function triggerMarketIntelligenceResearch() {
                     ],
                     opportunities: agentTrend?.opportunities || ['Market leadership potential', 'Enhanced user trust', 'Operational efficiency gains'],
                     risks: agentTrend?.risks || ['Regulatory uncertainty', 'Integration complexity', 'Market saturation'],
-                    evidence: evidence
+                    evidence: evidence,
+                    channels: ['News', 'Social'] // Force channels match to ensure UI visibility by default
                 };
             });
 
