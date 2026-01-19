@@ -566,26 +566,30 @@ async function triggerMarketIntelligenceResearch() {
             for (let i = 0; i < keywords.length; i++) {
                 const kw = keywords[i];
                 try {
-                    // 1. Load cached indices
+                    // 1. Load cached indices from warehouse
                     const existingArticles = await MarketIntelligenceWarehouse.loadIndices(currentProjectId, kw);
                     const lastScanTime = existingArticles.length > 0 ? new Date(existingArticles[0].publishedAt) : null;
 
-                    // 2. Fetch delta (or fresh if empty)
-                    // If we have recent data (last 24h), we fetch less. If empty, fetch 40.
-                    const isFresh = !lastScanTime || (Date.now() - lastScanTime.getTime()) > (24 * 60 * 60 * 1000);
+                    // 2. Intelligence Expansion Check:
+                    // - isOld: Was it scanned more than 24h ago?
+                    // - needsRefill: Do we have less than 30 articles? (Breaks the 10-item limit from legacy runs)
+                    const isOld = !lastScanTime || (Date.now() - lastScanTime.getTime()) > (24 * 60 * 60 * 1000);
+                    const needsRefill = existingArticles.length < 30;
 
-                    if (isFresh) {
+                    if (isOld || needsRefill) {
+                        console.log(`[Warehouse] Expanding intelligence for "${kw}" (Reason: ${isOld ? 'Scan Outdated' : 'Insufficient Volume'})`);
+
                         const newsResult = await window.NewsProviderRegistry.fetchNewsForProject(
                             kw,
                             currentProjectData,
                             {
-                                maxResults: 40,
-                                when: lastScanTime ? '7d' : '1y' // Intelligent delta: if we have cache, only grab last 7 days to find new ones
+                                maxResults: 50, // Target high volume for statistical significance
+                                when: lastScanTime ? '7d' : '1y'
                             }
                         );
 
                         if (newsResult.success && newsResult.articles.length > 0) {
-                            // Filter only new articles
+                            // Filter only new articles to avoid duplicates in the DB
                             const existingUrls = new Set(existingArticles.map(a => a.url));
                             const newArticles = newsResult.articles.filter(a => !existingUrls.has(a.url));
 
@@ -593,13 +597,14 @@ async function triggerMarketIntelligenceResearch() {
                                 await MarketIntelligenceWarehouse.saveIndices(currentProjectId, kw, newArticles);
                             }
 
-                            // Combine for current analysis
-                            keywordNewsMap[kw] = [...newArticles, ...existingArticles].slice(0, 50);
+                            // Merge and slice to current analysis pool (up to 60 for better context)
+                            const combined = [...newArticles, ...existingArticles];
+                            keywordNewsMap[kw] = combined.slice(0, 60);
                         } else {
                             keywordNewsMap[kw] = existingArticles;
                         }
                     } else {
-                        console.log(`[Warehouse] Using high-confidence cache for "${kw}"`);
+                        console.log(`[Warehouse] Using high-confidence cache for "${kw}" (${existingArticles.length} articles)`);
                         keywordNewsMap[kw] = existingArticles;
                     }
 
