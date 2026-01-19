@@ -880,29 +880,68 @@ ${data.map(t => {
 
         let displayText = '';
 
-        // 1. If it's a string, check if it's stringified JSON
+        // Helper to clean markdown blocks
+        const cleanMarkdown = (str) => {
+            if (typeof str !== 'string') return str;
+            return str.replace(/```json\n?|```\n?/g, '').trim();
+        };
+
+        // 1. If it's a string, try to handle as JSON
         if (typeof conclusion === 'string') {
-            const trimmed = conclusion.trim();
-            if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-                try {
+            let trimmed = cleanMarkdown(conclusion);
+
+            // Try explicit JSON parse first
+            try {
+                if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
                     const parsed = JSON.parse(trimmed);
                     return this.renderConclusionContent(parsed);
-                } catch (e) {
-                    displayText = conclusion;
                 }
-            } else {
-                displayText = conclusion;
+            } catch (e) {
+                // If JSON.parse fails, it might have raw newlines. 
+                // Try to extract content field via regex before giving up.
+                const contentMatch = trimmed.match(/"content"\s*:\s*"([\s\S]*?)"(?=\s*[,\}])/) ||
+                    trimmed.match(/"text"\s*:\s*"([\s\S]*?)"(?=\s*[,\}])/) ||
+                    trimmed.match(/"response"\s*:\s*"([\s\S]*?)"(?=\s*[,\}])/);
+
+                if (contentMatch && contentMatch[1]) {
+                    displayText = contentMatch[1]
+                        .replace(/\\n/g, '\n')
+                        .replace(/\\"/g, '"');
+                } else {
+                    // Last resort: strip obvious JSON structural bits but keep the text
+                    displayText = trimmed
+                        .replace(/^\{/, '')
+                        .replace(/\}$/, '')
+                        .replace(/"\w+"\s*:\s*/g, '') // Remove keys
+                        .replace(/"/g, '') // Remove quotes
+                        .replace(/\\n/g, '\n')
+                        .trim();
+                }
             }
+
+            if (!displayText) displayText = trimmed;
         }
         // 2. If it's an object, pick the best field
         else if (typeof conclusion === 'object' && conclusion !== null) {
             displayText = conclusion.content || conclusion.text || conclusion.response || conclusion.result || JSON.stringify(conclusion);
+
             // Recursive check if the field itself is stringified JSON
-            if (typeof displayText === 'string' && displayText.trim().startsWith('{')) {
+            if (typeof displayText === 'string' && (displayText.trim().startsWith('{') || displayText.trim().startsWith('```json'))) {
                 return this.renderConclusionContent(displayText);
             }
         } else {
             displayText = String(conclusion);
+        }
+
+        // Final cleanup: filter out template tags if they leaked through
+        // but keep the text around them if possible, or just the text
+        displayText = displayText.replace(/\{\{.*?\}\}/g, '').trim();
+
+        // If it's still looking like a JSON blob (keys at start), do a final strip
+        if (displayText.includes('": "')) {
+            displayText = displayText.split('\n')
+                .map(line => line.replace(/^.*":\s*"(.*)".*$/, '$1').replace(/^.*":\s*(.*),?$/, '$1'))
+                .join('\n');
         }
 
         // Apply basic markdown formatting (bold) and line breaks
@@ -1150,7 +1189,7 @@ ${data.map(t => {
                     <h3 class="text-xl font-black text-white">${item.title || 'Strategic Analysis'}</h3>
                 </div>
                 <div class="p-5 bg-slate-800/30 border border-slate-800 rounded-xl">
-                    <p class="text-sm text-slate-200 leading-relaxed whitespace-pre-line">${content}</p>
+                    ${this.renderConclusionContent(content)}
                 </div>
             </div>
         `;
