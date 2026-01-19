@@ -4588,12 +4588,12 @@ function showFullTrendReport(trendId) {
     const sortedEvidence = [...(trend.evidence || [])].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
     modal.innerHTML = `
-        <div class="bg-slate-900 border border-slate-800 rounded-[2.5rem] w-full max-w-7xl max-h-[95vh] overflow-hidden shadow-[0_48px_96px_-12px_rgba(0,0,0,1)] animate-in zoom-in-95 duration-500 relative">
+        <div class="bg-slate-900 border border-slate-800 rounded-[2.5rem] w-full max-w-7xl h-[90vh] overflow-hidden shadow-[0_48px_96px_-12px_rgba(0,0,0,1)] animate-in zoom-in-95 duration-500 relative">
             <!-- Ambient Glows -->
             <div class="absolute top-0 right-0 w-[600px] h-[600px] bg-cyan-500/10 blur-[150px] -mr-64 -mt-64"></div>
             <div class="absolute bottom-0 left-0 w-[600px] h-[600px] bg-indigo-500/10 blur-[150px] -ml-64 -mb-64"></div>
 
-            <div class="relative z-10 flex flex-col h-full max-h-[95vh]">
+            <div class="relative z-10 flex flex-col h-full">
                 <!-- Header -->
                 <div class="px-16 py-12 border-b border-slate-800/50 bg-slate-900/50 backdrop-blur-md flex justify-between items-start">
                     <div>
@@ -4765,7 +4765,7 @@ function showFullTrendReport(trendId) {
                 </div>
             </div>
         </div>
-    `;
+        `;
 
     document.body.appendChild(modal);
 }
@@ -4806,6 +4806,4 @@ window.openRejectionModal = openRejectionModal;
 window.closeRejectionModal = closeRejectionModal;
 window.submitRejectionFeedback = submitRejectionFeedback;
 window.closeCompetitorDetail = closeCompetitorDetail;
-window.showFullTrendReport = showFullTrendReport;
-window.saveTrendToLibrary = saveTrendToLibrary;
 
