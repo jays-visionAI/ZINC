@@ -571,16 +571,21 @@ async function triggerMarketIntelligenceResearch() {
 
             for (let i = 0; i < keywords.length; i++) {
                 const kw = keywords[i];
+                let articles = [];
                 try {
-                    // 1. Load cached indices
-                    const existingArticles = await MarketIntelligenceWarehouse.loadIndices(currentProjectId, kw);
-                    const lastScanTime = existingArticles.length > 0 ? new Date(existingArticles[0].publishedAt) : null;
+                    // 1. Try Loading from Warehouse (Cache)
+                    try {
+                        const existingArticles = await MarketIntelligenceWarehouse.loadIndices(currentProjectId, kw);
+                        articles = existingArticles || [];
+                    } catch (warehouseErr) {
+                        console.warn(`[Warehouse] Could not load cache for "${kw}":`, warehouseErr.message);
+                    }
 
-                    // 2. Fetch delta (or fresh if empty)
-                    // If we have recent data (last 24h), we fetch less. If empty, fetch 40.
+                    // 2. Fetch Fresh Data if needed (missing or old)
+                    const lastScanTime = articles.length > 0 ? new Date(articles[0].publishedAt) : null;
                     const isFresh = !lastScanTime || (Date.now() - lastScanTime.getTime()) > (24 * 60 * 60 * 1000);
 
-                    if (isFresh) {
+                    if (isFresh || articles.length === 0) {
                         const newsResult = await window.NewsProviderRegistry.fetchNewsForProject(
                             kw,
                             currentProjectData,
@@ -591,33 +596,29 @@ async function triggerMarketIntelligenceResearch() {
                         );
 
                         if (newsResult.success && newsResult.articles.length > 0) {
-                            // Filter only new articles
-                            const existingUrls = new Set(existingArticles.map(a => a.url));
-                            const newArticles = newsResult.articles.filter(a => !existingUrls.has(a.url));
+                            const newArticles = newsResult.articles;
+                            articles = [...newArticles, ...articles].slice(0, 50);
 
-                            if (newArticles.length > 0) {
-                                await MarketIntelligenceWarehouse.saveIndices(currentProjectId, kw, newArticles);
-                            }
-
-                            // Combine for current analysis
-                            keywordNewsMap[kw] = [...newArticles, ...existingArticles].slice(0, 50);
-                        } else {
-                            keywordNewsMap[kw] = existingArticles;
+                            // Save to warehouse in background
+                            MarketIntelligenceWarehouse.saveIndices(currentProjectId, kw, newArticles).catch(e => { });
                         }
-                    } else {
-                        console.log(`[Warehouse] Using high-confidence cache for "${kw}"`);
-                        keywordNewsMap[kw] = existingArticles;
                     }
 
-                    const poolSize = keywordNewsMap[kw] ? keywordNewsMap[kw].length : 0;
-                    console.log(`[MarketPulse] Total intelligence pool for "${kw}": ${poolSize} articles`);
+                    // 3. Fallback to mock if still empty (ensure UI drawer has content)
+                    if (articles.length === 0 && window.NewsProviderRegistry.providers['google-news']) {
+                        articles = window.NewsProviderRegistry.providers['google-news'].getMockData(kw);
+                    }
+
+                    keywordNewsMap[kw] = articles;
+                    console.log(`[MarketPulse] Intelligence pool for "${kw}": ${articles.length} signals`);
                 } catch (newsErr) {
-                    console.warn(`[MarketPulse] News fetch for "${kw}" failed:`, newsErr.message);
+                    console.warn(`[MarketPulse] Fatal news fetch error for "${kw}":`, newsErr.message);
+                    keywordNewsMap[kw] = [];
                 }
 
                 // Update progress
                 const progressPercent = 20 + Math.floor((i / keywords.length) * 20);
-                updateMIProgress(`Scanning news for: ${kw}...`, progressPercent);
+                updateMIProgress(`Scanning market signals: ${kw}...`, progressPercent);
             }
         }
 
@@ -664,15 +665,21 @@ async function triggerMarketIntelligenceResearch() {
             if (!result) return null;
             const cleanKw = keyword.toLowerCase().replace(/^#/, '');
 
-            // Check in .trends object
-            if (result.trends && typeof result.trends === 'object') {
-                for (const [key, val] of Object.entries(result.trends)) {
-                    if (key.toLowerCase().replace(/^#/, '') === cleanKw) return val;
+            // Aggressively search in .trends, .analysis, .keywords, or root
+            const buckets = [result.trends, result.analysis, result.keywords, result];
+            for (const bucket of buckets) {
+                if (bucket && typeof bucket === 'object') {
+                    if (Array.isArray(bucket)) {
+                        const found = bucket.find(item =>
+                            item && (item.name || item.keyword || '').toLowerCase().replace(/^#/, '') === cleanKw
+                        );
+                        if (found) return found;
+                    } else {
+                        for (const [key, val] of Object.entries(bucket)) {
+                            if (key.toLowerCase().replace(/^#/, '') === cleanKw && typeof val === 'object') return val;
+                        }
+                    }
                 }
-            }
-            // Check in root object
-            for (const [key, val] of Object.entries(result)) {
-                if (key.toLowerCase().replace(/^#/, '') === cleanKw && typeof val === 'object') return val;
             }
             return null;
         };
@@ -698,6 +705,11 @@ async function triggerMarketIntelligenceResearch() {
                 const calculatedVelocity = totalArticles > 0 ? (recentArticles / totalArticles) * 25 : (5 + Math.random() * 5);
                 const realMentions = realArticles.filter(a => !a.isMock).length;
 
+                // VOLUME: Scaling based on mention density (Salience)
+                // If AI provides volume, use it, else calculate from mentions
+                const baselineVolume = totalArticles * (12 + Math.random() * 5);
+                const agentVolume = agentTrend?.volume || baselineVolume;
+
                 const fallbackSentiment = 0.6 + (Math.random() * 0.15);
                 const fallbackConfidence = 0.8 + (Math.random() * 0.1);
 
@@ -705,7 +717,7 @@ async function triggerMarketIntelligenceResearch() {
                     id: `wf-trend-${idx}-${Date.now()}`,
                     name: kw,
                     velocity: agentTrend?.velocity || Math.floor(calculatedVelocity + 5),
-                    volume: agentTrend?.volume || Math.max(totalArticles * 12, 15 + Math.floor(Math.random() * 5)),
+                    volume: Math.round(agentVolume),
                     mentions: realMentions,
                     sentiment: agentTrend?.sentiment || fallbackSentiment,
                     confidence: agentTrend?.confidence || (totalArticles > 5 ? 0.95 : fallbackConfidence),

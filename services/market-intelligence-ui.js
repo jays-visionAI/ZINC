@@ -27,16 +27,47 @@ class MarketIntelligenceUI {
     }
 
     setState(newState) {
-        const oldSelectedTrendId = this.state.selectedTrendId;
+        const oldStatus = this.state.status;
         this.state = { ...this.state, ...newState };
 
-        // If status changed or data changed, re-render everything
-        // For simple updates, we could be more granular, but for this refactor, re-rendering is safest.
-        this.render();
+        // Handle progress smoothing for 'analyzing' state
+        if (this.state.status === 'analyzing') {
+            this.startProgressSmoothing();
+        } else {
+            this.stopProgressSmoothing();
+        }
 
-        // Handle transitions for drawer if needed
-        if (oldSelectedTrendId !== this.state.selectedTrendId) {
-            // Optional: smooth scroll or focus
+        this.render();
+    }
+
+    startProgressSmoothing() {
+        if (this.progressInterval) return;
+
+        let displayPercent = this.state.progressPercent || 0;
+        this.progressInterval = setInterval(() => {
+            const target = this.state.progressPercent || 0;
+            if (displayPercent < target) {
+                // Catch up slowly
+                displayPercent += 0.5;
+            } else if (displayPercent < 99) {
+                // Micro-inching to show life while waiting
+                displayPercent += 0.05;
+            }
+
+            const el = document.getElementById('mi-progress-text');
+            const bar = document.getElementById('mi-progress-bar');
+            const circle = document.getElementById('mi-progress-circle');
+
+            if (el) el.textContent = `${Math.floor(displayPercent)}%`;
+            if (bar) bar.style.width = `${displayPercent}%`;
+            if (circle) circle.setAttribute('stroke-dasharray', `${displayPercent} 100`);
+        }, 100);
+    }
+
+    stopProgressSmoothing() {
+        if (this.progressInterval) {
+            clearInterval(this.progressInterval);
+            this.progressInterval = null;
         }
     }
 
@@ -218,36 +249,54 @@ class MarketIntelligenceUI {
             const percent = this.state.progressPercent || 0;
             const message = this.state.progressMessage || 'Processing...';
             return `
-                <div class="flex flex-col items-center justify-center h-[400px] bg-slate-900/20 rounded-xl border border-cyan-500/20">
-                    <div class="relative w-20 h-20 mb-6">
-                        <svg class="w-20 h-20 -rotate-90" viewBox="0 0 36 36">
-                            <circle cx="18" cy="18" r="16" fill="none" stroke="#1e293b" stroke-width="3"></circle>
-                            <circle cx="18" cy="18" r="16" fill="none" stroke="url(#progress-gradient)" stroke-width="3" 
-                                stroke-dasharray="${percent} 100" stroke-linecap="round" class="transition-all duration-500"></circle>
+                <div class="flex flex-col items-center justify-center h-[450px] bg-slate-900/40 rounded-2xl border border-cyan-500/10 relative overflow-hidden">
+                    <!-- Background Glow -->
+                    <div class="absolute inset-0 bg-gradient-to-b from-cyan-500/5 to-transparent pointer-events-none"></div>
+                    
+                    <div class="relative w-32 h-32 mb-8 group">
+                        <!-- Outer Glow Ring -->
+                        <div class="absolute inset-0 rounded-full bg-cyan-500/20 blur-xl animate-pulse group-hover:bg-cyan-500/30 transition-all duration-1000"></div>
+                        
+                        <svg class="w-32 h-32 -rotate-90 relative z-10" viewBox="0 0 36 36">
+                            <circle cx="18" cy="18" r="16" fill="none" stroke="rgba(30, 41, 59, 0.5)" stroke-width="2.5"></circle>
+                            <circle id="mi-progress-circle" cx="18" cy="18" r="16" fill="none" stroke="url(#progress-gradient)" stroke-width="2.5" 
+                                stroke-dasharray="${percent} 100" stroke-linecap="round" 
+                                class="transition-all duration-300 shadow-[0_0_15px_rgba(34,211,238,0.5)]"></circle>
                             <defs>
-                                <linearGradient id="progress-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                                    <stop offset="0%" style="stop-color:#06b6d4" />
+                                <linearGradient id="progress-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#22d3ee" />
                                     <stop offset="100%" style="stop-color:#8b5cf6" />
                                 </linearGradient>
                             </defs>
                         </svg>
-                        <div class="absolute inset-0 flex items-center justify-center">
-                            <span class="text-white font-bold text-sm">${percent}%</span>
+                        <div class="absolute inset-0 flex flex-col items-center justify-center z-20">
+                            <span id="mi-progress-text" class="text-white font-bold text-xl tracking-tighter">${percent}%</span>
+                            <span class="text-[9px] text-cyan-400 font-bold uppercase tracking-widest opacity-60">Status</span>
                         </div>
                     </div>
-                    <div class="text-center max-w-md px-4">
-                        <h3 class="text-lg font-bold text-white mb-2 flex items-center justify-center gap-2">
-                            <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
-                            AI Agents Working
-                        </h3>
-                        <p class="text-cyan-400 font-medium mb-4">${message}</p>
-                        <div class="w-full max-w-xs mx-auto h-1.5 bg-slate-800 rounded-full overflow-hidden mb-4">
-                            <div class="h-full bg-gradient-to-r from-cyan-500 to-violet-500 rounded-full transition-all duration-500 ease-out" style="width: ${percent}%"></div>
+
+                    <div class="text-center max-w-md px-4 relative z-10">
+                        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800 border border-slate-700 mb-4">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                            <span class="text-[10px] font-bold text-slate-300 uppercase tracking-widest">${percent < 100 ? 'Agent Intelligence Active' : 'Synthesis Complete'}</span>
                         </div>
-                        <p class="text-xs text-slate-500 leading-relaxed">
-                            <span class="text-emerald-400 font-semibold">✓ Safe to leave:</span> 
-                            You can navigate away and return later. Your results will be waiting for you.
-                        </p>
+                        
+                        <h3 class="text-lg font-bold text-white mb-2">${message}</h3>
+                        
+                        <div class="w-64 mx-auto h-1.5 bg-slate-800/50 rounded-full overflow-hidden mb-6 border border-white/5">
+                            <div id="mi-progress-bar" class="h-full bg-gradient-to-r from-cyan-400 via-sky-500 to-indigo-500 rounded-full transition-all duration-500 shadow-[0_0_10px_rgba(34,211,238,0.3)]" style="width: ${percent}%"></div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4 text-left p-4 rounded-xl bg-slate-950/50 border border-slate-800/50">
+                            <div class="flex items-start gap-2">
+                                <svg class="mt-0.5 text-cyan-500 flex-shrink-0" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                <div class="text-[10px] text-slate-400 line-clamp-1">Signal processing</div>
+                            </div>
+                            <div class="flex items-start gap-2">
+                                <svg class="mt-0.5 text-cyan-500 flex-shrink-0" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                <div class="text-[10px] text-slate-400 line-clamp-1">Market synthesis</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             `;
@@ -336,7 +385,7 @@ class MarketIntelligenceUI {
                             ${(trend.mentions > 0) ? trend.mentions : (trend.volume > 1000 ? (trend.volume / 1000).toFixed(1) + 'k' : trend.volume)}
                         </div>
                         <span class="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
-                            ${(trend.mentions > 0) ? 'Mentions' : 'Volume'}
+                            ${(trend.mentions > 0) ? 'Mentions' : 'Reach'}
                         </span>
                     </div>
                 </div>
@@ -398,7 +447,7 @@ class MarketIntelligenceUI {
 
                     <!-- Axis Labels -->
                     <text x="${width / 2}" y="${height - 5}" text-anchor="middle" fill="#475569" font-size="10" font-weight="bold">VELOCITY (%)</text>
-                    <text x="5" y="${height / 2}" text-anchor="middle" fill="#475569" font-size="10" font-weight="bold" transform="rotate(-90, 5, ${height / 2})">VOLUME (k)</text>
+                    <text x="5" y="${height / 2}" text-anchor="middle" fill="#475569" font-size="10" font-weight="bold" transform="rotate(-90, 5, ${height / 2})">REACH (hits)</text>
 
                     <!-- Points -->
                     ${this.state.data.map(trend => {
@@ -465,22 +514,26 @@ class MarketIntelligenceUI {
 
                     <section>
                         <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 flex justify-between">
-                            <span>Evidence</span>
-                            <span class="text-slate-600">${trend.evidence.length} sources</span>
+                            <span>Intelligence Sources</span>
+                            <span class="text-slate-600">${(trend.evidence || []).length} signals</span>
                         </h3>
 
                         <div class="space-y-3">
-                            ${trend.evidence.map(ev => `
+                            ${(trend.evidence && trend.evidence.length > 0) ? trend.evidence.map(ev => `
                                 <a href="${ev.url}" target="_blank" rel="noopener noreferrer" class="block group p-3 rounded-lg border border-slate-800 hover:border-slate-700 hover:bg-slate-800/50 transition-all">
                                     <div class="flex justify-between items-start mb-1">
                                         <span class="text-xs text-cyan-500 font-medium">${typeof ev.publisher === 'object' ? (ev.publisher.name || 'News Source') : ev.publisher}</span>
-                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                                        <svg class="text-slate-600 group-hover:text-cyan-400" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
                                     </div>
                                     <h4 class="text-sm font-medium text-slate-200 group-hover:text-white mb-1 line-clamp-1">${ev.title}</h4>
                                     <p class="text-xs text-slate-500 line-clamp-2">${ev.snippet}</p>
                                     <div class="mt-2 text-[10px] text-slate-600">${ev.date}</div>
                                 </a>
-                            `).join('')}
+                            `).join('') : `
+                                <div class="p-4 rounded-lg border border-dashed border-slate-800 text-center">
+                                    <p class="text-xs text-slate-600 italic">No verified news signals found for this period.</p>
+                                </div>
+                            `}
                         </div>
                     </section>
                 </div>
