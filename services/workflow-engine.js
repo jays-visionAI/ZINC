@@ -430,62 +430,56 @@ const WorkflowEngine = (function () {
                     return typeof obj === 'object' ? JSON.stringify(obj) : obj;
                 }
 
-                if (parts[0] === 'advancedOptions') {
-                    let obj = context.projectContext?.advancedOptions || {};
-                    for (let i = 1; i < parts.length; i++) {
-                        if (obj && obj[parts[i]] !== undefined) obj = obj[parts[i]];
-                        else return match;
-                    }
-                    return typeof obj === 'object' ? JSON.stringify(obj) : obj;
-                }
+                // 2. Resolve Base Object (prev, lastNode, nodes.ID, or specific node ID)
+                let baseObj = null;
+                let startIndex = 1;
 
-                // nodes path (Original)
-                if (parts[0] === 'nodes') {
-                    const nodeId = parts[1];
-                    const nodeOutput = context.allOutputs ? context.allOutputs[nodeId] : null;
-                    if (!nodeOutput) return match;
-
-                    if (parts[2] === 'output' || parts.length === 2) {
-                        return typeof nodeOutput === 'object' ? JSON.stringify(nodeOutput) : nodeOutput;
-                    }
-
-                    let obj = nodeOutput;
-                    for (let i = 2; i < parts.length; i++) {
-                        if (obj && obj[parts[i]] !== undefined) obj = obj[parts[i]];
-                        else return match;
-                    }
-                    return typeof obj === 'object' ? JSON.stringify(obj) : obj;
-                }
-
-                // 2. prev & lastNode Aliases
                 if (parts[0] === 'prev' || parts[0] === 'lastNode') {
                     const keys = Object.keys(context.previousOutputs);
-                    if (keys.length > 0) {
-                        let obj = context.previousOutputs[keys[0]];
-                        for (let i = 1; i < parts.length; i++) {
-                            const key = parts[i];
-                            // Smart mapping for common result keys
-                            if (obj && obj[key] === undefined && (key === 'text' || key === 'content')) {
+                    if (keys.length > 0) baseObj = context.previousOutputs[keys[0]];
+                } else if (parts[0] === 'nodes' && parts[1]) {
+                    baseObj = context.allOutputs ? context.allOutputs[parts[1]] : null;
+                    startIndex = 2;
+                } else if (context.allOutputs[parts[0]]) {
+                    baseObj = context.allOutputs[parts[0]];
+                } else if (context.previousOutputs[parts[0]]) {
+                    baseObj = context.previousOutputs[parts[0]];
+                }
+
+                if (baseObj !== null && baseObj !== undefined) {
+                    let obj = baseObj;
+                    for (let i = startIndex; i < parts.length; i++) {
+                        const key = parts[i];
+
+                        // RESILIENCE: Skip '.output' if it's not a real property of the object
+                        // Often users write {{node.output.text}} but the object is just {text: ...}
+                        if (key === 'output' && (typeof obj === 'object' && obj !== null && obj.output === undefined)) {
+                            continue;
+                        }
+
+                        // SMART MATCHING: Handle inconsistent naming between LLM providers (text vs response vs result)
+                        if (typeof obj === 'object' && obj !== null && obj[key] === undefined) {
+                            if (key === 'text' || key === 'content') {
                                 const fallback = obj.response || obj.result || obj.text || obj.content;
                                 if (fallback !== undefined) { obj = fallback; continue; }
                             }
-                            if (obj && obj[key] !== undefined) obj = obj[key];
-                            else return match;
+                            if (key === 'response' || key === 'result') {
+                                const fallback = obj.text || obj.content || obj.response || obj.result;
+                                if (fallback !== undefined) { obj = fallback; continue; }
+                            }
                         }
-                        return typeof obj === 'object' ? JSON.stringify(obj) : obj;
-                    }
-                }
 
-                // Handle specific node IDs: {{node_1.output.summary}}
-                if (context.previousOutputs[parts[0]]) {
-                    let obj = context.previousOutputs[parts[0]];
-                    // Skip 'output' part if user included it: node_1.output.xxx
-                    const startIndex = parts[1] === 'output' ? 2 : 1;
-                    for (let i = startIndex; i < parts.length; i++) {
-                        if (obj && obj[parts[i]] !== undefined) obj = obj[parts[i]];
-                        else return match;
+                        if (obj !== null && obj !== undefined && obj[key] !== undefined) {
+                            obj = obj[key];
+                        } else if (i === parts.length - 1 && typeof obj === 'string') {
+                            // If we've reached a string but user is asking for text/content, just give them the string
+                            if (key === 'text' || key === 'content') return obj;
+                            return match;
+                        } else {
+                            return match;
+                        }
                     }
-                    return typeof obj === 'object' ? JSON.stringify(obj) : obj;
+                    return typeof obj === 'object' && obj !== null ? JSON.stringify(obj) : (obj ?? '');
                 }
 
                 return match;
