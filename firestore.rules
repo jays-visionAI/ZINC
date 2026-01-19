@@ -270,7 +270,13 @@ service cloud.firestore {
       // Market Pulse Data (Scheduler output & Real-time trends)
       match /marketPulse/{docId} {
         allow read: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
-        allow write: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin()); // Allow project owner to sync keywords
+        allow write: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
+      }
+
+      // Market Intelligence Warehouse (News clippings cache)
+      match /marketPulse_warehouse/{docId} {
+        allow read: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
+        allow write: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
       }
 
       // Research History (Intelligence Lab results)
