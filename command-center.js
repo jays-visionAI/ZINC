@@ -377,7 +377,8 @@ document.addEventListener("DOMContentLoaded", () => {
             file: file,
             name: file.name,
             url: null,
-            uploaded: false
+            uploaded: false,
+            category: 'other' // Default category
         }));
         uploadedFiles = [...uploadedFiles, ...files];
         renderFileList();
@@ -388,7 +389,8 @@ document.addEventListener("DOMContentLoaded", () => {
             file: file,
             name: file.name,
             url: null,
-            uploaded: false
+            uploaded: false,
+            category: 'other'
         }));
         uploadedFiles = [...uploadedFiles, ...files];
         renderFileList();
@@ -398,14 +400,33 @@ document.addEventListener("DOMContentLoaded", () => {
         fileList.innerHTML = "";
         uploadedFiles.forEach((file, index) => {
             const item = document.createElement("div");
-            item.className = "file-item";
+            item.className = "file-item flex flex-col gap-2 p-3 bg-slate-800/40 border border-slate-700/50 rounded-lg mb-2";
             item.innerHTML = `
-                <span>${file.name} ${file.uploaded ? '✅' : ''}</span>
-                <span style="cursor:pointer; color:var(--color-warning)" onclick="removeFile(${index})">&times;</span>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-medium truncate max-w-[200px]">${file.name} ${file.uploaded ? '✅' : ''}</span>
+                    <span class="text-slate-500 cursor-pointer hover:text-red-400 p-1" onclick="removeFile(${index})">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-[10px] text-slate-500 uppercase tracking-wider">Type:</span>
+                    <select onchange="updateFileCategory(${index}, this.value)" class="bg-slate-900 text-[11px] border border-slate-700 rounded px-2 py-1 outline-none focus:border-indigo-500 transition-colors">
+                        <option value="other" ${file.category === 'other' ? 'selected' : ''}>General Asset</option>
+                        <option value="logo" ${file.category === 'logo' ? 'selected' : ''}>Brand Logo</option>
+                        <option value="bi" ${file.category === 'bi' ? 'selected' : ''}>BI Guide</option>
+                        <option value="ci" ${file.category === 'ci' ? 'selected' : ''}>CI (Corp. Identity)</option>
+                    </select>
+                </div>
             `;
             fileList.appendChild(item);
         });
     }
+
+    window.updateFileCategory = (index, category) => {
+        if (uploadedFiles[index]) {
+            uploadedFiles[index].category = category;
+        }
+    };
 
     window.removeFile = (index) => {
         uploadedFiles.splice(index, 1);
@@ -428,7 +449,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 if (fileObj.uploaded && fileObj.url) {
                     console.log(`Skipping already uploaded file: ${fileObj.name}`);
-                    assetFileUrls.push(fileObj.url);
+                    assetFileUrls.push({
+                        url: fileObj.url,
+                        name: fileObj.name,
+                        category: fileObj.category || 'other'
+                    });
                     continue;
                 }
 
@@ -443,7 +468,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 uploadedFiles[i].url = url;
                 uploadedFiles[i].uploaded = true;
 
-                assetFileUrls.push(url);
+                assetFileUrls.push({
+                    url: url,
+                    name: fileObj.name,
+                    category: fileObj.category || 'other'
+                });
             }
             renderFileList(); // Update UI to show checkmarks
         } catch (e) {
@@ -455,7 +484,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const data = {
             description: document.getElementById("project-description").value,
-            assetFileUrls: assetFileUrls,
+            assetFiles: assetFileUrls, // Changed from assetFileUrls to assetFiles (array of objects)
             draftStep: 2,
             stepProgress: 2,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -655,6 +684,36 @@ document.addEventListener("DOMContentLoaded", () => {
 
             await db.collection("projects").doc(draftId).update(data);
             console.log("Project finalized successfully");
+
+            // 📂 MIGRATE ASSETS TO KNOWLEDGE SOURCES
+            const projectDoc = await db.collection("projects").doc(draftId).get();
+            const projectData = projectDoc.data();
+            const assets = projectData.assetFiles || [];
+
+            if (assets.length > 0) {
+                console.log(`[Launch] Migrating ${assets.length} assets to knowledgeSources...`);
+                const batch = db.batch();
+
+                assets.forEach(asset => {
+                    const sourceRef = db.collection('projects').doc(draftId).collection('knowledgeSources').doc();
+                    const isDesign = ['logo', 'bi', 'ci'].includes(asset.category);
+
+                    batch.set(sourceRef, {
+                        sourceType: isDesign ? 'design' : 'file',
+                        title: asset.name,
+                        fileName: asset.name,
+                        fileUrl: asset.url,
+                        category: asset.category || 'other',
+                        isActive: true,
+                        status: 'completed',
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                });
+
+                await batch.commit();
+                console.log("[Launch] Assets migrated to knowledgeSources successfully.");
+            }
 
             // 🧠 AUTO-INITIALIZE CORE AGENT TEAM (Unified Brain)
             await initializeCoreAgentTeam(draftId);

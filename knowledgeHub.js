@@ -944,6 +944,7 @@ function renderSources(filter = 'all') {
             if (filter === 'links') return s.sourceType === 'link';
             if (filter === 'notes') return s.sourceType === 'note';
             if (filter === 'uploads') return s.sourceType === 'file';
+            if (filter === 'design') return s.sourceType === 'design';
             return true;
         });
     }
@@ -978,8 +979,10 @@ function createSourceElement(source) {
 
     div.innerHTML = `
         <div class="flex items-start gap-3">
-            <div class="w-9 h-9 rounded-lg ${getSourceBgColor(source.sourceType)} flex items-center justify-center flex-shrink-0">
-                ${icon}
+            <div class="w-9 h-9 rounded-lg ${getSourceBgColor(source.sourceType)} flex items-center justify-center flex-shrink-0 relative overflow-hidden">
+                ${source.sourceType === 'design' && source.fileUrl && (source.contentType?.startsWith('image/') || source.title?.match(/\.(png|jpg|jpeg|gif|svg)$/i))
+            ? `<img src="${source.fileUrl}" class="w-full h-full object-cover" />`
+            : icon}
             </div>
             <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 mb-1">
@@ -1046,6 +1049,8 @@ function getSourceIcon(type) {
             return `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-amber-400"><path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z"/><path d="M15 3v6h6"/></svg>`;
         case 'file':
             return `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-indigo-400"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`;
+        case 'design':
+            return `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-emerald-400"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>`;
         default:
             return `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-slate-400"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/></svg>`;
     }
@@ -8910,37 +8915,55 @@ function calculateKnowledgeScore(sourceList) {
     let hasLink = false;
     let hasNote = false;
 
+    // 3. Design Readiness Score (Max 20)
+    let hasLogo = false;
+    let hasCIBI = false;
+    let hasDesignTheme = false;
+
     sourceList.forEach(s => {
-        if (s.type === 'drive') hasDrive = true;
-        if (s.type === 'link') hasLink = true;
-        if (s.type === 'note') hasNote = true;
+        if (s.sourceType === 'google_drive' || s.type === 'drive') hasDrive = true;
+        if (s.sourceType === 'link' || s.type === 'link') hasLink = true;
+        if (s.sourceType === 'note' || s.type === 'note') hasNote = true;
+
+        if (s.sourceType === 'design') {
+            if (s.category === 'logo') hasLogo = true;
+            if (s.category === 'bi' || s.category === 'ci') hasCIBI = true;
+        }
     });
+
+    // Strategy / Knowledge check for Design Theme
+    if (brandBrainData && brandBrainData.strategy && brandBrainData.strategy.designTheme) {
+        hasDesignTheme = true;
+    }
 
     let diversityScore = 0;
     if (hasDrive) diversityScore += 10;
     if (hasLink) diversityScore += 10;
     if (hasNote) diversityScore += 10;
 
-    // 3. Recency Score (Max 20)
+    let designReadinessScore = 0;
+    if (hasLogo) designReadinessScore += 5;
+    if (hasCIBI) designReadinessScore += 10;
+    if (hasDesignTheme) designReadinessScore += 5;
+
+    // 4. Recency Score (Max 10)
     let recencyScore = 0;
     if (sourceList.length > 0) {
-        // Assume first item is latest due to 'orderBy desc' in loadSources
         const latest = sourceList[0];
         const now = new Date();
         const created = latest.createdAt ? new Date(latest.createdAt.seconds * 1000) : new Date();
         const diffDays = (now - created) / (1000 * 60 * 60 * 24);
 
-        if (diffDays < 7) recencyScore = 20;
-        else if (diffDays < 14) recencyScore = 10;
-        else recencyScore = 5;
+        if (diffDays < 7) recencyScore = 10;
+        else if (diffDays < 14) recencyScore = 5;
+        else recencyScore = 2;
     }
 
-    // 4. Integration Score (Max 10)
-    // Simplified: If Google Drive is used, +10 (already checked in diversity, but explicit category)
+    // 5. Integration Score (Max 10)
     const integrationScore = hasDrive ? 10 : 0;
 
     // Total
-    const totalScore = quantityScore + diversityScore + recencyScore + integrationScore;
+    const totalScore = quantityScore + diversityScore + designReadinessScore + recencyScore + integrationScore;
 
     // Determine Status
     let statusMsg = "Needs Improvement";
@@ -8958,11 +8981,12 @@ function calculateKnowledgeScore(sourceList) {
         totalScore,
         quantityScore,
         diversityScore,
+        designReadinessScore,
         recencyScore,
         integrationScore,
         statusMsg,
         statusColor,
-        counts: { count, hasDrive, hasLink, hasNote }
+        counts: { count, hasDrive, hasLink, hasNote, hasLogo, hasCIBI, hasDesignTheme }
     });
 }
 
@@ -9030,6 +9054,26 @@ function updateKnowledgeScoreUI(data) {
         scoreDiv.innerText = `${data.diversityScore}/30`;
     }
 
+    const barDesign = document.getElementById('bar-design');
+    const scoreDesign = document.getElementById('score-design');
+    const statusDesign = document.getElementById('score-design-status');
+    if (barDesign) {
+        const designPct = (data.designReadinessScore / 20) * 100;
+        barDesign.style.width = `${designPct}%`;
+        scoreDesign.innerText = `${data.designReadinessScore}/20`;
+
+        if (data.designReadinessScore >= 20) {
+            statusDesign.innerText = "Excellent";
+            statusDesign.className = "text-[10px] text-emerald-400";
+        } else if (data.designReadinessScore >= 10) {
+            statusDesign.innerText = "Good";
+            statusDesign.className = "text-[10px] text-amber-400";
+        } else {
+            statusDesign.innerText = "Not Ready";
+            statusDesign.className = "text-[10px] text-red-400";
+        }
+    }
+
     // Update Missing Items List
     const list = document.getElementById('missing-items-list');
     if (list) {
@@ -9050,6 +9094,10 @@ function updateKnowledgeScoreUI(data) {
         if (!data.counts.hasDrive) items.push({ text: "Connect Google Drive", points: "+10 points", action: "document.getElementById('btn-add-source').click(); setTimeout(() => document.querySelector('[data-type=drive]').click(), 300);" });
         if (!data.counts.hasLink) items.push({ text: "Add a Web Link", points: "+10 points", action: "document.getElementById('btn-add-source').click(); setTimeout(() => document.querySelector('[data-type=link]').click(), 300);" });
         if (!data.counts.hasNote) items.push({ text: "Create a Note", points: "+10 points", action: "document.getElementById('btn-add-source').click(); setTimeout(() => document.querySelector('[data-type=note]').click(), 300);" });
+
+        if (!data.counts.hasLogo) items.push({ text: "Upload Brand Logo", points: "+5 points", action: "document.getElementById('btn-add-source').click();" });
+        if (!data.counts.hasCIBI) items.push({ text: "Upload BI/CI Guide", points: "+10 points", action: "document.getElementById('btn-add-source').click();" });
+        if (!data.counts.hasDesignTheme) items.push({ text: "Generate Design Theme (AI)", points: "+5 points", action: "alert('AI Design Analysis will be triggered when sources are ready.');" });
 
         if (items.length === 0) {
             list.innerHTML = `<div class="p-3 text-center text-xs text-slate-500">🎉 All clear! You are ready.</div>`;

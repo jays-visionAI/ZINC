@@ -54,11 +54,11 @@ class MarketIntelligenceUI {
         this.progressInterval = setInterval(() => {
             const target = this.state.progressPercent || 0;
             if (displayPercent < target) {
-                // Catch up slowly (Halved for 2x slower progress)
-                displayPercent += 0.25;
+                // Catch up slowly (Reduced by 50% for even slower progress)
+                displayPercent += 0.125;
             } else if (displayPercent < 99) {
-                // Micro-inching to show life while waiting (Halved for 2x slower progress)
-                displayPercent += 0.025;
+                // Micro-inching to show life while waiting (Reduced by 50% for even slower progress)
+                displayPercent += 0.0125;
             }
 
             const el = document.getElementById('mi-progress-text');
