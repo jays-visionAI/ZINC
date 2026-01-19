@@ -1008,17 +1008,25 @@ ${data.map(t => {
                 const timeStr = date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
 
                 return `
-                    <div class="conclusion-history-item p-4 border-b border-slate-800 cursor-pointer hover:bg-slate-800/50 transition-colors ${idx === 0 ? 'bg-indigo-500/10 border-l-2 border-l-indigo-500' : ''}" data-idx="${idx}">
-                        <div class="text-[10px] text-slate-500 font-medium mb-1">${dateStr} ${timeStr}</div>
-                        <div class="text-sm font-bold text-white truncate">${item.title || 'Strategic Analysis'}</div>
+                    <div class="conclusion-history-item group relative p-4 border-b border-slate-800 cursor-pointer hover:bg-slate-800/50 transition-colors ${idx === 0 ? 'bg-indigo-500/10 border-l-2 border-l-indigo-500' : ''}" data-idx="${idx}">
+                        <div class="flex justify-between items-start mb-1">
+                            <div class="text-[10px] text-slate-500 font-medium">${dateStr} ${timeStr}</div>
+                            <button class="delete-history-btn hidden group-hover:flex items-center justify-center w-6 h-6 rounded-md bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all" data-id="${item.id}" title="Delete">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                            </button>
+                        </div>
+                        <div class="text-sm font-bold text-white truncate pr-4">${item.title || 'Strategic Analysis'}</div>
                         <div class="text-xs text-slate-500 mt-1 line-clamp-2">${(item.content || '').substring(0, 100)}...</div>
                     </div>
                 `;
             }).join('');
 
-            // Add click handlers
+            // Add click handlers for items
             listContainer.querySelectorAll('.conclusion-history-item').forEach(el => {
-                el.addEventListener('click', () => {
+                el.addEventListener('click', (e) => {
+                    // Skip if clicking delete button
+                    if (e.target.closest('.delete-history-btn')) return;
+
                     const idx = parseInt(el.dataset.idx);
                     this.selectConclusionHistoryItem(idx);
 
@@ -1027,6 +1035,17 @@ ${data.map(t => {
                         item.classList.remove('bg-indigo-500/10', 'border-l-2', 'border-l-indigo-500');
                     });
                     el.classList.add('bg-indigo-500/10', 'border-l-2', 'border-l-indigo-500');
+                });
+            });
+
+            // Add click handlers for delete buttons
+            listContainer.querySelectorAll('.delete-history-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const docId = btn.dataset.id;
+                    if (confirm('Are you sure you want to delete this strategic conclusion?')) {
+                        await this.deleteConclusionHistoryItem(docId);
+                    }
                 });
             });
 
@@ -1042,6 +1061,37 @@ ${data.map(t => {
                     Failed to load history
                 </div>
             `;
+        }
+    }
+
+    async deleteConclusionHistoryItem(docId) {
+        if (!currentProjectId || !docId) return;
+
+        try {
+            const db = firebase.firestore();
+            await db.collection('projects').doc(currentProjectId)
+                .collection('strategicConclusions').doc(docId).delete();
+
+            console.log(`[MarketIntelligence] Deleted conclusion item: ${docId}`);
+
+            // Reload history after deletion
+            await this.loadConclusionHistory();
+
+            // Also refresh main display if we just deleted the latest one
+            const latest = await this.loadLatestConclusion();
+            const container = document.getElementById('strategic-conclusion-content');
+            if (container) {
+                if (latest) {
+                    this.state.cachedConclusion = latest.content;
+                    container.innerHTML = this.renderConclusionContent(latest.content);
+                } else {
+                    this.state.cachedConclusion = null;
+                    container.innerHTML = `<p class="text-sm text-slate-400 italic">No historical conclusions found.</p>`;
+                }
+            }
+        } catch (err) {
+            console.error('[MarketIntelligence] Failed to delete history item:', err);
+            alert('Failed to delete the item. Please try again.');
         }
     }
 
