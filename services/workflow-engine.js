@@ -253,23 +253,30 @@ const WorkflowEngine = (function () {
             finalData = this.resolveVariablesInObject(dataTemplate || "{}", context);
 
             // If the resolved data is a string that starts with '{', try to parse it as JSON
-            // (Only for string templates, not object templates)
             if (typeof dataTemplate === 'string' && typeof finalData === 'string' && finalData.trim().startsWith('{')) {
                 try {
                     finalData = JSON.parse(finalData);
                 } catch (e) {
-                    // Fallback to literal if parse fails
                     finalData = { content: finalData };
                 }
             } else if (typeof finalData !== 'object' || finalData === null) {
-                // If it's still a primitive, wrap it in a content field
                 finalData = { content: finalData };
             }
 
-            // Always add default metadata if not present
-            if (!finalData.createdAt) finalData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-            if (!finalData.projectId) finalData.projectId = context.projectId;
-            if (!finalData.title) finalData.title = 'Strategic Analysis';
+            // --- CRITICAL PROTECTION: Enforce System Defaults if tags remain ---
+            // If resolution failed and literal tags are left, override with actual data
+            if (finalData.createdAt === undefined || (typeof finalData.createdAt === 'string' && finalData.createdAt.includes('{{timestamp}}'))) {
+                finalData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+            }
+            if (finalData.projectId === undefined || (typeof finalData.projectId === 'string' && finalData.projectId.includes('{{projectId}}'))) {
+                finalData.projectId = context.projectId;
+            }
+            if (finalData.createdBy === undefined || (typeof finalData.createdBy === 'string' && finalData.createdBy.includes('{{userId}}'))) {
+                finalData.createdBy = context.projectContext?.userId || 'unknown';
+            }
+            if (!finalData.title || (typeof finalData.title === 'string' && finalData.title.includes('{{'))) {
+                finalData.title = 'Strategic Analysis';
+            }
 
             if (operation === 'write') {
                 if (!collection) throw new Error('Collection missing for Firestore Write');
@@ -476,12 +483,23 @@ const WorkflowEngine = (function () {
                         // C. Property lookup with fallbacks
                         let currentVal = (typeof obj === 'object' && obj !== null) ? obj[key] : undefined;
 
-                        // D. SMART FALLBACKS: Handle naming variations
+                        // D. SMART SEARCHING: If not found at root, check sub-objects (e.g., input.keywords -> input.market_intelligence.keywords)
                         if (currentVal === undefined && typeof obj === 'object' && obj !== null) {
+                            // 1. Direct Field Fallbacks
                             if (key === 'text' || key === 'content') {
                                 currentVal = obj.response || obj.result || obj.text || obj.content || obj.output;
                             } else if (key === 'response' || key === 'result') {
                                 currentVal = obj.text || obj.content || obj.response || obj.result;
+                            }
+
+                            // 2. [NEW] Deep Search: If many inputs exist, check inside them (Fixes {{input.keywords}} issue)
+                            if (currentVal === undefined) {
+                                for (const subKey of Object.keys(obj)) {
+                                    if (typeof obj[subKey] === 'object' && obj[subKey] !== null && obj[subKey][key] !== undefined) {
+                                        currentVal = obj[subKey][key];
+                                        break;
+                                    }
+                                }
                             }
                         }
 
