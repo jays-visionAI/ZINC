@@ -907,7 +907,6 @@ ${data.map(t => {
 
     async loadLatestConclusion() {
         if (!currentProjectId) return null;
-
         try {
             const db = firebase.firestore();
             const snapshot = await db.collection('projects').doc(currentProjectId)
@@ -916,16 +915,22 @@ ${data.map(t => {
                 .limit(1)
                 .get();
 
-            if (!snapshot.empty) {
-                const doc = snapshot.docs[0];
-                return { id: doc.id, ...doc.data() };
-            }
-        } catch (err) {
-            console.error('[MarketIntelligence] Failed to load conclusion:', err);
-        }
-        return null;
-    }
+            if (snapshot.empty) return null;
+            const data = snapshot.docs[0].data();
 
+            // Flexibly find content in various possible fields
+            const content = data.content || data.text || data.response || data.result || (typeof data.output === 'string' ? data.output : null);
+
+            return {
+                id: snapshot.docs[0].id,
+                ...data,
+                content: content // Standardize to 'content' for the UI
+            };
+        } catch (err) {
+            console.error('[MarketIntelligence] Error loading latest conclusion:', err);
+            return null;
+        }
+    }
     async showConclusionHistory() {
         if (!currentProjectId) {
             showNotification('Project not loaded', 'error');
@@ -999,7 +1004,15 @@ ${data.map(t => {
                 return;
             }
 
-            const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const items = snapshot.docs.map(doc => {
+                const data = doc.data();
+                return {
+                    id: doc.id,
+                    ...data,
+                    // Flexibly map content for the list preview
+                    content: data.content || data.text || data.response || data.result || (typeof data.output === 'string' ? data.output : '')
+                };
+            });
             this.conclusionHistoryItems = items;
 
             listContainer.innerHTML = items.map((item, idx) => {
@@ -1106,6 +1119,9 @@ ${data.map(t => {
         const dateStr = date.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
         const timeStr = date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
 
+        // Flexibly find content
+        const displayContent = item.content || item.text || item.response || item.result || (typeof item.output === 'string' ? item.output : 'No content available.');
+
         previewContainer.innerHTML = `
             <div class="space-y-4">
                 <div>
@@ -1121,7 +1137,7 @@ ${data.map(t => {
                     <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Keywords: ${item.keywords}</div>
                 ` : ''}
                 <div class="p-5 bg-slate-800/30 border border-slate-800 rounded-xl">
-                    <p class="text-sm text-slate-200 leading-relaxed whitespace-pre-line">${item.content}</p>
+                    <p class="text-sm text-slate-200 leading-relaxed whitespace-pre-line">${displayContent}</p>
                 </div>
             </div>
         `;
