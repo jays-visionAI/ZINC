@@ -333,10 +333,10 @@ class MarketIntelligenceUI {
                 <div class="mb-5">
                     <div class="flex items-baseline gap-2">
                         <div class="text-2xl font-bold text-white tracking-tight">
-                            ${trend.mentions || (trend.volume > 1000 ? (trend.volume / 1000).toFixed(1) + 'k' : trend.volume)}
+                            ${trend.mentions || (trend.evidence ? trend.evidence.length : (trend.volume > 1000 ? (trend.volume / 1000).toFixed(1) + 'k' : trend.volume))}
                         </div>
                         <span class="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
-                            ${trend.mentions ? 'Mentions' : 'Volume'}
+                            ${(trend.mentions || trend.evidence) ? 'Mentions' : 'Volume'}
                         </span>
                     </div>
                 </div>

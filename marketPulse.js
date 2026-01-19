@@ -4606,7 +4606,7 @@ function showFullTrendReport(trendId) {
                              <div class="flex flex-col">
                                 <span class="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Growth Index</span>
                                 <span class="text-2xl font-black text-white flex items-center gap-2">
-                                    ${trend.mentions || trend.volume} <span class="text-slate-500 text-xs font-bold uppercase ml-1">Mentions</span>
+                                    ${trend.mentions || (trend.evidence ? trend.evidence.length : trend.volume)} <span class="text-slate-500 text-xs font-bold uppercase ml-1">Mentions</span>
                                     <span class="text-emerald-400 text-sm font-bold ml-2">+${trend.velocity}%</span>
                                 </span>
                              </div>
