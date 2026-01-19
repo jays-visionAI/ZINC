@@ -4532,6 +4532,162 @@ async function saveResonanceKeywords() {
     }
 }
 
+// Full Trend Report Modal Implementation
+function showFullTrendReport(trendId) {
+    if (!window.marketIntelligenceInstance) return;
+
+    const trends = window.marketIntelligenceInstance.state.data || [];
+    const trend = trends.find(t => t.id === trendId);
+
+    if (!trend) {
+        showNotification('Trend data not found', 'error');
+        return;
+    }
+
+    const modal = document.createElement('div');
+    modal.id = 'full-trend-report-modal';
+    modal.className = 'fixed inset-0 z-[1000] flex items-center justify-center bg-black/90 backdrop-blur-xl animate-in fade-in duration-300';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+    const sentimentColor = trend.sentiment > 0.6 ? 'emerald' : trend.sentiment > 0.4 ? 'cyan' : 'amber';
+    const impactScore = Math.floor(trend.confidence * 100);
+
+    modal.innerHTML = `
+        <div class="bg-slate-900 border border-slate-800 rounded-[2.5rem] w-full max-w-5xl max-h-[90vh] overflow-hidden shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] animate-in zoom-in-95 duration-300 relative">
+            <!-- Ambient Glow -->
+            <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-cyan-500/5 blur-[120px] -mr-64 -mt-64"></div>
+            <div class="absolute bottom-0 left-0 w-[500px] h-[500px] bg-indigo-500/5 blur-[120px] -ml-64 -mb-64"></div>
+
+            <div class="relative z-10 flex flex-col h-full max-h-[90vh]">
+                <!-- Header -->
+                <div class="px-12 py-10 border-b border-slate-800/50 flex justify-between items-start">
+                    <div>
+                        <div class="flex items-center gap-3 mb-4">
+                            <span class="px-3 py-1 bg-cyan-500/10 text-cyan-400 text-[10px] font-black uppercase tracking-[0.2em] rounded-full border border-cyan-500/20">Market Intelligence Report</span>
+                            <span class="text-slate-700 text-[10px] font-black uppercase tracking-widest">• Generated ${new Date().toLocaleDateString()}</span>
+                        </div>
+                        <h1 class="text-4xl font-black text-white px-0 tracking-tight leading-none">${trend.name}</h1>
+                        <p class="text-slate-500 mt-4 text-lg font-medium max-w-2xl">${trend.summary}</p>
+                    </div>
+                    <button onclick="document.getElementById('full-trend-report-modal').remove()" class="p-4 hover:bg-slate-800 rounded-2xl text-slate-500 hover:text-white transition-all">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+
+                <!-- Content Body -->
+                <div class="flex-1 overflow-y-auto p-12 pt-8 scrollbar-thin scrollbar-thumb-slate-700">
+                    <div class="grid grid-cols-12 gap-8">
+                        <!-- Left Column: Metrics & Analysis -->
+                        <div class="col-span-12 lg:col-span-4 space-y-8">
+                            <!-- Metrics Cards -->
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="p-6 bg-slate-800/30 border border-slate-800 rounded-[2rem]">
+                                    <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Volume</p>
+                                    <p class="text-2xl font-black text-white">${(trend.volume / 1000).toFixed(1)}k</p>
+                                    <div class="mt-2 text-[10px] font-bold text-emerald-400 flex items-center gap-1">
+                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
+                                        +${trend.velocity}% Rise
+                                    </div>
+                                </div>
+                                <div class="p-6 bg-slate-800/30 border border-slate-800 rounded-[2rem]">
+                                    <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Confidence</p>
+                                    <p class="text-2xl font-black text-white">${impactScore}%</p>
+                                    <div class="mt-2 h-1 w-full bg-slate-700 rounded-full overflow-hidden">
+                                        <div class="h-full bg-cyan-500" style="width: ${impactScore}%"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sentiment Analysis -->
+                            <div class="p-8 bg-slate-800/30 border border-slate-800 rounded-[2.5rem]">
+                                <h3 class="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Sentiment Spectrum</h3>
+                                <div class="relative h-2 bg-slate-700 rounded-full mb-4">
+                                    <div class="absolute inset-0 bg-gradient-to-r from-amber-500 via-cyan-500 to-emerald-500 rounded-full"></div>
+                                    <div class="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full border-4 border-slate-900 shadow-lg transition-all duration-1000" style="left: calc(${trend.sentiment * 100}% - 8px)"></div>
+                                </div>
+                                <div class="flex justify-between text-[10px] font-black text-slate-600 uppercase tracking-widest">
+                                    <span>Negative</span>
+                                    <span class="text-${sentimentColor}-400">${(trend.sentiment * 100).toFixed(1)}% Positive</span>
+                                    <span>Hostile</span>
+                                </div>
+                            </div>
+
+                            <!-- Top Drivers -->
+                            <div class="p-8 bg-slate-800/30 border border-slate-800 rounded-[2.5rem]">
+                                <h3 class="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Market Drivers</h3>
+                                <div class="space-y-4">
+                                    ${trend.drivers.map(driver => `
+                                        <div class="flex items-start gap-3">
+                                            <div class="mt-1.5 w-1.5 h-1.5 rounded-full bg-cyan-500 shrink-0"></div>
+                                            <span class="text-sm text-slate-300 font-medium">${driver}</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Column: Evidence & Reports -->
+                        <div class="col-span-12 lg:col-span-8 space-y-8">
+                            <div class="flex items-center justify-between mb-2">
+                                <h3 class="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Verified Intelligence Sources</h3>
+                                <span class="text-[10px] font-bold text-slate-600 uppercase tracking-widest">${trend.evidence.length} Articles Analyzed</span>
+                            </div>
+                            
+                            <div class="space-y-4">
+                                ${trend.evidence.map(ev => `
+                                    <a href="${ev.url}" target="_blank" class="group flex items-start gap-6 p-6 bg-slate-800/30 hover:bg-slate-800/60 border border-slate-800 hover:border-cyan-500/30 rounded-[2rem] transition-all duration-300">
+                                        <div class="shrink-0 w-12 h-12 flex items-center justify-center bg-slate-900 rounded-2xl text-slate-700 group-hover:text-cyan-400 border border-slate-800 transition-colors">
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <div class="flex items-center gap-3 mb-1">
+                                                <span class="text-[10px] font-black text-cyan-500 uppercase tracking-widest">${ev.publisher}</span>
+                                                <span class="text-[10px] text-slate-600 font-bold">• ${ev.date}</span>
+                                            </div>
+                                            <h4 class="text-lg font-black text-white group-hover:text-cyan-400 transition-colors truncate mb-2">${ev.title}</h4>
+                                            <p class="text-sm text-slate-500 font-medium line-clamp-2 leading-relaxed">${ev.snippet}</p>
+                                        </div>
+                                        <div class="shrink-0 w-10 h-10 flex items-center justify-center text-slate-800 group-hover:text-cyan-400 transition-colors">
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                                        </div>
+                                    </a>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer Actions -->
+                <div class="px-12 py-8 border-t border-slate-800/50 bg-slate-950/20 flex items-center justify-between">
+                    <p class="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em]">Confidential Insight Hub • Powered by ZYNK</p>
+                    <div class="flex gap-4">
+                        <button onclick="saveTrendToLibrary('${trend.id}')" class="px-8 py-4 bg-slate-800/50 hover:bg-slate-800 text-slate-300 font-black text-xs rounded-2xl transition-all flex items-center gap-3">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+                            SAVE TO LIBRARY
+                        </button>
+                        <button onclick="window.print()" class="px-8 py-4 bg-cyan-600 hover:bg-cyan-500 text-white font-black text-xs rounded-2xl shadow-xl shadow-cyan-500/20 transition-all flex items-center gap-3">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                            EXPORT PDF
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+}
+
+function saveTrendToLibrary(trendId) {
+    if (!window.marketIntelligenceInstance) return;
+    const trends = window.marketIntelligenceInstance.state.data || [];
+    const trend = trends.find(t => t.id === trendId);
+
+    if (!trend) return;
+
+    showNotification(`Trend "${trend.name}" saved to strategy library`, 'success');
+}
+
 // Global expose
 window.openKeywordEditor = openKeywordEditor;
 window.closeKeywordEditor = closeKeywordEditor;
@@ -4542,3 +4698,6 @@ window.openRejectionModal = openRejectionModal;
 window.closeRejectionModal = closeRejectionModal;
 window.submitRejectionFeedback = submitRejectionFeedback;
 window.closeCompetitorDetail = closeCompetitorDetail;
+window.showFullTrendReport = showFullTrendReport;
+window.saveTrendToLibrary = saveTrendToLibrary;
+

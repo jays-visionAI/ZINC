@@ -476,11 +476,11 @@ class MarketIntelligenceUI {
                 </div>
 
                 <div class="absolute bottom-0 inset-x-0 p-4 border-t border-slate-800 bg-slate-900 flex gap-3">
-                    <button class="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-slate-800 hover:bg-slate-800 text-sm font-medium text-slate-400 transition-colors">
+                    <button onclick="saveTrendToLibrary('${trend.id}')" class="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-slate-800 hover:bg-slate-800 text-sm font-medium text-slate-400 transition-colors">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
                         Save
                     </button>
-                    <button class="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-sm font-medium text-white shadow-lg shadow-cyan-500/20 transition-all">
+                    <button onclick="showFullTrendReport('${trend.id}')" class="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-sm font-medium text-white shadow-lg shadow-cyan-500/20 transition-all">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
                         Full Report
                     </button>
