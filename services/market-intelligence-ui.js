@@ -771,14 +771,14 @@ Provide actionable, project-specific recommendations.`,
     }
 
     async saveConclusion(conclusion) {
-        if (!window.currentProjectId || !conclusion) return;
+        if (!currentProjectId || !conclusion) return;
 
         try {
             const db = firebase.firestore();
             const topKeywords = (this.state.data || []).slice(0, 3).map(t => t.name).join(', ');
             const title = `Strategic Analysis: ${topKeywords || 'Market Overview'}`;
 
-            await db.collection('projects').doc(window.currentProjectId)
+            await db.collection('projects').doc(currentProjectId)
                 .collection('strategicConclusions').add({
                     content: conclusion,
                     title: title,
@@ -793,11 +793,11 @@ Provide actionable, project-specific recommendations.`,
     }
 
     async loadLatestConclusion() {
-        if (!window.currentProjectId) return null;
+        if (!currentProjectId) return null;
 
         try {
             const db = firebase.firestore();
-            const snapshot = await db.collection('projects').doc(window.currentProjectId)
+            const snapshot = await db.collection('projects').doc(currentProjectId)
                 .collection('strategicConclusions')
                 .orderBy('createdAt', 'desc')
                 .limit(1)
@@ -814,7 +814,7 @@ Provide actionable, project-specific recommendations.`,
     }
 
     async showConclusionHistory() {
-        if (!window.currentProjectId) {
+        if (!currentProjectId) {
             showNotification('Project not loaded', 'error');
             return;
         }
@@ -865,11 +865,11 @@ Provide actionable, project-specific recommendations.`,
 
     async loadConclusionHistory() {
         const listContainer = document.getElementById('conclusion-history-list');
-        if (!listContainer || !window.currentProjectId) return;
+        if (!listContainer || !currentProjectId) return;
 
         try {
             const db = firebase.firestore();
-            const snapshot = await db.collection('projects').doc(window.currentProjectId)
+            const snapshot = await db.collection('projects').doc(currentProjectId)
                 .collection('strategicConclusions')
                 .orderBy('createdAt', 'desc')
                 .limit(50)
