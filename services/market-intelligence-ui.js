@@ -452,15 +452,15 @@ class MarketIntelligenceUI {
                     <div class="flex items-center gap-4 px-3 py-1.5 rounded-lg bg-slate-950/50 border border-slate-800/50">
                         <div class="flex items-center gap-1.5">
                             <span class="w-2 h-2 rounded-full bg-cyan-500"></span>
-                            <span class="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">Pos</span>
+                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Positive</span>
                         </div>
                         <div class="flex items-center gap-1.5">
                             <span class="w-2 h-2 rounded-full bg-purple-500"></span>
-                            <span class="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">Neu</span>
+                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Neutral</span>
                         </div>
                         <div class="flex items-center gap-1.5">
                             <span class="w-2 h-2 rounded-full bg-rose-500"></span>
-                            <span class="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">Neg</span>
+                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Negative</span>
                         </div>
                     </div>
                 </div>
