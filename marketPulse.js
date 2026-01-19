@@ -3912,8 +3912,8 @@ async function generateAISuggestions() {
             teamId: 'SYSTEM_INTEL_TEAM',
             runId: 'keywords_' + Date.now(),
             subAgentId: 'strategy_analyst',
-            taskPrompt: basePrompt + ' Return in format: Keyword1|Strategy tip for keyword1, Keyword2|Strategy tip for keyword2, ...',
-            systemPrompt: "You are an expert market analyst. Suggest optimized search keywords for brand monitoring based on project context. Format each keyword with a brief strategy tip separated by |. Example: AI Technology|Monitor competitor adoption rates, Sustainable Products|Track consumer sentiment shifts"
+            taskPrompt: basePrompt + ' Return EXACTLY in this format with ;;; between each keyword: Keyword1|Strategy tip;;; Keyword2|Strategy tip;;; Keyword3|Strategy tip. Do NOT use commas to separate keywords.',
+            systemPrompt: "You are an expert market analyst. Suggest exactly 8 optimized search keywords for brand monitoring. IMPORTANT: Use ;;; (triple semicolon) to separate each keyword entry. Format: Keyword1|Brief strategy tip;;; Keyword2|Brief strategy tip;;; ... Example output: AI Technology|Monitor competitor adoption;;; Blockchain|Track developer sentiment;;; Web3|Follow investment trends"
         });
 
         if (!response.data.success) {
@@ -3921,15 +3921,45 @@ async function generateAISuggestions() {
         }
 
         const raw = response.data.output || "";
-        // Parse keywords with optional strategy tips
-        const keywordEntries = raw.split(',').map(s => {
-            const parts = s.trim().split('|');
-            return {
-                keyword: parts[0]?.trim() || '',
-                strategy: parts[1]?.trim() || '',
-                articles: [] // Will be populated with keyword-specific news
-            };
-        }).filter(e => e.keyword);
+        console.log('[KeywordSuggestions] Raw AI output:', raw);
+
+        // Parse keywords - try ;;; separator first, fallback to newline or comma
+        let keywordEntries = [];
+
+        if (raw.includes(';;;')) {
+            // New format with ;;; separator
+            keywordEntries = raw.split(';;;').map(s => {
+                const parts = s.trim().split('|');
+                return {
+                    keyword: parts[0]?.trim() || '',
+                    strategy: parts[1]?.trim() || '',
+                    articles: []
+                };
+            }).filter(e => e.keyword && e.keyword.length > 1);
+        } else if (raw.includes('\n')) {
+            // Fallback: newline separated
+            keywordEntries = raw.split('\n').map(s => {
+                const cleaned = s.replace(/^\d+\.\s*/, '').trim(); // Remove "1. " prefix
+                const parts = cleaned.split('|');
+                return {
+                    keyword: parts[0]?.trim() || '',
+                    strategy: parts[1]?.trim() || '',
+                    articles: []
+                };
+            }).filter(e => e.keyword && e.keyword.length > 1);
+        } else {
+            // Last fallback: comma separated (legacy)
+            keywordEntries = raw.split(',').map(s => {
+                const parts = s.trim().split('|');
+                return {
+                    keyword: parts[0]?.trim() || '',
+                    strategy: parts[1]?.trim() || '',
+                    articles: []
+                };
+            }).filter(e => e.keyword && e.keyword.length > 1);
+        }
+
+        console.log('[KeywordSuggestions] Parsed keywords:', keywordEntries.length, keywordEntries.map(e => e.keyword));
 
         // Step 2: Now fetch news for EACH keyword individually
         container.innerHTML = `
