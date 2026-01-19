@@ -40,6 +40,11 @@ class MarketIntelligenceUI {
         }
 
         this.render();
+
+        // Trigger strategic conclusion generation after render if data is available
+        if (this.state.status === 'success' && this.state.data && this.state.data.length > 0) {
+            setTimeout(() => this.generateStrategicConclusion(), 100);
+        }
     }
 
     startProgressSmoothing() {
@@ -571,78 +576,154 @@ class MarketIntelligenceUI {
                     `).join('')}
                 </div>
 
-                <!-- AI-Generated Matrix Analysis -->
-                <div class="mt-6 p-5 bg-slate-800/30 border border-slate-800 rounded-xl">
-                    <div class="flex items-center gap-2 mb-3">
-                        <svg class="text-cyan-500" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/><path d="M12 6v6l4 2"/></svg>
-                        <span class="text-[10px] font-black text-cyan-500 uppercase tracking-widest">AI Matrix Analysis</span>
+                <!-- AI-Generated Strategic Conclusion -->
+                <div id="strategic-conclusion-container" class="mt-6 p-6 bg-gradient-to-br from-indigo-900/20 to-slate-900/40 border border-indigo-500/20 rounded-2xl">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center">
+                            <svg class="text-indigo-400" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                        </div>
+                        <div>
+                            <span class="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Strategic Conclusion</span>
+                            <p class="text-[10px] text-slate-500 font-medium">AI-generated recommendations for your business</p>
+                        </div>
                     </div>
-                    <p class="text-sm text-slate-300 leading-relaxed font-medium">
-                        ${this.generateMatrixAnalysis()}
-                    </p>
+                    <div id="strategic-conclusion-content" class="min-h-[80px]">
+                        <div class="flex items-center gap-3 text-indigo-400/60">
+                            <svg class="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>
+                            <span class="text-xs font-medium">Analyzing market position for ${window.currentProjectData?.name || 'your project'}...</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
     }
 
-    generateMatrixAnalysis() {
+    async generateStrategicConclusion() {
         const data = this.state.data || [];
-        if (data.length === 0) {
-            return "No trend data available for analysis. Run a market scan to populate the matrix.";
+        const container = document.getElementById('strategic-conclusion-content');
+        if (!container) return;
+
+        // Check cache first
+        if (this.state.cachedConclusion && this.state.cachedConclusionDataHash === JSON.stringify(data.map(d => d.id))) {
+            container.innerHTML = this.renderConclusionContent(this.state.cachedConclusion);
+            return;
         }
 
+        if (data.length === 0) {
+            container.innerHTML = `<p class="text-sm text-slate-400 italic">Run a market scan to generate strategic recommendations.</p>`;
+            return;
+        }
+
+        const projectData = window.currentProjectData || {};
         const maxVolume = 100000;
-        const maxVelocity = 40;
 
         // Categorize trends by quadrant
-        const dominant = data.filter(t => t.velocity > 0 && t.volume > maxVolume / 2);
-        const emerging = data.filter(t => t.velocity > 0 && t.volume <= maxVolume / 2);
-        const saturated = data.filter(t => t.velocity <= 0 && t.volume > maxVolume / 2);
-        const niche = data.filter(t => t.velocity <= 0 && t.volume <= maxVolume / 2);
+        const quadrantData = {
+            dominant: data.filter(t => t.velocity > 0 && t.volume > maxVolume / 2),
+            emerging: data.filter(t => t.velocity > 0 && t.volume <= maxVolume / 2),
+            saturated: data.filter(t => t.velocity <= 0 && t.volume > maxVolume / 2),
+            niche: data.filter(t => t.velocity <= 0 && t.volume <= maxVolume / 2)
+        };
 
-        // Calculate sentiment distribution
-        const positive = data.filter(t => t.sentiment > 0.2).length;
-        const negative = data.filter(t => t.sentiment < -0.2).length;
-        const neutral = data.length - positive - negative;
+        // Build context for LLM
+        const marketContext = `
+Project: ${projectData.name || 'Unknown'}
+Industry: ${projectData.industry || 'Technology'}
+Target Audience: ${projectData.targetAudience || 'General'}
+Description: ${projectData.description || 'No description available'}
 
-        // Generate analysis text
-        let analysis = [];
-
-        // Overall position summary
-        if (dominant.length > 0) {
-            const names = dominant.slice(0, 2).map(t => `"${t.name}"`).join(', ');
-            analysis.push(`${names} ${dominant.length > 1 ? 'are' : 'is'} in the Dominant quadrant, indicating high market reach with strong growth momentum.`);
-        }
-
-        if (emerging.length > 0) {
-            const names = emerging.slice(0, 2).map(t => `"${t.name}"`).join(', ');
-            analysis.push(`${names} ${emerging.length > 1 ? 'show' : 'shows'} emerging potential with rapid growth but limited reach yet - early mover opportunity.`);
-        }
-
-        if (saturated.length > 0) {
-            analysis.push(`${saturated.length} trend${saturated.length > 1 ? 's are' : ' is'} in the Saturated zone - high visibility but slowing momentum.`);
-        }
-
-        if (niche.length > 0 && niche.length === data.length) {
-            analysis.push(`All trends are in the Niche quadrant, suggesting specialized topics with room for market expansion.`);
-        }
-
-        // Sentiment insight
-        if (positive > negative && positive > neutral) {
-            analysis.push(`Overall market sentiment is positive (${Math.round(positive / data.length * 100)}%), suggesting favorable conditions for expansion.`);
-        } else if (negative > positive) {
-            analysis.push(`Caution: Negative sentiment detected in ${Math.round(negative / data.length * 100)}% of trends. Monitor for risks.`);
-        }
-
-        // If only one trend, give specific advice
-        if (data.length === 1) {
-            const t = data[0];
+Monitored Keywords and their Market Positions:
+${data.map(t => {
             const quadrant = t.velocity > 0 ? (t.volume > maxVolume / 2 ? 'Dominant' : 'Emerging') : (t.volume > maxVolume / 2 ? 'Saturated' : 'Niche');
-            const sentimentLabel = t.sentiment > 0.2 ? 'positive' : t.sentiment < -0.2 ? 'negative' : 'neutral';
-            return `Your primary trend "${t.name}" is positioned in the ${quadrant} quadrant with ${sentimentLabel} sentiment. ${quadrant === 'Emerging' ? 'This is an early-stage opportunity - consider increasing visibility investments.' : quadrant === 'Dominant' ? 'Strong market position - focus on maintaining leadership.' : quadrant === 'Saturated' ? 'Consider differentiation strategies to stand out.' : 'Niche positioning offers specialized audience targeting opportunities.'}`;
+            const sentiment = t.sentiment > 0.2 ? 'Positive' : t.sentiment < -0.2 ? 'Negative' : 'Neutral';
+            return `- "${t.name}": ${quadrant} quadrant, ${sentiment} sentiment, ${t.velocity}% growth, ${t.volume} reach`;
+        }).join('\n')}
+
+Quadrant Distribution:
+- Dominant (High growth, High reach): ${quadrantData.dominant.length} keywords
+- Emerging (High growth, Low reach): ${quadrantData.emerging.length} keywords
+- Saturated (Low growth, High reach): ${quadrantData.saturated.length} keywords
+- Niche (Low growth, Low reach): ${quadrantData.niche.length} keywords
+`;
+
+        try {
+            const generateLLMResponse = firebase.functions().httpsCallable('generateLLMResponse');
+            const result = await generateLLMResponse({
+                provider: 'deepseek',
+                model: 'deepseek-chat',
+                systemPrompt: `You are a strategic business consultant specializing in market positioning and growth strategies. 
+Provide concise, actionable recommendations based on market intelligence data.
+Your advice should be specific to the project's industry and target audience.
+Focus on 2-3 key strategic actions the business should take.
+Write in a confident, professional tone. Keep your response under 300 words.
+Do NOT use markdown formatting. Write in plain text with clear paragraph breaks.`,
+                userMessage: `Based on this market intelligence data, provide strategic recommendations for the business:
+
+${marketContext}
+
+What specific actions should this project take to capitalize on these market conditions? Consider:
+1. Which keywords/trends should they prioritize and why?
+2. What content or marketing strategy would be most effective?
+3. Any risks to watch out for?
+
+Provide actionable, project-specific recommendations.`,
+                temperature: 0.7,
+                source: 'market-pulse-strategic-conclusion'
+            });
+
+            const conclusion = result?.data?.response || 'Unable to generate strategic recommendations at this time.';
+
+            // Cache the result
+            this.state.cachedConclusion = conclusion;
+            this.state.cachedConclusionDataHash = JSON.stringify(data.map(d => d.id));
+
+            container.innerHTML = this.renderConclusionContent(conclusion);
+
+        } catch (err) {
+            console.error('[MarketIntelligence] Strategic conclusion generation failed:', err);
+            container.innerHTML = `
+                <p class="text-sm text-slate-400">
+                    ${this.generateFallbackConclusion(data, quadrantData, projectData)}
+                </p>
+            `;
+        }
+    }
+
+    renderConclusionContent(conclusion) {
+        return `
+            <div class="space-y-3">
+                <p class="text-sm text-slate-200 leading-relaxed font-medium whitespace-pre-line">${conclusion}</p>
+                <div class="flex items-center gap-2 pt-2 border-t border-slate-800/50">
+                    <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
+                    <span class="text-[10px] text-slate-500 font-medium">Powered by ZYNK Strategic AI</span>
+                </div>
+            </div>
+        `;
+    }
+
+    generateFallbackConclusion(data, quadrantData, projectData) {
+        const projectName = projectData.name || 'your project';
+        let recommendations = [];
+
+        if (quadrantData.emerging.length > 0) {
+            const names = quadrantData.emerging.slice(0, 2).map(t => t.name).join(', ');
+            recommendations.push(`${projectName} should prioritize "${names}" - these emerging trends show strong growth potential with limited competition. Consider creating thought leadership content to establish early authority.`);
         }
 
-        return analysis.length > 0 ? analysis.join(' ') : "Trend data is being analyzed. Additional insights will appear as more signals are collected.";
+        if (quadrantData.dominant.length > 0) {
+            const names = quadrantData.dominant.slice(0, 2).map(t => t.name).join(', ');
+            recommendations.push(`For "${names}", focus on differentiation strategies as these are already mainstream. Highlight unique value propositions that set ${projectName} apart from competitors.`);
+        }
+
+        if (quadrantData.saturated.length > 0) {
+            recommendations.push(`Monitor saturated trends carefully - high visibility but slowing growth suggests market maturity. Consider pivoting messaging or finding adjacent niches.`);
+        }
+
+        if (recommendations.length === 0) {
+            recommendations.push(`Continue monitoring these market signals. As trends evolve, strategic opportunities will emerge for ${projectName}.`);
+        }
+
+        return recommendations.join(' ');
     }
 
     renderDrawer(trend, isOpen) {
