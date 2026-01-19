@@ -4982,19 +4982,44 @@ ${agentList}
 
     /**
      * Load project list from Firestore
-     * Admin-only: Shows only projects owned by admin user (Jays@visai.io)
+     * Admin: Shows only projects owned by currently logged-in admin user
      */
     async function loadProjectList() {
         const select = document.getElementById('wf-project-select');
         const firestore = window.db || (typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null);
         if (!select || !firestore) return;
 
-        // Admin user ID for Jays@visai.io
-        const ADMIN_USER_ID = 'iZVnN5OYw0XeEXuv5h4gNGlJfXM2';
+        // Get current user's ID (admin user)
+        const currentUser = firebase.auth ? firebase.auth().currentUser : null;
+        const adminUserId = currentUser?.uid;
+
+        if (!adminUserId) {
+            console.warn('[WorkflowCanvas] No authenticated user found for project filtering');
+            // Fallback to showing all projects
+            try {
+                const snapshot = await firestore.collection('projects')
+                    .orderBy('updatedAt', 'desc')
+                    .limit(30)
+                    .get();
+
+                select.innerHTML = '<option value="">Select Test Project...</option>';
+                snapshot.forEach(doc => {
+                    const p = doc.data();
+                    const option = document.createElement('option');
+                    option.value = doc.id;
+                    option.textContent = p.projectName || p.name || doc.id;
+                    select.appendChild(option);
+                });
+            } catch (e) {
+                console.error('Failed to load projects:', e);
+            }
+            return;
+        }
 
         try {
+            console.log('[WorkflowCanvas] Loading projects for admin user:', adminUserId);
             const snapshot = await firestore.collection('projects')
-                .where('userId', '==', ADMIN_USER_ID)
+                .where('userId', '==', adminUserId)
                 .orderBy('updatedAt', 'desc')
                 .limit(30)
                 .get();
@@ -5008,6 +5033,8 @@ ${agentList}
                 select.appendChild(option);
             });
 
+            console.log('[WorkflowCanvas] Loaded', snapshot.size, 'projects for admin user');
+
             // Set initial value if state already has projectId
             if (state.projectId) {
                 select.value = state.projectId;
@@ -5015,6 +5042,23 @@ ${agentList}
             }
         } catch (e) {
             console.error('Failed to load projects:', e);
+            // Fallback without userId filter if index doesn't exist yet
+            if (e.code === 'failed-precondition') {
+                console.warn('[WorkflowCanvas] Index not ready, loading all projects');
+                const fallbackSnapshot = await firestore.collection('projects')
+                    .orderBy('updatedAt', 'desc')
+                    .limit(30)
+                    .get();
+
+                select.innerHTML = '<option value="">Select Test Project...</option>';
+                fallbackSnapshot.forEach(doc => {
+                    const p = doc.data();
+                    const option = document.createElement('option');
+                    option.value = doc.id;
+                    option.textContent = p.projectName || p.name || doc.id;
+                    select.appendChild(option);
+                });
+            }
         }
     }
 
