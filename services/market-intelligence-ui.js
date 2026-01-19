@@ -62,11 +62,12 @@ class MarketIntelligenceUI {
             const trends = this.state.keywords.map((kw, idx) => ({
                 id: `trend-${idx}`,
                 name: kw,
-                velocity: Math.floor(Math.random() * 30) - 5,
-                volume: Math.floor(Math.random() * 50000) + 1000,
-                sentiment: Math.random() * 0.8 + 0.2,
-                confidence: 0.7 + Math.random() * 0.25,
-                history: Array.from({ length: 7 }, () => Math.floor(Math.random() * 100)),
+                velocity: Math.floor(Math.random() * 15) + 5,
+                volume: Math.floor(Math.random() * 40) + 10,
+                mentions: Math.floor(Math.random() * 40) + 10,
+                sentiment: Math.random() * 0.4 + 0.4,
+                confidence: 0.85 + Math.random() * 0.1,
+                history: Array.from({ length: 7 }, () => Math.floor(Math.random() * 50) + 50),
                 summary: `${kw} is showing strong relevance to your project strategy. Search volume in ${this.state.selectedChannels.join(' & ')} is increasing.`,
                 drivers: [
                     'Emerging consumer search patterns',
@@ -332,9 +333,11 @@ class MarketIntelligenceUI {
                 <div class="mb-5">
                     <div class="flex items-baseline gap-2">
                         <div class="text-2xl font-bold text-white tracking-tight">
-                            ${(trend.volume / 1000).toFixed(1)}k
+                            ${trend.mentions || (trend.volume > 1000 ? (trend.volume / 1000).toFixed(1) + 'k' : trend.volume)}
                         </div>
-                        <span class="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Volume</span>
+                        <span class="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
+                            ${trend.mentions ? 'Mentions' : 'Volume'}
+                        </span>
                     </div>
                 </div>
 

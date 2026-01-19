@@ -576,15 +576,24 @@ async function triggerMarketIntelligenceResearch() {
                     url: article.url || article.link || `https://news.google.com/search?q=${encodeURIComponent(kw)}`
                 }));
 
+                // Calculate real metrics based on evidence
+                const totalArticles = evidence.length;
+
+                // Velocity: Percentage of articles from the last 7 days (simplified proxy for growth)
+                const now = Date.now();
+                const recentArticles = evidence.filter(e => (now - e.timestamp) < (1000 * 60 * 60 * 24 * 7)).length;
+                const calculatedVelocity = totalArticles > 0 ? (recentArticles / totalArticles) * 25 : 0;
+
                 return {
                     id: `wf-trend-${idx}-${Date.now()}`,
                     name: kw,
-                    velocity: agentTrend?.velocity || Math.floor(Math.random() * 20) + 5,
-                    volume: agentTrend?.volume || Math.floor(Math.random() * 50000) + 1000,
-                    sentiment: agentTrend?.sentiment || (Math.random() * 0.6 + 0.2),
-                    confidence: agentTrend?.confidence || 0.95,
-                    history: agentTrend?.history || Array.from({ length: 7 }, () => Math.floor(Math.random() * 100)),
-                    summary: agentTrend?.summary || `${kw} is showing significant market resonance with verified signals across news channels.`,
+                    velocity: agentTrend?.velocity || Math.floor(calculatedVelocity + 5),
+                    volume: agentTrend?.volume || totalArticles * 10, // Base volume + multiplier for impact
+                    mentions: totalArticles,
+                    sentiment: agentTrend?.sentiment || 0.65, // Neutral-positive fallback
+                    confidence: agentTrend?.confidence || (totalArticles > 5 ? 0.95 : 0.85),
+                    history: agentTrend?.history || Array.from({ length: 7 }, (_, i) => Math.floor(totalArticles * (0.8 + Math.random() * 0.4))),
+                    summary: agentTrend?.summary || `${kw} is showing significant market resonance with ${totalArticles} verified signals across news channels.`,
                     drivers: agentTrend?.drivers || ['Verified News Signals', 'Real-time Market Adoption', 'Strategic Keyword Match'],
                     strategicSynthesis: agentTrend?.strategicSynthesis || `The convergence of ${kw} with current market dynamics suggests a pivotal shift in user expectations. Based on recent intelligence, the focus is moving from secondary implementation to core architectural integration.`,
                     actionableAdvice: agentTrend?.actionableAdvice || [
@@ -4597,7 +4606,8 @@ function showFullTrendReport(trendId) {
                              <div class="flex flex-col">
                                 <span class="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Growth Index</span>
                                 <span class="text-2xl font-black text-white flex items-center gap-2">
-                                    ${(trend.volume / 1000).toFixed(1)}k <span class="text-emerald-400 text-sm font-bold">+${trend.velocity}%</span>
+                                    ${trend.mentions || trend.volume} <span class="text-slate-500 text-xs font-bold uppercase ml-1">Mentions</span>
+                                    <span class="text-emerald-400 text-sm font-bold ml-2">+${trend.velocity}%</span>
                                 </span>
                              </div>
                              <div class="flex flex-col">
