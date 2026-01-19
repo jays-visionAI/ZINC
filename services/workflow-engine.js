@@ -306,14 +306,23 @@ const WorkflowEngine = (function () {
                 if (projectScopedCollections.includes(collection)) {
                     // Check if we are already using a nested path (simple check)
                     if (!collection.startsWith('projects/')) {
-                        this.logger.log(`[WorkflowEngine] 🛡️ Security Redirect: Routing '${collection}' to 'projects/${context.projectId}/${collection}'`);
+                        let finalCollection = collection;
+
+                        // [SAFETY] Redirect Strategic Analysis from Brand Summaries to Strategic Conclusions
+                        // This prevents internal analysis results from polluting the Knowledge Hub main view
+                        if (collection === 'brandSummaries' && finalData.title && (finalData.title.includes('Strategic Analysis') || finalData.title.includes('Market Intelligence'))) {
+                            this.logger.log(`[WorkflowEngine] 🛡️ Redirecting Strategic Analysis from 'brandSummaries' to 'strategicConclusions'`);
+                            finalCollection = 'strategicConclusions';
+                        }
+
+                        this.logger.log(`[WorkflowEngine] 🛡️ Security Redirect: Routing '${finalCollection}' to 'projects/${context.projectId}/${finalCollection}'`);
                         // We use the sub-collection API structure
-                        await db.collection('projects').doc(context.projectId).collection(collection).doc(targetDocId).set({
+                        await db.collection('projects').doc(context.projectId).collection(finalCollection).doc(targetDocId).set({
                             ...finalData,
                             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                         }, { merge: true });
 
-                        return { success: true, savedAt: `projects/${context.projectId}/${collection}/${targetDocId}` };
+                        return { success: true, savedAt: `projects/${context.projectId}/${finalCollection}/${targetDocId}` };
                     }
                 }
 

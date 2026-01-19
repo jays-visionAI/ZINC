@@ -661,17 +661,52 @@ async function loadBrandSummaries() {
             .get();
 
         brandSummaries = [];
+        const obsoleteIds = [];
+
         snapshot.forEach(doc => {
-            brandSummaries.push({ id: doc.id, ...doc.data() });
+            const data = doc.data();
+            // Filter out Strategic Analysis or Market Intelligence internal results that polluted this collection
+            const isObsolete = data.title && (
+                data.title.includes('Strategic Analysis') ||
+                data.title.includes('Market Intelligence') ||
+                data.title.includes('SEO Audit')
+            );
+
+            if (isObsolete) {
+                obsoleteIds.push(doc.id);
+                return;
+            }
+            brandSummaries.push({ id: doc.id, ...data });
         });
 
-        // Loop to delete excess if any (though limit above handles fetch, we should cleanup DB if needed)
-        // For simplicity, we handle cleanup on save.
+        // Trigger background cleanup for obsolete entries
+        if (obsoleteIds.length > 0) {
+            this.cleanupObsoleteSummaries(obsoleteIds);
+        }
 
         updateSummarySection();
 
     } catch (error) {
         console.error('Error loading brand summaries:', error);
+    }
+}
+
+/**
+ * Background cleanup for mis-recorded strategic analysis in brand summaries
+ */
+async function cleanupObsoleteSummaries(ids) {
+    if (!currentProjectId || ids.length === 0) return;
+    try {
+        const db = firebase.firestore();
+        const batch = db.batch();
+        ids.forEach(id => {
+            const ref = db.collection('projects').doc(currentProjectId).collection('brandSummaries').doc(id);
+            batch.delete(ref);
+        });
+        await batch.commit();
+        console.log(`[KnowledgeHub] Cleaned up ${ids.length} obsolete strategic analysis records from history.`);
+    } catch (err) {
+        console.warn('[KnowledgeHub] Failed to cleanup obsolete summaries:', err);
     }
 }
 
