@@ -248,15 +248,19 @@ const WorkflowEngine = (function () {
             const prevOutput = Object.values(context.previousOutputs)[0];
             // Template Resolution
             let finalData = {};
-            if (dataTemplate === '{{prev.output}}' && typeof prevOutput === 'string') {
-                finalData = {
-                    content: prevOutput,
-                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                };
+
+            // Handle template resolution (could be string JSON, string variable, or object)
+            if (typeof dataTemplate === 'object' && dataTemplate !== null) {
+                // If it's an object, resolve variables in each string value
+                finalData = {};
+                for (const [key, val] of Object.entries(dataTemplate)) {
+                    finalData[key] = (typeof val === 'string') ? this.resolveVariables(val, context) : val;
+                }
+            } else if (dataTemplate === '{{prev.output}}' && typeof prevOutput === 'string') {
+                finalData = { content: prevOutput };
             } else {
                 const resolvedData = this.resolveVariables(dataTemplate || "{}", context);
                 try {
-                    // If it looks like JSON, try to parse it
                     if (typeof resolvedData === 'string' && resolvedData.trim().startsWith('{')) {
                         finalData = JSON.parse(resolvedData);
                     } else {
@@ -266,6 +270,11 @@ const WorkflowEngine = (function () {
                     finalData = { content: resolvedData };
                 }
             }
+
+            // Always add default metadata if not present
+            if (!finalData.createdAt) finalData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+            if (!finalData.projectId) finalData.projectId = context.projectId;
+            if (!finalData.title) finalData.title = 'Strategic Analysis';
 
             if (operation === 'write') {
                 if (!collection) throw new Error('Collection missing for Firestore Write');
@@ -289,7 +298,7 @@ const WorkflowEngine = (function () {
                     'onePagers', 'one_pagers', 'brandSummaries', 'brand_summaries',
                     'generatedContents', 'generated_contents', 'knowledgeSources', 'knowledge_sources',
                     'contentPlans', 'savedPlans', 'scheduledContent', 'brochures', 'pitchDecks',
-                    'promoImages', 'generatedImages', 'researchHistory'
+                    'promoImages', 'generatedImages', 'researchHistory', 'strategicConclusions'
                 ];
 
                 if (projectScopedCollections.includes(collection)) {
