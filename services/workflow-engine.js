@@ -350,6 +350,13 @@ const WorkflowEngine = (function () {
 
         async runAgentNode(node, context) {
             const { agentId, model, temperature, systemPrompt, instruction } = node.data;
+
+            // [STRICT] Enforce agent selection
+            if (!agentId) {
+                console.error(`[WorkflowEngine] Node ${node.id} (${node.data.name}) is missing agentId.`);
+                throw new Error(`에이전트가 설정되지 않았습니다: ${node.data.name || node.id}`);
+            }
+
             const inputMapping = node.data.inputMapping;
 
             // Resolve prompt variables
@@ -376,7 +383,7 @@ const WorkflowEngine = (function () {
             const result = await executeSubAgent({
                 projectId: context.projectId,
                 teamId: 'workflow', // Fallback for standalone execution
-                subAgentId: agentId || node.id || 'general',
+                subAgentId: agentId,
                 agentRole: node.data.name || 'Assistant',
                 runId: 'wf-run-' + Date.now(),
                 taskPrompt: resolvedUserPrompt,

@@ -428,14 +428,15 @@ exports.executeSubAgent = onCall({
         try {
             const result = await llmRouter.route({
                 feature: 'agent_execution',
-                engineType: subAgentId,     // Secondary Fallback
-                runtimeProfileId: runtimeProfileId, // Primary Source of Truth
+                engineType: subAgentId,
+                agentId: subAgentId,     // [NEW] Explicitly pass as Agent ID for Registry Lookup
+                runtimeProfileId: runtimeProfileId,
                 qualityTier,
                 messages,
                 temperature: temperature || 0.7,
                 userId: request.auth?.uid,
                 projectId,
-                provider, // Explicit overrides still respected
+                provider,
                 model,
                 callLLM
             });

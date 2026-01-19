@@ -768,6 +768,11 @@ class MarketIntelligenceUI {
 
                 console.log('[MarketIntelligence] Workflow Output:', result);
 
+                // [NEW] Increment usage counter in Agent Registry / Pipeline Stats
+                if (typeof WorkflowEngine.incrementContentCount === 'function') {
+                    WorkflowEngine.incrementContentCount(STRATEGIC_CONCLUSION_WORKFLOW_ID);
+                }
+
                 // Correct parsing: WorkflowEngine returns { outputs: { node_id: data, ... }, workflowId: '...' }
                 let conclusion = '';
                 if (result && result.outputs) {

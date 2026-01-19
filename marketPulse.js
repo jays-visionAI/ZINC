@@ -626,6 +626,11 @@ async function triggerMarketIntelligenceResearch(options = {}) {
                 }
             );
 
+            // [NEW] Increment usage counter for the workflow
+            if (typeof WorkflowEngine.incrementContentCount === 'function') {
+                WorkflowEngine.incrementContentCount(workflowId);
+            }
+
             // Find the most relevant output node (SEO / Market Analyst)
             const nodeIds = Object.keys(outputs);
             for (const id of nodeIds.reverse()) {

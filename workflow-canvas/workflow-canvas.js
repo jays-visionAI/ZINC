@@ -4395,6 +4395,23 @@ ${agentList}
             return;
         }
 
+        // [NEW] Perform full structural & data validation before running
+        const validation = validateWorkflow();
+        if (!validation.valid) {
+            const errorMsg = validation.errors.join('\n');
+            alert('워크플로우 실행 중단: 설정 오류가 발견되었습니다.\n\n' + errorMsg);
+
+            // Mark failed nodes visually
+            validation.failedNodeIds.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('test-failed-glow');
+            });
+
+            // Switch to step 2 (canvas) to show errors if we were in prompt/code tabs
+            if (state.currentStep !== 2) goToStep(2);
+            return;
+        }
+
         notify('🚀 워크플로우 실행 시작...', 'info');
         console.log('[WorkflowCanvas] Starting workflow execution...');
 
