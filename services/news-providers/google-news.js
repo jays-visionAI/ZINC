@@ -138,13 +138,14 @@ class GoogleNewsProvider {
      */
     getMockData(query) {
         const now = new Date().toISOString();
+        const searchUrl = `https://news.google.com/search?q=${encodeURIComponent(query)}`;
         return [
             {
                 id: `mock-gnews-1`,
                 title: `Latest ${query} News - Global Coverage`,
                 description: `Comprehensive coverage of ${query} from global news sources. This is demonstration data.`,
                 content: `Full article about ${query}...`,
-                url: '#',
+                url: searchUrl,
                 imageUrl: null,
                 publishedAt: now,
                 source: { name: 'ZYNK News (Demo)', region: 'GLOBAL', provider: 'google-news' },
@@ -157,7 +158,7 @@ class GoogleNewsProvider {
                 title: `${query} Market Analysis & Trends`,
                 description: `In-depth analysis of ${query} market movements and future predictions.`,
                 content: `Detailed analysis of ${query}...`,
-                url: '#',
+                url: searchUrl,
                 imageUrl: null,
                 publishedAt: now,
                 source: { name: 'ZYNK News (Demo)', region: 'GLOBAL', provider: 'google-news' },

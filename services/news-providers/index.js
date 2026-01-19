@@ -322,10 +322,29 @@ class NewsProviderRegistry {
                     language: config.language,
                     country: config.country
                 });
-                allArticles.push(...articles);
-                console.log(`[NewsRegistry] Fetched ${articles.length} articles for ${config.name} (${region})`);
+
+                if (articles && articles.length > 0) {
+                    allArticles.push(...articles);
+                    console.log(`[NewsRegistry] Fetched ${articles.length} articles for ${config.name} (${region})`);
+                }
             } catch (error) {
                 console.warn(`[NewsRegistry] Failed to fetch for ${region}:`, error.message);
+            }
+        }
+
+        // Fallback to GLOBAL if no articles found in specified regions
+        if (allArticles.length === 0 && !regions.includes('GLOBAL')) {
+            console.log(`[NewsRegistry] No articles found in ${regions.join(', ')}. Falling back to GLOBAL...`);
+            const globalConfig = NewsProviderRegistry.getRegionConfig('GLOBAL');
+            try {
+                const globalArticles = await provider.fetch(query, {
+                    ...options,
+                    language: globalConfig.language,
+                    country: globalConfig.country
+                });
+                allArticles.push(...globalArticles);
+            } catch (error) {
+                console.warn('[NewsRegistry] Global fallback failed:', error.message);
             }
         }
 

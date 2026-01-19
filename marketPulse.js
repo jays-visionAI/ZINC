@@ -561,8 +561,8 @@ async function triggerMarketIntelligenceResearch() {
                     title: `Workflow Scan: ${kw} insights`,
                     publisher: 'ZYNK Intelligence',
                     date: 'Just now',
-                    snippet: `Advanced workflow analysis completed for ${kw}. No external news sources found.`,
-                    url: '#'
+                    snippet: `Advanced workflow analysis completed for ${kw}. No external news sources found. Click to search manually.`,
+                    url: `https://news.google.com/search?q=${encodeURIComponent(kw)}`
                 }];
 
             return {
