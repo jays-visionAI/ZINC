@@ -133,6 +133,20 @@
                     "order": "DESCENDING"
                 }
             ]
+        },
+        {
+            "collectionGroup": "marketPulse_warehouse",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "keyword",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "publishedAt",
+                    "order": "DESCENDING"
+                }
+            ]
         }
     ],
     "fieldOverrides": []

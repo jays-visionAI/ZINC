@@ -566,9 +566,6 @@ async function triggerMarketIntelligenceResearch(options = {}) {
             throw new Error('WorkflowEngine is not loaded.');
         }
 
-        // Update progress
-        updateMIProgress('Collecting market signals...', 15);
-
         // Determine lookback period from options or UI state
         let requestedRange = (options && options.timeRange) || '7D';
         const rangeMap = {
@@ -587,83 +584,7 @@ async function triggerMarketIntelligenceResearch(options = {}) {
         };
         const whenParam = rangeMap[requestedRange] || '7d';
 
-        // Step 1: Fetch real news for all keywords (Intelligent Index Warehouse Logic)
-        let keywordNewsMap = {};
-
-        if (window.NewsProviderRegistry) {
-            updateMIProgress('Gathering intelligence from warehouse...', 20);
-
-            for (let i = 0; i < keywords.length; i++) {
-                const kw = keywords[i];
-                let articles = [];
-                try {
-                    // 1. Try Loading from Warehouse (Cache) with period-aware filter
-                    try {
-                        const days = rangeDaysMap[requestedRange] || 7;
-                        const existingArticles = await MarketIntelligenceWarehouse.loadIndices(currentProjectId, kw, days);
-                        articles = existingArticles || [];
-                    } catch (warehouseErr) {
-                        console.warn(`[Warehouse] Could not load cache for "${kw}":`, warehouseErr.message);
-                    }
-
-                    // 2. Fetch Fresh Data only if Warehouse is outdated, has gaps, or forced
-                    const lastScanTime = articles.length > 0 ? new Date(articles[0].publishedAt) : null;
-                    const oldestScanTime = articles.length > 0 ? new Date(articles[articles.length - 1].publishedAt) : null;
-
-                    const nowTs = Date.now();
-                    const dayMs = 24 * 60 * 60 * 1000;
-                    const requestedDays = rangeDaysMap[requestedRange] || 7;
-                    const requestedCutoff = nowTs - (requestedDays * dayMs);
-
-                    // Logic: Needs fetch if:
-                    // - No data at all
-                    // - Latest data is > 24h old
-                    // - Oldest data doesn't reach back far enough for the requested range
-                    // - User explicitly clicked "Refresh" (forceRefresh)
-                    const isOutdated = !lastScanTime || (nowTs - lastScanTime.getTime()) > dayMs;
-                    const hasCoverageGap = !oldestScanTime || oldestScanTime.getTime() > (requestedCutoff + dayMs); // Buffer of 1 day
-                    const shouldFetchRSS = isOutdated || hasCoverageGap || articles.length === 0 || (options && options.forceRefresh);
-
-                    if (shouldFetchRSS) {
-                        console.log(`[MarketPulse] RSS Scan required for "${kw}" (Range: ${requestedRange}). Outdated: ${isOutdated}, Gap: ${hasCoverageGap}`);
-                        const newsResult = await window.NewsProviderRegistry.fetchNewsForProject(
-                            kw,
-                            currentProjectData,
-                            {
-                                maxResults: 200, // Increased from 50
-                                when: whenParam
-                            }
-                        );
-
-                        if (newsResult.success && newsResult.articles.length > 0) {
-                            const newArticles = newsResult.articles;
-                            // Keep up to 200 articles for deeper index
-                            articles = [...newArticles, ...articles].slice(0, 200);
-
-                            // Save to warehouse in background
-                            MarketIntelligenceWarehouse.saveIndices(currentProjectId, kw, newArticles).catch(e => { });
-                        }
-                    }
-
-                    // 3. Fallback to mock if still empty (ensure UI drawer has content)
-                    if (articles.length === 0 && window.NewsProviderRegistry.providers['google-news']) {
-                        articles = window.NewsProviderRegistry.providers['google-news'].getMockData(kw);
-                    }
-
-                    keywordNewsMap[kw] = articles;
-                    console.log(`[MarketPulse] Intelligence pool for "${kw}": ${articles.length} signals`);
-                } catch (newsErr) {
-                    console.warn(`[MarketPulse] Fatal news fetch error for "${kw}":`, newsErr.message);
-                    keywordNewsMap[kw] = [];
-                }
-
-                // Update progress
-                const progressPercent = 20 + Math.floor((i / keywords.length) * 20);
-                updateMIProgress(`Scanning market signals: ${kw}...`, progressPercent);
-            }
-        }
-
-        // Check for cached Analysis in Firestore to avoid redundant AI expense
+        // STEP 1: AI STRATEGY FIRST (Knowledge Hub + Identity Analysis)
         const workflowId = 'dn0sDJv9EQsM3NicleSL';
         const projectContext = { id: currentProjectId, ...currentProjectData };
         const db = firebase.firestore();
@@ -671,7 +592,7 @@ async function triggerMarketIntelligenceResearch(options = {}) {
         let shouldRunWorkflow = true;
 
         if (!options.forceRefresh) {
-            updateMIProgress('Checking for existing analysis...', 42);
+            updateMIProgress('Checking for existing strategy...', 10);
             try {
                 const cachedSnap = await db.collection('projects').doc(currentProjectId)
                     .collection('marketPulse').doc('latest').get();
@@ -679,13 +600,12 @@ async function triggerMarketIntelligenceResearch(options = {}) {
                 if (cachedSnap.exists) {
                     const cachedData = cachedSnap.data();
                     const ageMs = Date.now() - (cachedData.generatedAt?.toDate() || 0).getTime();
-
-                    // Logic: Reuse if < 24h old AND keywords haven't changed
                     const sameKeywords = JSON.stringify(cachedData.keywords || []) === JSON.stringify(keywords);
+
                     if (ageMs < (24 * 60 * 60 * 1000) && sameKeywords) {
                         workflowResult = cachedData;
                         shouldRunWorkflow = false;
-                        console.log('[MarketPulse] Re-using recent AI analysis from cache');
+                        console.log('[MarketPulse] Re-using recent AI strategy from cache');
                     }
                 }
             } catch (cacheErr) {
@@ -694,26 +614,76 @@ async function triggerMarketIntelligenceResearch(options = {}) {
         }
 
         if (shouldRunWorkflow) {
-            console.log('[MarketPulse] Executing AI Workflow:', workflowId);
+            console.log('[MarketPulse] Executing Strategic AI Workflow:', workflowId);
+            updateMIProgress('Analyzing Project Identity & Knowledge Hub...', 15);
+
             const { outputs } = await WorkflowEngine.executeById(
                 workflowId,
                 projectContext,
                 console,
                 (progress) => {
-                    updateMIProgress(progress.nodeName || 'Processing...', progress.progress || 45);
+                    updateMIProgress(progress.nodeName || 'Strategic Planning...', 15 + (progress.progress * 0.25));
                 }
             );
 
-            // Find the most relevant output node
+            // Find the most relevant output node (SEO / Market Analyst)
             const nodeIds = Object.keys(outputs);
             for (const id of nodeIds.reverse()) {
                 const out = outputs[id];
-                if (out && (out.trends || out.analysis || out.keywords)) {
+                if (out && (out.trends || out.analysis || out.keywords || out.seo)) {
                     workflowResult = out;
                     break;
                 }
             }
             if (!workflowResult) workflowResult = outputs[nodeIds[nodeIds.length - 1]];
+        }
+
+        // Extract SEO/Strategic context for News Search
+        const strategicKeywords = workflowResult?.keywords || workflowResult?.seo_keywords || keywords;
+        const searchContext = workflowResult?.analysis || workflowResult?.summary || '';
+
+        // STEP 2: CONTEXT-AWARE NEWS SCANNING
+        let keywordNewsMap = {};
+        if (window.NewsProviderRegistry) {
+            updateMIProgress('Gathering intelligence based on AI strategy...', 45);
+
+            for (let i = 0; i < keywords.length; i++) {
+                const kw = keywords[i];
+                let articles = [];
+                try {
+                    // 1. Try Loading from Warehouse
+                    const days = rangeDaysMap[requestedRange] || 7;
+                    try {
+                        articles = await MarketIntelligenceWarehouse.loadIndices(currentProjectId, kw, days) || [];
+                    } catch (e) { }
+
+                    // 2. Fetch Fresh Data with Strategic Context
+                    const nowTs = Date.now();
+                    const isOutdated = articles.length === 0 || (nowTs - new Date(articles[0].publishedAt || 0).getTime()) > (24 * 60 * 60 * 1000);
+
+                    if (isOutdated || (options && options.forceRefresh)) {
+                        console.log(`[MarketPulse] context-aware RSS Scan for "${kw}"`);
+                        const newsResult = await window.NewsProviderRegistry.fetchNewsForProject(
+                            kw,
+                            { ...currentProjectData, strategicContext: searchContext },
+                            { maxResults: 100, when: whenParam }
+                        );
+
+                        if (newsResult.success && newsResult.articles.length > 0) {
+                            articles = newsResult.articles;
+                            MarketIntelligenceWarehouse.saveIndices(currentProjectId, kw, articles).catch(e => { });
+                        }
+                    }
+
+                    if (articles.length === 0 && window.NewsProviderRegistry.providers['google-news']) {
+                        articles = window.NewsProviderRegistry.providers['google-news'].getMockData(kw);
+                    }
+                    keywordNewsMap[kw] = articles;
+                } catch (newsErr) {
+                    keywordNewsMap[kw] = [];
+                }
+                updateMIProgress(`Indexing signals for: ${kw}`, 45 + Math.floor((i / keywords.length) * 35));
+            }
         }
 
         console.log('[MarketPulse] Final Workflow Result:', workflowResult);
@@ -796,13 +766,10 @@ async function triggerMarketIntelligenceResearch(options = {}) {
                 const fallbackSentiment = 0.6 + (Math.random() * 0.15);
                 const fallbackConfidence = 0.8 + (Math.random() * 0.1);
 
-                // Construct a more substantial briefing (minimum 300-500 chars heuristic)
-                const articleTitles = evidence.slice(0, 5).map(e => e.title).join('. ');
-                let briefingText = agentTrend?.briefing || agentTrend?.strategicSynthesis || agentTrend?.summary;
-
-                // If the briefing is too short, enrich it with top news context to satisfy user's 500-char request
-                if (briefingText && briefingText.length < 300 && articleTitles.length > 50) {
-                    briefingText = `${briefingText} Key intelligence signals include: ${articleTitles}. This indicates a broadening trend with verified resonance in global markets.`;
+                // LIGHT BRIEFING (Heavy synthesis moved to 'Full Report' On-Demand)
+                let briefingText = agentTrend?.briefing || agentTrend?.summary;
+                if (!briefingText) {
+                    briefingText = `${kw} is showing market resonance with ${totalArticles} signals across verified channels. Open Full Report for detailed strategic analysis.`;
                 }
 
                 return {
@@ -4823,7 +4790,7 @@ async function saveResonanceKeywords() {
 }
 
 // Full Trend Report Modal Implementation
-function showFullTrendReport(trendId) {
+async function showFullTrendReport(trendId) {
     if (!window.marketIntelligenceInstance) return;
 
     const trends = window.marketIntelligenceInstance.state.data || [];
@@ -4834,10 +4801,14 @@ function showFullTrendReport(trendId) {
         return;
     }
 
+    // Modal Initial Setup
     const modal = document.createElement('div');
     modal.id = 'full-trend-report-modal';
     modal.className = 'fixed inset-0 z-[1000] flex items-center justify-center bg-black/90 backdrop-blur-xl animate-in fade-in duration-300';
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+    // Start deep analysis in background if briefing is light
+    const isBriefingLight = !trend.deepBriefing || trend.briefing.length < 300;
 
     const sentimentColor = trend.sentiment > 0.6 ? 'emerald' : trend.sentiment > 0.4 ? 'cyan' : 'amber';
     const impactScore = Math.floor(trend.confidence * 100);
@@ -4905,7 +4876,7 @@ function showFullTrendReport(trendId) {
 
                 <!-- Content Body -->
                 <div class="flex-1 overflow-y-auto p-16 pt-10 scrollbar-thin scrollbar-thumb-slate-700 space-y-16">
-                    <!-- SECTION 0: EXECUTIVE BRIEFING (New Top Section) -->
+                    <!-- SECTION 0: EXECUTIVE BRIEFING (Now with On-Demand Deep Synthesis) -->
                     <div class="relative p-12 bg-indigo-500/5 border border-indigo-500/20 rounded-[3.5rem] overflow-hidden group">
                         <div class="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 blur-[100px] -mr-40 -mt-40 transition-all group-hover:bg-indigo-500/20"></div>
                         <div class="relative z-10">
@@ -4917,15 +4888,23 @@ function showFullTrendReport(trendId) {
                             </div>
                             <div class="grid grid-cols-12 gap-10 items-center">
                                 <div class="col-span-12 lg:col-span-12">
-                                    <p class="text-2xl text-white leading-relaxed font-bold tracking-tight">
-                                        ${trend.briefing || trend.strategicSynthesis || 'Analyzing market signals...'}
-                                    </p>
+                                    <div id="deep-briefing-container" class="min-h-[100px]">
+                                        <p class="text-2xl text-white leading-relaxed font-bold tracking-tight">
+                                            ${trend.deepBriefing || trend.briefing || 'Initializing intelligence synthesis...'}
+                                        </p>
+                                        ${isBriefingLight ? `
+                                            <div id="briefing-loader" class="mt-6 flex items-center gap-4 text-indigo-400 animate-pulse">
+                                                <svg class="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>
+                                                <span class="text-[10px] font-black uppercase tracking-[0.2em]">Synthesizing market signals for deep-dive...</span>
+                                            </div>
+                                        ` : ''}
+                                    </div>
                                     <div class="mt-8 flex items-center gap-6">
                                         <div class="px-5 py-2 bg-slate-800/50 rounded-full border border-white/5 flex items-center gap-2">
                                             <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                                             <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Live Analysis Core</span>
                                         </div>
-                                        <div class="text-[10px] font-bold text-slate-500 italic">Synthesized from top 10 verified intelligence signals</div>
+                                        <div class="text-[10px] font-bold text-slate-500 italic">Synthesized from top verified intelligence signals</div>
                                     </div>
                                 </div>
                             </div>
@@ -5073,6 +5052,42 @@ function showFullTrendReport(trendId) {
         `;
 
     document.body.appendChild(modal);
+
+    // ON-DEMAND DEEP ANALYSIS TRIGGER
+    if (isBriefingLight) {
+        (async () => {
+            try {
+                const articleContext = sortedEvidence.slice(0, 10).map(e => `[${e.publisher}] ${e.title}: ${e.snippet}`).join('\n');
+                const prompt = `Synthesize a highly strategic, 500-character executive briefing for the market trend "${trend.name}". 
+                Use these verified market signals for context:
+                ${articleContext}
+                
+                The briefing should be professional, data-driven, and highlight the strategic significance for ${currentProjectData.name}. 
+                Ensure it's approximately 450-550 characters long.`;
+
+                // Use the baseline LLM Router for on-demand synthesis
+                const response = await window.NewsProviderRegistry.providers['google-news'].callLLM(prompt);
+                const deepBriefing = response || trend.briefing;
+
+                // Update UI
+                const container = document.getElementById('deep-briefing-container');
+                if (container) {
+                    container.innerHTML = `<p class="text-2xl text-white leading-relaxed font-bold tracking-tight animate-in slide-in-from-bottom-2 duration-500">${deepBriefing}</p>`;
+
+                    // Update the trend object and state so it's cached for this session
+                    trend.deepBriefing = deepBriefing;
+                    if (window.marketIntelligenceInstance) {
+                        const currentData = window.marketIntelligenceInstance.state.data.map(t => t.id === trend.id ? { ...t, deepBriefing } : t);
+                        window.marketIntelligenceInstance.setState({ data: currentData });
+                    }
+                }
+            } catch (err) {
+                console.error('[MarketPulse] On-demand briefing failed:', err);
+                const loader = document.getElementById('briefing-loader');
+                if (loader) loader.innerHTML = '<span class="text-rose-400 text-[10px] uppercase font-black">Synthesis paused. Check network.</span>';
+            }
+        })();
+    }
 }
 
 async function saveTrendToLibrary(trendId) {
