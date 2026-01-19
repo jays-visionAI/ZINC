@@ -648,7 +648,90 @@ class MarketIntelligenceUI {
             niche: data.filter(t => t.velocity <= 0 && t.volume <= maxVolume / 2)
         };
 
-        // Build context for LLM
+        // Show loading state
+        container.innerHTML = `
+            <div class="flex items-center gap-3 text-indigo-400/60">
+                <svg class="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>
+                <span class="text-xs font-medium">Generating strategic analysis via workflow...</span>
+            </div>
+        `;
+
+        // Strategic Conclusion Workflow ID
+        const STRATEGIC_CONCLUSION_WORKFLOW_ID = 'ae6QGTVPEQodxbhAlYFc';
+
+        try {
+            // Prepare market intelligence data for workflow input
+            const marketIntelligenceInput = {
+                source: 'Market Intelligence Matrix',
+                projectId: currentProjectId,
+                projectName: projectData.name || 'Unknown',
+                industry: projectData.industry || 'Technology',
+                targetAudience: projectData.targetAudience || 'General',
+                description: projectData.description || '',
+                count: data.length,
+                keywords: data.map(t => {
+                    const quadrant = t.velocity > 0 ? (t.volume > maxVolume / 2 ? 'Dominant' : 'Emerging') : (t.volume > maxVolume / 2 ? 'Saturated' : 'Niche');
+                    const sentiment = t.sentiment > 0.2 ? 'Positive' : t.sentiment < -0.2 ? 'Negative' : 'Neutral';
+                    return {
+                        name: t.name,
+                        quadrant,
+                        sentiment,
+                        velocity: t.velocity,
+                        volume: t.volume,
+                        sentimentScore: t.sentiment
+                    };
+                }),
+                quadrantDistribution: {
+                    dominant: quadrantData.dominant.length,
+                    emerging: quadrantData.emerging.length,
+                    saturated: quadrantData.saturated.length,
+                    niche: quadrantData.niche.length
+                },
+                rawText: data.map(t => {
+                    const quadrant = t.velocity > 0 ? (t.volume > maxVolume / 2 ? 'Dominant' : 'Emerging') : (t.volume > maxVolume / 2 ? 'Saturated' : 'Niche');
+                    const sentiment = t.sentiment > 0.2 ? 'Positive' : t.sentiment < -0.2 ? 'Negative' : 'Neutral';
+                    return `Keyword: ${t.name}\nQuadrant: ${quadrant}\nSentiment: ${sentiment}\nGrowth: ${t.velocity}%\nReach: ${t.volume}`;
+                }).join('\n\n')
+            };
+
+            // Execute workflow
+            if (typeof WorkflowEngine !== 'undefined' && WorkflowEngine.executeById) {
+                console.log('[MarketIntelligence] Executing Strategic Conclusion workflow:', STRATEGIC_CONCLUSION_WORKFLOW_ID);
+
+                const result = await WorkflowEngine.executeById(STRATEGIC_CONCLUSION_WORKFLOW_ID, {
+                    projectId: currentProjectId,
+                    inputData: marketIntelligenceInput
+                });
+
+                const conclusion = result?.finalOutput?.text || result?.finalOutput || result?.output || 'Unable to generate strategic recommendations at this time.';
+
+                // Cache the result
+                this.state.cachedConclusion = conclusion;
+                this.state.cachedConclusionDataHash = JSON.stringify(data.map(d => d.id));
+
+                container.innerHTML = this.renderConclusionContent(conclusion);
+
+                // Note: Workflow END node saves to Firestore automatically
+                console.log('[MarketIntelligence] Strategic Conclusion generated via workflow');
+
+            } else {
+                // Fallback to direct LLM call if WorkflowEngine not available
+                console.warn('[MarketIntelligence] WorkflowEngine not available, falling back to direct LLM call');
+                await this.generateStrategicConclusionFallback(data, quadrantData, projectData, container);
+            }
+
+        } catch (err) {
+            console.error('[MarketIntelligence] Strategic conclusion workflow execution failed:', err);
+            container.innerHTML = `
+                <p class="text-sm text-slate-400">
+                    ${this.generateFallbackConclusion(data, quadrantData, projectData)}
+                </p>
+            `;
+        }
+    }
+
+    async generateStrategicConclusionFallback(data, quadrantData, projectData, container) {
+        const maxVolume = 100000;
         const marketContext = `
 Project: ${projectData.name || 'Unknown'}
 Industry: ${projectData.industry || 'Technology'}
@@ -661,12 +744,6 @@ ${data.map(t => {
             const sentiment = t.sentiment > 0.2 ? 'Positive' : t.sentiment < -0.2 ? 'Negative' : 'Neutral';
             return `- "${t.name}": ${quadrant} quadrant, ${sentiment} sentiment, ${t.velocity}% growth, ${t.volume} reach`;
         }).join('\n')}
-
-Quadrant Distribution:
-- Dominant (High growth, High reach): ${quadrantData.dominant.length} keywords
-- Emerging (High growth, Low reach): ${quadrantData.emerging.length} keywords
-- Saturated (Low growth, High reach): ${quadrantData.saturated.length} keywords
-- Niche (Low growth, Low reach): ${quadrantData.niche.length} keywords
 `;
 
         try {
@@ -674,44 +751,23 @@ Quadrant Distribution:
             const result = await generateLLMResponse({
                 provider: 'deepseek',
                 model: 'deepseek-chat',
-                systemPrompt: `You are a strategic business consultant specializing in market positioning and growth strategies. 
-Provide concise, actionable recommendations based on market intelligence data.
-Your advice should be specific to the project's industry and target audience.
-Focus on 2-3 key strategic actions the business should take.
-Write in a confident, professional tone. Keep your response under 300 words.
-Do NOT use markdown formatting. Write in plain text with clear paragraph breaks.`,
-                userMessage: `Based on this market intelligence data, provide strategic recommendations for the business:
-
-${marketContext}
-
-What specific actions should this project take to capitalize on these market conditions? Consider:
-1. Which keywords/trends should they prioritize and why?
-2. What content or marketing strategy would be most effective?
-3. Any risks to watch out for?
-
-Provide actionable, project-specific recommendations.`,
+                systemPrompt: `You are a strategic business consultant. Provide concise, actionable recommendations based on market intelligence data.`,
+                userMessage: `Based on this market intelligence data, provide strategic recommendations:\n\n${marketContext}\n\nProvide 2-3 actionable recommendations.`,
                 temperature: 0.7,
-                source: 'market-pulse-strategic-conclusion'
+                source: 'market-pulse-strategic-conclusion-fallback'
             });
 
             const conclusion = result?.data?.response || 'Unable to generate strategic recommendations at this time.';
 
-            // Cache the result
             this.state.cachedConclusion = conclusion;
             this.state.cachedConclusionDataHash = JSON.stringify(data.map(d => d.id));
 
             container.innerHTML = this.renderConclusionContent(conclusion);
-
-            // Save to Firestore for history
             await this.saveConclusion(conclusion);
 
         } catch (err) {
-            console.error('[MarketIntelligence] Strategic conclusion generation failed:', err);
-            container.innerHTML = `
-                <p class="text-sm text-slate-400">
-                    ${this.generateFallbackConclusion(data, quadrantData, projectData)}
-                </p>
-            `;
+            console.error('[MarketIntelligence] Fallback LLM also failed:', err);
+            container.innerHTML = `<p class="text-sm text-slate-400">${this.generateFallbackConclusion(data, quadrantData, projectData)}</p>`;
         }
     }
 
