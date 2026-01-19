@@ -615,29 +615,37 @@ class MarketIntelligenceUI {
         const container = document.getElementById('strategic-conclusion-content');
         if (!container) return;
 
-        // Check memory cache first (for current session)
+        // 1. Check memory cache first (only if not forcing)
         if (!forceRegenerate && this.state.cachedConclusion && this.state.cachedConclusionDataHash === JSON.stringify(data.map(d => d.id))) {
             container.innerHTML = this.renderConclusionContent(this.state.cachedConclusion);
             return;
         }
 
-        // Try loading from Firestore if not forcing regenerate
+        // 2. Try loading from Firestore if not forcing regenerate
         if (!forceRegenerate) {
+            console.log('[MarketIntelligence] Checking for existing Strategic Conclusion in Firestore...');
             const savedConclusion = await this.loadLatestConclusion();
             if (savedConclusion && savedConclusion.content) {
+                console.log('[MarketIntelligence] Loaded existing conclusion from Firestore');
                 this.state.cachedConclusion = savedConclusion.content;
                 this.state.cachedConclusionDataHash = JSON.stringify(data.map(d => d.id));
                 container.innerHTML = this.renderConclusionContent(savedConclusion.content);
+                // Silently refresh history in background
+                this.loadConclusionHistory(true);
                 return;
             }
         }
 
+        // 3. If we reach here, we need to generate (either forced or no history exists)
         if (data.length === 0) {
             container.innerHTML = `<p class="text-sm text-slate-400 italic">Run a market scan to generate strategic recommendations.</p>`;
             return;
         }
 
+        console.log('[MarketIntelligence] No saved conclusion found or regeneration requested. Starting workflow...');
+
         const projectData = window.currentProjectData || {};
+        const projectName = projectData.projectName || projectData.name || window.currentProjectName || 'Vision Chain';
         const maxVolume = 100000;
 
         // Categorize trends by quadrant
@@ -652,7 +660,7 @@ class MarketIntelligenceUI {
         container.innerHTML = `
             <div class="flex items-center gap-3 text-indigo-400/60">
                 <svg class="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>
-                <span class="text-xs font-medium">Generating strategic analysis via workflow...</span>
+                <span class="text-xs font-medium">Generating new strategic analysis via workflow...</span>
             </div>
         `;
 
@@ -660,46 +668,51 @@ class MarketIntelligenceUI {
         const STRATEGIC_CONCLUSION_WORKFLOW_ID = 'ae6QGTVPEQodxbhAlYFc';
 
         try {
-            // Prepare structured input data matching the sources in Workflow Canvas
+            // Prepare structured input data - Use multiple variants to match any node source name
+            const briefData = {
+                projectName: projectName,
+                name: projectName,
+                project_name: projectName,
+                industry: projectData.industry || 'Technology',
+                targetAudience: projectData.targetAudience || 'General',
+                description: projectData.description || projectData.desc || ''
+            };
+
+            const intelligenceData = {
+                source: 'Market Intelligence Matrix',
+                projectId: currentProjectId,
+                projectName: projectName,
+                count: data.length,
+                keywords: data.map(t => {
+                    const quadrant = t.velocity > 0 ? (t.volume > maxVolume / 2 ? 'Dominant' : 'Emerging') : (t.volume > maxVolume / 2 ? 'Saturated' : 'Niche');
+                    const sentiment = t.sentiment > 0.2 ? 'Positive' : t.sentiment < -0.2 ? 'Negative' : 'Neutral';
+                    return {
+                        name: t.name,
+                        quadrant,
+                        sentiment,
+                        velocity: t.velocity,
+                        volume: t.volume,
+                        sentimentScore: t.sentiment
+                    };
+                }),
+                rawText: data.map(t => {
+                    const quadrant = t.velocity > 0 ? (t.volume > maxVolume / 2 ? 'Dominant' : 'Emerging') : (t.volume > maxVolume / 2 ? 'Saturated' : 'Niche');
+                    const sentiment = t.sentiment > 0.2 ? 'Positive' : t.sentiment < -0.2 ? 'Negative' : 'Neutral';
+                    return `Keyword: ${t.name}\nQuadrant: ${quadrant}\nSentiment: ${sentiment}\nGrowth: ${t.velocity}%\nReach: ${t.volume}`;
+                }).join('\n\n')
+            };
+
             const marketIntelligenceInput = {
-                // Data for node with source "project_brief"
-                project_brief: {
-                    projectName: projectData.projectName || projectData.name || 'Vision Chain',
-                    name: projectData.projectName || projectData.name || 'Vision Chain',
-                    industry: projectData.industry || 'Technology',
-                    targetAudience: projectData.targetAudience || 'General',
-                    description: projectData.description || ''
-                },
-                // Data for node with source "market_intelligence"
-                market_intelligence: {
-                    source: 'Market Intelligence Matrix',
-                    projectId: currentProjectId,
-                    projectName: projectData.projectName || projectData.name || 'Vision Chain',
-                    count: data.length,
-                    keywords: data.map(t => {
-                        const quadrant = t.velocity > 0 ? (t.volume > maxVolume / 2 ? 'Dominant' : 'Emerging') : (t.volume > maxVolume / 2 ? 'Saturated' : 'Niche');
-                        const sentiment = t.sentiment > 0.2 ? 'Positive' : t.sentiment < -0.2 ? 'Negative' : 'Neutral';
-                        return {
-                            name: t.name,
-                            quadrant,
-                            sentiment,
-                            velocity: t.velocity,
-                            volume: t.volume,
-                            sentimentScore: t.sentiment
-                        };
-                    }),
-                    quadrantDistribution: {
-                        dominant: quadrantData.dominant.length,
-                        emerging: quadrantData.emerging.length,
-                        saturated: quadrantData.saturated.length,
-                        niche: quadrantData.niche.length
-                    },
-                    rawText: data.map(t => {
-                        const quadrant = t.velocity > 0 ? (t.volume > maxVolume / 2 ? 'Dominant' : 'Emerging') : (t.volume > maxVolume / 2 ? 'Saturated' : 'Niche');
-                        const sentiment = t.sentiment > 0.2 ? 'Positive' : t.sentiment < -0.2 ? 'Negative' : 'Neutral';
-                        return `Keyword: ${t.name}\nQuadrant: ${quadrant}\nSentiment: ${sentiment}\nGrowth: ${t.velocity}%\nReach: ${t.volume}`;
-                    }).join('\n\n')
-                }
+                // Support multiple possible naming conventions in Workflow Canvas
+                "Project Brief": briefData,
+                "project_brief": briefData,
+                "projectBrief": briefData,
+                "Market Intelligence Matrix": intelligenceData,
+                "market_intelligence": intelligenceData,
+                "marketIntelligence": intelligenceData,
+                // Direct alias for simpler access
+                "input": briefData,
+                "projectName": projectName
             };
 
             // Execute workflow
@@ -711,7 +724,7 @@ class MarketIntelligenceUI {
                     inputData: marketIntelligenceInput
                 });
 
-                console.log('[MarketIntelligence] Workflow Result:', result);
+                console.log('[MarketIntelligence] Workflow Output:', result);
 
                 // Correct parsing: WorkflowEngine returns { outputs: { node_id: data, ... }, workflowId: '...' }
                 let conclusion = '';
@@ -745,7 +758,7 @@ class MarketIntelligenceUI {
                 // If it's still containing template variables, the workflow produced a literal template instead of generating text
                 if (!conclusion || conclusion === '{}' || conclusion.includes('Workflow started') || conclusion.includes('{{')) {
                     console.warn('[MarketIntelligence] Workflow produced empty or un-resolved output:', conclusion);
-                    conclusion = 'Unable to generate strategic recommendations at this time. Please check your workflow Agent node configuration.';
+                    conclusion = 'Unable to generate strategic recommendations at this time. Please check your workflow configuration.';
                 }
 
                 // Cache the result
@@ -754,17 +767,18 @@ class MarketIntelligenceUI {
 
                 container.innerHTML = this.renderConclusionContent(conclusion);
 
-                // Note: Workflow END node saves to Firestore automatically
-                console.log('[MarketIntelligence] Strategic Conclusion generated via workflow');
+                // IMPORTANT: Immediate sync of history
+                console.log('[MarketIntelligence] Syncing history after generation...');
+                await this.loadConclusionHistory(true);
 
             } else {
                 // Fallback to direct LLM call if WorkflowEngine not available
-                console.warn('[MarketIntelligence] WorkflowEngine not available, falling back to direct LLM call');
+                console.warn('[MarketIntelligence] WorkflowEngine not ready, falling back');
                 await this.generateStrategicConclusionFallback(data, quadrantData, projectData, container);
             }
 
         } catch (err) {
-            console.error('[MarketIntelligence] Strategic conclusion workflow execution failed:', err);
+            console.error('[MarketIntelligence] Generation failed:', err);
             container.innerHTML = `
                 <p class="text-sm text-slate-400">
                     ${this.generateFallbackConclusion(data, quadrantData, projectData)}
