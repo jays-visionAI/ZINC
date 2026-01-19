@@ -735,11 +735,11 @@
         </div>
 
         <!-- 🎯 PROJECT RESONANCE KEYWORD EDITOR MODAL -->
-        <div id="keyword-editor-modal" class="fixed inset-0 z-[100] hidden">
+        <div id="keyword-editor-modal" class="fixed inset-0 z-[100] hidden overflow-y-auto">
             <div class="absolute inset-0 bg-black/90 backdrop-blur-xl" onclick="closeKeywordEditor()"></div>
-            <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl px-4">
+            <div class="min-h-screen py-8 px-4 flex items-center justify-center">
                 <div
-                    class="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 md:p-10 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] animate-in zoom-in-95 duration-300 relative overflow-hidden">
+                    class="relative bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 md:p-10 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] animate-in zoom-in-95 duration-300 overflow-hidden w-full max-w-2xl">
                     <!-- Ambient Glow -->
                     <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 blur-[100px] -mr-32 -mt-32"></div>
                     <div class="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/10 blur-[100px] -ml-32 -mb-32"></div>
@@ -813,7 +813,7 @@
                                 </div>
 
                                 <div id="ai-suggestions-container"
-                                    class="min-h-[48px] p-1 flex flex-wrap gap-2 items-center justify-center text-center">
+                                    class="max-h-[300px] overflow-y-auto p-1 flex flex-col gap-2 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
                                     <!-- Suggestions will be populated here -->
                                 </div>
                             </div>

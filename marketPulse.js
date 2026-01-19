@@ -3881,8 +3881,8 @@ function clearAISuggestions() {
     }
 }
 
-// Store fetched articles for keyword-article mapping
-let cachedNewsArticles = [];
+// Store fetched articles per keyword for proper mapping
+let cachedKeywordNewsMap = {};
 
 async function generateAISuggestions() {
     const container = document.getElementById('ai-suggestions-container');
@@ -3897,93 +3897,103 @@ async function generateAISuggestions() {
     container.innerHTML = `
         <div class="flex items-center justify-center gap-3 px-2 py-2 w-full">
             <div class="w-4 h-4 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin"></div>
-            <span class="text-xs text-slate-500 font-medium">Scanning global news & analyzing market trends...</span>
+            <span class="text-xs text-slate-500 font-medium">Generating AI keyword suggestions...</span>
         </div>
     `;
 
     try {
-        // Step 1: Fetch news with auto-detection based on project target markets
-        let newsContext = '';
-        let newsCount = 0;
-        let detectedRegions = [];
-        cachedNewsArticles = [];
-
-        if (window.NewsProviderRegistry) {
-            const industry = currentProjectData?.industry || 'technology';
-            const projectName = currentProjectData?.projectName || currentProjectData?.name || '';
-            const searchQuery = `${industry} ${projectName}`.trim() || 'technology trends';
-
-            try {
-                // Use auto-detection based on project's target audience/markets
-                const newsResult = await window.NewsProviderRegistry.fetchNewsForProject(
-                    searchQuery,
-                    currentProjectData,
-                    { maxResults: 8 }
-                );
-
-                if (newsResult.success && newsResult.articles.length > 0) {
-                    newsCount = newsResult.articles.length;
-                    detectedRegions = newsResult.regions || [];
-                    cachedNewsArticles = newsResult.articles;
-                    newsContext = newsResult.articles
-                        .map(a => `- ${a.headline || a.title}`)
-                        .join('\n');
-                    console.log(`[KeywordSuggestions] Fetched ${newsCount} news articles from ${detectedRegions.join(', ')}`);
-                }
-            } catch (newsErr) {
-                console.warn('[KeywordSuggestions] News fetch failed, continuing with AI-only:', newsErr.message);
-            }
-        }
-
-        // Step 2: Call AI with or without news context - now asking for keyword-article mapping
+        // Step 1: First get AI keyword suggestions
         const executeSubAgent = firebase.functions().httpsCallable('executeSubAgent');
 
         const basePrompt = `Based on the project name "${currentProjectData?.projectName || 'Unknown'}" and its description "${currentProjectData?.description || 'No description available'}", suggest 8 high-impact market keywords for monitoring sentiment and competition.`;
-
-        const newsEnhancedPrompt = newsContext
-            ? `${basePrompt}\n\nRecent news headlines for context:\n${newsContext}\n\nFor each keyword, also provide a brief strategy tip (1 sentence).`
-            : basePrompt;
 
         const response = await executeSubAgent({
             projectId: currentProjectId,
             teamId: 'SYSTEM_INTEL_TEAM',
             runId: 'keywords_' + Date.now(),
             subAgentId: 'strategy_analyst',
-            taskPrompt: newsEnhancedPrompt + ' Return in format: Keyword1|Strategy tip for keyword1, Keyword2|Strategy tip for keyword2, ...',
-            systemPrompt: "You are an expert market analyst. Suggest optimized search keywords for brand monitoring based on project context and current news trends. Format each keyword with a brief strategy tip separated by |. Example: AI Technology|Monitor competitor adoption rates, Sustainable Products|Track consumer sentiment shifts"
+            taskPrompt: basePrompt + ' Return in format: Keyword1|Strategy tip for keyword1, Keyword2|Strategy tip for keyword2, ...',
+            systemPrompt: "You are an expert market analyst. Suggest optimized search keywords for brand monitoring based on project context. Format each keyword with a brief strategy tip separated by |. Example: AI Technology|Monitor competitor adoption rates, Sustainable Products|Track consumer sentiment shifts"
         });
 
-        if (response.data.success) {
-            const raw = response.data.output || "";
-            // Parse keywords with optional strategy tips
-            const keywordEntries = raw.split(',').map(s => {
-                const parts = s.trim().split('|');
-                return {
-                    keyword: parts[0]?.trim() || '',
-                    strategy: parts[1]?.trim() || ''
-                };
-            }).filter(e => e.keyword);
+        if (!response.data.success) {
+            throw new Error(response.data.error || "Failed to generate suggestions");
+        }
 
-            container.innerHTML = '';
+        const raw = response.data.output || "";
+        // Parse keywords with optional strategy tips
+        const keywordEntries = raw.split(',').map(s => {
+            const parts = s.trim().split('|');
+            return {
+                keyword: parts[0]?.trim() || '',
+                strategy: parts[1]?.trim() || '',
+                articles: [] // Will be populated with keyword-specific news
+            };
+        }).filter(e => e.keyword);
 
-            // Create keyword cards with article sources
-            keywordEntries.forEach((entry, idx) => {
+        // Step 2: Now fetch news for EACH keyword individually
+        container.innerHTML = `
+            <div class="flex items-center justify-center gap-3 px-2 py-2 w-full">
+                <div class="w-4 h-4 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin"></div>
+                <span class="text-xs text-slate-500 font-medium">Fetching news for each keyword...</span>
+            </div>
+        `;
+
+        let detectedRegions = [];
+        let totalArticlesCount = 0;
+        cachedKeywordNewsMap = {};
+
+        if (window.NewsProviderRegistry) {
+            for (let i = 0; i < keywordEntries.length; i++) {
+                const entry = keywordEntries[i];
                 const kw = entry.keyword;
-                const strategy = entry.strategy;
 
-                // Find related articles (simple keyword matching)
-                const relatedArticles = cachedNewsArticles.filter(article => {
-                    const title = (article.headline || article.title || '').toLowerCase();
-                    const kwLower = kw.toLowerCase();
-                    // Check if any word from keyword appears in title
-                    return kwLower.split(' ').some(word => word.length > 2 && title.includes(word));
-                }).slice(0, 3);
+                try {
+                    const newsResult = await window.NewsProviderRegistry.fetchNewsForProject(
+                        kw,
+                        currentProjectData,
+                        { maxResults: 3 } // Fetch 3 articles per keyword
+                    );
 
-                const cardId = `keyword-card-${idx}`;
-                const card = document.createElement('div');
-                card.className = 'keyword-strategy-card group animate-in slide-in-from-bottom-2 duration-300';
-                card.style.animationDelay = `${idx * 50}ms`;
-                card.innerHTML = `
+                    if (newsResult.success && newsResult.articles.length > 0) {
+                        entry.articles = newsResult.articles;
+                        cachedKeywordNewsMap[kw] = newsResult.articles;
+                        totalArticlesCount += newsResult.articles.length;
+
+                        if (newsResult.regions) {
+                            newsResult.regions.forEach(r => {
+                                if (!detectedRegions.includes(r)) detectedRegions.push(r);
+                            });
+                        }
+                        console.log(`[KeywordSuggestions] Found ${newsResult.articles.length} articles for "${kw}"`);
+                    }
+                } catch (newsErr) {
+                    console.warn(`[KeywordSuggestions] News fetch for "${kw}" failed:`, newsErr.message);
+                }
+
+                // Update progress
+                container.innerHTML = `
+                    <div class="flex items-center justify-center gap-3 px-2 py-2 w-full">
+                        <div class="w-4 h-4 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin"></div>
+                        <span class="text-xs text-slate-500 font-medium">Scanning news: ${i + 1}/${keywordEntries.length} keywords...</span>
+                    </div>
+                `;
+            }
+        }
+
+        // Step 3: Render the keyword cards with their specific articles
+        container.innerHTML = '';
+
+        keywordEntries.forEach((entry, idx) => {
+            const kw = entry.keyword;
+            const strategy = entry.strategy;
+            const relatedArticles = entry.articles.slice(0, 3); // Use the keyword-specific articles
+
+            const cardId = `keyword-card-${idx}`;
+            const card = document.createElement('div');
+            card.className = 'keyword-strategy-card group animate-in slide-in-from-bottom-2 duration-300';
+            card.style.animationDelay = `${idx * 50}ms`;
+            card.innerHTML = `
                     <div class="flex flex-col gap-2 p-3 bg-slate-800/80 hover:bg-slate-800 rounded-xl border border-slate-700/50 hover:border-cyan-500/30 transition-all cursor-pointer">
                         <div class="flex items-start justify-between gap-2">
                             <div class="flex-1 min-w-0">
@@ -4023,32 +4033,32 @@ async function generateAISuggestions() {
                         ` : ''}
                     </div>
                 `;
-                container.appendChild(card);
-            });
+            container.appendChild(card);
+        });
 
-            // Show summary footer
-            if (newsCount > 0) {
-                const sourceInfo = document.createElement('div');
-                sourceInfo.className = 'w-full mt-3 pt-3 border-t border-slate-800/50';
-                sourceInfo.innerHTML = `
+        // Collect all articles for "View All Sources"
+        const allArticles = Object.values(cachedKeywordNewsMap).flat();
+
+        // Show summary footer
+        if (totalArticlesCount > 0) {
+            const sourceInfo = document.createElement('div');
+            sourceInfo.className = 'w-full mt-3 pt-3 border-t border-slate-800/50';
+            sourceInfo.innerHTML = `
                     <div class="flex items-center justify-between">
                         <p class="text-[10px] text-slate-500 flex items-center gap-1.5">
                             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>
-                            Analyzed ${newsCount} articles from ${detectedRegions.length > 0 ? detectedRegions.map(r => getRegionName(r)).join(', ') : 'global sources'}
+                            Analyzed ${totalArticlesCount} articles from ${detectedRegions.length > 0 ? detectedRegions.map(r => getRegionName(r)).join(', ') : 'global sources'}
                         </p>
                         <button onclick="viewAllNewsSources()" class="text-[10px] text-cyan-500 hover:text-cyan-400 font-medium transition-colors">
                             View All Sources
                         </button>
                     </div>
                 `;
-                container.appendChild(sourceInfo);
-            }
-
-            // Show auto-view results banner with countdown
-            showAutoResultsBanner(keywordEntries, cachedNewsArticles, detectedRegions);
-        } else {
-            throw new Error(response.data.error || "Failed to generate suggestions");
+            container.appendChild(sourceInfo);
         }
+
+        // Show auto-view results banner with countdown
+        showAutoResultsBanner(keywordEntries, allArticles, detectedRegions);
     } catch (error) {
         console.error('Error generating suggestions:', error);
         container.innerHTML = '<div class="text-[10px] text-red-500 font-bold px-2 py-2 uppercase tracking-wider">AI analysis failed. Please try again or enter manually.</div>';
@@ -4120,7 +4130,10 @@ function getRegionName(regionCode) {
 
 // View all news sources in a modal
 function viewAllNewsSources() {
-    if (cachedNewsArticles.length === 0) {
+    // Collect all articles from the keyword news map
+    const allArticles = Object.values(cachedKeywordNewsMap).flat();
+
+    if (allArticles.length === 0) {
         showNotification('No news sources available', 'info');
         return;
     }
@@ -4136,14 +4149,14 @@ function viewAllNewsSources() {
             <div class="flex items-center justify-between p-4 border-b border-slate-800">
                 <div>
                     <h3 class="text-lg font-bold text-white">News Sources</h3>
-                    <p class="text-xs text-slate-500 mt-0.5">${cachedNewsArticles.length} articles analyzed for keyword suggestions</p>
+                    <p class="text-xs text-slate-500 mt-0.5">${allArticles.length} articles analyzed for keyword suggestions</p>
                 </div>
                 <button onclick="document.getElementById('news-sources-modal').remove()" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                 </button>
             </div>
             <div class="p-4 overflow-y-auto max-h-[calc(80vh-80px)] space-y-3">
-                ${cachedNewsArticles.map(article => `
+                ${allArticles.map(article => `
                     <a href="${article.url || article.link || '#'}" target="_blank" rel="noopener noreferrer" 
                        class="flex items-start gap-3 p-3 bg-slate-800/50 hover:bg-slate-800 rounded-xl border border-slate-700/50 hover:border-cyan-500/30 transition-all group">
                         <div class="shrink-0 w-8 h-8 flex items-center justify-center bg-slate-700/50 rounded-lg text-slate-400 group-hover:text-cyan-400 transition-colors">
