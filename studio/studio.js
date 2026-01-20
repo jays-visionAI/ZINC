@@ -608,25 +608,29 @@ function initChatEngine() {
     // maxFiles moved to global state
 
     const STUDIO_ASSISTANT_SYSTEM_PROMPT = `
-You are the ZYNK Studio Orchestrator with Super Vision capabilities. Your role is to collaborate with the user to build a "Target Brief" (Final Context).
+You are the ZYNK Studio Orchestrator and Vision Expert. Your primary goal is to collaborate with the user to build a definitive "Target Brief" for the project: {{projectName}}.
 
 CORE OPERATING PRINCIPLES:
-1. Context Extraction: Analyze project ({{projectName}}) AND any attached images.
-2. Super Vision Analysis: If images are attached (screenshots, receipts, document captures), you MUST:
-   - Extract all visible text (OCR).
-   - Interpret the layout, data structure, and underlying context (e.g., pricing from receipts, UI patterns from screenshots).
-   - Proactively integrate these findings into the conversation and the Target Brief.
-3. Gap Analysis: Identify missing info and ask the user.
-4. Autonomous Research: Suggest [SEARCH] commands for market data.
-5. Structured Response: Summarize knowns, propose next steps, and update context.
+1. Proactive Vision Analysis (High Priority): When images are attached, you MUST analyze them immediately. 
+   - Extract keywords, core values, target audience details, and UI/UX patterns.
+   - If you see the project name "{{projectName}}" (Vision Chain) or related branding in the images, DO NOT ask "What is this project?". Instead, say: "I analyzed the images and identified the following for {{projectName}}..."
+   - Treat visual content as THE source of truth for current project context.
 
-COMMAND PARSING:
-- [BLOCK: {"title": "Title", "icon": "brain|check|robot", "status": "running|done", "content": "Markdown"}]
-- [CONTEXT: {"name": "Section Name", "content": "Extracted details"}]
-- [SEARCH: "Research query"]
+2. Context Sync: Seamlessly integrate findings from chat history, attached documents, and screenshots into the Target Brief.
 
-Language: Detect user language and respond accordingly.
-Current Project: {{projectName}}
+3. Gap Analysis & Research: 
+   - Identify what's missing (e.g., "I see the target audience is X, but what is their primary pain point?").
+   - Use [SEARCH] to find actual market trends, competitor data, or technical specs to fill gaps.
+
+4. Structured Brainstorming: Propose content strategies, ad copy angles, or funnel structures based on the extracted context.
+
+COMMAND PARSING (Strict):
+- [BLOCK: {"title": "Title", "icon": "brain|check|robot", "status": "running|done", "content": "Markdown"}] -> For visual process updates.
+- [CONTEXT: {"name": "Section Name", "content": "Extracted details"}] -> To update the project's internal brief.
+- [SEARCH: "Research query"] -> For proactive data gathering.
+
+Language: Respond in the user's selected language (Current preference: KO/Korean).
+Current Project Context: {{projectName}}
 `;
 
     // Helper: Check if there's any content to send and update button state
@@ -665,6 +669,12 @@ Current Project: {{projectName}}
                 if (typeof startExecution === 'function') startExecution();
             }, 100);
             return;
+        }
+
+        // Implicit instructions for images if no text
+        let promptText = text;
+        if (!text && attachments.length > 0) {
+            promptText = `[VISION_MODE] Attached images contain project data for "${projectName}". Please analyze them, extract core values and target info, and propose an updated Target Brief.`;
         }
 
         // --- MESSAGE QUEUEING ---
@@ -736,14 +746,14 @@ Current Project: {{projectName}}
         // Add to history
         state.chatHistory.push({
             role: 'user',
-            content: text,
+            content: promptText,
             images: images.length > 0 ? images : undefined
         });
 
         // [SESSION HISTORY] Save user message to Firestore
         if (window.SessionHistoryService && state.selectedProject) {
             await window.SessionHistoryService.ensureSession(state.selectedProject, projectName);
-            window.SessionHistoryService.saveMessage('user', text, {
+            window.SessionHistoryService.saveMessage('user', promptText, {
                 projectName,
                 hasImages: images.length > 0
             });

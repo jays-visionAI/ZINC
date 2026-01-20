@@ -563,12 +563,41 @@ exports.routeLLM = functions.https.onCall(async (data, context) => {
 
     // Build messages array (Move outside try-catch for scope access)
     let messages = rawMessages;
+    const images = payload.images || [];
+
     if (!messages) {
         messages = [];
         if (systemPrompt) {
             messages.push({ role: 'system', content: systemPrompt });
         }
-        messages.push({ role: 'user', content: userPrompt });
+
+        // Handle multimodal construction if images are present
+        if (images.length > 0) {
+            const content = [{ type: 'text', text: userPrompt || ' ' }];
+            images.forEach(img => {
+                content.push({ type: 'image_url', image_url: { url: img } });
+            });
+            messages.push({ role: 'user', content });
+        } else {
+            messages.push({ role: 'user', content: userPrompt });
+        }
+    } else if (images.length > 0) {
+        // [MOD] Ensure vision support even when messages array is provided directly
+        // Inject images into the latest user message
+        const lastUserIndex = [...messages].reverse().findIndex(m => m.role === 'user');
+        if (lastUserIndex !== -1) {
+            const actualIndex = messages.length - 1 - lastUserIndex;
+            const msg = messages[actualIndex];
+
+            if (typeof msg.content === 'string') {
+                const content = [{ type: 'text', text: msg.content || ' ' }];
+                images.forEach(img => content.push({ type: 'image_url', image_url: { url: img } }));
+                messages[actualIndex].content = content;
+            } else if (Array.isArray(msg.content)) {
+                // Already multimodal, just append new images
+                images.forEach(img => msg.content.push({ type: 'image_url', image_url: { url: img } }));
+            }
+        }
     }
 
     try {

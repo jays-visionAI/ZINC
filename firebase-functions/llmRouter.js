@@ -139,7 +139,7 @@ class LLMRouter {
 
 
         // 2. Resolve Configuration (New Router Logic)
-        const config = await this.resolveLLMConfig(explicitProvider, explicitModel, policy, qualityTier, globalDefaults, projectId, temperature);
+        const config = await this.resolveLLMConfig(explicitProvider, explicitModel, policy, qualityTier, globalDefaults, projectId, temperature, messages);
         const { provider, model, creditMultiplier = 1.0 } = config;
 
         console.log(`[LLMRouter] Selected: provider=${provider}, model=${model}, creditMultiplier=${creditMultiplier}`);
@@ -415,11 +415,29 @@ class LLMRouter {
     /**
      * Determine final config (provider/model/params)
      */
-    async resolveLLMConfig(explicitProvider, explicitModel, policy, qualityTier, globalDefaults, projectId, temperature) {
+    async resolveLLMConfig(explicitProvider, explicitModel, policy, qualityTier, globalDefaults, projectId, temperature, messages = []) {
 
         // A. Resolve Abstract "LLM Router" Provider
         let resolvedProvider = explicitProvider || policy?.provider || globalDefaults?.defaultModels?.text?.provider || globalDefaults?.provider || 'deepseek';
         let resolvedModel = explicitModel || policy?.model_id || globalDefaults?.defaultModels?.text?.model || globalDefaults?.model || 'deepseek-chat';
+
+        // [AUTO-VISION UPGRADE]
+        // Check if messages contain images. If so, force upgrade to a vision-capable model if current is text-only.
+        const hasImages = messages.some(m => Array.isArray(m.content) && m.content.some(c => c.type === 'image_url'));
+
+        if (hasImages) {
+            const isTextOnly = resolvedModel.includes('deepseek') || resolvedModel.includes('reasoner') || resolvedModel.includes('v3');
+            if (isTextOnly) {
+                console.log(`[LLMRouter] 👁️ Vision detected! Upgrading text-only model ${resolvedModel} to Vision model.`);
+                if (qualityTier === 'BOOST') {
+                    resolvedProvider = 'google';
+                    resolvedModel = 'gemini-1.5-pro';
+                } else {
+                    resolvedProvider = 'google';
+                    resolvedModel = 'gemini-1.5-flash';
+                }
+            }
+        }
 
         if (resolvedProvider === 'llm_router') {
             const abstractTag = resolvedModel;
