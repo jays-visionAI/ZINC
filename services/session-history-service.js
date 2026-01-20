@@ -15,10 +15,11 @@
 
     // Configuration
     const CONFIG = {
-        RETENTION_DAYS: 15, // Changed from 180 to 15
+        RETENTION_DAYS: 180, // Restored 180 days for text data
+        IMAGE_RETENTION_DAYS: 15, // Stricter 15 days for images
         MAX_SESSIONS_PER_PROJECT: 100,
         MAX_MESSAGES_PER_SESSION: 1000,
-        MAX_IMAGES_PER_PROJECT: 30, // New limit
+        MAX_IMAGES_PER_PROJECT: 30, // Max images stored per project
         LLM_CONTEXT_MESSAGES: 20,
         SESSION_TIMEOUT_HOURS: 24,
         TITLE_MAX_LENGTH: 50,
