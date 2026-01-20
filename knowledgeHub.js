@@ -625,11 +625,17 @@ async function loadSources() {
             .collection('projects')
             .doc(currentProjectId)
             .collection('knowledgeSources')
-            .orderBy('createdAt', 'desc')
             .onSnapshot((snapshot) => {
                 sources = [];
                 snapshot.forEach(doc => {
                     sources.push({ id: doc.id, ...doc.data() });
+                });
+
+                // Client-side sorting (Safe for legacy data without createdAt)
+                sources.sort((a, b) => {
+                    const timeA = a.createdAt?.seconds || 0;
+                    const timeB = b.createdAt?.seconds || 0;
+                    return timeB - timeA;
                 });
 
                 renderSources();
@@ -8932,7 +8938,10 @@ function calculateKnowledgeScore(sourceList) {
     });
 
     // Strategy / Knowledge check for Design Theme
-    if (brandBrainData && brandBrainData.strategy && brandBrainData.strategy.designTheme) {
+    const projectData = (typeof currentProject !== 'undefined') ? currentProject : null;
+    if (projectData && projectData.strategy && projectData.strategy.designTheme) {
+        hasDesignTheme = true;
+    } else if (typeof brandBrainData !== 'undefined' && brandBrainData && brandBrainData.strategy && brandBrainData.strategy.designTheme) {
         hasDesignTheme = true;
     }
 
