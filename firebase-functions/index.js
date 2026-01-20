@@ -86,7 +86,11 @@ exports.callOpenAI = functions.https.onCall(async (data, context) => {
 
         // Dynamic import for OpenAI (ES Module)
         const OpenAI = require('openai');
-        const openai = new OpenAI({ apiKey });
+
+        // [FIX] DeepSeek requires a custom baseURL
+        const baseURL = (provider === 'deepseek') ? 'https://api.deepseek.com' : undefined;
+
+        const openai = new OpenAI({ apiKey, baseURL });
 
         const response = await openai.chat.completions.create({
             model: model || 'gpt-4',

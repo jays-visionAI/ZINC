@@ -625,6 +625,7 @@ GAP ANALYSIS PROTOCOL:
 OPERATING PRINCIPLES:
 - Proactive Vision Analysis: Extracted data from images is high-priority truth.
 - Command Parsing: Use [BLOCK], [CONTEXT], and [SEARCH] strictly for updates.
+- NON-CORE TASK PIVOT: If the user asks about general topics (weather, lottery, stocks, history), provide the answer briefly, BUT ALWAYS pivot back to business insights or content opportunities (e.g., "Rain is forecast. How about a 'Rainy Day Mood' marketing campaign?"). You are a Business Orchestrator, not a generic chatbot.
 
 Response Language: KO (Korean).
 Current Project Context: {{projectName}}
@@ -713,10 +714,9 @@ Current Project Context: {{projectName}}
         updateSmartButtonState('loading');
         window.checkInputState();
 
-        // SIMULATED PROGRESS (For Visual Dynamics)
-        setTimeout(() => updateAIThinking(t('studio.log.thinkingCore')), 800);
-        setTimeout(() => updateAIThinking(t('studio.log.thinkingBrain')), 1800);
-        setTimeout(() => updateAIThinking(t('studio.log.thinkingKnowledge')), 3000);
+        // SIMULATED PROGRESS (Dynamic)
+        // Initial state is set by showAIThinking above.
+        // Subsequent steps are handled inside the execution block based on intent.
 
         // Prepare context for AI
         const projectSelect = document.getElementById('project-select');
@@ -796,11 +796,36 @@ Current Project Context: {{projectName}}
                     }
                 }
 
-                setTimeout(() => updateAIThinking(t('studio.log.thinkingMarket')), 4200);
-                setTimeout(() => updateAIThinking(t('studio.log.thinkingGap')), 5500);
+                // [DYNAMIC THINKING FLOW]
+                const intentKey = (text || "").toLowerCase();
+                let thinkSteps = [];
 
-                // Final state before call or during call
-                setTimeout(() => updateAIThinking(t('studio.log.generatingResponse')), 6800);
+                if (intentKey.includes('조사') || intentKey.includes('분석') || intentKey.includes('트렌드') || intentKey.includes('research') || intentKey.includes('찾아')) {
+                    // RESEARCH MODE
+                    thinkSteps = [
+                        { t: 1000, m: "🔍 검색 키워드 및 의도 분석..." },
+                        { t: 2500, m: "📊 관련 데이터 실시간 스캔..." },
+                        { t: 4500, m: "💡 인사이트 도출 및 요약..." }
+                    ];
+                } else if (intentKey.includes('생성') || intentKey.includes('작성') || intentKey.includes('만들') || intentKey.includes('create') || intentKey.includes('write')) {
+                    // CREATIVE MODE
+                    thinkSteps = [
+                        { t: 1000, m: "🎨 기획 의도 및 톤앤매너 분석..." },
+                        { t: 2500, m: "✍️ 초안 구조 설계 및 최적화..." },
+                        { t: 4500, m: "✨ 최종 콘텐츠 생성 중..." }
+                    ];
+                } else {
+                    // GENERAL / CONVERSATION MODE (Faster)
+                    thinkSteps = [
+                        { t: 1000, m: "🧠 질문 의도 파악 중..." },
+                        { t: 2500, m: "⚡️ 최적의 답변 생성 중..." }
+                    ];
+                }
+
+                thinkSteps.forEach(s => setTimeout(() => updateAIThinking(s.m), s.t));
+
+                // Final state update just before/during response
+                setTimeout(() => updateAIThinking(t('studio.log.generatingResponse')), 6000);
 
                 // [TESTING PHASE] Direct DeepSeek Call
                 // Use 'callOpenAI' directly to bypass router logic as requested
@@ -864,75 +889,11 @@ Current Project Context: {{projectName}}
             console.error('[Studio] Interactive AI Error:', error);
             removeAIThinking(); // Clear thinking state on error
 
-            // DEMO FALLBACK: If service fails, use a local simulator to allow testing the workflow
-            console.log('[Studio] LLM Service unreachable, activating Studio Simulator Fallback...');
+            // Show explicit error message instead of confusing simulation
+            addLogEntry(`❌ AI 연결 오류: ${error.message || '응답을 받아오지 못했습니다.'}`, 'error');
+            addLogEntry(`시스템 설정이나 네트워크 연결을 확인해주세요. (Direct Call Failed)`, 'system');
 
-            let simulatorResponse = "";
-            const lowerInput = text.toLowerCase();
-            const trimmedInput = text.trim().toLowerCase();
-
-            // Enhanced Question Detection (including common Korean endings and verification checks)
-            const isQuestion =
-                trimmedInput.includes('?') ||
-                trimmedInput.includes('어떻게') || trimmedInput.includes('왜') ||
-                trimmedInput.includes('설명') || trimmedInput.includes('방법') ||
-                trimmedInput.includes('뭐야') || trimmedInput.includes('무슨') ||
-                trimmedInput.includes('했어') || trimmedInput.includes('수행') || // Verification checks
-                trimmedInput.endsWith('야') || trimmedInput.endsWith('니') ||
-                trimmedInput.endsWith('가') || trimmedInput.endsWith('요') ||
-                trimmedInput.endsWith('까') || trimmedInput.endsWith('죠') ||
-                trimmedInput.includes('how') || trimmedInput.includes('why') ||
-                trimmedInput.includes('what') || trimmedInput.includes('explain');
-
-            if (trimmedInput.includes('시장조사') || trimmedInput.includes('research') || trimmedInput.includes('칩')) {
-                simulatorResponse = `안녕하세요! ${projectName} 프로젝트의 성공적인 전략 수립을 위해 시장 조사를 시작합니다.
-                
-[BLOCK: {"title": "시장 조사 및 현황 분석", "icon": "brain", "status": "running", "content": "1. 국내 시장 점유율 데이터 수집\\n2. 경쟁사 톤앤매너 분석\\n3. 핵심 키워드 도출"}]
-                
-아래 리서치 도구들을 사용하여 실시간 데이터를 분석하겠습니다. [SEARCH: "2026 테크 트렌드 및 AI 시장 동향"] [SEARCH: "글로벌 소셜 미디어 마케팅 성공 사례"]`;
-            } else if (isQuestion) {
-                simulatorResponse = `질문하신 내용에 대해 답변 드립니다. [BLOCK: {"title": "전문 데이터 분석", "icon": "robot", "status": "done", "content": "시장조사는 현재 트렌드와 경쟁사 데이터를 분석하여 브랜드에 가장 적합한 키워드와 톤앤매너를 도출하는 과정입니다. 이를 통해 단순한 텍스트 이상의 정교한 전략 수립이 가능합니다."}]
-                
-이제 이 조사를 바탕으로 콘텐츠 생성을 진행해볼까요?`;
-            }
-
-            // Dynamic Project-based Simulator Logic
-            const hasProjectMention = lowerInput.includes(projectName.toLowerCase()) ||
-                (contentLang === 'ko' && lowerInput.includes('프로젝트'));
-
-            if (hasProjectMention || lowerInput.includes('전략') || lowerInput.includes('strategy')) {
-                const contextTag = `[CONTEXT: {"name": "${projectName} Strategy", "content": "Comprehensive content strategy for ${projectName} focusing on current market trends and core values."}]`;
-
-                if (!isQuestion) {
-                    simulatorResponse = `${contextTag}
-                    
-${t('studio.log.orchestrator')}: ${projectName} 프로젝트를 위한 전용 전략 계획을 수립했습니다. 
-현재 준비된 컨텍스트:
-- 주제: 브랜드 코어 가치 및 시장 트렌드 통합
-- 채널: ${state.targetChannels.join(', ').toUpperCase()}
-
-준비가 되셨다면 아래 '선택한 컨텍스트로 시작' 버튼을 눌러 에이전트 팀을 가동해 보세요! [SEARCH: "${projectName} 관련 최신 트렌드"]`;
-                } else if (!simulatorResponse) {
-                    simulatorResponse = contextTag + "\n\n" + `${projectName} 프로젝트의 세부 전략에 대해 말씀해 주시면 더 정교한 분석이 가능합니다.`;
-                }
-            } else if (!isQuestion && !simulatorResponse) {
-                simulatorResponse = `[CONTEXT: {"name": "Demo Context", "content": "${text}"}]
-                
-${t('studio.log.orchestrator')}: 입력하신 내용을 바탕으로 컨텍스트를 생성했습니다. 현재 서버 연결이 제한적이지만, 시뮬레이터 모드에서 워크플로우를 계속 테스트하실 수 있습니다. 
-아래 버튼을 눌러 AI 에이전트 팀이 이 내용을 어떻게 처리하는지 확인해 보세요.`;
-            }
-
-            // Final fallback if somehow nothing matches
-            if (!simulatorResponse) {
-                simulatorResponse = `${t('studio.log.orchestrator')}: 말씀하신 내용을 이해했습니다. 원활한 테스트를 위해 '시장조사' 칩을 활용하거나, '처음부터 생성하기' 버튼을 눌러보세요. [SEARCH: "최신 소셜 미디어 트렌드"]`;
-            }
-
-            // Process Simulator Response
-            const cleanMessage = parseAICommands(simulatorResponse);
-            addLogEntry(cleanMessage, 'info');
-
-            // Don't show the error if we successfully simulated
-            // addLogEntry(t('studio.log.aiOrchestratorFailed'), 'error');
+            state.isThinking = false;
         } finally {
             // Clear Command Bar
             input.value = '';
