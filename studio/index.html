@@ -101,14 +101,45 @@
     <main class="studio-main">
         <!-- LEFT PANEL: Workflow Config -->
         <aside class="studio-panel studio-panel-left">
-            <!-- Source Context History (Restored for absorbed functionality) -->
+            <!-- Source Context History (Stable Top Section) -->
             <div class="panel-section history-section" style="margin-top: 10px; flex-shrink: 0;">
                 <h3 class="panel-title"
                     style="font-size: 11px; color: #666; margin-bottom: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
                     Context History</h3>
                 <div id="source-context-display" class="source-display-box"
-                    style="display:flex; flex-direction:column; gap:8px; max-height:220px; overflow-y:auto; padding-right: 4px;">
+                    style="display:flex; flex-direction:column; gap:8px; max-height:180px; overflow-y:auto; padding-right: 4px;">
                     <!-- Dynamically populated by studio.js -->
+                </div>
+            </div>
+
+            <!-- Session History (Moved & Highlighted) -->
+            <div class="panel-section session-section"
+                style="margin-top: 24px; flex-shrink: 0; background: rgba(139, 92, 246, 0.03); padding: 12px 8px; border-radius: 12px; border: 1px solid rgba(139, 92, 246, 0.1);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h3 class="panel-title"
+                        style="font-size: 11px; color: #8B5CF6; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                        Chat History
+                    </h3>
+                    <button id="btn-new-session" onclick="createNewSession()"
+                        style="background: #8B5CF6; border: none; border-radius: 6px; padding: 4px 10px; color: #fff; font-size: 10px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px; box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="3">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        New
+                    </button>
+                </div>
+                <div id="session-list-container"
+                    style="display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto; padding-right: 4px;">
+                    <div class="session-empty-state"
+                        style="color: #666; font-size: 11px; padding: 12px; text-align: center; border: 1px dashed rgba(255,255,255,0.05); border-radius: 8px;">
+                        No previous sessions
+                    </div>
                 </div>
             </div>
 

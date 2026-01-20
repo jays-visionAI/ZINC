@@ -549,6 +549,17 @@ async function initProjectSelector() {
                 await loadAgentTeams(projectId);
                 loadContentPlans(projectId); // Load Contexts
 
+                // [SESSION HISTORY] Load and auto-resume last session
+                if (window.SessionHistoryService) {
+                    await loadSessions(projectId);
+
+                    // Auto-resume last session if it exists and is recent (handled by ensureSession)
+                    const sessionId = await window.SessionHistoryService.ensureSession(projectId, projectName);
+                    if (sessionId) {
+                        await switchSession(sessionId);
+                    }
+                }
+
                 // [PROACTIVE] Auto-load Target Brief from Knowledge Hub sources
                 await loadAndAnalyzeTargetBrief(projectId, projectName);
             } else {
@@ -587,6 +598,8 @@ function initChatEngine() {
      * [SYSTEM] STUDIO ORCHESTRATOR SYSTEM PROMPT
      * =====================================================
      */
+    const maxFiles = 5;
+
     const STUDIO_ASSISTANT_SYSTEM_PROMPT = `
 You are the ZYNK Studio Orchestrator. Your role is to collaborate with the user to build a "Target Brief" (Final Context) for AI generation.
 The "Target Brief" is the ultimate source of truth for all subsequent AI agents.
@@ -603,7 +616,7 @@ COMMAND PARSING:
 - [SEARCH: "Research query"]
 
 Current Project: {{projectName}}
-Language: Respond ONLY in {{targetLanguage}}.
+Language: Detect the language of the user's message and respond in that same language.
 `;
 
     // Unified Smart Action Handler (Enhanced Interactive AI)
@@ -625,7 +638,8 @@ Language: Respond ONLY in {{targetLanguage}}.
         }
 
         // --- INTERACTIVE AI PHASE ---
-        addLogEntry(text || t('studio.log.processingAttachments'), 'user');
+        const userMsg = text || t('studio.log.processingAttachments');
+        addLogEntry(userMsg, 'user');
         updateSmartButtonState('loading');
 
         // Prepare context for AI
@@ -637,16 +651,37 @@ Language: Respond ONLY in {{targetLanguage}}.
         const targetLanguage = contentLang === 'ko' ? 'Korean' : 'English';
 
         let systemPrompt = STUDIO_ASSISTANT_SYSTEM_PROMPT
-            .replaceAll('{{projectName}}', projectName)
-            .replaceAll('{{targetLanguage}}', targetLanguage);
+            .replaceAll('{{projectName}}', projectName);
+
+        // Convert images to base64 if any
+        const images = [];
+        if (attachments.length > 0) {
+            for (const att of attachments) {
+                if (att.type === 'image') {
+                    try {
+                        const base64 = await fileToBase64(att.file);
+                        images.push(base64);
+                    } catch (e) {
+                        console.error('Failed to convert image to base64:', e);
+                    }
+                }
+            }
+        }
 
         // Add to history
-        state.chatHistory.push({ role: 'user', content: text });
+        state.chatHistory.push({
+            role: 'user',
+            content: text,
+            images: images.length > 0 ? images : undefined
+        });
 
         // [SESSION HISTORY] Save user message to Firestore
         if (window.SessionHistoryService && state.selectedProject) {
             await window.SessionHistoryService.ensureSession(state.selectedProject, projectName);
-            window.SessionHistoryService.saveMessage('user', text, { projectName });
+            window.SessionHistoryService.saveMessage('user', text, {
+                projectName,
+                hasImages: images.length > 0
+            });
         }
 
         try {
@@ -673,12 +708,22 @@ Language: Respond ONLY in {{targetLanguage}}.
                         { role: 'system', content: systemPrompt },
                         ...contextMessages
                     ],
+                    images: images.length > 0 ? images : undefined,
                     qualityTier: 'DEFAULT',
                     projectId: state.selectedProject
                 });
 
                 const aiMessage = response.content;
                 state.chatHistory.push({ role: 'assistant', content: aiMessage });
+
+                // Clear input and attachments
+                input.value = '';
+                state.attachments = [];
+                const previewArea = document.getElementById('command-preview-area');
+                if (previewArea) {
+                    previewArea.innerHTML = '';
+                    previewArea.style.display = 'none';
+                }
 
                 // [SESSION HISTORY] Save AI response to Firestore
                 if (window.SessionHistoryService && state.selectedProject) {
@@ -696,7 +741,7 @@ Language: Respond ONLY in {{targetLanguage}}.
 
                 // 3. Smart Redirection (Studio -> Knowledge Hub)
                 const analysisKeywords = ['deep analyze', 'analyze documents', 'knowledge base', 'pdf', 'insight from sources', '문서 분석', '나리지 베이스', '심층 분석'];
-                const needsDeepAnalysis = analysisKeywords.some(kw => text.toLowerCase().includes(kw));
+                const needsDeepAnalysis = analysisKeywords.some(kw => userMsg.toLowerCase().includes(kw));
                 if (needsDeepAnalysis && typeof t === 'function') {
                     addLogEntry(t('studio.suggestion.gotoKnowledgeHub'), 'success');
                 }
@@ -789,6 +834,51 @@ ${t('studio.log.orchestrator')}: 입력하신 내용을 바탕으로 컨텍스�
             updateSmartButtonState('default');
         }
     };
+
+    /**
+     * Helper: Convert File to Base64
+     */
+    function fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+        });
+    }
+
+    /**
+     * Drag and Drop Initialization
+     */
+    function initDragAndDrop() {
+        const dropZone = document.getElementById('command-bar');
+        if (!dropZone) return;
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, e => {
+                e.preventDefault();
+                e.stopPropagation();
+            }, false);
+        });
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-over'), false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'), false);
+        });
+
+        dropZone.addEventListener('drop', e => {
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                window.handleFileSelection({ files: files }, 'image');
+            }
+        }, false);
+    }
+
+    // Init Drag & Drop
+    initDragAndDrop();
 
     /**
      * Parse and execute commands embedded in AI response
@@ -1687,6 +1777,7 @@ window.handleFileSelection = function (input, type) {
     if (!input.files || input.files.length === 0) return;
 
     const newFiles = Array.from(input.files);
+    const currentCount = state.attachments.length;
 
     if (currentCount + newFiles.length > maxFiles) {
         addLogEntry(t('studio.log.maxAttachments').replace('{{count}}', maxFiles), 'warning');
@@ -2777,6 +2868,182 @@ function updateSourceContextUI(plans) {
         </div>
     `).join('');
 }
+
+/**
+ * =====================================================
+ * [SESSION HISTORY] UI Functions
+ * =====================================================
+ */
+
+/**
+ * Load and render studio chat sessions
+ */
+async function loadSessions(projectId) {
+    if (!projectId || !window.SessionHistoryService) return;
+
+    // Localize Titles
+    const sessionTitle = document.querySelector('.session-section .panel-title');
+    const ctxTitle = document.querySelector('.history-section .panel-title');
+    const newBtn = document.getElementById('btn-new-session');
+
+    if (sessionTitle) sessionTitle.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #8B5CF6;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg> ${t('studio.label.chatHistory')}`;
+    if (ctxTitle) ctxTitle.textContent = t('studio.label.contextHistory');
+    if (newBtn) newBtn.textContent = t('studio.label.newSession');
+
+    const container = document.getElementById('session-list-container');
+    if (!container) return;
+
+    try {
+        const sessions = await window.SessionHistoryService.listSessions(projectId, 10);
+        renderSessionList(sessions);
+    } catch (error) {
+        console.error('[Studio] Error loading sessions:', error);
+    }
+}
+
+/**
+ * Render session list items
+ */
+function renderSessionList(sessions) {
+    const container = document.getElementById('session-list-container');
+    if (!container) return;
+
+    if (!sessions || sessions.length === 0) {
+        container.innerHTML = '<div class="session-empty-state" style="color: #555; font-size: 12px; padding: 12px; text-align: center;">No previous sessions</div>';
+        return;
+    }
+
+    const currentSessionId = window.SessionHistoryService.getCurrentSession().id;
+
+    container.innerHTML = sessions.map(session => {
+        const isActive = session.id === currentSessionId;
+        const date = session.updatedAt?.toDate?.() || new Date();
+        const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+
+        return `
+            <div class="session-item ${isActive ? 'active' : ''}" 
+                style="display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: ${isActive ? 'rgba(139, 92, 246, 0.15)' : 'rgba(255,255,255,0.03)'}; border: 1px solid ${isActive ? 'rgba(139, 92, 246, 0.3)' : 'rgba(255,255,255,0.05)'}; border-radius: 6px; cursor: pointer; position: relative;"
+                onclick="switchSession('${session.id}')"
+            >
+                <div style="flex: 1; overflow: hidden;">
+                    <div style="color: ${isActive ? '#a78bfa' : '#eee'}; font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${session.title || 'New Session'}</div>
+                    <div style="color: #666; font-size: 10px;">${dateStr} • ${session.messageCount || 0} msgs</div>
+                </div>
+                <button onclick="event.stopPropagation(); deleteSessionUI('${session.id}')" 
+                    style="opacity: 0; color: #666; transition: all 0.2s; padding: 4px;"
+                    class="delete-session-btn"
+                >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                </button>
+            </div>
+        `;
+    }).join('');
+
+    // Add CSS for hover effect if not exist
+    if (!document.getElementById('session-history-styles')) {
+        const style = document.createElement('style');
+        style.id = 'session-history-styles';
+        style.textContent = `
+            .session-item:hover .delete-session-btn { opacity: 1 !important; }
+            .session-item .delete-session-btn:hover { color: #ef4444 !important; }
+            .session-item:hover { background: rgba(255,255,255,0.07) !important; border-color: rgba(255,255,255,0.1) !important; }
+            .session-item.active:hover { background: rgba(139, 92, 246, 0.2) !important; border-color: rgba(139, 92, 246, 0.4) !important; }
+        `;
+        document.head.appendChild(style);
+    }
+}
+
+/**
+ * Handle new session creation
+ */
+async function createNewSession() {
+    const projectId = document.getElementById('project-select')?.value;
+    const projectSelect = document.getElementById('project-select');
+    const projectName = projectSelect?.options[projectSelect.selectedIndex]?.textContent;
+
+    if (!projectId || !window.SessionHistoryService) return;
+
+    // Create session
+    await window.SessionHistoryService.createSession(projectId, projectName);
+
+    // Clear chat UI
+    const streamContainer = document.getElementById('chat-stream-log');
+    if (streamContainer) streamContainer.innerHTML = '';
+    state.chatHistory = [];
+
+    // Reload list
+    await loadSessions(projectId);
+
+    addLogEntry('새로운 대화 세션이 시작되었습니다.', 'success');
+}
+
+/**
+ * Switch to a different session
+ */
+async function switchSession(sessionId) {
+    const projectId = document.getElementById('project-select')?.value;
+    if (!projectId || !window.SessionHistoryService) return;
+
+    const currentSessionId = window.SessionHistoryService.getCurrentSession().id;
+    if (sessionId === currentSessionId) return;
+
+    try {
+        const success = await window.SessionHistoryService.resumeSession(projectId, sessionId);
+        if (success) {
+            // Clear chat UI
+            const streamContainer = document.getElementById('chat-stream-log');
+            if (streamContainer) streamContainer.innerHTML = '';
+
+            // Load messages
+            const messages = await window.SessionHistoryService.loadSessionMessages(projectId, sessionId, 100); // Load up to 100
+
+            // Update local state and display messages
+            state.chatHistory = messages.map(msg => ({ role: msg.role, content: msg.content }));
+
+            messages.forEach(msg => {
+                addLogEntry(msg.content, msg.role === 'user' ? 'user' : 'info');
+            });
+
+            // Reload list to update active state
+            renderSessionList(await window.SessionHistoryService.listSessions(projectId, 10));
+
+            addLogEntry('이전 대화가 복원되었습니다.', 'success');
+        }
+    } catch (error) {
+        console.error('[Studio] Error switching session:', error);
+    }
+}
+
+/**
+ * Delete session with confirmation
+ */
+async function deleteSessionUI(sessionId) {
+    if (!confirm('이 대화 기록을 삭제하시겠습니까?')) return;
+
+    const projectId = document.getElementById('project-select')?.value;
+    if (!projectId || !window.SessionHistoryService) return;
+
+    try {
+        const success = await window.SessionHistoryService.deleteSession(projectId, sessionId);
+        if (success) {
+            await loadSessions(projectId);
+
+            // If current session was deleted, clear UI
+            if (window.SessionHistoryService.getCurrentSession().id === null) {
+                const streamContainer = document.getElementById('chat-stream-log');
+                if (streamContainer) streamContainer.innerHTML = '';
+                state.chatHistory = [];
+            }
+        }
+    } catch (error) {
+        console.error('[Studio] Error deleting session:', error);
+    }
+}
+
+// Global exposure
+window.createNewSession = createNewSession;
+window.switchSession = switchSession;
+window.deleteSessionUI = deleteSessionUI;
 
 /**
  * Select source context by ID

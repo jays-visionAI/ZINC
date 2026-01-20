@@ -427,6 +427,22 @@
     overflow: visible;
 }
 
+/* === Drag & Drop & Attachments === */
+.studio-chat-input-area.drag-over {
+    border-color: #8B5CF6 !important;
+    background: rgba(139, 92, 246, 0.1) !important;
+    box-shadow: 0 0 15px rgba(139, 92, 246, 0.3) !important;
+}
+
+.att-thumbnail {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.att-thumbnail:hover {
+    transform: scale(1.05);
+    border-color: rgba(255, 255, 255, 0.4) !important;
+}
+
 /* ============================================
    🎯 TARGET BRIEF BOARD (Final Context Editor)
    ============================================ */
