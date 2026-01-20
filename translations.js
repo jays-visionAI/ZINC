@@ -921,7 +921,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Sync language from database when user is authenticated
-if (typeof firebase !== 'undefined') {
+if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length > 0) {
     firebase.auth().onAuthStateChanged(async (user) => {
         if (user) {
             try {
