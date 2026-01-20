@@ -804,16 +804,15 @@ Current Project: {{projectName}}
 
                 // 1. Process AI Commands ([CONTEXT: ...], [SEARCH: ...])
                 const cleanMessage = parseAICommands(aiMessage);
-                addLogEntry(cleanMessage, 'user'); // Show response in UI
 
                 state.isThinking = false;
 
-                // 2. Display AI Response
+                // 2. Display AI Response (System/Assistant role)
                 addLogEntry(cleanMessage, 'info');
 
                 // 3. Smart Redirection (Studio -> Knowledge Hub)
                 const analysisKeywords = ['deep analyze', 'analyze documents', 'knowledge base', 'pdf', 'insight from sources', '문서 분석', '나리지 베이스', '심층 분석'];
-                const needsDeepAnalysis = analysisKeywords.some(kw => userMsg.toLowerCase().includes(kw));
+                const needsDeepAnalysis = analysisKeywords.some(kw => text.toLowerCase().includes(kw));
                 if (needsDeepAnalysis && typeof t === 'function') {
                     addLogEntry(t('studio.suggestion.gotoKnowledgeHub'), 'success');
                 }
