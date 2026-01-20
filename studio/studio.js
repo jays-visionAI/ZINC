@@ -78,6 +78,23 @@ let state = {
 };
 
 // ============================================
+// FIRESTORE HELPER
+// ============================================
+/**
+ * Safe Firestore accessor - falls back to firebase.firestore() if db is undefined
+ */
+function getFirestore() {
+    if (typeof db !== 'undefined' && db) {
+        return db;
+    }
+    if (typeof firebase !== 'undefined' && firebase.firestore) {
+        return firebase.firestore();
+    }
+    console.error('[Studio] Firestore not available');
+    return null;
+}
+
+// ============================================
 // INITIALIZATION
 // ============================================
 document.addEventListener('DOMContentLoaded', () => {
@@ -245,6 +262,13 @@ async function initProjectSelector() {
     // Add highlight initially to guide user
     if (projectSelect) projectSelect.classList.add('selection-highlight');
 
+    // Ensure Firestore is available
+    const firestore = getFirestore();
+    if (!firestore) {
+        if (projectSelect) projectSelect.innerHTML = '<option value="">Firestore not initialized</option>';
+        return;
+    }
+
     // Wait for Firebase auth
     firebase.auth().onAuthStateChanged(async (user) => {
         if (!user) {
@@ -258,7 +282,7 @@ async function initProjectSelector() {
         try {
             // Load projects (matching user-settings.js approach)
             console.log('[Studio] Loading projects for user:', user.uid);
-            const projectsSnapshot = await db.collection('projects')
+            const projectsSnapshot = await firestore.collection('projects')
                 .where('userId', '==', user.uid)
                 .where('isDraft', '==', false)  // Only non-draft projects
                 .get();
@@ -498,7 +522,7 @@ async function initProjectSelector() {
 
                 // Fetch full project details for context
                 try {
-                    const projectDoc = await db.collection('projects').doc(projectId).get();
+                    const projectDoc = await getFirestore().collection('projects').doc(projectId).get();
                     if (projectDoc.exists) {
                         const pData = projectDoc.data();
                         const description = pData.description || pData.businessDescription || `Content creation for ${projectName}`;
@@ -1107,7 +1131,7 @@ async function loadAgentTeams(projectId) {
 
     try {
         //  UNIFIED BRAIN: First check for coreAgentTeamInstanceId on the project
-        const projectDoc = await db.collection('projects').doc(projectId).get();
+        const projectDoc = await getFirestore().collection('projects').doc(projectId).get();
         if (projectDoc.exists) {
             const projectData = projectDoc.data();
             const coreTeamId = projectData.coreAgentTeamInstanceId;
@@ -1123,7 +1147,7 @@ async function loadAgentTeams(projectId) {
                 renderMultiChannelPreviews();
 
                 // Verify team exists
-                const teamDoc = await db.collection('projectAgentTeamInstances').doc(coreTeamId).get();
+                const teamDoc = await getFirestore().collection('projectAgentTeamInstances').doc(coreTeamId).get();
                 if (teamDoc.exists) {
                     const teamData = teamDoc.data();
 
@@ -1156,7 +1180,7 @@ async function loadAgentTeams(projectId) {
         }
 
         // Legacy fallback: Try projectAgentTeamInstances first (old structure)
-        let teamsSnapshot = await db.collection('projectAgentTeamInstances')
+        let teamsSnapshot = await getFirestore().collection('projectAgentTeamInstances')
             .where('projectId', '==', projectId)
             .get();
 
@@ -1165,7 +1189,7 @@ async function loadAgentTeams(projectId) {
         // Fallback to agentTeams if no instances found
         if (teamsSnapshot.empty) {
             console.log('[Studio] No team instances, trying agentTeams collection...');
-            teamsSnapshot = await db.collection('agentTeams')
+            teamsSnapshot = await getFirestore().collection('agentTeams')
                 .where('projectId', '==', projectId)
                 .get();
             console.log('[Studio] Found', teamsSnapshot.size, 'agent teams');
@@ -1949,7 +1973,7 @@ window.showContextImportModal = async function () {
         // Fetch recent contexts to simulate "Asset References" 
         // In a real scenario, this would filter by type='asset' or look into a specific 'knowledge' collection
         // For now, we list ALL recent content plans as potential "Reference Assets".
-        const snapshot = await db.collection('projects').doc(currentProjectId)
+        const snapshot = await getFirestore().collection('projects').doc(currentProjectId)
             .collection('contentPlans')
             .orderBy('createdAt', 'desc')
             .limit(50)
@@ -2005,7 +2029,7 @@ window.importContext = function (assetId) {
     document.getElementById('context-import-modal').style.display = 'none';
 
     // 2. Fetch the plan data
-    db.collection('projects').doc(currentProjectId).collection('contentPlans').doc(assetId).get()
+    getFirestore().collection('projects').doc(currentProjectId).collection('contentPlans').doc(assetId).get()
         .then(doc => {
             if (doc.exists) {
                 const data = doc.data();
