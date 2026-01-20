@@ -785,16 +785,21 @@ Current Project Context: {{projectName}}
                 // Final state before call or during call
                 setTimeout(() => updateAIThinking(t('studio.log.generatingResponse')), 6800);
 
-                const response = await window.LLMRouterService.call({
-                    feature: 'studio_chat', // Custom feature for studio interaction
+                // [TESTING PHASE] Direct DeepSeek Call
+                // Use 'callOpenAI' directly to bypass router logic as requested
+                const callOpenAI = firebase.functions().httpsCallable('callOpenAI');
+                const result = await callOpenAI({
+                    provider: 'deepseek',
+                    model: 'deepseek-chat',
                     messages: [
                         { role: 'system', content: systemPrompt },
                         ...contextMessages
                     ],
                     images: images.length > 0 ? images : undefined,
-                    qualityTier: 'DEFAULT',
-                    projectId: state.selectedProject
+                    temperature: 0.7
                 });
+
+                const response = result.data;
 
                 const aiMessage = response.content;
                 state.chatHistory.push({ role: 'assistant', content: aiMessage });

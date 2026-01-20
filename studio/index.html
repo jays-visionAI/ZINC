@@ -101,20 +101,9 @@
     <main class="studio-main">
         <!-- LEFT PANEL: Workflow Config -->
         <aside class="studio-panel studio-panel-left">
-            <!-- Source Context History (Stable Top Section) -->
-            <div class="panel-section history-section" style="margin-top: 10px; flex-shrink: 0;">
-                <h3 class="panel-title"
-                    style="font-size: 11px; color: #666; margin-bottom: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
-                    Context History</h3>
-                <div id="source-context-display" class="source-display-box"
-                    style="display:flex; flex-direction:column; gap:8px; max-height:180px; overflow-y:auto; padding-right: 4px;">
-                    <!-- Dynamically populated by studio.js -->
-                </div>
-            </div>
-
-            <!-- Session History (Moved & Highlighted) -->
+            <!-- Session History (Chat History - Now FIRST) -->
             <div class="panel-section session-section"
-                style="margin-top: 24px; flex-shrink: 0; background: rgba(139, 92, 246, 0.03); padding: 12px 8px; border-radius: 12px; border: 1px solid rgba(139, 92, 246, 0.1);">
+                style="margin-top: 10px; flex-shrink: 0; background: rgba(139, 92, 246, 0.03); padding: 12px 8px; border-radius: 12px; border: 1px solid rgba(139, 92, 246, 0.1);">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                     <h3 class="panel-title"
                         style="font-size: 11px; color: #8B5CF6; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px;">
@@ -140,6 +129,17 @@
                         style="color: #666; font-size: 11px; padding: 12px; text-align: center; border: 1px dashed rgba(255,255,255,0.05); border-radius: 8px;">
                         No previous sessions
                     </div>
+                </div>
+            </div>
+
+            <!-- Source Context History (Now SECOND) -->
+            <div class="panel-section history-section" style="margin-top: 24px; flex-shrink: 0;">
+                <h3 class="panel-title"
+                    style="font-size: 11px; color: #666; margin-bottom: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+                    Context History</h3>
+                <div id="source-context-display" class="source-display-box"
+                    style="display:flex; flex-direction:column; gap:8px; max-height:180px; overflow-y:auto; padding-right: 4px;">
+                    <!-- Dynamically populated by studio.js -->
                 </div>
             </div>
 
