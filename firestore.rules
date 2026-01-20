@@ -19,6 +19,11 @@ service cloud.firestore {
 
     // --- CORE SYSTEM SETTINGS (High Priority) ---
     
+    // [DEBUG] Studio Configs: Public Access for Debugging
+    match /studio_configs/{configId} {
+        allow read, write: if true;
+    }
+
     // 5-Step Pipeline Settings: Admin can write, Public read
     match /pipelineSettings/{stepId} {
       allow read: if true;
@@ -307,11 +312,7 @@ service cloud.firestore {
         allow write: if isAdmin();
       }
 
-      // Studio Configs (System Prompts)
-      match /studio_configs/{configId} {
-        allow read: if isAuthenticated(); // Allow all authenticated users to read prompts
-        allow write: if isAdmin();
-      }
+
 
       // Studio Sessions (Chat History)
       match /studioSessions/{sessionId} {
