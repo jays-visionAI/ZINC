@@ -187,15 +187,20 @@
         if (!db || !userId || !projectId) return [];
 
         try {
+            // [FIXED] Removed .orderBy('updatedAt') to avoid composite index requirement error.
+            // Sorting will be done in memory.
             let query = db.collection('projects').doc(projectId)
                 .collection('studioSessions')
-                .where('metadata.userId', '==', userId)
-                .orderBy('updatedAt', 'desc')
-                .limit(limit);
+                .where('metadata.userId', '==', userId);
+            // .orderBy('updatedAt', 'desc') // <-- Removed
 
             if (!includeArchived) {
                 query = query.where('isArchived', '==', false);
             }
+
+            // Limit is tricky without orderBy, so we fetch more and slice in memory
+            // or just fetch all (assuming < 100 sessions per user per project)
+            // query = query.limit(limit); 
 
             const snapshot = await query.get();
             const sessions = [];
@@ -203,7 +208,14 @@
                 sessions.push({ id: doc.id, ...doc.data() });
             });
 
-            return sessions;
+            // Sort in memory
+            sessions.sort((a, b) => {
+                const timeA = a.updatedAt?.toMillis ? a.updatedAt.toMillis() : (new Date(a.updatedAt).getTime() || 0);
+                const timeB = b.updatedAt?.toMillis ? b.updatedAt.toMillis() : (new Date(b.updatedAt).getTime() || 0);
+                return timeB - timeA;
+            });
+
+            return sessions.slice(0, limit);
         } catch (error) {
             console.error('[SessionHistoryService] Error listing sessions:', error);
             return [];
