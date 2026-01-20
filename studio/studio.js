@@ -630,12 +630,12 @@ Language: Respond ONLY in {{targetLanguage}}.
         const projectName = projectSelect.options[projectSelect.selectedIndex]?.textContent || 'Unknown';
 
         // Resolve Target Language (Prioritize Content Language)
-        const contentLang = localStorage.getItem('zynk-main-language') || localStorage.getItem('zynk-language') || 'en';
+        const contentLang = window.zynk_main_lang || 'en';
         const targetLanguage = contentLang === 'ko' ? 'Korean' : 'English';
 
         let systemPrompt = STUDIO_ASSISTANT_SYSTEM_PROMPT
-            .replace('{{projectName}}', projectName)
-            .replace('{{targetLanguage}}', targetLanguage);
+            .replaceAll('{{projectName}}', projectName)
+            .replaceAll('{{targetLanguage}}', targetLanguage);
 
         // Add to history
         state.chatHistory.push({ role: 'user', content: text });
