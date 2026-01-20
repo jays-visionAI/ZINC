@@ -428,7 +428,7 @@
 }
 
 /* === Drag & Drop & Attachments === */
-.studio-chat-input-area.drag-over {
+.drag-over {
     border-color: #8B5CF6 !important;
     background: rgba(139, 92, 246, 0.1) !important;
     box-shadow: 0 0 15px rgba(139, 92, 246, 0.3) !important;

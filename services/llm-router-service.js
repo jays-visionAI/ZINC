@@ -80,6 +80,7 @@
                     systemPrompt,
                     userPrompt,
                     messages,
+                    images: options.images, // Support vision input
                     temperature,
                     projectId
                 });

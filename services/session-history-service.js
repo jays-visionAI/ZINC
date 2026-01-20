@@ -15,9 +15,10 @@
 
     // Configuration
     const CONFIG = {
-        RETENTION_DAYS: 180,
+        RETENTION_DAYS: 15, // Changed from 180 to 15
         MAX_SESSIONS_PER_PROJECT: 100,
         MAX_MESSAGES_PER_SESSION: 1000,
+        MAX_IMAGES_PER_PROJECT: 30, // New limit
         LLM_CONTEXT_MESSAGES: 20,
         SESSION_TIMEOUT_HOURS: 24,
         TITLE_MAX_LENGTH: 50,
@@ -111,6 +112,25 @@
         if (!db || !currentSession.id || !currentSession.projectId) {
             console.warn('[SessionHistoryService] No active session');
             return null;
+        }
+
+        // Check image limit if this message has images
+        if (metadata.hasImages) {
+            try {
+                const projectRef = db.collection('projects').doc(currentSession.projectId);
+                const projectDoc = await projectRef.get();
+                const currentImages = projectDoc.data()?.imageCount || 0;
+
+                if (currentImages >= CONFIG.MAX_IMAGES_PER_PROJECT) {
+                    console.warn('[SessionHistoryService] Image limit reached for this project');
+                    // We might want to allow sending but stop saving to Firestore, 
+                    // but for now let's just log it.
+                } else {
+                    await projectRef.set({ imageCount: firebase.firestore.FieldValue.increment(1) }, { merge: true });
+                }
+            } catch (e) {
+                console.error('[SessionHistoryService] Error updating image count:', e);
+            }
         }
 
         // Check message limit

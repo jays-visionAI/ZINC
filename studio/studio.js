@@ -601,22 +601,25 @@ function initChatEngine() {
     const maxFiles = 5;
 
     const STUDIO_ASSISTANT_SYSTEM_PROMPT = `
-You are the ZYNK Studio Orchestrator. Your role is to collaborate with the user to build a "Target Brief" (Final Context) for AI generation.
-The "Target Brief" is the ultimate source of truth for all subsequent AI agents.
+You are the ZYNK Studio Orchestrator with Super Vision capabilities. Your role is to collaborate with the user to build a "Target Brief" (Final Context).
 
 CORE OPERATING PRINCIPLES:
-1. Context Extraction: Analyze the project ({{projectName}}) to establish a baseline.
-2. Gap Analysis: Identify missing information (audience, tone, specific goals) and ask the user for details.
-3. Autonomous Research: Suggest [SEARCH] commands to gather real-time market data when information is thin.
-4. Structured Response: Summarize knowns, propose next steps, and await user confirmation.
+1. Context Extraction: Analyze project ({{projectName}}) AND any attached images.
+2. Super Vision Analysis: If images are attached (screenshots, receipts, document captures), you MUST:
+   - Extract all visible text (OCR).
+   - Interpret the layout, data structure, and underlying context (e.g., pricing from receipts, UI patterns from screenshots).
+   - Proactively integrate these findings into the conversation and the Target Brief.
+3. Gap Analysis: Identify missing info and ask the user.
+4. Autonomous Research: Suggest [SEARCH] commands for market data.
+5. Structured Response: Summarize knowns, propose next steps, and update context.
 
 COMMAND PARSING:
 - [BLOCK: {"title": "Title", "icon": "brain|check|robot", "status": "running|done", "content": "Markdown"}]
 - [CONTEXT: {"name": "Section Name", "content": "Extracted details"}]
 - [SEARCH: "Research query"]
 
+Language: Detect user language and respond accordingly.
 Current Project: {{projectName}}
-Language: Detect the language of the user's message and respond in that same language.
 `;
 
     // Unified Smart Action Handler (Enhanced Interactive AI)
@@ -847,38 +850,7 @@ ${t('studio.log.orchestrator')}: 입력하신 내용을 바탕으로 컨텍스�
         });
     }
 
-    /**
-     * Drag and Drop Initialization
-     */
-    function initDragAndDrop() {
-        const dropZone = document.getElementById('command-bar');
-        if (!dropZone) return;
-
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            dropZone.addEventListener(eventName, e => {
-                e.preventDefault();
-                e.stopPropagation();
-            }, false);
-        });
-
-        ['dragenter', 'dragover'].forEach(eventName => {
-            dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-over'), false);
-        });
-
-        ['dragleave', 'drop'].forEach(eventName => {
-            dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'), false);
-        });
-
-        dropZone.addEventListener('drop', e => {
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                window.handleFileSelection({ files: files }, 'image');
-            }
-        }, false);
-    }
-
-    // Init Drag & Drop
-    initDragAndDrop();
+    // Drag & Drop is initialized globally below line 1680.
 
     /**
      * Parse and execute commands embedded in AI response
@@ -1681,45 +1653,56 @@ window.selectSourceContext = function (planId) {
 // ============================================
 // DRAG AND DROP SUPPORT
 // ============================================
-const dropZone = document.getElementById('command-bar');
-if (dropZone) {
+const dropArea = document.getElementById('command-bar');
+if (dropArea) {
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, preventDefaults, false);
+        dropArea.addEventListener(eventName, e => {
+            e.preventDefault();
+            e.stopPropagation();
+        }, false);
     });
 
-    function preventDefaults(e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
-
     ['dragenter', 'dragover'].forEach(eventName => {
-        dropZone.addEventListener(eventName, highlight, false);
+        dropArea.addEventListener(eventName, () => dropArea.classList.add('drag-over'), false);
     });
 
     ['dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, unhighlight, false);
+        dropArea.addEventListener(eventName, () => dropArea.classList.remove('drag-over'), false);
     });
 
-    function highlight(e) {
-        dropZone.style.borderColor = '#8B5CF6'; // Theme Highlight
-        dropZone.style.background = 'rgba(139, 92, 246, 0.1)';
-    }
+    dropArea.addEventListener('drop', (e) => {
+        const files = Array.from(e.dataTransfer.files);
+        if (files.length > 0) {
+            // Group by type
+            const images = files.filter(f => f.type.startsWith('image/'));
+            const nonImages = files.filter(f => !f.type.startsWith('image/'));
 
-    function unhighlight(e) {
-        dropZone.style.borderColor = 'rgba(255,255,255,0.1)';
-        dropZone.style.background = 'rgba(30,30,33, 0.6)';
-    }
-
-    dropZone.addEventListener('drop', handleDrop, false);
-
-    function handleDrop(e) {
-        const dt = e.dataTransfer;
-        const files = dt.files;
-        if (typeof handleFileSelection === 'function') {
-            handleFileSelection({ files: files }, 'file');
+            if (images.length > 0) handleFileSelection({ files: images }, 'image');
+            if (nonImages.length > 0) handleFileSelection({ files: nonImages }, 'file');
         }
-    }
+    }, false);
 }
+
+/**
+ * Image Lightbox Functions
+ */
+window.openLightbox = function (url) {
+    const lightbox = document.getElementById('image-lightbox');
+    const img = document.getElementById('lightbox-img');
+    if (lightbox && img) {
+        img.src = url;
+        lightbox.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+};
+
+window.closeLightbox = function () {
+    const lightbox = document.getElementById('image-lightbox');
+    if (lightbox) {
+        lightbox.style.display = 'none';
+        document.body.style.overflow = '';
+    }
+};
 
 // ============================================
 // 🖇️ COMMAND BAR: ATTACHMENT & DRAG-DROP
@@ -1828,7 +1811,9 @@ function renderAttachmentThumbnail(attachment) {
     if (attachment.type === 'image') {
         const img = document.createElement('img');
         img.src = attachment.url;
-        img.style.cssText = "width:100%; height:100%; object-fit:cover;";
+        img.style.cssText = "width:100%; height:100%; object-fit:cover; cursor: zoom-in;";
+        img.title = "Click to enlarge";
+        img.onclick = () => openLightbox(attachment.url);
         thumb.appendChild(img);
     } else {
         // File Icon
