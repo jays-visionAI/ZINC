@@ -2241,3 +2241,90 @@ function updateStats() {
     // Placeholder for stats update logic
     console.log('[Studio] Stats updated.');
 }
+
+/**
+ * Initialize Editor Engine (Right Panel)
+ */
+function initEditorEngine() {
+    const editorCanvas = document.getElementById('editor-canvas');
+    const codeEditorArea = document.getElementById('code-editor-area');
+    const btnCodeView = document.getElementById('btn-code-view');
+    const btnEditMode = document.getElementById('btn-edit-mode');
+
+    // Toggle code view
+    if (btnCodeView) {
+        btnCodeView.addEventListener('click', () => {
+            if (codeEditorArea) {
+                const isVisible = codeEditorArea.style.display !== 'none';
+                codeEditorArea.style.display = isVisible ? 'none' : 'block';
+                btnCodeView.classList.toggle('active', !isVisible);
+            }
+        });
+    }
+
+    // Toggle edit mode
+    if (btnEditMode) {
+        btnEditMode.addEventListener('click', () => {
+            btnEditMode.classList.toggle('active');
+            console.log('[Studio] Edit mode toggled');
+        });
+    }
+
+    console.log('[Studio] Editor engine initialized.');
+}
+
+/**
+ * Update Preview Profile display with project name
+ */
+function updatePreviewProfile(projectName) {
+    const projectNameEl = document.getElementById('current-project-name');
+    if (projectNameEl) {
+        projectNameEl.textContent = projectName || 'Select Project...';
+    }
+
+    // Update header project display if exists
+    const headerProjectName = document.querySelector('.project-name');
+    if (headerProjectName) {
+        headerProjectName.textContent = projectName || 'Select Project...';
+    }
+
+    console.log('[Studio] Preview profile updated:', projectName);
+}
+
+/**
+ * Update Smart Button State
+ */
+function updateSmartButtonState(state) {
+    const btn = document.getElementById('btn-send-instruction');
+    if (!btn) return;
+
+    switch (state) {
+        case 'loading':
+            btn.disabled = true;
+            btn.innerHTML = `
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite;">
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+                </svg>
+            `;
+            break;
+        case 'default':
+        default:
+            btn.disabled = false;
+            btn.innerHTML = `
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path>
+                </svg>
+            `;
+            break;
+    }
+}
+
+// Add CSS animation for spinner
+const styleSheet = document.createElement('style');
+styleSheet.textContent = `
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+`;
+document.head.appendChild(styleSheet);
