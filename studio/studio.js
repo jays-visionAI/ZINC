@@ -629,6 +629,7 @@ OPERATING PRINCIPLES:
 - **Business Anchor**: Always anchor the conversation back to {{projectName}}'s goals.
 - **Action Oriented**: Use [BLOCK] to visualize data and [SEARCH] to find real-time info.
 - **Proactive Vision**: If an image is uploaded, analyze it deeply for strategy.
+- **Insight Detection**: If your response contains a specific strategic opportunity or insight, append \`[INSIGHT: Short Title]\` at the very end.
 
 Response Language: KO (Korean).
 Current Project Context: {{projectName}}
@@ -710,7 +711,7 @@ Current Project Context: {{projectName}}
             previewArea.style.display = 'none';
         }
 
-        addLogEntry(text || t('studio.log.processingAttachments'), 'user');
+        addLogEntry(text || t('studio.log.processingAttachments'), 'user', { attachments: [...state.attachments] });
 
         // --- SHOW THINKING STATE ---
         showAIThinking(t('studio.log.thinkingAnalyzing'));
@@ -1121,9 +1122,78 @@ function addLogEntry(message, type = 'info', meta = null) {
         const msgDiv = document.createElement('div');
 
         switch (type) {
+            case 'ai':
+                msgDiv.className = 'ai-message'; // Use standard AI class
+
+                // Parse Insight Tag
+                let displayMsg = message;
+                let insightTitle = null;
+                const insightMatch = message.match(/\[INSIGHT:\s*(.*?)\]/);
+
+                if (insightMatch) {
+                    insightTitle = insightMatch[1];
+                    displayMsg = message.replace(insightMatch[0], '').trim();
+                }
+
+                // Render Main Content
+                const aiIcon = studioIcons.ai || '🤖';
+                msgDiv.innerHTML = `
+                    <div class="ai-msg-content">
+                        ${formatMessage(displayMsg)}
+                    </div>
+                `;
+
+                // Append Insight Chip
+                if (insightTitle) {
+                    const chip = document.createElement('div');
+                    chip.className = 'insight-save-chip';
+                    chip.innerHTML = `
+                        <div class="insight-chip-icon">💡</div>
+                        <div class="insight-chip-text">
+                            <span class="insight-label">Insight Discovered</span>
+                            <span class="insight-title">${insightTitle}</span>
+                        </div>
+                        <button class="insight-save-btn">Save</button>
+                    `;
+
+                    // Click Handler
+                    chip.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        saveInsight(insightTitle, displayMsg);
+                        chip.classList.add('saved');
+                        const btn = chip.querySelector('.insight-save-btn');
+                        if (btn) btn.textContent = 'Saved';
+                    });
+
+                    msgDiv.appendChild(chip);
+                }
+                break;
+
             case 'user':
-                msgDiv.className = 'user-bubble'; // Use bubble for user
+                msgDiv.className = 'user-bubble';
+                // Render text
                 msgDiv.innerHTML = formatMessage(message);
+
+                // Render images
+                if (meta && meta.attachments && meta.attachments.length > 0) {
+                    const imgContainer = document.createElement('div');
+                    imgContainer.className = 'chat-image-container';
+
+                    meta.attachments.forEach(att => {
+                        if (att.type === 'image' && att.file) {
+                            const img = document.createElement('img');
+                            img.className = 'chat-attached-image';
+                            try {
+                                img.src = URL.createObjectURL(att.file);
+                                img.onload = () => URL.revokeObjectURL(img.src);
+                            } catch (e) {
+                                console.error('Failed to create object URL for image', e);
+                            }
+                            imgContainer.appendChild(img);
+                        }
+                    });
+                    msgDiv.appendChild(imgContainer);
+                }
                 break;
 
             case 'mcp': // Special Skywork-style Chip
@@ -1271,12 +1341,133 @@ function removeAIThinking() {
     if (state.currentThinkingBubble && state.currentThinkingBubble.parentNode) {
         state.currentThinkingBubble.parentNode.removeChild(state.currentThinkingBubble);
     }
-    state.currentThinkingBubble = null;
     if (state.thinkingTimer) {
         clearInterval(state.thinkingTimer);
         state.thinkingTimer = null;
     }
 }
+
+/**
+ * Save Insight (Mock Implementation)
+ */
+/* Insight Modal Logic */
+let currentInsightData = null;
+
+/**
+ * Open Insight Modal
+ */
+function saveInsight(title, content) {
+    currentInsightData = { title, content };
+    const titleEl = document.getElementById('insight-modal-title');
+    const contentEl = document.getElementById('insight-modal-content');
+
+    if (titleEl) titleEl.textContent = title;
+    if (contentEl) contentEl.textContent = content;
+
+    const modal = document.getElementById('insight-modal');
+    if (modal) modal.style.display = 'flex';
+
+    // Load existing plans for dropdown
+    const select = document.getElementById('insight-existing-select');
+    if (select) {
+        if (window.cachedPlans && window.cachedPlans.length > 0) {
+            select.innerHTML = window.cachedPlans.map(p =>
+                `<option value="${p.id}">${p.planName || p.title || 'Untitled'}</option>`
+            ).join('');
+        } else {
+            select.innerHTML = '<option value="">No existing contexts found</option>';
+        }
+    }
+}
+
+function closeInsightModal() {
+    const modal = document.getElementById('insight-modal');
+    if (modal) modal.style.display = 'none';
+    currentInsightData = null;
+
+    // Reset inputs
+    const nameInput = document.getElementById('insight-new-name');
+    if (nameInput) nameInput.value = '';
+}
+
+function toggleInsightSaveMode() {
+    const modeEl = document.querySelector('input[name="insight-save-mode"]:checked');
+    if (!modeEl) return;
+    const mode = modeEl.value;
+
+    const newInputs = document.getElementById('insight-new-inputs');
+    const existingInputs = document.getElementById('insight-existing-inputs');
+
+    if (newInputs) newInputs.style.display = mode === 'new' ? 'block' : 'none';
+    if (existingInputs) existingInputs.style.display = mode === 'existing' ? 'block' : 'none';
+}
+
+async function confirmSaveInsight() {
+    if (!currentInsightData) return;
+
+    const modeEl = document.querySelector('input[name="insight-save-mode"]:checked');
+    if (!modeEl) return;
+    const mode = modeEl.value;
+
+    const projectId = document.getElementById('project-select')?.value;
+    if (!projectId) return alert('No active project detected.');
+
+    const firestore = getFirestore();
+    if (!firestore) return alert('Database connection failed.');
+
+    const btn = document.querySelector('#insight-modal .btn-primary');
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+
+    try {
+        if (mode === 'new') {
+            const name = document.getElementById('insight-new-name').value;
+            if (!name) throw new Error('Please enter a context name');
+
+            await firestore.collection('projects').doc(projectId).collection('plans').add({
+                planName: name,
+                content: `## ${currentInsightData.title}\n\n${currentInsightData.content}`,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                status: 'draft'
+            });
+        } else {
+            const planId = document.getElementById('insight-existing-select').value;
+            if (!planId) throw new Error('Please select a context');
+
+            // Append content
+            const planRef = firestore.collection('projects').doc(projectId).collection('plans').doc(planId);
+            const doc = await planRef.get();
+            if (doc.exists) {
+                const oldContent = doc.data().content || '';
+                const newContent = oldContent + `\n\n## ${currentInsightData.title}\n\n${currentInsightData.content}`;
+                await planRef.update({
+                    content: newContent,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } else {
+                throw new Error('Selected context not found.');
+            }
+        }
+
+        alert('Insight saved successfully!');
+        closeInsightModal();
+
+        // Refresh plans if function exists
+        if (typeof loadPlans === 'function') loadPlans(projectId);
+
+    } catch (e) {
+        console.error(e);
+        alert('Failed: ' + e.message);
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Save Insight'; }
+    }
+}
+
+// Expose globals
+window.saveInsight = saveInsight;
+window.closeInsightModal = closeInsightModal;
+window.toggleInsightSaveMode = toggleInsightSaveMode;
+window.confirmSaveInsight = confirmSaveInsight;
 
 function startThinkingAnimation() {
     if (state.thinkingTimer) clearInterval(state.thinkingTimer);
