@@ -415,7 +415,7 @@ function showGoogleDriveSetupInstructions() {
     if (driveContent) {
         driveContent.innerHTML = `
             <div class="bg-amber-900/20 border border-amber-500/30 rounded-xl p-4">
-                <h4 class="text-sm font-semibold text-amber-400 mb-2">⚠️ Google Drive Setup Required</h4>
+                <h4 class="text-sm font-semibold text-amber-400 mb-2">Google Drive Setup Required</h4>
                 <p class="text-xs text-slate-400 mb-3">To enable Google Drive integration, configure the following in <code class="bg-slate-700 px-1 rounded">knowledgeHub.js</code>:</p>
                 <ol class="text-xs text-slate-400 space-y-2 list-decimal list-inside">
                     <li>Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="text-indigo-400 hover:underline">Google Cloud Console</a></li>
@@ -567,7 +567,7 @@ async function getCurrentKnowledgeContext() {
 
     // 2. Brand description/overview
     if (currentProject.description) {
-        contextParts.push(`📝 Description: ${currentProject.description}`);
+        contextParts.push(`Description: ${currentProject.description}`);
     }
 
     // 3. Core identity fields
@@ -1333,23 +1333,35 @@ function initializeUploadHandlers() {
 
         if (validFiles.length === 0) return;
 
-        selectedSourceFiles = validFiles;
+        selectedSourceFiles = validFiles.map(file => ({
+            file: file,
+            name: file.name,
+            category: 'other'
+        }));
 
         // Render file list
         const listContainer = document.getElementById('file-list-container');
         if (listContainer) {
-            listContainer.innerHTML = selectedSourceFiles.map(file => `
-                <div class="flex items-center justify-between p-2.5 bg-slate-800/50 rounded-lg border border-slate-700/50">
-                    <div class="flex items-center gap-2 overflow-hidden">
-                        <span class="text-emerald-400 flex-shrink-0">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-                                <polyline points="14 2 14 8 20 8" />
+            listContainer.innerHTML = selectedSourceFiles.map((fileObj, index) => `
+                <div class="flex flex-col gap-2 p-3 bg-slate-800/40 border border-slate-700/50 rounded-lg mb-2">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2 overflow-hidden">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-slate-400 flex-shrink-0">
+                                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
                             </svg>
-                        </span>
-                        <span class="text-xs text-slate-200 truncate font-medium">${file.name}</span>
+                            <span class="text-xs text-slate-200 truncate font-medium">${fileObj.name}</span>
+                        </div>
+                        <span class="status-badge text-[9px] font-bold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded uppercase flex-shrink-0">Selected</span>
                     </div>
-                    <span class="text-[9px] font-bold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded uppercase">Selected</span>
+                    <div class="flex items-center gap-2 mt-1">
+                        <span class="text-[10px] text-slate-500 uppercase tracking-wider">Type:</span>
+                        <select onchange="updateSelectedSourceCategory(${index}, this.value)" class="bg-slate-900 text-[11px] border border-slate-700 rounded px-2 py-1 outline-none focus:border-indigo-500 transition-colors">
+                            <option value="other">General Asset</option>
+                            <option value="logo">Brand Logo</option>
+                            <option value="bi">BI Guide</option>
+                            <option value="ci">CI Guide</option>
+                        </select>
+                    </div>
                 </div>
             `).join('');
         }
@@ -1359,6 +1371,12 @@ function initializeUploadHandlers() {
         btnUpload.disabled = false;
     }
 }
+
+window.updateSelectedSourceCategory = (index, category) => {
+    if (selectedSourceFiles[index]) {
+        selectedSourceFiles[index].category = category;
+    }
+};
 
 async function uploadSourceFile() {
     if (selectedSourceFiles.length === 0 || !currentProjectId) return;
@@ -1372,7 +1390,7 @@ async function uploadSourceFile() {
         let successCount = 0;
 
         for (let i = 0; i < totalFiles; i++) {
-            const file = selectedSourceFiles[i];
+            const fileObj = selectedSourceFiles[i];
             btn.textContent = `Uploading (${i + 1}/${totalFiles})...`;
 
             // Update specific file status in UI to "Uploading"
@@ -1386,21 +1404,23 @@ async function uploadSourceFile() {
             }
 
             try {
-                const fileName = `${Date.now()}_${file.name}`;
+                const fileName = `${Date.now()}_${fileObj.name}`;
                 const storagePath = `projects/${currentProjectId}/knowledgeSources/${fileName}`;
                 const storageRef = firebase.storage().ref(storagePath);
 
                 // Upload to Storage
-                await storageRef.put(file);
+                await storageRef.put(fileObj.file);
                 const downloadUrl = await storageRef.getDownloadURL();
 
                 // Save to Firestore
+                const isDesign = ['logo', 'bi', 'ci'].includes(fileObj.category);
                 const sourceData = {
-                    sourceType: 'file',
-                    title: file.name,
+                    sourceType: isDesign ? 'design' : 'file',
+                    title: fileObj.name,
                     fileName: fileName,
                     fileUrl: downloadUrl,
-                    contentType: file.type,
+                    contentType: fileObj.file.type,
+                    category: fileObj.category || 'other',
                     isActive: true,
                     status: 'pending',
                     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -2123,8 +2143,8 @@ function timeAgo(dateParam) {
 
 function getStatusBadgeText(status) {
     switch (status) {
-        case 'draft': return '📝 Draft';
-        case 'scheduled': return '📅 Scheduled';
+        case 'draft': return 'Draft';
+        case 'scheduled': return `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline-block mr-1"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Scheduled`;
         case 'sent': return `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline-block mr-1"><line x1="22" y1="2" x2="11" y2="13"/><polyline points="22 2 15 22 11 13 2 9 22 2"/></svg> Sent`;
         case 'completed': return `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline-block mr-1 text-emerald-400"><polyline points="20 6 9 17 4 12"/></svg> Completed`;
         default: return status;
@@ -2471,7 +2491,7 @@ function showPlanResultModal(plan, planId) {
                     <span id="plan-credits-badge" class="text-xs text-slate-500"></span>
                     <div class="flex gap-2">
                         <button id="btn-schedule-plan" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium">
-                            📅 Schedule
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline-block mr-1"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Schedule
                         </button>
                         <button id="btn-send-to-studio" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium">
                             Send to Studio
@@ -8539,7 +8559,7 @@ function startWeightReportAnimation() {
             ctx.font = '13px Inter, sans-serif';
             ctx.fillStyle = doc.missing ? '#ef4444' : '#e2e8f0';
             const title = doc.title.length > 25 ? doc.title.substring(0, 25) + '...' : doc.title;
-            ctx.fillText(doc.missing ? `⚠️ ${title}` : title, leftMargin, docY + 12);
+            ctx.fillText(doc.missing ? `(Missing) ${title}` : title, leftMargin, docY + 12);
 
             // Percentage
             ctx.font = 'bold 14px Inter, sans-serif';
