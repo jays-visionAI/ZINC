@@ -120,6 +120,11 @@ const translations = {
         'studio.log.thinking': 'Thinking...',
         'studio.log.thinkingProcess': 'Thinking Process',
         'studio.log.thinkingAnalyzing': 'Analyzing request and extracting context...',
+        'studio.log.thinkingCore': 'Scanning Core Project Profile...',
+        'studio.log.thinkingBrain': 'Synchronizing Brand Brain Strategy...',
+        'studio.log.thinkingKnowledge': 'Analyzing Knowledge Hub Assets...',
+        'studio.log.thinkingMarket': 'Checking Market Pulse Trends...',
+        'studio.log.thinkingGap': 'Performing Gap Analysis & Synthesis...',
         'studio.log.generatingResponse': 'Synthesizing context and generating response...',
 
         // Market Pulse
@@ -578,6 +583,11 @@ const translations = {
         'studio.log.thinking': '생각 중...',
         'studio.log.thinkingProcess': '생각 과정 (Thinking Process)',
         'studio.log.thinkingAnalyzing': '요청을 분석하고 맥락을 추출하고 있습니다...',
+        'studio.log.thinkingCore': '프로젝트 코어 프로필 스캔 중...',
+        'studio.log.thinkingBrain': '브랜드 브레인 전략 동기화 중...',
+        'studio.log.thinkingKnowledge': '지식 허브 데이터 자산 분석 중...',
+        'studio.log.thinkingMarket': '마켓 펄스 실시간 트렌드 확인 중...',
+        'studio.log.thinkingGap': '정보 공백 분석 및 맥락 종합 중...',
         'studio.log.generatingResponse': '맥락을 종합하여 답변을 생성하고 있습니다...',
         'studio.log.agentStarted': '에이전트 {{agentId}} 시작됨',
         'studio.log.agentCompleted': '에이전트 {{agentId}} 완료됨',

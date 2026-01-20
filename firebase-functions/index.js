@@ -341,13 +341,23 @@ exports.executeSubAgent = onCall({
         const projectOwnerId = projectData.userId;
 
         // Fetch remaining context in parallel using owner ID context
-        const [brandDoc, brandProjectDoc, knowledgeSnapshot] = await Promise.all([
+        const [
+            brandDoc,
+            brandProjectDoc,
+            knowledgeSnapshot,
+            marketPulseDoc,
+            brandSummarySnapshot
+        ] = await Promise.all([
             // Primary Brand Brain (Root doc for user)
             projectOwnerId ? db.collection('brandBrain').doc(projectOwnerId).get() : Promise.resolve({ exists: false }),
             // Project-specific Brand Brain (Rules 442)
             projectOwnerId ? db.collection('brandBrain').doc(projectOwnerId).collection('projects').doc(projectId).get() : Promise.resolve({ exists: false }),
             // Knowledge Sources (Nested under project - Rules 158)
-            db.collection('projects').doc(projectId).collection('knowledgeSources').where('active', '==', true).limit(5).get().catch(() => ({ empty: true, forEach: () => { } }))
+            db.collection('projects').doc(projectId).collection('knowledgeSources').where('active', '==', true).limit(5).get().catch(() => ({ empty: true, forEach: () => { } })),
+            // [NEW] Market Pulse (Latest intelligence)
+            db.collection('projects').doc(projectId).collection('marketPulse').doc('latest').get().catch(() => ({ exists: false })),
+            // [NEW] Knowledge Hub (Latest unified summary)
+            db.collection('projects').doc(projectId).collection('brandSummaries').orderBy('createdAt', 'desc').limit(1).get().catch(() => ({ empty: true, forEach: () => { } }))
         ]);
 
         if (!apiKey) {
@@ -360,6 +370,10 @@ exports.executeSubAgent = onCall({
         if (!knowledgeSnapshot.empty) {
             knowledgeSnapshot.forEach(doc => knowledgeDocs.push(doc.data()));
         }
+
+        // [NEW] Data processing for additional intelligence
+        const marketPulseData = marketPulseDoc.exists ? marketPulseDoc.data() : null;
+        const brandSummaryData = (!brandSummarySnapshot.empty) ? brandSummarySnapshot.docs[0].data() : null;
 
         // 2. Construct Enhanced System Context
         let enhancedSystemPrompt = systemPrompt || 'You are a helpful assistant.';
@@ -376,7 +390,17 @@ exports.executeSubAgent = onCall({
 
         // Inject Knowledge Base (Simple Text Injection)
         if (knowledgeDocs.length > 0) {
-            enhancedSystemPrompt += `\n\n# KNOWLEDGE BASE REFERENCES\nThe following documents are relevant to this task:\n${knowledgeDocs.map(d => `- [${d.title}]: ${d.content ? d.content.substring(0, 500) + '...' : d.summary || 'No content'}`).join('\n')}`;
+            enhancedSystemPrompt += `\n\n# KNOWLEDGE HUB (Internal Assets)\n${knowledgeDocs.map(d => `- [${d.title}]: ${d.content ? d.content.substring(0, 500) + '...' : d.summary || 'No content'}`).join('\n')}`;
+        }
+
+        // Inject Latest Brand Summary
+        if (brandSummaryData) {
+            enhancedSystemPrompt += `\n\n# STRATEGIC SUMMARY\n${brandSummaryData.content || 'N/A'}`;
+        }
+
+        // Inject Market Pulse Trends
+        if (marketPulseData) {
+            enhancedSystemPrompt += `\n\n# MARKET PULSE (Live Trends)\nKeywords: ${(marketPulseData.keywords || []).join(', ')}\nSentiment: Pos ${marketPulseData.sentiment?.positive || 0}%\nTrends: ${(marketPulseData.trends || []).map(t => t.name).join(', ')}`;
         }
 
         // 2.5 Inject Technical Requirements for Designers (Default)
@@ -601,6 +625,40 @@ exports.routeLLM = functions.https.onCall(async (data, context) => {
     }
 
     try {
+        // 1. Fetch 360-degree Context (Parallel)
+        const [projectDoc, brandDoc, brandProjectDoc, knowledgeSnapshot, marketPulseDoc, brandSummarySnapshot] = await Promise.all([
+            projectId ? db.collection('projects').doc(projectId).get() : Promise.resolve({ exists: false }),
+            userId ? db.collection('brandBrain').doc(userId).get() : Promise.resolve({ exists: false }),
+            (userId && projectId) ? db.collection('brandBrain').doc(userId).collection('projects').doc(projectId).get() : Promise.resolve({ exists: false }),
+            projectId ? db.collection('projects').doc(projectId).collection('knowledgeSources').where('active', '==', true).limit(5).get().catch(() => ({ empty: true })) : Promise.resolve({ empty: true }),
+            projectId ? db.collection('projects').doc(projectId).collection('marketPulse').doc('latest').get().catch(() => ({ exists: false })) : Promise.resolve({ exists: false }),
+            projectId ? db.collection('projects').doc(projectId).collection('brandSummaries').orderBy('createdAt', 'desc').limit(1).get().catch(() => ({ empty: true })) : Promise.resolve({ empty: true })
+        ]);
+
+        const projectData = projectDoc.exists ? projectDoc.data() : null;
+        const brandData = brandProjectDoc.exists ? brandProjectDoc.data() : (brandDoc.exists ? brandDoc.data() : null);
+        const knowledgeDocs = !knowledgeSnapshot.empty ? knowledgeSnapshot.docs.map(d => d.data()) : [];
+        const marketPulseData = marketPulseDoc.exists ? marketPulseDoc.data() : null;
+        const brandSummaryData = !brandSummarySnapshot.empty ? brandSummarySnapshot.docs[0].data() : null;
+
+        // 2. Build Intelligent Context String
+        let contextString = `\n\n# 360-DEGREE PROJECT CONTEXT SYNC\n`;
+        if (projectData) contextString += `[CORE] Name: ${projectData.projectName || projectData.name}\nTarget: ${projectData.targetAudience}\n`;
+        if (brandData) contextString += `[BRAND] Tone: ${brandData.strategy?.brandVoice?.personality || 'Professional'}\n`;
+        if (brandSummaryData) contextString += `[KNOWLEDGE_SUMMARY] ${brandSummaryData.content.substring(0, 500)}...\n`;
+        if (marketPulseData) contextString += `[MARKET_PULSE] Trends: ${(marketPulseData.trends || []).map(t => t.name).join(', ')}\n`;
+        if (knowledgeDocs.length > 0) contextString += `[ASSETS] ${knowledgeDocs.map(d => d.title).join(', ')}\n`;
+
+        // 3. Inject into System Prompt
+        const sysIndex = messages.findIndex(m => m.role === 'system');
+        const gapAnalysisInstruction = `\n\n[GAP_ANALYSIS_MODE] Your primary mission is to build a complete Target Brief. Review the 360 context below. If any critical info is missing for a professional campaign, DO NOT hallucinate. Instead, clearly list what is missing and ask the user to provide it.`;
+
+        if (sysIndex !== -1) {
+            messages[sysIndex].content += gapAnalysisInstruction + contextString;
+        } else {
+            messages.unshift({ role: 'system', content: `You are the ZYNK Architect.` + gapAnalysisInstruction + contextString });
+        }
+
         // Route through LLMRouter
         const result = await llmRouter.route({
             feature,

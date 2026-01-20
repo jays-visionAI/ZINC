@@ -608,28 +608,25 @@ function initChatEngine() {
     // maxFiles moved to global state
 
     const STUDIO_ASSISTANT_SYSTEM_PROMPT = `
-You are the ZYNK Studio Orchestrator and Vision Expert. Your primary goal is to collaborate with the user to build a definitive "Target Brief" for the project: {{projectName}}.
+You are the ZYNK Architect and Vision Expert. Your primary goal is to finalize the definitive "Target Brief" for the project: {{projectName}}.
 
-CORE OPERATING PRINCIPLES:
-1. Proactive Vision Analysis (High Priority): When images are attached, you MUST analyze them immediately. 
-   - Extract keywords, core values, target audience details, and UI/UX patterns.
-   - If you see the project name "{{projectName}}" (Vision Chain) or related branding in the images, DO NOT ask "What is this project?". Instead, say: "I analyzed the images and identified the following for {{projectName}}..."
-   - Treat visual content as THE source of truth for current project context.
+360-DEGREE CONTEXT SYNC (Automatic):
+You have direct access to four core intelligence pillars. You must never ask for information already present in:
+1. [CORE INFO]: Project description, target audience, and USP from the Command Center.
+2. [BRAND BRAIN]: Personality, tone, values, and brand health metrics.
+3. [KNOWLEDGE HUB]: Detailed assets, PDF contents, and the latest Unified Summary.
+4. [MARKET PULSE]: Live trends, sentiment analysis, and competitor footprints.
 
-2. Context Sync: Seamlessly integrate findings from chat history, attached documents, and screenshots into the Target Brief.
+GAP ANALYSIS PROTOCOL:
+- Phase 1 (Sync): Silently review all 4 pillars provided in your system context.
+- Phase 2 (Gap ID): Identify exactly what's missing (e.g., "I know the target is X, but I don't see their budget range in any document").
+- Phase 3 (Proactive Request): List the missing items clearly to the user and suggest how they can provide them (upload, text, or [SEARCH]).
 
-3. Gap Analysis & Research: 
-   - Identify what's missing (e.g., "I see the target audience is X, but what is their primary pain point?").
-   - Use [SEARCH] to find actual market trends, competitor data, or technical specs to fill gaps.
+OPERATING PRINCIPLES:
+- Proactive Vision Analysis: Extracted data from images is high-priority truth.
+- Command Parsing: Use [BLOCK], [CONTEXT], and [SEARCH] strictly for updates.
 
-4. Structured Brainstorming: Propose content strategies, ad copy angles, or funnel structures based on the extracted context.
-
-COMMAND PARSING (Strict):
-- [BLOCK: {"title": "Title", "icon": "brain|check|robot", "status": "running|done", "content": "Markdown"}] -> For visual process updates.
-- [CONTEXT: {"name": "Section Name", "content": "Extracted details"}] -> To update the project's internal brief.
-- [SEARCH: "Research query"] -> For proactive data gathering.
-
-Language: Respond in the user's selected language (Current preference: KO/Korean).
+Response Language: KO (Korean).
 Current Project Context: {{projectName}}
 `;
 
@@ -716,6 +713,11 @@ Current Project Context: {{projectName}}
         updateSmartButtonState('loading');
         window.checkInputState();
 
+        // SIMULATED PROGRESS (For Visual Dynamics)
+        setTimeout(() => updateAIThinking(t('studio.log.thinkingCore')), 800);
+        setTimeout(() => updateAIThinking(t('studio.log.thinkingBrain')), 1800);
+        setTimeout(() => updateAIThinking(t('studio.log.thinkingKnowledge')), 3000);
+
         // Prepare context for AI
         const projectSelect = document.getElementById('project-select');
         const projectName = projectSelect.options[projectSelect.selectedIndex]?.textContent || 'Unknown';
@@ -777,7 +779,11 @@ Current Project Context: {{projectName}}
                     }
                 }
 
-                updateAIThinking(t('studio.log.generatingResponse'));
+                setTimeout(() => updateAIThinking(t('studio.log.thinkingMarket')), 4200);
+                setTimeout(() => updateAIThinking(t('studio.log.thinkingGap')), 5500);
+
+                // Final state before call or during call
+                setTimeout(() => updateAIThinking(t('studio.log.generatingResponse')), 6800);
 
                 const response = await window.LLMRouterService.call({
                     feature: 'studio_chat', // Custom feature for studio interaction
@@ -1187,7 +1193,7 @@ function addLogEntry(message, type = 'info', meta = null) {
                 msgDiv.id = 'ai-thinking-state';
                 msgDiv.innerHTML = `
                     <div class="thinking-header">
-                        <span>${t('studio.log.thinking')}</span>
+                        <span>${t('studio.log.thinking') || 'Thinking...'}</span>
                         <div class="thinking-dots-container">
                             <div class="thinking-dot active"></div>
                             <div class="thinking-dot"></div>
@@ -1196,8 +1202,14 @@ function addLogEntry(message, type = 'info', meta = null) {
                         </div>
                     </div>
                     <div class="thinking-process-section">
-                        <div class="thinking-process-label">${t('studio.log.thinkingProcess')}</div>
-                        <div class="thinking-process-text">${message}</div>
+                        <div class="thinking-process-label">${t('studio.log.thinkingProcess') || 'Thinking Process'}</div>
+                        <div class="thinking-process-list">
+                            <div class="thinking-process-step active">
+                                <span class="thinking-step-status"></span>
+                                <span class="thinking-step-text">${replaceEmojis(message)}</span>
+                            </div>
+                        </div>
+                        <div class="thinking-process-text">${replaceEmojis(message)}</div>
                     </div>
                 `;
                 state.currentThinkingBubble = msgDiv;
@@ -1233,8 +1245,37 @@ function showAIThinking(processText) {
     addLogEntry(processText, 'thinking');
 }
 
-function updateAIThinking(newProcessText) {
+function updateAIThinking(newProcessText, status = 'active') {
     if (state.currentThinkingBubble) {
+        const listContainer = state.currentThinkingBubble.querySelector('.thinking-process-list');
+        if (listContainer) {
+            // Check if this text is already in the list to prevent duplicates on rapid calls
+            const steps = listContainer.querySelectorAll('.thinking-process-step');
+            let alreadyExists = false;
+            steps.forEach(s => {
+                const stepText = s.querySelector('.thinking-step-text')?.textContent;
+                if (stepText === newProcessText) alreadyExists = true;
+            });
+
+            if (alreadyExists) return;
+
+            // Mark previous steps as done
+            steps.forEach(s => {
+                s.classList.remove('active');
+                s.classList.add('done');
+            });
+
+            // Add new step
+            const stepDiv = document.createElement('div');
+            stepDiv.className = `thinking-process-step ${status}`;
+            stepDiv.innerHTML = `
+                <span class="thinking-step-status"></span>
+                <span class="thinking-step-text">${newProcessText}</span>
+            `;
+            listContainer.appendChild(stepDiv);
+        }
+
+        // Keep fallback for legacy/safety
         const textEl = state.currentThinkingBubble.querySelector('.thinking-process-text');
         if (textEl) textEl.textContent = newProcessText;
     }
