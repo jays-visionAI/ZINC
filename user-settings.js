@@ -1166,3 +1166,235 @@ window.loadUserProjects = async function () {
 };
 
 // End of user-settings.js
+
+// ====================================
+// PROACTIVE SETTINGS (ZYNK Persona Engine)
+// ====================================
+
+/**
+ * Trigger Types - must match studio/constants/triggerTypes.js
+ */
+const TRIGGER_TYPES = [
+    'task_recovery',
+    'async_completion',
+    'strategic_insight',
+    'market_signal',
+    'user_scheduler',
+    'lifecycle_crm',
+    'admin_broadcast'
+];
+
+/**
+ * Default proactive settings for new users
+ */
+function getDefaultProactiveSettings() {
+    const enabledTriggers = {};
+    TRIGGER_TYPES.forEach(type => {
+        enabledTriggers[type] = true;
+    });
+
+    return {
+        silent_mode: false,
+        enabled_triggers: enabledTriggers,
+        cooldown: {
+            global_minutes: 5,
+            per_trigger_minutes: {}
+        },
+        rate_limit: {
+            max_per_hour: 5,
+            max_per_day: 15
+        }
+    };
+}
+
+/**
+ * Load proactive settings from Firestore
+ */
+async function loadProactiveSettings() {
+    if (!currentUser) return;
+
+    try {
+        const userDoc = await firebase.firestore().collection('users').doc(currentUser.uid).get();
+        let settings = getDefaultProactiveSettings();
+
+        if (userDoc.exists && userDoc.data().proactive_settings) {
+            settings = { ...settings, ...userDoc.data().proactive_settings };
+        }
+
+        // Apply to UI
+        applyProactiveSettingsToUI(settings);
+
+        console.log('[Proactive] Settings loaded:', settings);
+        return settings;
+    } catch (error) {
+        console.error('[Proactive] Error loading settings:', error);
+        applyProactiveSettingsToUI(getDefaultProactiveSettings());
+    }
+}
+
+/**
+ * Apply loaded settings to UI elements
+ */
+function applyProactiveSettingsToUI(settings) {
+    // Silent Mode toggle
+    const silentModeToggle = document.getElementById('silent-mode-toggle');
+    if (silentModeToggle) {
+        silentModeToggle.checked = settings.silent_mode;
+        updateTriggerItemsState(settings.silent_mode);
+    }
+
+    // Individual trigger toggles
+    document.querySelectorAll('.trigger-toggle').forEach(toggle => {
+        const triggerType = toggle.dataset.trigger;
+        if (triggerType && settings.enabled_triggers) {
+            toggle.checked = settings.enabled_triggers[triggerType] !== false;
+        }
+    });
+
+    // Cooldown settings
+    const globalCooldown = document.getElementById('global-cooldown-select');
+    if (globalCooldown && settings.cooldown) {
+        globalCooldown.value = settings.cooldown.global_minutes || 5;
+    }
+
+    const maxPerHour = document.getElementById('max-per-hour-select');
+    if (maxPerHour && settings.rate_limit) {
+        maxPerHour.value = settings.rate_limit.max_per_hour || 5;
+    }
+
+    const maxPerDay = document.getElementById('max-per-day-select');
+    if (maxPerDay && settings.rate_limit) {
+        maxPerDay.value = settings.rate_limit.max_per_day || 15;
+    }
+}
+
+/**
+ * Update trigger items visual state based on Silent Mode
+ */
+function updateTriggerItemsState(silentMode) {
+    document.querySelectorAll('.trigger-item').forEach(item => {
+        if (silentMode) {
+            item.classList.add('disabled');
+        } else {
+            item.classList.remove('disabled');
+        }
+    });
+}
+
+/**
+ * Save proactive settings to Firestore
+ */
+async function saveProactiveSettings() {
+    if (!currentUser) return;
+
+    // Gather settings from UI
+    const silentMode = document.getElementById('silent-mode-toggle')?.checked || false;
+
+    const enabledTriggers = {};
+    document.querySelectorAll('.trigger-toggle').forEach(toggle => {
+        const triggerType = toggle.dataset.trigger;
+        if (triggerType && !toggle.disabled) {
+            enabledTriggers[triggerType] = toggle.checked;
+        } else if (triggerType) {
+            // Keep disabled triggers as true (they're coming soon features)
+            enabledTriggers[triggerType] = true;
+        }
+    });
+
+    const globalCooldown = parseInt(document.getElementById('global-cooldown-select')?.value || '5');
+    const maxPerHour = parseInt(document.getElementById('max-per-hour-select')?.value || '5');
+    const maxPerDay = parseInt(document.getElementById('max-per-day-select')?.value || '15');
+
+    const settings = {
+        silent_mode: silentMode,
+        enabled_triggers: enabledTriggers,
+        cooldown: {
+            global_minutes: globalCooldown,
+            per_trigger_minutes: {}
+        },
+        rate_limit: {
+            max_per_hour: maxPerHour,
+            max_per_day: maxPerDay
+        }
+    };
+
+    try {
+        await firebase.firestore().collection('users').doc(currentUser.uid).set({
+            proactive_settings: settings,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        console.log('[Proactive] Settings saved:', settings);
+        showSaveStatus();
+
+    } catch (error) {
+        console.error('[Proactive] Error saving settings:', error);
+    }
+}
+
+/**
+ * Show brief "saved" status message
+ */
+function showSaveStatus() {
+    const status = document.getElementById('notification-save-status');
+    if (status) {
+        status.style.display = 'block';
+        setTimeout(() => {
+            status.style.display = 'none';
+        }, 2000);
+    }
+}
+
+/**
+ * Reset cooldown settings to defaults
+ */
+window.resetCooldownSettings = function () {
+    document.getElementById('global-cooldown-select').value = '5';
+    document.getElementById('max-per-hour-select').value = '5';
+    document.getElementById('max-per-day-select').value = '15';
+    saveProactiveSettings();
+};
+
+/**
+ * Setup proactive settings event listeners
+ */
+function setupProactiveEventListeners() {
+    // Silent Mode toggle
+    const silentModeToggle = document.getElementById('silent-mode-toggle');
+    if (silentModeToggle) {
+        silentModeToggle.addEventListener('change', (e) => {
+            updateTriggerItemsState(e.target.checked);
+            saveProactiveSettings();
+        });
+    }
+
+    // Individual trigger toggles
+    document.querySelectorAll('.trigger-toggle').forEach(toggle => {
+        if (!toggle.disabled) {
+            toggle.addEventListener('change', () => {
+                saveProactiveSettings();
+            });
+        }
+    });
+
+    // Cooldown settings
+    ['global-cooldown-select', 'max-per-hour-select', 'max-per-day-select'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('change', () => {
+                saveProactiveSettings();
+            });
+        }
+    });
+}
+
+// Initialize proactive settings when notifications tab is shown
+const originalSwitchTab = window.switchTab;
+window.switchTab = function (tabId) {
+    originalSwitchTab(tabId);
+
+    if (tabId === 'notifications') {
+        loadProactiveSettings();
+        setupProactiveEventListeners();
+    }
+};

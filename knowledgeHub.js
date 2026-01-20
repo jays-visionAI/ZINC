@@ -530,8 +530,7 @@ async function selectProject(projectId) {
 
         if (doc.exists) {
             currentProject = { id: doc.id, ...doc.data() };
-            document.getElementById('project-name-display').textContent =
-                currentProject.name || currentProject.brandName || 'Brand Intelligence';
+            document.getElementById('project-name-display').textContent = t('hub.analyst.title') || 'Brand Analyst AI';
 
             // Optimize loading with parallel execution using Promise.all
             await Promise.all([
@@ -573,7 +572,7 @@ async function getCurrentKnowledgeContext() {
     // 3. Core identity fields
     if (currentProject.coreIdentity) {
         const ci = currentProject.coreIdentity;
-        if (ci.mission) contextParts.push(`🎯 Mission: ${ci.mission}`);
+        if (ci.mission) contextParts.push(`Mission: ${ci.mission}`);
         if (ci.vision) contextParts.push(`🔮 Vision: ${ci.vision}`);
         if (ci.values) contextParts.push(`💎 Values: ${ci.values}`);
         if (ci.targetAudience) contextParts.push(`👥 Target Audience: ${ci.targetAudience}`);
@@ -739,8 +738,8 @@ function updateSummarySection() {
     if (!summaryToShow) {
         // State: No Summary Available (Welcome Screen)
         renderSummaryHeader('brand');
-        summaryTitle.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-400"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg> <span class="ml-2">Brand Intelligence</span>`;
-        summaryContent.textContent = 'Add sources from the left panel to generate your Brand Summary.';
+        summaryTitle.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-400"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg> <span class="ml-2">${t('hub.analyst.title') || 'Brand Analyst AI'}</span>`;
+        summaryContent.textContent = t('hub.analyst.welcome') || 'Add knowledge sources from the left panel to begin deep strategic analysis of your brand assets.';
 
         // Hide details
         keyInsights.classList.add('hidden');
@@ -2761,6 +2760,13 @@ async function sendChatMessage() {
             // Add source attribution if available
             if (result.data.sources && result.data.sources.length > 0) {
                 answer += `\n\nSources: ${result.data.sources.join(', ')}`;
+            }
+
+            // Smart Redirection Tool (Knowledge Hub -> Studio)
+            const genKeywords = ['write', 'create', 'post', 'blog', 'content', 'generate', 'draft', '생성', '작성', '포스트', '블로그', '콘텐츠'];
+            const needsGen = genKeywords.some(kw => message.toLowerCase().includes(kw));
+            if (needsGen && typeof t === 'function') {
+                answer += `\n\n${t('hub.suggestion.gotoStudio')}`;
             }
 
             addChatMessage(answer, 'bot', suggestedAction);
@@ -6781,7 +6787,7 @@ function selectPlanVersion(index) {
         contentHtml += `
             <div class="mb-4 p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-xl flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400">🧠</div>
+                    <div class="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
                     <div>
                         <h4 class="text-sm font-bold text-white">Interactive Mind Map</h4>
                         <p class="text-xs text-slate-400">${hasData ? 'Explore brand connections visually.' : 'Text preview only. Open to see demo/structure.'}</p>

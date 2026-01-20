@@ -33,34 +33,34 @@ const CHATBOT = {
         ko: {
             subtitle: 'AI 헬프데스크',
             placeholder: 'ZYNK에 대해 물어보세요...',
-            welcome: `안녕하세요! 저는 ZYNK 헬프데스크 AI입니다. 🐝
+            welcome: `안녕하세요! 저는 ZYNK 헬프데스크 AI입니다.
 
 ZYNK 사용에 관한 질문이 있으시면 편하게 물어보세요!
 
-🔹 기능 사용법
-🔹 문제 해결
-🔹 팁과 가이드`,
-            rateLimitExceeded: (limit) => `⚠️ 일일 질문 횟수(${limit}회)를 초과했습니다.\n내일 다시 이용해 주세요!`,
-            error: (msg) => `❌ 오류가 발생했습니다: ${msg}\n잠시 후 다시 시도해 주세요.`,
-            loginRequired: '❌ 로그인이 필요합니다. 다시 로그인해 주세요.',
-            unavailable: (msg) => `⚠️ ${msg}`,
+- 기능 사용법
+- 문제 해결
+- 팁과 가이드`,
+            rateLimitExceeded: (limit) => `일일 질문 횟수(${limit}회)를 초과했습니다.\n내일 다시 이용해 주세요!`,
+            error: (msg) => `오류가 발생했습니다: ${msg}\n잠시 후 다시 시도해 주세요.`,
+            loginRequired: '로그인이 필요합니다. 다시 로그인해 주세요.',
+            unavailable: (msg) => `${msg}`,
             listening: '🎤 말씀하세요...',
             voiceNotSupported: '음성 인식이 지원되지 않는 브라우저입니다.'
         },
         en: {
             subtitle: 'AI Helpdesk',
             placeholder: 'Ask about ZYNK...',
-            welcome: `Hello! I'm the ZYNK Helpdesk AI. 🐝
+            welcome: `Hello! I'm the ZYNK Helpdesk AI.
 
 Feel free to ask me anything about using ZYNK!
 
-🔹 How to use features
-🔹 Troubleshooting
-🔹 Tips and guides`,
-            rateLimitExceeded: (limit) => `⚠️ Daily question limit (${limit}) exceeded.\nPlease try again tomorrow!`,
-            error: (msg) => `❌ An error occurred: ${msg}\nPlease try again later.`,
-            loginRequired: '❌ Login required. Please log in again.',
-            unavailable: (msg) => `⚠️ ${msg}`,
+- How to use features
+- Troubleshooting
+- Tips and guides`,
+            rateLimitExceeded: (limit) => `Daily question limit (${limit}) exceeded.\nPlease try again tomorrow!`,
+            error: (msg) => `An error occurred: ${msg}\nPlease try again later.`,
+            loginRequired: 'Login required. Please log in again.',
+            unavailable: (msg) => `${msg}`,
             listening: '🎤 Listening...',
             voiceNotSupported: 'Voice recognition is not supported in this browser.'
         }
@@ -473,11 +473,11 @@ Feel free to ask me anything about using ZYNK!
 
         let avatar;
         if (message.type === 'bot') {
-            avatar = '🤖';
+            avatar = 'bot';
         } else if (message.type === 'system') {
-            avatar = '💡';
+            avatar = 'system';
         } else {
-            avatar = '👤';
+            avatar = 'user';
         }
 
         const messageEl = document.createElement('div');
@@ -486,14 +486,18 @@ Feel free to ask me anything about using ZYNK!
         // Show model meta only for bot messages
         const metaHtml = (message.type === 'bot') ?
             `<div class="chatbot-meta" style="font-size: 10px; opacity: 0.6; margin-top: 6px; text-align: right; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 4px;">
-                🐝 ZYNK AI Intelligence
+                ZYNK AI Intelligence
              </div>` : '';
 
         // Custom style for system avatar
         const avatarStyle = message.type === 'system' ? 'background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);' : '';
 
         messageEl.innerHTML = `
-            <div class="chatbot-message-avatar" style="${avatarStyle}">${avatar}</div>
+            <div class="chatbot-message-avatar" style="${avatarStyle}">
+                ${avatar === 'bot' ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/></svg>' :
+                avatar === 'system' ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v8"/><path d="M12 14v2"/><path d="M12 20v2"/><path d="M4.93 4.93l1.41 1.41"/><path d="M17.66 17.66l1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="M4.93 19.07l1.41-1.41"/><path d="M17.66 6.34l1.41-1.41"/></svg>' :
+                    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'}
+            </div>
             <div class="chatbot-message-content">
                 ${this.formatContent(message.content)}
                 ${metaHtml}
@@ -519,7 +523,9 @@ Feel free to ask me anything about using ZYNK!
         typingEl.id = 'chatbot-typing';
         typingEl.className = 'chatbot-message bot';
         typingEl.innerHTML = `
-            <div class="chatbot-message-avatar">🤖</div>
+            <div class="chatbot-message-avatar">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/></svg>
+            </div>
             <div class="chatbot-typing">
                 <div class="chatbot-typing-dot"></div>
                 <div class="chatbot-typing-dot"></div>
@@ -728,15 +734,15 @@ ZYNK 기능이나 사용법에 대해 궁금한 점이 있으시면 말씀해 �
         }
 
         // Default ZYNK response
-        return `좋은 질문이시네요! 🐝
+        return `좋은 질문이시네요!
 
 ZYNK는 5단계 파이프라인으로 콘텐츠 마케팅을 자동화합니다:
 
-1️⃣ **Market Pulse** - 시장 트렌드 분석
-2️⃣ **Brand Brain** - 브랜드 전략 설정
-3️⃣ **Studio** - AI 콘텐츠 생성
-4️⃣ **The Filter** - 품질 검증
-5️⃣ **The Growth** - 성과 측정
+1. Market Pulse - 시장 트렌드 분석
+2. Brand Brain - 브랜드 전략 설정
+3. Studio - AI 콘텐츠 생성
+4. The Filter - 품질 검증
+5. The Growth - 성과 측정
 
 어떤 기능에 대해 더 알고 싶으신가요?`;
     },

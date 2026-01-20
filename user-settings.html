@@ -146,6 +146,63 @@
             position: relative;
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
         }
+
+        /* Toggle Switch Styles */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.1);
+            transition: 0.3s;
+            border-radius: 24px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+
+        .toggle-switch input:checked+.toggle-slider {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        }
+
+        .toggle-switch input:checked+.toggle-slider:before {
+            transform: translateX(20px);
+        }
+
+        /* Silent Mode ON - special styling */
+        #silent-mode-toggle:checked+.toggle-slider {
+            background: linear-gradient(135deg, #ef4444, #f97316);
+        }
+
+        .trigger-item.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
     </style>
 </head>
 
@@ -199,8 +256,10 @@
                     <div class="settings-tabs">
                         <div class="settings-tab active" data-tab="connections" onclick="switchTab('connections')">
                             Connections</div>
-                        <div class="settings-tab" data-tab="memory" onclick="switchTab('memory')">🧠 Memory</div>
+                        <div class="settings-tab" data-tab="memory" onclick="switchTab('memory')">Memory</div>
                         <div class="settings-tab" data-tab="profile" onclick="switchTab('profile')">Profile</div>
+                        <div class="settings-tab" data-tab="notifications" onclick="switchTab('notifications')">
+                            Notifications</div>
                         <div class="settings-tab" data-tab="billing" onclick="switchTab('billing')">Billing</div>
                         <div class="settings-tab" data-tab="language" onclick="switchTab('language')">Language</div>
                     </div>
@@ -533,6 +592,338 @@
                                     style="padding: 12px 40px; font-weight: 600; font-size: 15px; border-radius: 10px; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);">
                                     <span data-i18n="settings.button.saveLanguage">Save Language Settings</span>
                                 </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Notifications Tab Content (Proactive Settings) -->
+                    <div id="tab-notifications" class="tab-content" style="display: none;">
+                        <div style="max-width: 700px;">
+                            <!-- Proactive Overview -->
+                            <div
+                                style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1)); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 16px; padding: 24px; margin-bottom: 24px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <p style="font-size: 12px; color: rgba(255,255,255,0.5); margin: 0 0 4px 0;">
+                                            ZYNK Proactive</p>
+                                        <h3 style="font-size: 20px; margin: 0; color: white;">Smart Notifications
+                                        </h3>
+                                    </div>
+                                    <!-- Silent Mode Master Toggle -->
+                                    <div style="display: flex; align-items: center; gap: 12px;">
+                                        <span style="font-size: 13px; color: rgba(255,255,255,0.6);">Silent Mode</span>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" id="silent-mode-toggle">
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <p style="color: rgba(255,255,255,0.6); font-size: 14px; margin: 16px 0 0 0;">
+                                    ZYNK can proactively notify you about important updates. Enable Silent Mode to
+                                    pause all notifications.
+                                </p>
+                            </div>
+
+                            <!-- Trigger Settings -->
+                            <div
+                                style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 24px; margin-bottom: 24px;">
+                                <h4 style="margin: 0 0 20px 0; color: white; font-size: 16px;">Notification Types</h4>
+                                <p style="color: rgba(255,255,255,0.5); font-size: 13px; margin: 0 0 20px 0;">
+                                    Choose which types of proactive notifications you'd like to receive.
+                                </p>
+
+                                <!-- Trigger List -->
+                                <div id="trigger-settings-list"
+                                    style="display: flex; flex-direction: column; gap: 12px;">
+
+                                    <!-- Smart Context Category -->
+                                    <div style="margin-bottom: 8px;">
+                                        <p
+                                            style="font-size: 11px; color: rgba(255,255,255,0.4); margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 1px;">
+                                            Smart Context</p>
+                                    </div>
+
+                                    <!-- Task Recovery -->
+                                    <div class="trigger-item" data-trigger="task_recovery"
+                                        style="display: flex; justify-content: space-between; align-items: center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                                        <div style="flex: 1;">
+                                            <div
+                                                style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                                                    stroke="#10B981" stroke-width="2">
+                                                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                                                    <path d="M3 3v5h5"></path>
+                                                </svg>
+                                                <span style="color: white; font-weight: 500;">Task Recovery</span>
+                                            </div>
+                                            <p
+                                                style="margin: 0; font-size: 12px; color: rgba(255,255,255,0.5); margin-left: 28px;">
+                                                Resume unfinished drafts when you return
+                                            </p>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" class="trigger-toggle" data-trigger="task_recovery"
+                                                checked>
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+
+                                    <!-- Async Completion -->
+                                    <div class="trigger-item" data-trigger="async_completion"
+                                        style="display: flex; justify-content: space-between; align-items: center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                                        <div style="flex: 1;">
+                                            <div
+                                                style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                                                    stroke="#3B82F6" stroke-width="2">
+                                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                                                </svg>
+                                                <span style="color: white; font-weight: 500;">Job Completion</span>
+                                            </div>
+                                            <p
+                                                style="margin: 0; font-size: 12px; color: rgba(255,255,255,0.5); margin-left: 28px;">
+                                                Notify when background tasks finish
+                                            </p>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" class="trigger-toggle"
+                                                data-trigger="async_completion" checked>
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+
+                                    <!-- Strategic Insight -->
+                                    <div class="trigger-item" data-trigger="strategic_insight"
+                                        style="display: flex; justify-content: space-between; align-items: center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                                        <div style="flex: 1;">
+                                            <div
+                                                style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                                                    stroke="#F59E0B" stroke-width="2">
+                                                    <polygon
+                                                        points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2">
+                                                    </polygon>
+                                                </svg>
+                                                <span style="color: white; font-weight: 500;">Strategic Insights</span>
+                                                <span
+                                                    style="font-size: 10px; padding: 2px 6px; background: rgba(245,158,11,0.2); color: #F59E0B; border-radius: 4px;">Coming
+                                                    Soon</span>
+                                            </div>
+                                            <p
+                                                style="margin: 0; font-size: 12px; color: rgba(255,255,255,0.5); margin-left: 28px;">
+                                                AI-powered insights from news and trends
+                                            </p>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" class="trigger-toggle"
+                                                data-trigger="strategic_insight" checked disabled>
+                                            <span class="toggle-slider" style="opacity: 0.5;"></span>
+                                        </label>
+                                    </div>
+
+                                    <!-- Monitoring Category -->
+                                    <div style="margin: 16px 0 8px 0;">
+                                        <p
+                                            style="font-size: 11px; color: rgba(255,255,255,0.4); margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 1px;">
+                                            Monitoring & Schedule</p>
+                                    </div>
+
+                                    <!-- Market Signal -->
+                                    <div class="trigger-item" data-trigger="market_signal"
+                                        style="display: flex; justify-content: space-between; align-items: center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                                        <div style="flex: 1;">
+                                            <div
+                                                style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                                                    stroke="#8B5CF6" stroke-width="2">
+                                                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                                                </svg>
+                                                <span style="color: white; font-weight: 500;">Market Signals</span>
+                                                <span
+                                                    style="font-size: 10px; padding: 2px 6px; background: rgba(139,92,246,0.2); color: #8B5CF6; border-radius: 4px;">Coming
+                                                    Soon</span>
+                                            </div>
+                                            <p
+                                                style="margin: 0; font-size: 12px; color: rgba(255,255,255,0.5); margin-left: 28px;">
+                                                Competitor and market change detection
+                                            </p>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" class="trigger-toggle" data-trigger="market_signal"
+                                                checked disabled>
+                                            <span class="toggle-slider" style="opacity: 0.5;"></span>
+                                        </label>
+                                    </div>
+
+                                    <!-- User Scheduler -->
+                                    <div class="trigger-item" data-trigger="user_scheduler"
+                                        style="display: flex; justify-content: space-between; align-items: center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                                        <div style="flex: 1;">
+                                            <div
+                                                style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                                                    stroke="#6366F1" stroke-width="2">
+                                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                                                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                                                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                                                </svg>
+                                                <span style="color: white; font-weight: 500;">Schedule Reminders</span>
+                                            </div>
+                                            <p
+                                                style="margin: 0; font-size: 12px; color: rgba(255,255,255,0.5); margin-left: 28px;">
+                                                Reminders for upcoming deadlines and events
+                                            </p>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" class="trigger-toggle" data-trigger="user_scheduler"
+                                                checked>
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+
+                                    <!-- System Category -->
+                                    <div style="margin: 16px 0 8px 0;">
+                                        <p
+                                            style="font-size: 11px; color: rgba(255,255,255,0.4); margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 1px;">
+                                            System & Lifecycle</p>
+                                    </div>
+
+                                    <!-- Lifecycle CRM -->
+                                    <div class="trigger-item" data-trigger="lifecycle_crm"
+                                        style="display: flex; justify-content: space-between; align-items: center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                                        <div style="flex: 1;">
+                                            <div
+                                                style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                                                    stroke="#EC4899" stroke-width="2">
+                                                    <path
+                                                        d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z">
+                                                    </path>
+                                                </svg>
+                                                <span style="color: white; font-weight: 500;">Onboarding Tips</span>
+                                            </div>
+                                            <p
+                                                style="margin: 0; font-size: 12px; color: rgba(255,255,255,0.5); margin-left: 28px;">
+                                                Helpful tips and feature guides
+                                            </p>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" class="trigger-toggle" data-trigger="lifecycle_crm"
+                                                checked>
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+
+                                    <!-- Admin Broadcast -->
+                                    <div class="trigger-item" data-trigger="admin_broadcast"
+                                        style="display: flex; justify-content: space-between; align-items: center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                                        <div style="flex: 1;">
+                                            <div
+                                                style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                                                    stroke="#EF4444" stroke-width="2">
+                                                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                                                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                                                </svg>
+                                                <span style="color: white; font-weight: 500;">System
+                                                    Announcements</span>
+                                            </div>
+                                            <p
+                                                style="margin: 0; font-size: 12px; color: rgba(255,255,255,0.5); margin-left: 28px;">
+                                                Important system updates and maintenance notices
+                                            </p>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" class="trigger-toggle" data-trigger="admin_broadcast"
+                                                checked>
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Cooldown Settings (Advanced) -->
+                            <div
+                                style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 24px;">
+                                <div
+                                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                                    <h4 style="margin: 0; color: white; font-size: 16px;">Frequency Settings</h4>
+                                    <button id="btn-reset-cooldown" onclick="resetCooldownSettings()"
+                                        style="padding: 6px 12px; font-size: 11px; background: transparent; border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.5); border-radius: 6px; cursor: pointer;">
+                                        Reset to Default
+                                    </button>
+                                </div>
+                                <p style="color: rgba(255,255,255,0.5); font-size: 13px; margin: 0 0 20px 0;">
+                                    Control how often ZYNK can send you proactive notifications.
+                                </p>
+
+                                <div style="display: grid; gap: 16px;">
+                                    <!-- Global Cooldown -->
+                                    <div
+                                        style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+                                        <div>
+                                            <span style="color: white; font-size: 14px;">Minimum interval between
+                                                notifications</span>
+                                            <p
+                                                style="margin: 4px 0 0 0; font-size: 12px; color: rgba(255,255,255,0.4);">
+                                                Global cooldown for all notification types</p>
+                                        </div>
+                                        <select id="global-cooldown-select" class="admin-select"
+                                            style="width: 120px; padding: 8px 12px; font-size: 13px; background: rgba(15, 23, 42, 0.8); border-radius: 8px;">
+                                            <option value="0">No limit</option>
+                                            <option value="5" selected>5 minutes</option>
+                                            <option value="15">15 minutes</option>
+                                            <option value="30">30 minutes</option>
+                                            <option value="60">1 hour</option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Max Per Hour -->
+                                    <div
+                                        style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+                                        <div>
+                                            <span style="color: white; font-size: 14px;">Maximum notifications per
+                                                hour</span>
+                                            <p
+                                                style="margin: 4px 0 0 0; font-size: 12px; color: rgba(255,255,255,0.4);">
+                                                Rate limit to prevent notification overload</p>
+                                        </div>
+                                        <select id="max-per-hour-select" class="admin-select"
+                                            style="width: 120px; padding: 8px 12px; font-size: 13px; background: rgba(15, 23, 42, 0.8); border-radius: 8px;">
+                                            <option value="3">3 per hour</option>
+                                            <option value="5" selected>5 per hour</option>
+                                            <option value="10">10 per hour</option>
+                                            <option value="999">Unlimited</option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Max Per Day -->
+                                    <div
+                                        style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+                                        <div>
+                                            <span style="color: white; font-size: 14px;">Maximum notifications per
+                                                day</span>
+                                            <p
+                                                style="margin: 4px 0 0 0; font-size: 12px; color: rgba(255,255,255,0.4);">
+                                                Daily limit across all notification types</p>
+                                        </div>
+                                        <select id="max-per-day-select" class="admin-select"
+                                            style="width: 120px; padding: 8px 12px; font-size: 13px; background: rgba(15, 23, 42, 0.8); border-radius: 8px;">
+                                            <option value="10">10 per day</option>
+                                            <option value="15" selected>15 per day</option>
+                                            <option value="25">25 per day</option>
+                                            <option value="999">Unlimited</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Save Status -->
+                            <div id="notification-save-status"
+                                style="margin-top: 16px; text-align: center; display: none;">
+                                <span style="color: #10B981; font-size: 13px;">Settings saved automatically</span>
                             </div>
                         </div>
                     </div>

@@ -52,7 +52,7 @@ class DAGExecutor {
             {
                 name: 'Research',
                 agents: ['research', 'seo_watcher', 'knowledge_curator', 'kpi'],
-                consolidatedAgent: 'strategic_analyst', // ✨ Phase 3: Bundled agent
+                consolidatedAgent: 'strategic_analyst', // Phase 3: Bundled agent
                 parallel: true
             },
             {
@@ -68,7 +68,7 @@ class DAGExecutor {
             {
                 name: 'Validation',
                 agents: ['compliance', 'seo_optimizer', 'evaluator'],
-                consolidatedAgent: 'quality_controller', // ✨ Phase 3: Bundled agent
+                consolidatedAgent: 'quality_controller', // Phase 3: Bundled agent
                 parallel: true
             },
             {
@@ -140,7 +140,7 @@ class DAGExecutor {
                 // Legacy fallback for this.state.tierConfig (strictly text)
                 this.state.tierConfig = this.state.multiTiers.text;
 
-                console.log('✅ Multi-Modal 5-Tier Config Loaded');
+                console.log('[DAG] Multi-Modal 5-Tier Config Loaded');
                 console.log('   - Text Models:', Object.keys(this.state.multiTiers.text).length);
                 console.log('   - Image Models:', Object.keys(this.state.multiTiers.image).length);
                 console.log('   - Video Models:', Object.keys(this.state.multiTiers.video).length);
@@ -203,7 +203,7 @@ class DAGExecutor {
             await Promise.all(versionPromises);
 
             this.state.standardAgentProfiles = agents;
-            console.log('✅ Agent Profiles Loaded from Registry:', Object.keys(agents));
+            console.log('[DAG] Agent Profiles Loaded from Registry:', Object.keys(agents));
             console.log('   Active agents:', Object.entries(agents).map(([k, v]) => `${k} (v${v.version})`).join(', '));
         } catch (error) {
             console.warn('⚠️ Failed to load agent profiles from Registry:', error);
@@ -460,18 +460,18 @@ class DAGExecutor {
             standardAgentProfiles: existingStandardAgentProfiles || this.state.standardAgentProfiles,
             useTierRouting: useTierRouting,
             teamContext: existingTeamContext,
-            // ✨ Phase 2: Logic for "Context-Driven Skip"
+            // Phase 2: Logic for "Context-Driven Skip"
             skipPhases: {
                 Research: !!(context.marketPulseData && (Date.now() - new Date(context.marketPulseData.updatedAt).getTime() < 86400000)),
                 Planning: !!(context.source === 'knowledge-hub' || context.planContent)
             }
         };
 
-        // 🎯 Log multi-channel targeting
-        console.log(`[DAGExecutor] 🎯 Target channels: ${this.state.targetChannels.join(', ')}`);
+        // Log multi-channel targeting
+        console.log(`[DAGExecutor] Target channels: ${this.state.targetChannels.join(', ')}`);
 
-        this.emit('onLog', { message: '🚀 Starting workflow execution...', type: 'info' });
-        this.emit('onLog', { message: `🎯 Target channels: ${targetChannels.join(', ')}`, type: 'info' });
+        this.emit('onLog', { message: 'Starting workflow execution...', type: 'info' });
+        this.emit('onLog', { message: `Target channels: ${targetChannels.join(', ')}`, type: 'info' });
 
         try {
             for (let i = 0; i < this.phases.length; i++) {
@@ -490,7 +490,7 @@ class DAGExecutor {
                 results: this.state.executionResults
             });
 
-            this.emit('onLog', { message: '✅ Workflow completed successfully!', type: 'success' });
+            this.emit('onLog', { message: 'Workflow completed successfully!', type: 'success' });
         } catch (error) {
             this.emit('onLog', { message: `❌ Execution failed: ${error.message}`, type: 'error' });
             this.emit('onExecutionComplete', { success: false, error });
@@ -526,7 +526,7 @@ class DAGExecutor {
                 // Re-execute Creation Phase
                 await this.executePhase(this.phases[phaseIndex], this.state.selectedAgents);
             }
-            this.emit('onLog', { message: '✅ Regeneration completed!', type: 'success' });
+            this.emit('onLog', { message: 'Regeneration completed!', type: 'success' });
         } catch (error) {
             this.emit('onLog', { message: `❌ Regeneration failed: ${error.message}`, type: 'error' });
         }
@@ -540,9 +540,9 @@ class DAGExecutor {
      * Execute a single phase
      */
     async executePhase(phase, selectedAgents) {
-        // ✨ Phase 2: Check for Context-Driven Skip
+        // Phase 2: Check for Context-Driven Skip
         if (this.state.skipPhases?.[phase.name]) {
-            this.emit('onLog', { message: `✨ Skipping ${phase.name} phase - Fresh context found`, type: 'success' });
+            this.emit('onLog', { message: `Skipping ${phase.name} phase - Fresh context found`, type: 'success' });
             this.emit('onPhaseStart', { phase: phase.name, index: this.state.currentPhase, skipped: true });
 
             // Mark agents as completed (simulated) for UI consistency
@@ -569,13 +569,13 @@ class DAGExecutor {
         this.emit('onPhaseStart', { phase: phase.name, index: this.state.currentPhase });
         this.emit('onLog', { message: `📍 Phase ${this.state.currentPhase + 1}: ${phase.name}`, type: 'info' });
 
-        // ✨ Phase 3: Consolidation Logic
+        // Phase 3: Consolidation Logic
         // If bundling is active (Lite Mode) or explicitly selected
         let activeAgents = [];
         const isLiteMode = this.state.qualityTier === 'LITE' || !this.state.qualityTier;
 
         if (phase.consolidatedAgent && (isLiteMode || selectedAgents.includes(phase.consolidatedAgent))) {
-            this.emit('onLog', { message: `   ⚡ Using Consolidated Agent: ${phase.consolidatedAgent}`, type: 'info' });
+            this.emit('onLog', { message: `   Using Consolidated Agent: ${phase.consolidatedAgent}`, type: 'info' });
             activeAgents = [phase.consolidatedAgent];
         } else {
             // Filter agents that are both in this phase and selected
@@ -617,7 +617,7 @@ class DAGExecutor {
 
         const nodeId = this.getNodeId(agentId);
         this.emit('onNodeStart', { nodeId, agentId });
-        this.emit('onLog', { message: `   ▶ ${agentId} started...`, type: 'running' });
+        this.emit('onLog', { message: `   [RUN] ${agentId} started...`, type: 'running' });
 
         try {
             // Simulate API call delay (replace with actual Cloud Function call)
@@ -637,7 +637,7 @@ class DAGExecutor {
             const modelName = resultMeta.model || (result && result.model) || 'Unknown';
             const providerName = resultMeta.provider ? ` (${resultMeta.provider})` : '';
 
-            this.emit('onLog', { message: `   ✓ ${agentId} completed successfully`, type: 'success' });
+            this.emit('onLog', { message: `   [OK] ${agentId} completed successfully`, type: 'success' });
 
             // Trigger content generation callback for creation agents
             if (['creator_text', 'creator_image', 'creator_video'].includes(agentId)) {

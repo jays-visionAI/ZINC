@@ -1363,30 +1363,31 @@ function createAgentBrainModal() {
                 
                 <!-- Template Selection Section -->
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 12px;">
-                    <label style="display: block; color: rgba(255,255,255,0.9); font-size: 14px; font-weight: 600; margin-bottom: 12px;">
-                        ✨ Quick Start Template
+                    <label style="display: flex; align-items: center; gap: 8px; color: rgba(255,255,255,0.9); font-size: 14px; font-weight: 600; margin-bottom: 12px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-400"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                        Quick Start Template
                     </label>
                     <div style="color: rgba(255,255,255,0.5); font-size: 12px; margin-bottom: 12px;">
                         템플릿을 선택하면 Team Goal과 Sub-Agent 지시사항이 자동 입력됩니다. 선택 후 수정 가능합니다.
                     </div>
                     <div id="brain-template-buttons" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
                         <button onclick="applyBrainTemplate('b2b_saas')" class="brain-template-btn" data-template="b2b_saas" style="padding: 12px 8px; border-radius: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; cursor: pointer; transition: all 0.2s; text-align: center;">
-                            <div style="font-size: 20px; margin-bottom: 4px;">📊</div>
+                            <div style="font-size: 20px; margin-bottom: 8px; display: flex; justify-content: center;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-400"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></div>
                             <div style="font-size: 12px; font-weight: 600;">B2B SaaS</div>
                             <div style="font-size: 10px; color: rgba(255,255,255,0.5);">기술 전문성</div>
                         </button>
                         <button onclick="applyBrainTemplate('ecommerce')" class="brain-template-btn" data-template="ecommerce" style="padding: 12px 8px; border-radius: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; cursor: pointer; transition: all 0.2s; text-align: center;">
-                            <div style="font-size: 20px; margin-bottom: 4px;">🛍️</div>
+                            <div style="font-size: 20px; margin-bottom: 8px; display: flex; justify-content: center;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-400"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></div>
                             <div style="font-size: 12px; font-weight: 600;">E-Commerce</div>
                             <div style="font-size: 10px; color: rgba(255,255,255,0.5);">제품 중심</div>
                         </button>
                         <button onclick="applyBrainTemplate('enterprise')" class="brain-template-btn" data-template="enterprise" style="padding: 12px 8px; border-radius: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; cursor: pointer; transition: all 0.2s; text-align: center;">
-                            <div style="font-size: 20px; margin-bottom: 4px;">🏢</div>
+                            <div style="font-size: 20px; margin-bottom: 8px; display: flex; justify-content: center;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-400"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M8 10h.01"/><path d="M16 10h.01"/><path d="M8 14h.01"/><path d="M16 14h.01"/></svg></div>
                             <div style="font-size: 12px; font-weight: 600;">Enterprise</div>
                             <div style="font-size: 10px; color: rgba(255,255,255,0.5);">전문적 신뢰</div>
                         </button>
                         <button onclick="applyBrainTemplate('creative')" class="brain-template-btn" data-template="creative" style="padding: 12px 8px; border-radius: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; cursor: pointer; transition: all 0.2s; text-align: center;">
-                            <div style="font-size: 20px; margin-bottom: 4px;">🎨</div>
+                            <div style="font-size: 20px; margin-bottom: 8px; display: flex; justify-content: center;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-pink-400"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg></div>
                             <div style="font-size: 12px; font-weight: 600;">Creative</div>
                             <div style="font-size: 10px; color: rgba(255,255,255,0.5);">감성 트렌디</div>
                         </button>
@@ -1394,7 +1395,10 @@ function createAgentBrainModal() {
                 </div>
                 
                 <div style="margin-bottom: 24px;">
-                    <label style="display: block; color: rgba(255,255,255,0.9); font-size: 14px; font-weight: 600; margin-bottom: 8px;">🎯 Active Directive (Team Goal)</label>
+                    <label style="display: flex; align-items: center; gap: 8px; color: rgba(255,255,255,0.9); font-size: 14px; font-weight: 600; margin-bottom: 8px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-red-400"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                        Active Directive (Team Goal)
+                    </label>
                     <textarea id="brain-directive" rows="4" style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; padding: 12px; color: #fff; font-size: 14px; resize: vertical;" placeholder="e.g., Increase brand awareness by posting daily news about AI trends..."></textarea>
                     <div style="color: rgba(255,255,255,0.5); font-size: 12px; margin-top: 4px;">Target specific goals for the entire team to focus on.</div>
                 </div>
@@ -1402,7 +1406,10 @@ function createAgentBrainModal() {
                 <div style="height: 1px; background: rgba(255,255,255,0.1); margin: 24px 0;"></div>
                 
                 <div>
-                    <label style="display: block; color: rgba(255,255,255,0.9); font-size: 14px; font-weight: 600; margin-bottom: 8px;">🤖 Sub-Agents Configuration</label>
+                    <label style="display: flex; align-items: center; gap: 8px; color: rgba(255,255,255,0.9); font-size: 14px; font-weight: 600; margin-bottom: 8px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-400"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>
+                        Sub-Agents Configuration
+                    </label>
                     <div style="color: rgba(255,255,255,0.5); font-size: 12px; margin-bottom: 12px;">Fine-tune the behavior and personality of each agent.</div>
                     <div id="brain-subagents-list" style="display: flex; flex-direction: column; gap: 16px;">
                         <div style="text-align:center; padding: 20px; color: rgba(255,255,255,0.5);">Loading sub-agents...</div>
@@ -1533,7 +1540,7 @@ window.saveAgentBrainSettings = async function () {
         }
 
         await batch.commit();
-        alert('✅ Settings saved successfully!');
+        alert('Settings saved successfully!');
         closeAgentBrainModal();
 
     } catch (error) {
@@ -1552,7 +1559,7 @@ window.saveAgentBrainSettings = async function () {
 const BRAIN_TEMPLATES = {
     b2b_saas: {
         name: 'B2B SaaS',
-        icon: '📊',
+        icon: '',
         teamGoal: `우리는 B2B SaaS 기업입니다. 다음 목표에 집중해주세요:
 
 1. 기술적 전문성을 바탕으로 한 콘텐츠 제작
@@ -1570,7 +1577,7 @@ const BRAIN_TEMPLATES = {
     },
     ecommerce: {
         name: 'E-Commerce',
-        icon: '🛍️',
+        icon: '',
         teamGoal: `우리는 E-Commerce 비즈니스입니다. 다음 목표에 집중해주세요:
 
 1. 제품의 매력과 가치를 극대화
@@ -1588,7 +1595,7 @@ const BRAIN_TEMPLATES = {
     },
     enterprise: {
         name: 'Enterprise',
-        icon: '🏢',
+        icon: '',
         teamGoal: `우리는 대기업/엔터프라이즈입니다. 다음 목표에 집중해주세요:
 
 1. 브랜드 신뢰도와 권위 구축
@@ -1607,7 +1614,7 @@ const BRAIN_TEMPLATES = {
     },
     creative: {
         name: 'Creative',
-        icon: '🎨',
+        icon: '',
         teamGoal: `우리는 창의적이고 트렌디한 브랜드입니다. 다음 목표에 집중해주세요:
 
 1. 감성적이고 공감가는 스토리텔링

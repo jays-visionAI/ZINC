@@ -4388,3 +4388,195 @@
 .view-all-link:hover span {
     text-decoration-color: #a78bfa;
 }
+
+/* ============================================
+   PROACTIVE MESSAGES (ZYNK Persona Engine)
+   ============================================ */
+
+.proactive-message-wrapper {
+    margin: 12px 0;
+    animation: slideInUp 0.3s ease-out;
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+}
+
+.proactive-message {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    overflow: hidden;
+    position: relative;
+}
+
+.proactive-message::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--proactive-color, #6366F1), transparent);
+}
+
+.proactive-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.proactive-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border: 1px solid transparent;
+}
+
+.proactive-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+}
+
+.proactive-icon svg {
+    width: 100%;
+    height: 100%;
+}
+
+.proactive-dismiss {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.4);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.proactive-dismiss:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.proactive-content {
+    padding: 16px;
+}
+
+.proactive-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: 8px;
+}
+
+.proactive-body {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--color-text-secondary);
+}
+
+.proactive-actions {
+    display: flex;
+    gap: 8px;
+    padding: 0 16px 16px;
+}
+
+.proactive-cta-primary {
+    flex: 1;
+    padding: 10px 16px;
+    background: linear-gradient(135deg, #6366F1, #8B5CF6);
+    border: none;
+    border-radius: 10px;
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.proactive-cta-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.proactive-cta-secondary {
+    padding: 10px 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    color: var(--color-text-secondary);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.proactive-cta-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Trigger Type Specific Styles */
+.proactive-message[data-trigger-type="task_recovery"] {
+    --proactive-color: #10B981;
+}
+
+.proactive-message[data-trigger-type="async_completion"] {
+    --proactive-color: #3B82F6;
+}
+
+.proactive-message[data-trigger-type="strategic_insight"] {
+    --proactive-color: #F59E0B;
+}
+
+.proactive-message[data-trigger-type="market_signal"] {
+    --proactive-color: #8B5CF6;
+}
+
+.proactive-message[data-trigger-type="user_scheduler"] {
+    --proactive-color: #6366F1;
+}
+
+.proactive-message[data-trigger-type="lifecycle_crm"] {
+    --proactive-color: #EC4899;
+}
+
+.proactive-message[data-trigger-type="admin_broadcast"] {
+    --proactive-color: #EF4444;
+    background: rgba(239, 68, 68, 0.05);
+    border-color: rgba(239, 68, 68, 0.15);
+}
