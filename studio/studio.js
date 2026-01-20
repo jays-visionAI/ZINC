@@ -548,6 +548,9 @@ async function initProjectSelector() {
 
                 await loadAgentTeams(projectId);
                 loadContentPlans(projectId); // Load Contexts
+
+                // [PROACTIVE] Auto-load Target Brief from Knowledge Hub sources
+                await loadAndAnalyzeTargetBrief(projectId, projectName);
             } else {
                 const agentTeamSelect = document.getElementById('agentteam-select');
                 if (agentTeamSelect) {
@@ -2154,6 +2157,194 @@ function syncBriefingBoard(content, mode = 'replace') {
 
 // Make globally accessible
 window.syncBriefingBoard = syncBriefingBoard;
+
+/**
+ * =====================================================
+ * [PROACTIVE] Load and Analyze Target Brief
+ * =====================================================
+ * 1. Load Knowledge Hub sources for the project
+ * 2. Merge them into a Target Brief
+ * 3. Analyze brief quality using AI
+ * 4. Proactively suggest what additional materials are needed
+ */
+async function loadAndAnalyzeTargetBrief(projectId, projectName) {
+    if (!projectId) return;
+
+    const firestore = getFirestore();
+    if (!firestore) return;
+
+    const contentLang = window.zynk_main_lang || 'en';
+    const isKorean = contentLang === 'ko';
+
+    try {
+        // 1. Load Knowledge Hub sources
+        addLogEntry(isKorean ? '컨텍스트 추출 중: 프로젝트 정보' : 'Context Extraction: Loading project info', 'info');
+
+        const sourcesSnapshot = await firestore.collection('projects').doc(projectId)
+            .collection('sources')
+            .orderBy('createdAt', 'desc')
+            .limit(20)
+            .get();
+
+        const sources = [];
+        sourcesSnapshot.forEach(doc => {
+            sources.push({ id: doc.id, ...doc.data() });
+        });
+
+        // 2. Merge sources into Target Brief
+        let briefContent = '';
+        let sourceTypes = new Set();
+
+        if (sources.length > 0) {
+            sources.forEach(src => {
+                sourceTypes.add(src.type || 'document');
+                if (src.content || src.summary) {
+                    briefContent += `### ${src.title || src.name || 'Source'}\n`;
+                    briefContent += (src.content || src.summary) + '\n\n';
+                }
+            });
+
+            addLogEntry(isKorean
+                ? `Context loaded: ${sources.length}개 소스 로드 완료`
+                : `Context loaded: Loaded ${sources.length} sources`, 'success');
+
+            syncBriefingBoard(briefContent.trim(), 'replace');
+        }
+
+        // 3. Analyze brief quality and identify gaps
+        await analyzeBriefQuality(projectId, projectName, briefContent, sources, sourceTypes);
+
+    } catch (error) {
+        console.warn('[Studio] Error loading Target Brief:', error);
+        addLogEntry(isKorean
+            ? 'Knowledge Hub 연결 대기 중...'
+            : 'Waiting for Knowledge Hub connection...', 'info');
+    }
+}
+
+/**
+ * [PROACTIVE - STRATEGIC_INSIGHT] Analyze Brief Quality and Suggest Improvements
+ */
+async function analyzeBriefQuality(projectId, projectName, briefContent, sources, sourceTypes) {
+    const contentLang = window.zynk_main_lang || 'en';
+    const isKorean = contentLang === 'ko';
+
+    // Quality metrics
+    const metrics = {
+        sourceCount: sources.length,
+        charCount: briefContent.length,
+        hasMarketData: /market|시장|경쟁|competitor/i.test(briefContent),
+        hasBrandInfo: /brand|브랜드|identity|아이덴티티/i.test(briefContent),
+        hasAudienceInfo: /audience|타겟|target|고객|customer/i.test(briefContent),
+        hasToneGuide: /tone|톤앤매너|voice|스타일/i.test(briefContent),
+        hasGoals: /goal|목표|objective|KPI/i.test(briefContent)
+    };
+
+    // Determine missing elements
+    const missingElements = [];
+
+    if (!metrics.hasBrandInfo) {
+        missingElements.push({
+            topic: isKorean ? '브랜드 정보' : 'Brand Information',
+            description: isKorean
+                ? '브랜드 아이덴티티, 핵심 가치, 차별화 포인트'
+                : 'Brand identity, core values, differentiation points',
+            suggestedType: 'document'
+        });
+    }
+
+    if (!metrics.hasAudienceInfo) {
+        missingElements.push({
+            topic: isKorean ? '타겟 오디언스' : 'Target Audience',
+            description: isKorean
+                ? '주요 고객층 프로파일, 페르소나, 니즈 분석'
+                : 'Customer profiles, personas, needs analysis',
+            suggestedType: 'document'
+        });
+    }
+
+    if (!metrics.hasMarketData) {
+        missingElements.push({
+            topic: isKorean ? '시장 데이터' : 'Market Data',
+            description: isKorean
+                ? '시장 트렌드, 경쟁사 분석, 산업 동향'
+                : 'Market trends, competitor analysis, industry insights',
+            suggestedType: 'web_link'
+        });
+    }
+
+    if (!metrics.hasToneGuide) {
+        missingElements.push({
+            topic: isKorean ? '톤앤매너 가이드' : 'Tone & Manner Guide',
+            description: isKorean
+                ? '브랜드 보이스, 커뮤니케이션 스타일'
+                : 'Brand voice, communication style guidelines',
+            suggestedType: 'document'
+        });
+    }
+
+    if (!metrics.hasGoals) {
+        missingElements.push({
+            topic: isKorean ? '캠페인 목표' : 'Campaign Goals',
+            description: isKorean
+                ? 'KPI, 성과 지표, 달성하고자 하는 결과'
+                : 'KPIs, success metrics, desired outcomes',
+            suggestedType: 'note'
+        });
+    }
+
+    // Brief is insufficient
+    if (metrics.charCount < 200 || missingElements.length >= 3) {
+        // [PROACTIVE] Show proactive suggestion card
+        const cardTitle = isKorean ? '프로젝트 확인' : 'Project Verified';
+        const projectInfo = isKorean
+            ? `현재 설정된 프로젝트 이름은 **${projectName}** 입니다.`
+            : `Current project is **${projectName}**.`;
+
+        addLogEntry(projectInfo, 'card', {
+            title: cardTitle,
+            icon: 'check',
+            status: 'done'
+        });
+
+        // Request for more materials
+        if (missingElements.length > 0) {
+            const suggestionTitle = isKorean
+                ? 'Knowledge Hub 보강 필요'
+                : 'Knowledge Hub Enhancement Needed';
+
+            let suggestionContent = isKorean
+                ? `이 프로젝트에 대한 Target Brief를 작성하기 위해 다음 정보가 필요합니다. 프로젝트의 목표, 대상, 핵심 메시지 등에 대해 알려주시겠어요?\n\n`
+                : `To build a complete Target Brief for this project, the following information would help. Could you tell me about the project's goals, audience, and key messages?\n\n`;
+
+            missingElements.slice(0, 3).forEach((elem, idx) => {
+                suggestionContent += `${idx + 1}. **${elem.topic}**: ${elem.description}\n`;
+            });
+
+            suggestionContent += isKorean
+                ? `\n[Knowledge Hub](../knowledgeHub.html?project=${projectId})에 자료를 추가하거나, 아래 채팅창에서 직접 정보를 입력해 주세요.`
+                : `\nPlease add materials to [Knowledge Hub](../knowledgeHub.html?project=${projectId}) or provide the information in the chat below.`;
+
+            addLogEntry(suggestionContent, 'card', {
+                title: suggestionTitle,
+                icon: 'brain',
+                status: 'running'
+            });
+        }
+    } else {
+        // Brief is sufficient
+        const readyTitle = isKorean ? '프로젝트 확인' : 'Project Verified';
+        const readyContent = isKorean
+            ? `**${projectName}** 프로젝트가 로드되었습니다.\n\nTarget Brief가 준비되었습니다. 콘텐츠 생성을 시작하거나, 아래에서 추가 지시사항을 입력해 주세요.`
+            : `**${projectName}** project loaded.\n\nTarget Brief is ready. Start content generation or provide additional instructions below.`;
+
+        addLogEntry(readyContent, 'card', {
+            title: readyTitle,
+            icon: 'check',
+            status: 'done'
+        });
+    }
+}
 
 // ============================================
 // MISSING INIT FUNCTIONS (STUBS)
