@@ -2293,13 +2293,13 @@ async function analyzeBriefQuality(projectId, projectName, briefContent, sources
         });
     }
 
-    // Brief is insufficient
+    // Brief is insufficient - Start conversational onboarding
     if (metrics.charCount < 200 || missingElements.length >= 3) {
-        // [PROACTIVE] Show proactive suggestion card
-        const cardTitle = isKorean ? '프로젝트 확인' : 'Project Verified';
+        // [PROACTIVE] Step 1: Project Confirmation Card
+        const cardTitle = isKorean ? '프로젝트 이름 확인' : 'Project Name Confirmed';
         const projectInfo = isKorean
-            ? `현재 설정된 프로젝트 이름은 **${projectName}** 입니다.`
-            : `Current project is **${projectName}**.`;
+            ? `사용자가 제시한 프로젝트는 "**${projectName}**" 입니다. 이는 우리가 구축할 "Target Brief"의 핵심 주제입니다.`
+            : `The project you selected is "**${projectName}**". This will be the core subject of the Target Brief we'll build together.`;
 
         addLogEntry(projectInfo, 'card', {
             title: cardTitle,
@@ -2307,36 +2307,72 @@ async function analyzeBriefQuality(projectId, projectName, briefContent, sources
             status: 'done'
         });
 
-        // Request for more materials
-        if (missingElements.length > 0) {
-            const suggestionTitle = isKorean
-                ? 'Knowledge Hub 보강 필요'
-                : 'Knowledge Hub Enhancement Needed';
+        // [PROACTIVE] Step 2: Explain WHY Target Brief matters
+        setTimeout(() => {
+            const whyTitle = isKorean ? 'Target Brief란?' : 'What is Target Brief?';
+            const whyContent = isKorean
+                ? `**Target Brief**는 AI 에이전트 팀이 최고의 콘텐츠를 만들기 위한 "설계도"입니다.\n\n` +
+                `좋은 Target Brief가 있으면:\n` +
+                `• 브랜드 톤에 맞는 일관된 콘텐츠 생성\n` +
+                `• 타겟 고객에게 정확히 어필하는 메시지\n` +
+                `• 경쟁사와 차별화되는 독창적인 아이디어\n\n` +
+                `**저와 함께 몇 가지 질문에 답하면, 최적의 Target Brief를 완성할 수 있습니다.**`
+                : `**Target Brief** is the "blueprint" for AI agents to create the best content.\n\n` +
+                `With a good Target Brief:\n` +
+                `• Consistent content matching your brand tone\n` +
+                `• Messages that resonate with your target audience\n` +
+                `• Creative ideas that differentiate from competitors\n\n` +
+                `**Answer a few questions with me, and we'll complete the optimal Target Brief together.**`;
 
-            let suggestionContent = isKorean
-                ? `이 프로젝트에 대한 Target Brief를 작성하기 위해 다음 정보가 필요합니다. 프로젝트의 목표, 대상, 핵심 메시지 등에 대해 알려주시겠어요?\n\n`
-                : `To build a complete Target Brief for this project, the following information would help. Could you tell me about the project's goals, audience, and key messages?\n\n`;
-
-            missingElements.slice(0, 3).forEach((elem, idx) => {
-                suggestionContent += `${idx + 1}. **${elem.topic}**: ${elem.description}\n`;
-            });
-
-            suggestionContent += isKorean
-                ? `\n[Knowledge Hub](../knowledgeHub.html?project=${projectId})에 자료를 추가하거나, 아래 채팅창에서 직접 정보를 입력해 주세요.`
-                : `\nPlease add materials to [Knowledge Hub](../knowledgeHub.html?project=${projectId}) or provide the information in the chat below.`;
-
-            addLogEntry(suggestionContent, 'card', {
-                title: suggestionTitle,
+            addLogEntry(whyContent, 'card', {
+                title: whyTitle,
                 icon: 'brain',
-                status: 'running'
+                status: 'done'
             });
-        }
+        }, 500);
+
+        // [PROACTIVE] Step 3: Start the conversation with first question
+        setTimeout(() => {
+            const firstQuestion = isKorean
+                ? `이제 **${projectName}** 프로젝트에 대한 "Target Brief"를 함께 구체화해 나가겠습니다.\n\n` +
+                `첫 번째 단계로, 이 프로젝트의 **핵심 목표와 비전**을 이해해야 합니다.\n\n` +
+                `**${projectName}**은 어떤 문제를 해결하거나, 어떤 기회를 포착하기 위한 프로젝트인가요?\n` +
+                `간단히 말해, 이 프로젝트의 존재 이유는 무엇인가요?\n\n` +
+                `이 정보를 바탕으로 다음 단계를 진행하겠습니다.`
+                : `Now let's build the "Target Brief" for **${projectName}** together.\n\n` +
+                `First, I need to understand the **core goals and vision** of this project.\n\n` +
+                `What problem does **${projectName}** solve, or what opportunity is it capturing?\n` +
+                `Simply put, what is the reason this project exists?\n\n` +
+                `Based on this, we'll proceed to the next steps.`;
+
+            addLogEntry(firstQuestion, 'info');
+
+            // Add a suggested action button
+            const actionBtnHtml = isKorean
+                ? `<button class="brief-action-btn" onclick="showBriefQuestionHelper()" style="margin-top: 12px; padding: 10px 20px; background: rgba(139, 92, 246, 0.2); border: 1px solid rgba(139, 92, 246, 0.5); border-radius: 8px; color: #a78bfa; cursor: pointer; font-size: 13px;">아직 형성된 Target Brief는 없어?</button>`
+                : `<button class="brief-action-btn" onclick="showBriefQuestionHelper()" style="margin-top: 12px; padding: 10px 20px; background: rgba(139, 92, 246, 0.2); border: 1px solid rgba(139, 92, 246, 0.5); border-radius: 8px; color: #a78bfa; cursor: pointer; font-size: 13px;">Don't have a Target Brief yet?</button>`;
+
+            // Find the last log entry and append the button
+            const streamContainer = document.getElementById('chat-stream-log');
+            if (streamContainer && streamContainer.lastElementChild) {
+                const btnWrapper = document.createElement('div');
+                btnWrapper.innerHTML = actionBtnHtml;
+                streamContainer.lastElementChild.appendChild(btnWrapper);
+            }
+        }, 1200);
+
     } else {
-        // Brief is sufficient
+        // Brief is sufficient - Ready to go
         const readyTitle = isKorean ? '프로젝트 확인' : 'Project Verified';
         const readyContent = isKorean
-            ? `**${projectName}** 프로젝트가 로드되었습니다.\n\nTarget Brief가 준비되었습니다. 콘텐츠 생성을 시작하거나, 아래에서 추가 지시사항을 입력해 주세요.`
-            : `**${projectName}** project loaded.\n\nTarget Brief is ready. Start content generation or provide additional instructions below.`;
+            ? `**${projectName}** 프로젝트가 로드되었습니다.\n\n` +
+            `Target Brief가 준비되었습니다 (${metrics.charCount}자, ${sources.length}개 소스).\n\n` +
+            `✓ 콘텐츠 생성을 시작하려면 아래에서 채널을 선택하세요.\n` +
+            `✓ 추가 지시사항이 있다면 채팅창에 입력해 주세요.`
+            : `**${projectName}** project loaded.\n\n` +
+            `Target Brief is ready (${metrics.charCount} chars, ${sources.length} sources).\n\n` +
+            `✓ Select channels below to start content generation.\n` +
+            `✓ Provide additional instructions in the chat if needed.`;
 
         addLogEntry(readyContent, 'card', {
             title: readyTitle,
@@ -2345,6 +2381,38 @@ async function analyzeBriefQuality(projectId, projectName, briefContent, sources
         });
     }
 }
+
+/**
+ * Helper function to show guided questions for building Target Brief
+ */
+window.showBriefQuestionHelper = function () {
+    const contentLang = window.zynk_main_lang || 'en';
+    const isKorean = contentLang === 'ko';
+
+    const helperContent = isKorean
+        ? `**Target Brief 빠른 구축 가이드**\n\n` +
+        `아래 질문에 답하면 AI가 자동으로 Target Brief를 구성해 드립니다:\n\n` +
+        `1️⃣ **브랜드/제품**: 무엇을 홍보하나요?\n` +
+        `2️⃣ **타겟 고객**: 누구에게 전달하나요? (연령, 관심사)\n` +
+        `3️⃣ **핵심 메시지**: 무엇을 말하고 싶나요?\n` +
+        `4️⃣ **톤앤매너**: 어떤 느낌으로? (친근, 전문적, 유머)\n` +
+        `5️⃣ **목표**: 어떤 결과를 원하나요? (인지도, 전환, 참여)\n\n` +
+        `채팅창에 자유롭게 답변해 주세요. 완벽하지 않아도 됩니다!`
+        : `**Quick Target Brief Builder**\n\n` +
+        `Answer these questions and AI will automatically build your Target Brief:\n\n` +
+        `1️⃣ **Brand/Product**: What are you promoting?\n` +
+        `2️⃣ **Target Audience**: Who are you reaching? (age, interests)\n` +
+        `3️⃣ **Key Message**: What do you want to say?\n` +
+        `4️⃣ **Tone & Manner**: What's the vibe? (friendly, professional, humorous)\n` +
+        `5️⃣ **Goals**: What results do you want? (awareness, conversion, engagement)\n\n` +
+        `Feel free to answer in the chat. It doesn't have to be perfect!`;
+
+    addLogEntry(helperContent, 'card', {
+        title: isKorean ? '빠른 가이드' : 'Quick Guide',
+        icon: 'robot',
+        status: 'done'
+    });
+};
 
 // ============================================
 // MISSING INIT FUNCTIONS (STUBS)
