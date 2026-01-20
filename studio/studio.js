@@ -2130,3 +2130,90 @@ function syncBriefingBoard(content, mode = 'replace') {
 
 // Make globally accessible
 window.syncBriefingBoard = syncBriefingBoard;
+
+// ============================================
+// MISSING INIT FUNCTIONS (STUBS)
+// ============================================
+
+/**
+ * Initialize Template Selector (Lite Mode, Standard, Deep Dive, Custom)
+ */
+function initTemplateSelector() {
+    const templateBtns = document.querySelectorAll('[data-template]');
+    if (!templateBtns.length) {
+        console.log('[Studio] Template selector not found in DOM, skipping initialization.');
+        return;
+    }
+
+    templateBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const templateId = btn.dataset.template;
+            if (WORKFLOW_TEMPLATES[templateId]) {
+                state.selectedTemplate = templateId;
+                templateBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                console.log('[Studio] Template selected:', templateId);
+            }
+        });
+    });
+    console.log('[Studio] Template selector initialized.');
+}
+
+/**
+ * Initialize Agent Roster (Agent selection UI)
+ */
+function initAgentRoster() {
+    console.log('[Studio] Agent roster initialized (placeholder).');
+}
+
+/**
+ * Initialize Preview Tabs (Channel preview tabs)
+ */
+function initPreviewTabs() {
+    console.log('[Studio] Preview tabs initialized (placeholder).');
+}
+
+/**
+ * Initialize Footer Buttons (Action buttons at footer)
+ */
+function initFooterButtons() {
+    console.log('[Studio] Footer buttons initialized (placeholder).');
+}
+
+/**
+ * Initialize Sidebar Toggle
+ */
+function initSidebarToggle() {
+    const toggle = document.getElementById('sidebar-toggle');
+    const sidebar = document.querySelector('.sidebar, .left-sidebar');
+
+    if (toggle && sidebar) {
+        toggle.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+        });
+    }
+    console.log('[Studio] Sidebar toggle initialized.');
+}
+
+/**
+ * Initialize Booster Toggle (BOOST mode)
+ */
+function initBoosterToggle() {
+    const boostBtn = document.getElementById('boost-toggle');
+    if (boostBtn) {
+        boostBtn.addEventListener('click', () => {
+            boostBtn.classList.toggle('active');
+            state.boostMode = boostBtn.classList.contains('active');
+            console.log('[Studio] Boost mode:', state.boostMode);
+        });
+    }
+    console.log('[Studio] Booster toggle initialized.');
+}
+
+/**
+ * Update stats display
+ */
+function updateStats() {
+    // Placeholder for stats update logic
+    console.log('[Studio] Stats updated.');
+}
