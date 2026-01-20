@@ -643,14 +643,35 @@ Language: Respond ONLY in {{targetLanguage}}.
         // Add to history
         state.chatHistory.push({ role: 'user', content: text });
 
+        // [SESSION HISTORY] Save user message to Firestore
+        if (window.SessionHistoryService && state.selectedProject) {
+            await window.SessionHistoryService.ensureSession(state.selectedProject, projectName);
+            window.SessionHistoryService.saveMessage('user', text, { projectName });
+        }
+
         try {
             // Call LLM Router Service
             if (window.LLMRouterService) {
+                // Load persisted context if available
+                let contextMessages = state.chatHistory.slice(-20); // Increased from 5 to 20
+
+                if (window.SessionHistoryService && state.selectedProject) {
+                    const session = window.SessionHistoryService.getCurrentSession();
+                    if (session.id) {
+                        const persistedContext = await window.SessionHistoryService.loadLLMContext(
+                            state.selectedProject, session.id
+                        );
+                        if (persistedContext.length > 0) {
+                            contextMessages = persistedContext;
+                        }
+                    }
+                }
+
                 const response = await window.LLMRouterService.call({
                     feature: 'studio_chat', // Custom feature for studio interaction
                     messages: [
                         { role: 'system', content: systemPrompt },
-                        ...state.chatHistory.slice(-5) // Keep last 5 messages for context
+                        ...contextMessages
                     ],
                     qualityTier: 'DEFAULT',
                     projectId: state.selectedProject
@@ -658,6 +679,14 @@ Language: Respond ONLY in {{targetLanguage}}.
 
                 const aiMessage = response.content;
                 state.chatHistory.push({ role: 'assistant', content: aiMessage });
+
+                // [SESSION HISTORY] Save AI response to Firestore
+                if (window.SessionHistoryService && state.selectedProject) {
+                    window.SessionHistoryService.saveMessage('assistant', aiMessage, {
+                        model: response.model,
+                        tokens: response.usage?.totalTokens
+                    });
+                }
 
                 // 1. Process AI Commands ([CONTEXT: ...], [SEARCH: ...])
                 const cleanMessage = parseAICommands(aiMessage);
