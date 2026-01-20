@@ -306,6 +306,21 @@ service cloud.firestore {
         allow create: if isAuthenticated() && isProjectOwner(projectId);
         allow write: if isAdmin();
       }
+
+      // Studio Sessions (Chat History)
+      match /studioSessions/{sessionId} {
+        allow read: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
+        allow create: if isAuthenticated() && isProjectOwner(projectId);
+        allow update: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
+        allow delete: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
+        
+        // Messages within sessions
+        match /messages/{messageId} {
+          allow read: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());
+          allow create: if isAuthenticated() && isProjectOwner(projectId);
+          allow delete: if isAdmin();
+        }
+      }
     }
 
     // System Settings (Admin only, except apiKeys which authenticated users can read)
