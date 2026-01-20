@@ -753,12 +753,29 @@ Current Project Context: {{projectName}}
         });
 
         // [SESSION HISTORY] Save user message to Firestore
+        // [SESSION HISTORY] Save user message to Firestore
         if (window.SessionHistoryService && state.selectedProject) {
+            // Check if we are starting a new session
+            const isNewSession = !window.SessionHistoryService.getCurrentSession().id;
+
             await window.SessionHistoryService.ensureSession(state.selectedProject, projectName);
-            window.SessionHistoryService.saveMessage('user', promptText, {
+
+            await window.SessionHistoryService.saveMessage('user', promptText, {
                 projectName,
                 hasImages: images.length > 0
             });
+
+            // If a new session was created, refresh the sidebar list immediately
+            if (isNewSession) {
+                await loadSessions(state.selectedProject);
+                // Highlight the new session (first in list)
+                const sessions = await window.SessionHistoryService.listSessions(state.selectedProject, 10);
+                if (sessions.length > 0) {
+                    // Optionally update UI selection styling without full reload
+                    // renderSessionList handles styling check based on current ID
+                    renderSessionList(sessions);
+                }
+            }
         }
 
         try {
@@ -1134,8 +1151,8 @@ function addLogEntry(message, type = 'info', meta = null) {
     const welcome = document.getElementById('engine-welcome-state');
 
     if (streamContainer) {
-        // Hide welcome message on first log
-        if (welcome) welcome.style.display = 'none';
+        // Keep welcome visible for new sessions, only hide when loading existing chat
+        // (This is handled in switchSession instead)
 
         const msgDiv = document.createElement('div');
 
@@ -2001,10 +2018,14 @@ window.handleFileSelection = function (input, type) {
     }
 
     newFiles.forEach(file => {
+        // Auto-detect image type to ensure correct thumbnail rendering
+        const isImage = file.type && file.type.startsWith('image/');
+        const finalType = isImage ? 'image' : type;
+
         const attachment = {
             id: 'att_' + Date.now() + Math.random().toString(36).substr(2, 9),
             file: file,
-            type: type,
+            type: finalType,
             name: file.name,
             size: file.size,
             url: URL.createObjectURL(file)
@@ -3220,12 +3241,25 @@ async function switchSession(sessionId, force = false) {
             // Load messages
             const messages = await window.SessionHistoryService.loadSessionMessages(projectId, sessionId, 100); // Load up to 100
 
+            // Hide welcome screen when loading existing session with messages
+            const welcome = document.getElementById('engine-welcome-state');
+            if (messages.length > 0 && welcome) {
+                welcome.style.display = 'none';
+            } else if (welcome) {
+                welcome.style.display = 'flex'; // Show welcome for empty sessions
+            }
+
             // Update local state and display messages
             state.chatHistory = messages.map(msg => ({ role: msg.role, content: msg.content }));
 
             messages.forEach(msg => {
                 addLogEntry(msg.content, msg.role === 'user' ? 'user' : 'info');
             });
+
+            // Auto-scroll to the bottom (latest message)
+            if (streamContainer) {
+                streamContainer.scrollTop = streamContainer.scrollHeight;
+            }
 
             // Reload list to update active state
             const sessions = await window.SessionHistoryService.listSessions(projectId, 10);

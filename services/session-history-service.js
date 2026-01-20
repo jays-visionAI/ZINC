@@ -342,26 +342,17 @@
     /**
      * Get or create session for current project
      */
+    /**
+     * Get or create session for current project
+     */
     async function ensureSession(projectId, projectName) {
         // Check if we have an active session for this project
         if (currentSession.id && currentSession.projectId === projectId) {
             return currentSession.id;
         }
 
-        // Try to find recent session (within 24 hours)
-        const sessions = await listSessions(projectId, 1);
-        if (sessions.length > 0) {
-            const lastSession = sessions[0];
-            const updatedAt = lastSession.updatedAt?.toDate?.() || new Date(0);
-            const hoursSinceUpdate = (Date.now() - updatedAt.getTime()) / (1000 * 60 * 60);
-
-            if (hoursSinceUpdate < CONFIG.SESSION_TIMEOUT_HOURS) {
-                await resumeSession(projectId, lastSession.id);
-                return lastSession.id;
-            }
-        }
-
-        // Create new session
+        // [MODIFIED] Always create a new session if none is active
+        // Do NOT auto-resume old sessions to prevent confusion
         return await createSession(projectId, projectName);
     }
 
