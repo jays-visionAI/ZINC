@@ -3830,7 +3830,7 @@
 .engine-stream-container {
     flex: 1;
     overflow-y: auto;
-    padding: 24px 20% 150px 20%;
+    padding: 24px 5% 150px 5%;
     /* Centered content channel */
     display: flex;
     flex-direction: column;

@@ -70,6 +70,9 @@ let state = {
     timerSeconds: 0,
     timerInterval: null,
     planContext: null, // Context from Knowledge Hub
+    isThinking: false, // Track if AI is currently thinking (processing a message)
+    messageQueue: [],  // Queue for messages sent while AI is thinking
+    attachments: [],   // Current attachments in the command bar
     // UNIFIED BRAIN: Multi-channel targeting
     targetChannels: ['x'], // Default to X/Twitter
     availableChannels: [
@@ -77,6 +80,8 @@ let state = {
         'naver_blog', 'naver_smart_store', 'naver_map', 'coupang', 'tmap', 'kakao_navi', 'kakao_map',
         'pinterest', 'reddit', 'threads', 'snapchat', 'discord', 'telegram', 'medium'
     ],
+    maxFiles: 5, // Maximum attachments allowed
+    isThinking: false, // Track if AI is currently thinking
 };
 
 // ============================================
@@ -600,7 +605,7 @@ function initChatEngine() {
      * [SYSTEM] STUDIO ORCHESTRATOR SYSTEM PROMPT
      * =====================================================
      */
-    const maxFiles = 5;
+    // maxFiles moved to global state
 
     const STUDIO_ASSISTANT_SYSTEM_PROMPT = `
 You are the ZYNK Studio Orchestrator with Super Vision capabilities. Your role is to collaborate with the user to build a "Target Brief" (Final Context).
@@ -624,10 +629,29 @@ Language: Detect user language and respond accordingly.
 Current Project: {{projectName}}
 `;
 
+    // Helper: Check if there's any content to send and update button state
+    window.checkInputState = function () {
+        const input = document.getElementById('main-instruction-input');
+        const sendBtn = document.getElementById('btn-send-instruction');
+        if (!input || !sendBtn) return;
+
+        const hasContent = input.value.trim().length > 0 || state.attachments.length > 0;
+
+        if (!state.isThinking) {
+            sendBtn.disabled = !hasContent;
+            sendBtn.style.opacity = hasContent ? '1' : '0.5';
+            sendBtn.style.cursor = hasContent ? 'pointer' : 'default';
+        } else {
+            // When thinking, the button should still look enabled if they are typing a stacked message
+            sendBtn.disabled = !hasContent;
+            sendBtn.style.opacity = hasContent ? '1' : '0.5';
+        }
+    };
+
     // Unified Smart Action Handler (Enhanced Interactive AI)
     const handleSmartExecute = async () => {
         const text = input.value.trim();
-        const attachments = state.attachments || [];
+        const attachments = [...state.attachments];
 
         if (!text && attachments.length === 0) {
             if (!state.selectedAgentTeam) {
@@ -642,13 +666,44 @@ Current Project: {{projectName}}
             return;
         }
 
+        // --- MESSAGE QUEUEING ---
+        if (state.isThinking) {
+            state.messageQueue.push({ text, attachments });
+
+            // Clear current input for next queued message
+            input.value = '';
+            input.style.height = 'auto';
+            state.attachments = [];
+            const previewArea = document.getElementById('command-preview-area');
+            if (previewArea) {
+                previewArea.innerHTML = '';
+                previewArea.style.display = 'none';
+            }
+
+            addLogEntry(t('studio.log.messageQueued'), 'info');
+            window.checkInputState();
+            return;
+        }
+
         // --- INTERACTIVE AI PHASE ---
-        const userMsg = text || t('studio.log.processingAttachments');
-        addLogEntry(userMsg, 'user');
+        state.isThinking = true;
+
+        // Clear input immediately
+        input.value = '';
+        input.style.height = 'auto';
+        state.attachments = [];
+        const previewArea = document.getElementById('command-preview-area');
+        if (previewArea) {
+            previewArea.innerHTML = '';
+            previewArea.style.display = 'none';
+        }
+
+        addLogEntry(text || t('studio.log.processingAttachments'), 'user');
 
         // --- SHOW THINKING STATE ---
         showAIThinking(t('studio.log.thinkingAnalyzing'));
         updateSmartButtonState('loading');
+        window.checkInputState();
 
         // Prepare context for AI
         const projectSelect = document.getElementById('project-select');
@@ -749,6 +804,9 @@ Current Project: {{projectName}}
 
                 // 1. Process AI Commands ([CONTEXT: ...], [SEARCH: ...])
                 const cleanMessage = parseAICommands(aiMessage);
+                addLogEntry(cleanMessage, 'user'); // Show response in UI
+
+                state.isThinking = false;
 
                 // 2. Display AI Response
                 addLogEntry(cleanMessage, 'info');
@@ -847,7 +905,29 @@ ${t('studio.log.orchestrator')}: 입력하신 내용을 바탕으로 컨텍스�
                 previewArea.style.display = 'none';
             }
             removeAIThinking(); // Final safety clear
+            state.isThinking = false;
             updateSmartButtonState('default');
+            checkInputState();
+
+            // PROCESS QUEUE if any
+            if (state.messageQueue.length > 0) {
+                const nextMessage = state.messageQueue.shift();
+                setTimeout(() => {
+                    const input = document.getElementById('main-instruction-input');
+                    if (input) {
+                        input.value = nextMessage.text;
+                        state.attachments = nextMessage.attachments;
+                        // Re-render thumbnails if there are attachments
+                        const previewArea = document.getElementById('command-preview-area');
+                        if (previewArea && state.attachments.length > 0) {
+                            previewArea.innerHTML = '';
+                            state.attachments.forEach(att => renderAttachmentThumbnail(att));
+                            previewArea.style.display = 'flex';
+                        }
+                        handleSmartExecute();
+                    }
+                }, 1000);
+            }
         }
     };
 
@@ -955,6 +1035,7 @@ ${t('studio.log.orchestrator')}: 입력하신 내용을 바탕으로 컨텍스�
 
     // Event Listeners
     sendBtn.addEventListener('click', handleSmartExecute);
+    input.addEventListener('input', window.checkInputState);
     input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             // Fix for Korean IME composition duplicating last character
@@ -1010,6 +1091,9 @@ ${t('studio.log.orchestrator')}: 입력하신 내용을 바탕으로 컨텍스�
     if (typeof initDragDrop === 'function') {
         initDragDrop();
     }
+
+    // Initial check
+    if (typeof window.checkInputState === 'function') window.checkInputState();
 }
 
 /**
@@ -1845,15 +1929,17 @@ window.triggerAttachment = function (type) {
 
 // State for attachments
 state.attachments = [];
+state.messageQueue = []; // Initialize message queue
 
 window.handleFileSelection = function (input, type) {
     if (!input.files || input.files.length === 0) return;
+    console.log('[Studio] Selection:', input.files.length, 'files of type', type);
 
     const newFiles = Array.from(input.files);
     const currentCount = state.attachments.length;
 
-    if (currentCount + newFiles.length > maxFiles) {
-        addLogEntry(t('studio.log.maxAttachments').replace('{{count}}', maxFiles), 'warning');
+    if (currentCount + newFiles.length > state.maxFiles) {
+        addLogEntry(t('studio.log.maxAttachments').replace('{{count}}', state.maxFiles), 'warning');
         return;
     }
 
@@ -1874,6 +1960,7 @@ window.handleFileSelection = function (input, type) {
     input.value = '';
     const previewArea = document.getElementById('command-preview-area');
     if (previewArea) previewArea.style.display = 'flex';
+    checkInputState();
 };
 
 function renderAttachmentThumbnail(attachment) {
@@ -1906,8 +1993,9 @@ function renderAttachmentThumbnail(attachment) {
         img.onclick = () => openLightbox(attachment.url);
         thumb.appendChild(img);
     } else {
-        // File Icon
-        thumb.innerHTML = `<span style="font-size:24px; display: flex; align-items: center; justify-content: center;">${studioIcons.document}</span>`;
+        // File Icon - Updated with proper SVG sizing for thumbnails
+        const iconHtml = studioIcons.document.replace('width="14"', 'width="24"').replace('height="14"', 'height="24"');
+        thumb.innerHTML = `<span style="display: flex; align-items: center; justify-content: center;">${iconHtml}</span>`;
     }
 
     // Delete Button (X)
@@ -1940,15 +2028,18 @@ function renderAttachmentThumbnail(attachment) {
 }
 
 function removeAttachment(id) {
-    state.attachments = state.attachments.filter(a => a.id !== id);
     const thumb = document.getElementById(id);
     if (thumb) thumb.remove();
 
-    // Hide area if empty
+    state.attachments = state.attachments.filter(a => a.id !== id);
+
+    // Hide preview area if last attachment removed
     if (state.attachments.length === 0) {
         const previewArea = document.getElementById('command-preview-area');
         if (previewArea) previewArea.style.display = 'none';
     }
+
+    if (typeof window.checkInputState === 'function') window.checkInputState();
 }
 
 // Drag & Drop Setup for Command Bar
