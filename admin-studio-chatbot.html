@@ -1,0 +1,29 @@
+<div class="admin-card">
+    <div style="margin-bottom: 24px;">
+        <h3 style="margin: 0;">Studio Chatbot Configuration</h3>
+        <p style="margin: 4px 0 0 0; color: rgba(255,255,255,0.5); font-size: 14px;">
+            Customize the system persona and instructions for the ZYNK Studio Assistant.
+        </p>
+    </div>
+
+    <div
+        style="background: rgba(255,255,255,0.03); border-radius: 8px; padding: 24px; border: 1px solid rgba(255,255,255,0.05);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h4 style="margin: 0; color: #fff;">System Prompt</h4>
+            <div style="display: flex; gap: 10px;">
+                <button id="btn-reset-prompt" class="admin-btn-secondary">↺ Reset to Default</button>
+                <button id="btn-save-prompt" class="admin-btn-primary">💾 Save Changes</button>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label style="display: block; color: #94a3b8; font-size: 12px; margin-bottom: 8px;">
+                Define the AI's role, capabilities, and constraints. This prompt is hidden from the user but guides all
+                responses.
+            </label>
+            <textarea id="studio-system-prompt-input" class="admin-input"
+                style="min-height: 500px; font-family: monospace; line-height: 1.5; font-size: 13px; background: #1e1e24; color: #e2e8f0; border: 1px solid #333;"
+                placeholder="Loading prompt..."></textarea>
+        </div>
+    </div>
+</div>

@@ -307,6 +307,12 @@ service cloud.firestore {
         allow write: if isAdmin();
       }
 
+      // Studio Configs (System Prompts)
+      match /studio_configs/{configId} {
+        allow read: if isAuthenticated(); // Allow all authenticated users to read prompts
+        allow write: if isAdmin();
+      }
+
       // Studio Sessions (Chat History)
       match /studioSessions/{sessionId} {
         allow read: if isAuthenticated() && (isProjectOwner(projectId) || isAdmin());

@@ -179,6 +179,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             documents: "Documentation",
             subscriptions: "Subscription Management",
             chatbot: "AI Chatbot Settings",
+            'studio-chatbot': "Studio Chatbot Configuration",
             pipeline: "5-Step Pipeline Management",
             'pipeline-market': "Pipeline: Market Pulse Settings",
             'pipeline-brand': "Pipeline: Brand Brain Settings",
