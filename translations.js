@@ -1,4 +1,5 @@
 // Language translations
+// [BUILD_HEARTBEAT] 2026-01-21 05:12 - Forced rebuild for Cloudflare Pages.
 const translations = {
     en: {
         // Navigation

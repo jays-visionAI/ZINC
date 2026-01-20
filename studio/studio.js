@@ -651,6 +651,7 @@ Current Project: {{projectName}}
     // Unified Smart Action Handler (Enhanced Interactive AI)
     const handleSmartExecute = async () => {
         const text = input.value.trim();
+        const userMsg = text || t('studio.log.processingAttachments');
         const attachments = [...state.attachments];
 
         if (!text && attachments.length === 0) {
@@ -812,7 +813,8 @@ Current Project: {{projectName}}
 
                 // 3. Smart Redirection (Studio -> Knowledge Hub)
                 const analysisKeywords = ['deep analyze', 'analyze documents', 'knowledge base', 'pdf', 'insight from sources', '문서 분석', '나리지 베이스', '심층 분석'];
-                const needsDeepAnalysis = analysisKeywords.some(kw => text.toLowerCase().includes(kw));
+                const searchStr = (text || userMsg || "").toLowerCase();
+                const needsDeepAnalysis = analysisKeywords.some(kw => searchStr.includes(kw));
                 if (needsDeepAnalysis && typeof t === 'function') {
                     addLogEntry(t('studio.suggestion.gotoKnowledgeHub'), 'success');
                 }
