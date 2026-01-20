@@ -60,6 +60,8 @@ let state = {
     selectedAgentTeam: null,
     selectedTemplate: 'quick', // Phase 4: Default to Lite Mode
     chatHistory: [], // Interactive Studio Chat history
+    currentThinkingBubble: null, // Track the thinking bubble element
+    thinkingTimer: null,        // Timer for dot animation
     selectedAgents: [],
     isExecuting: false,
     isPaused: false,
@@ -643,6 +645,9 @@ Current Project: {{projectName}}
         // --- INTERACTIVE AI PHASE ---
         const userMsg = text || t('studio.log.processingAttachments');
         addLogEntry(userMsg, 'user');
+
+        // --- SHOW THINKING STATE ---
+        showAIThinking(t('studio.log.thinkingAnalyzing'));
         updateSmartButtonState('loading');
 
         // Prepare context for AI
@@ -659,6 +664,7 @@ Current Project: {{projectName}}
         // Convert images to base64 if any
         const images = [];
         if (attachments.length > 0) {
+            updateAIThinking(t('studio.log.processingAttachments'));
             for (const att of attachments) {
                 if (att.type === 'image') {
                     try {
@@ -705,6 +711,8 @@ Current Project: {{projectName}}
                     }
                 }
 
+                updateAIThinking(t('studio.log.generatingResponse'));
+
                 const response = await window.LLMRouterService.call({
                     feature: 'studio_chat', // Custom feature for studio interaction
                     messages: [
@@ -736,6 +744,9 @@ Current Project: {{projectName}}
                     });
                 }
 
+                // REMOVE THINKING STATE before showing response
+                removeAIThinking();
+
                 // 1. Process AI Commands ([CONTEXT: ...], [SEARCH: ...])
                 const cleanMessage = parseAICommands(aiMessage);
 
@@ -754,6 +765,7 @@ Current Project: {{projectName}}
 
         } catch (error) {
             console.error('[Studio] Interactive AI Error:', error);
+            removeAIThinking(); // Clear thinking state on error
 
             // DEMO FALLBACK: If service fails, use a local simulator to allow testing the workflow
             console.log('[Studio] LLM Service unreachable, activating Studio Simulator Fallback...');
@@ -834,6 +846,7 @@ ${t('studio.log.orchestrator')}: 입력하신 내용을 바탕으로 컨텍스�
                 previewArea.innerHTML = '';
                 previewArea.style.display = 'none';
             }
+            removeAIThinking(); // Final safety clear
             updateSmartButtonState('default');
         }
     };
@@ -1074,6 +1087,27 @@ function addLogEntry(message, type = 'info', meta = null) {
                 msgDiv.innerHTML = `${studioIcons.system} <strong>${t('studio.log.orchestrator')}:</strong> ${replaceEmojis(message)}`;
                 break;
 
+            case 'thinking':
+                msgDiv.className = 'thinking-bubble';
+                msgDiv.id = 'ai-thinking-state';
+                msgDiv.innerHTML = `
+                    <div class="thinking-header">
+                        <span>${t('studio.log.thinking')}</span>
+                        <div class="thinking-dots-container">
+                            <div class="thinking-dot active"></div>
+                            <div class="thinking-dot"></div>
+                            <div class="thinking-dot"></div>
+                            <div class="thinking-spinner"></div>
+                        </div>
+                    </div>
+                    <div class="thinking-process-section">
+                        <div class="thinking-process-label">${t('studio.log.thinkingProcess')}</div>
+                        <div class="thinking-process-text">${message}</div>
+                    </div>
+                `;
+                state.currentThinkingBubble = msgDiv;
+                break;
+
             default: // Legacy types (info, success, error) -> Treat as System logs or Notifications
                 msgDiv.className = 'msg-system';
                 const prefix = studioIcons[type] || studioIcons.info;
@@ -1087,10 +1121,66 @@ function addLogEntry(message, type = 'info', meta = null) {
         const parent = streamContainer.closest('.engine-stream-container') || streamContainer;
         parent.scrollTop = parent.scrollHeight;
 
+        // START Dot Animation if it's the thinking bubble
+        if (type === 'thinking') {
+            startThinkingAnimation();
+        }
+
         return;
     }
+}
 
-    // 3. Legacy Log List Fallback (Left Panel)
+/**
+ * AI Thinking UI Animation
+ */
+function showAIThinking(processText) {
+    if (state.currentThinkingBubble) removeAIThinking();
+    addLogEntry(processText, 'thinking');
+}
+
+function updateAIThinking(newProcessText) {
+    if (state.currentThinkingBubble) {
+        const textEl = state.currentThinkingBubble.querySelector('.thinking-process-text');
+        if (textEl) textEl.textContent = newProcessText;
+    }
+}
+
+function removeAIThinking() {
+    if (state.currentThinkingBubble && state.currentThinkingBubble.parentNode) {
+        state.currentThinkingBubble.parentNode.removeChild(state.currentThinkingBubble);
+    }
+    state.currentThinkingBubble = null;
+    if (state.thinkingTimer) {
+        clearInterval(state.thinkingTimer);
+        state.thinkingTimer = null;
+    }
+}
+
+function startThinkingAnimation() {
+    if (state.thinkingTimer) clearInterval(state.thinkingTimer);
+
+    let step = 0;
+    state.thinkingTimer = setInterval(() => {
+        if (!state.currentThinkingBubble) {
+            clearInterval(state.thinkingTimer);
+            return;
+        }
+
+        const dots = state.currentThinkingBubble.querySelectorAll('.thinking-dot');
+
+        step = (step + 1) % 3; // Cycle 0, 1, 2
+
+        dots.forEach((dot, idx) => {
+            if (idx <= step) {
+                dot.classList.add('active');
+            } else {
+                dot.classList.remove('active');
+            }
+        });
+
+        // Move spinner logic is handled by dots growing and layout, 
+        // but we ensure it follows the dots in the DOM.
+    }, 1000);
 }
 
 /**

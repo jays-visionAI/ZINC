@@ -115,6 +115,10 @@ const translations = {
         'studio.log.actionTriggered': '{{type}} added',
         'studio.log.sessionStarted': 'New chat session started.',
         'studio.log.sessionRestored': 'Previous conversation restored.',
+        'studio.log.thinking': 'Thinking...',
+        'studio.log.thinkingProcess': 'Thinking Process',
+        'studio.log.thinkingAnalyzing': 'Analyzing request and extracting context...',
+        'studio.log.generatingResponse': 'Synthesizing context and generating response...',
 
         // Market Pulse
         'market.title': 'Market Pulse',
@@ -568,6 +572,10 @@ const translations = {
         'studio.log.actionTriggered': '{{type}} 추가됨',
         'studio.log.sessionStarted': '새로운 대화 세션이 시작되었습니다.',
         'studio.log.sessionRestored': '이전 대화가 복원되었습니다.',
+        'studio.log.thinking': '생각 중...',
+        'studio.log.thinkingProcess': '생각 과정 (Thinking Process)',
+        'studio.log.thinkingAnalyzing': '요청을 분석하고 맥락을 추출하고 있습니다...',
+        'studio.log.generatingResponse': '맥락을 종합하여 답변을 생성하고 있습니다...',
         'studio.log.agentStarted': '에이전트 {{agentId}} 시작됨',
         'studio.log.agentCompleted': '에이전트 {{agentId}} 완료됨',
         'studio.log.workflowExecutionCompleted': '워크플로우 실행 완료!',
