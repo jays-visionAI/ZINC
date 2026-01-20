@@ -336,8 +336,8 @@
         renderHeaderControls: function (containerId) {
             const container = document.getElementById(containerId);
             if (!container) return;
-
-            const lang = localStorage.getItem('zynk-main-language') || localStorage.getItem('activeContentLanguage') || 'ko';
+            // Use session state set by translations.js (OS-based)
+            const lang = window.zynk_main_lang || 'en';
             const selectedLang = CONTENT_LANGUAGES.find(l => l.code === lang) || CONTENT_LANGUAGES[0];
 
             container.innerHTML = `
@@ -386,13 +386,13 @@
             if (target) observer.observe(target, { childList: true, characterData: true, subtree: true });
             syncCredits();
 
-            // Logic: Handle Language Change
+            // Logic: Handle Language Change (Session-only, no persistence)
             const selector = document.getElementById('header-content-lang-selector');
             if (selector) {
                 selector.addEventListener('change', (e) => {
                     const newLang = e.target.value;
-                    localStorage.setItem('zynk-main-language', newLang);
-                    localStorage.setItem('activeContentLanguage', newLang);
+                    // Update session state only
+                    window.zynk_main_lang = newLang;
 
                     // Re-render itself to update flag/name immediately
                     this.renderHeaderControls(containerId);

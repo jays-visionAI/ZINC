@@ -809,32 +809,23 @@ const translations = {
     }
 };
 
-// 🌐 Language Defaults & Persistence
-// 1. UI Language (Global) - Default to system language if supported, else Korean
-let currentLang = localStorage.getItem('zynk-language');
-if (!currentLang) {
-    const sysLang = navigator.language || navigator.userLanguage;
-    currentLang = sysLang.startsWith('ko') ? 'ko' : 'en';
-    localStorage.setItem('zynk-language', currentLang);
+// Language Defaults - OS/Browser Based (No Persistence)
+// Session-only: resets to OS default on page reload
+function getInitialLanguage() {
+    const browserLang = (navigator.language || navigator.userLanguage || 'en').slice(0, 2);
+    const supported = ['en', 'ko', 'zh', 'ja', 'es', 'fr', 'de', 'ru', 'pt', 'ar', 'hi'];
+    return supported.includes(browserLang) ? browserLang : 'en';
 }
 
-// 2. Content Main - Default to UI language
-if (!localStorage.getItem('zynk-main-language')) {
-    localStorage.setItem('zynk-main-language', currentLang);
-}
+let currentLang = getInitialLanguage();
+window.zynk_lang = currentLang;
+window.zynk_main_lang = currentLang;
+window.zynk_sub_lang = 'en';
 
-// 3. Content Sub - Default to English
-if (!localStorage.getItem('zynk-sub-language')) {
-    localStorage.setItem('zynk-sub-language', 'en');
-}
-
-// Function to translate the page
-function translatePage(lang, persist = true) {
+function translatePage(lang, persist = false) {
     if (!lang) lang = currentLang;
     currentLang = lang;
-    if (persist) {
-        localStorage.setItem('zynk-language', lang);
-    }
+    window.zynk_lang = lang;
 
     // Update all elements with data-i18n or data-i18n-placeholder attribute
     document.querySelectorAll('[data-i18n], [data-i18n-placeholder]').forEach(element => {
@@ -876,8 +867,8 @@ function t(key, lang) {
     // Determine priority language
     let priorityLang = lang;
     if (!priorityLang) {
-        const globalLang = localStorage.getItem('zynk-language') || 'en';
-        const contentLang = localStorage.getItem('zynk-main-language');
+        const globalLang = window.zynk_lang || 'en';
+        const contentLang = window.zynk_main_lang;
 
         // Elements that should follow Content Language in Studio
         const isContentRelated = typeof key === 'string' && (
@@ -919,23 +910,3 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
-
-// Sync language from database when user is authenticated
-if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length > 0) {
-    firebase.auth().onAuthStateChanged(async (user) => {
-        if (user) {
-            try {
-                const doc = await firebase.firestore().collection('users').doc(user.uid).get();
-                if (doc.exists) {
-                    const dbLang = doc.data().language;
-                    if (dbLang && dbLang !== currentLang) {
-                        console.log('[i18n] Syncing language from DB:', dbLang);
-                        setAppLanguage(dbLang, true);
-                    }
-                }
-            } catch (err) {
-                console.warn('[i18n] Database language sync failed:', err);
-            }
-        }
-    });
-}
