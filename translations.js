@@ -113,6 +113,8 @@ const translations = {
         'studio.log.processingAttachments': 'Analyzing attachments...',
         'studio.log.addedFile': 'File added: {{name}}',
         'studio.log.actionTriggered': '{{type}} added',
+        'studio.log.sessionStarted': 'New chat session started.',
+        'studio.log.sessionRestored': 'Previous conversation restored.',
 
         // Market Pulse
         'market.title': 'Market Pulse',
@@ -564,6 +566,8 @@ const translations = {
         'studio.log.processingAttachments': '첨부 파일을 분석 중입니다...',
         'studio.log.addedFile': '파일 추가됨: {{name}}',
         'studio.log.actionTriggered': '{{type}} 추가됨',
+        'studio.log.sessionStarted': '새로운 대화 세션이 시작되었습니다.',
+        'studio.log.sessionRestored': '이전 대화가 복원되었습니다.',
         'studio.log.agentStarted': '에이전트 {{agentId}} 시작됨',
         'studio.log.agentCompleted': '에이전트 {{agentId}} 완료됨',
         'studio.log.workflowExecutionCompleted': '워크플로우 실행 완료!',

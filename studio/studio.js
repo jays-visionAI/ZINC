@@ -556,7 +556,7 @@ async function initProjectSelector() {
                     // Auto-resume last session if it exists and is recent (handled by ensureSession)
                     const sessionId = await window.SessionHistoryService.ensureSession(projectId, projectName);
                     if (sessionId) {
-                        await switchSession(sessionId);
+                        await switchSession(sessionId, true); // Force UI update
                     }
                 }
 
@@ -2949,28 +2949,28 @@ async function createNewSession() {
     if (!projectId || !window.SessionHistoryService) return;
 
     // Create session
-    await window.SessionHistoryService.createSession(projectId, projectName);
+    const sessionId = await window.SessionHistoryService.createSession(projectId, projectName);
 
-    // Clear chat UI
-    const streamContainer = document.getElementById('chat-stream-log');
-    if (streamContainer) streamContainer.innerHTML = '';
-    state.chatHistory = [];
+    if (sessionId) {
+        // Clear local state
+        state.chatHistory = [];
 
-    // Reload list
-    await loadSessions(projectId);
+        // Use switchSession to properly initialize the UI for the new session
+        await switchSession(sessionId, true);
 
-    addLogEntry('새로운 대화 세션이 시작되었습니다.', 'success');
+        addLogEntry(t('studio.log.sessionStarted'), 'success');
+    }
 }
 
 /**
  * Switch to a different session
  */
-async function switchSession(sessionId) {
+async function switchSession(sessionId, force = false) {
     const projectId = document.getElementById('project-select')?.value;
     if (!projectId || !window.SessionHistoryService) return;
 
     const currentSessionId = window.SessionHistoryService.getCurrentSession().id;
-    if (sessionId === currentSessionId) return;
+    if (!force && sessionId === currentSessionId) return;
 
     try {
         const success = await window.SessionHistoryService.resumeSession(projectId, sessionId);
@@ -2990,9 +2990,12 @@ async function switchSession(sessionId) {
             });
 
             // Reload list to update active state
-            renderSessionList(await window.SessionHistoryService.listSessions(projectId, 10));
+            const sessions = await window.SessionHistoryService.listSessions(projectId, 10);
+            renderSessionList(sessions);
 
-            addLogEntry('이전 대화가 복원되었습니다.', 'success');
+            if (!force) {
+                addLogEntry(t('studio.log.sessionRestored'), 'success');
+            }
         }
     } catch (error) {
         console.error('[Studio] Error switching session:', error);
