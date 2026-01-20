@@ -6,6 +6,32 @@
 (function () {
     console.log('[LLMRouterService] Initializing...');
 
+    /**
+     * Safe Firebase accessor - waits for Firebase to be ready
+     */
+    function getFirebase() {
+        if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length > 0) {
+            return firebase;
+        }
+        return null;
+    }
+
+    function getFirestore() {
+        const fb = getFirebase();
+        if (fb && fb.firestore) {
+            return fb.firestore();
+        }
+        return null;
+    }
+
+    function getFunctions() {
+        const fb = getFirebase();
+        if (fb && fb.functions) {
+            return fb.functions();
+        }
+        return null;
+    }
+
     const LLMRouterService = {
         /**
          * Call LLM through the router
@@ -38,10 +64,15 @@
                 throw new Error('Either messages or userPrompt is required');
             }
 
+            const functions = getFunctions();
+            if (!functions) {
+                throw new Error('Firebase Functions not initialized. Please wait for Firebase to load.');
+            }
+
             console.log(`[LLMRouterService] Calling: feature=${feature}, tier=${qualityTier}`);
 
             try {
-                const routeLLM = firebase.functions().httpsCallable('routeLLM');
+                const routeLLM = functions.httpsCallable('routeLLM');
 
                 const result = await routeLLM({
                     feature,
@@ -83,8 +114,13 @@
          * Get available features and their policies
          */
         async getFeaturePolicies() {
+            const db = getFirestore();
+            if (!db) {
+                console.warn('[LLMRouterService] Firestore not ready');
+                return [];
+            }
+
             try {
-                const db = firebase.firestore();
                 const snapshot = await db.collection('featurePolicies')
                     .where('isActive', '==', true)
                     .get();
@@ -105,8 +141,13 @@
          * Get model info with costs
          */
         async getModelInfo(modelId) {
+            const db = getFirestore();
+            if (!db) {
+                console.warn('[LLMRouterService] Firestore not ready');
+                return null;
+            }
+
             try {
-                const db = firebase.firestore();
                 const doc = await db.collection('systemLLMModels').doc(modelId).get();
 
                 if (!doc.exists) return null;
@@ -121,9 +162,13 @@
          * Estimate credit cost for a request
          */
         async estimateCost(feature, qualityTier = 'DEFAULT', estimatedTokens = 1000) {
-            try {
-                const db = firebase.firestore();
+            const db = getFirestore();
+            if (!db) {
+                console.warn('[LLMRouterService] Firestore not ready');
+                return { estimated: 0, error: 'Firestore not ready' };
+            }
 
+            try {
                 // Get policy
                 const policyDoc = await db.collection('featurePolicies').doc(feature).get();
                 if (!policyDoc.exists) {
@@ -164,3 +209,4 @@
 
     console.log('[LLMRouterService] Ready');
 })();
+
