@@ -1868,6 +1868,13 @@ ${agentList}
             // Execute each node with animation
             for (let i = 0; i < executionOrder.length; i++) {
                 const node = executionOrder[i];
+
+                // [FIX] Respect Skip Execution
+                if (node.data.skipExecution) {
+                    await delay(200); // Quick pass-through
+                    continue;
+                }
+
                 const nodeEl = document.getElementById(node.id);
 
                 if (nodeEl) nodeEl.classList.add('testing');
