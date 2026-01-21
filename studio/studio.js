@@ -632,6 +632,7 @@ OPERATING PRINCIPLES:
 - **No Refusal**: Never say "I cannot browse the web" if you have tools available.
 
 Current Project Context: {{projectName}}
+Current Date: {{currentDate}}
 `;
 
     // Helper: Check if there's any content to send and update button state
@@ -730,7 +731,8 @@ Current Project Context: {{projectName}}
         const targetLanguage = contentLang === 'ko' ? 'Korean' : 'English';
 
         let systemPrompt = STUDIO_ASSISTANT_SYSTEM_PROMPT
-            .replaceAll('{{projectName}}', projectName);
+            .replaceAll('{{projectName}}', projectName)
+            .replaceAll('{{currentDate}}', new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' }));
 
         // Convert images to base64 if any
         const images = [];
@@ -860,9 +862,9 @@ Current Project Context: {{projectName}}
 
                 // [SESSION HISTORY] Save AI response to Firestore
                 if (window.SessionHistoryService && state.selectedProject) {
-                    window.SessionHistoryService.saveMessage('assistant', aiMessage, {
-                        model: response.model,
-                        tokens: response.usage?.totalTokens
+                    await window.SessionHistoryService.saveMessage('assistant', aiMessage, {
+                        model: response?.model || 'unknown',
+                        tokens: response?.usage?.totalTokens || 0
                     });
                 }
 
