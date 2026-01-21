@@ -384,9 +384,10 @@ const WorkflowEngine = (function () {
             const executeSubAgent = firebase.app().functions('us-central1').httpsCallable('executeSubAgent', { timeout: 540000 });
 
             // Format history for the Cloud Function context
+            // [CRITICAL FIX] Do NOT use node ID as 'role', as LLM APIs (OpenAI/DeepSeek) require 'user'/'assistant'/'system'
             const previousOutputsArray = Object.entries(context.previousOutputs).map(([id, content]) => ({
-                role: id,
-                content: typeof content === 'object' ? JSON.stringify(content) : content
+                role: 'user',
+                content: `[Input from Node ${id}]: ${typeof content === 'object' ? JSON.stringify(content) : content}`
             }));
 
             const result = await executeSubAgent({

@@ -3089,8 +3089,8 @@ ${agentList}
             if (sourceNode && sourceNode.data.outputData) {
                 outputs.push({
                     nodeId: sourceNode.id,
-                    role: sourceNode.data.name || sourceNode.type,
-                    content: JSON.stringify(sourceNode.data.outputData)
+                    role: 'user', // Force 'user' role to avoid LLM API errors
+                    content: `[Source: ${sourceNode.data.name || sourceNode.type}]: ${JSON.stringify(sourceNode.data.outputData)}`
                 });
             }
         });
