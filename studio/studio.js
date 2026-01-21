@@ -729,7 +729,15 @@ Current Date: {{currentDate}}
         // Resolve Target Language (Prioritize Content Language)
         // Resolve User Language & Date
         const userLang = navigator.language || 'en-US';
-        const localizedDate = new Date().toLocaleDateString(userLang, { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+        const localizedDate = new Date().toLocaleString(userLang, {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            weekday: 'long',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        });
 
         let systemPrompt = STUDIO_ASSISTANT_SYSTEM_PROMPT
             .replaceAll('{{projectName}}', projectName)
