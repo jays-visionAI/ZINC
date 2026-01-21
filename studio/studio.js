@@ -838,6 +838,11 @@ Current Date: {{currentDate}}
                         { t: 2500, m: isKo ? "📊 관련 데이터 실시간 스캔..." : "📊 Scanning real-time data..." },
                         { t: 4500, m: isKo ? "💡 인사이트 도출 및 요약..." : "💡 Extracting insights..." }
                     ],
+                    competitor: [
+                        { t: 1000, m: isKo ? "🕵️‍♂️ 경쟁사 데이터 스캔 중..." : "🕵️‍♂️ Scanning competitor data..." },
+                        { t: 2500, m: isKo ? "📊 Market Pulse 분석..." : "📊 Analyzing Market Pulse..." },
+                        { t: 4500, m: isKo ? "💡 전략적 비교 수행 중..." : "💡 Performing strategic comparison..." }
+                    ],
                     creative: [
                         { t: 1000, m: isKo ? "🎨 기획 의도 분석..." : "🎨 Analyzing creative intent..." },
                         { t: 2500, m: isKo ? "✍️ 초안 구조 설계..." : "✍️ Structuring draft..." },
@@ -849,7 +854,13 @@ Current Date: {{currentDate}}
                     ]
                 };
 
-                if (intentKey.includes('조사') || intentKey.includes('분석') || intentKey.includes('트렌드') || intentKey.includes('research') || intentKey.includes('scan') || intentKey.includes('find')) {
+                let isCompetitorMode = false;
+
+                if (intentKey.includes('경쟁') || intentKey.includes('competitor') || intentKey.includes('시장') || intentKey.includes('market')) {
+                    // COMPETITOR MODE
+                    thinkSteps = MSGS.competitor;
+                    isCompetitorMode = true;
+                } else if (intentKey.includes('조사') || intentKey.includes('분석') || intentKey.includes('트렌드') || intentKey.includes('research') || intentKey.includes('scan') || intentKey.includes('find')) {
                     // RESEARCH MODE
                     thinkSteps = MSGS.research;
                 } else if (intentKey.includes('생성') || intentKey.includes('작성') || intentKey.includes('만들') || intentKey.includes('create') || intentKey.includes('write')) {
@@ -865,6 +876,63 @@ Current Date: {{currentDate}}
                 // Final state update just before/during response
                 const finalMsg = isKo ? "✨ 답변 생성 완료" : "✨ Response generated";
                 setTimeout(() => updateAIThinking(finalMsg), 6000);
+
+                // [MARKET PULSE & KNOWLEDGE HUB INTEGRATION]
+                if (isCompetitorMode && state.selectedProject) {
+                    try {
+                        updateAIThinking(isKo ? "📊 경쟁사 데이터 로딩 중..." : "📊 Loading Competitor Data...");
+
+                        const db = getFirestore();
+                        // 1. Load Competitors from Project Settings/Market Pulse
+                        const projectDoc = await db.collection('projects').doc(state.selectedProject).get();
+                        const pData = projectDoc.data();
+                        const competitors = pData.competitors || []; // Array of { name, website, notes, ... }
+
+                        let competitorContext = "";
+                        if (competitors.length > 0) {
+                            competitorContext += "\n[MARKET PULSE: COMPETITORS]\n";
+                            competitors.forEach((c, idx) => {
+                                competitorContext += `${idx + 1}. ${c.name} (${c.website || 'N/A'})\n   - Notes: ${c.notes || c.description || 'N/A'}\n   - Strengths: ${c.strengths || 'N/A'}\n`;
+                            });
+                        }
+
+                        // 2. Load Knowledge Hub Documents (Simple keyword match)
+                        const docsSnapshot = await db.collection('projects').doc(state.selectedProject)
+                            .collection('documents') // Assuming 'documents' subcollection exists
+                            .limit(10)
+                            .get(); // Get recent docs to filter in memory or use proper query if indexed
+
+                        let khContext = "";
+                        if (!docsSnapshot.empty) {
+                            const compKeywords = ['competitor', 'competition', 'rival', 'analysis', '경쟁', '분석'];
+                            const relevantDocs = [];
+                            docsSnapshot.forEach(doc => {
+                                const d = doc.data();
+                                const title = (d.title || d.name || "").toLowerCase();
+                                const tags = (d.tags || []).map(t => t.toLowerCase());
+
+                                if (compKeywords.some(k => title.includes(k)) || tags.some(t => compKeywords.includes(t))) {
+                                    relevantDocs.push(d);
+                                }
+                            });
+
+                            if (relevantDocs.length > 0) {
+                                khContext += "\n[KNOWLEDGE HUB: COMPETITOR ANALYSIS]\n";
+                                relevantDocs.forEach(d => {
+                                    khContext += `- Doc: ${d.title || 'Untitled'}\n  Summary: ${d.summary || d.content?.substring(0, 200) || '...'}\n`;
+                                });
+                            }
+                        }
+
+                        if (competitorContext || khContext) {
+                            systemPrompt += `\n\n=== COMPETITOR INTELLIGENCE ===\nUser is asking about competitors. Use the following real-time data:\n${competitorContext}\n${khContext}\n==============================\n`;
+                            console.log('[Studio] Competitor context injected.');
+                        }
+
+                    } catch (e) {
+                        console.error('[Studio] Error loading competitor data:', e);
+                    }
+                }
 
                 // [TESTING PHASE] Direct DeepSeek Call
                 // Use 'callOpenAI' directly to bypass router logic as requested
