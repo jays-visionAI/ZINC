@@ -4932,3 +4932,88 @@
     font-size: 14px;
 }
 
+
+/* ============================================
+   MARKDOWN CONTENT STYLING (Added for AI Responses)
+   ============================================ */
+   
+.ai-message-content table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin: 16px 0;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.ai-message-content th {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    border-bottom: 1px solid var(--color-border);
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.ai-message-content td {
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    color: var(--color-text-secondary);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.ai-message-content tr:last-child td {
+    border-bottom: none;
+}
+
+.ai-message-content tr:hover td {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+/* AI ACTION BUTTONS & CARDS */
+.ai-message-content .action-card {
+    display: flex;
+    flex-direction: column;
+    background: rgba(99, 102, 241, 0.1);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 12px;
+    padding: 16px;
+    margin: 16px 0;
+}
+
+.ai-message-content .action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    color: white;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 13px;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    border: none;
+    cursor: pointer;
+    margin-top: 8px;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.ai-message-content .action-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+}
+
+.ai-message-content img {
+    border-radius: 8px;
+    max-width: 100%;
+    border: 1px solid var(--color-border);
+    margin: 12px 0;
+}
