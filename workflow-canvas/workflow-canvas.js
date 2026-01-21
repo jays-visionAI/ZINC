@@ -400,12 +400,14 @@ window.WorkflowCanvas = (function () {
 
     function setupPropertyListeners() {
         const propName = document.getElementById('wf-prop-name');
+        const propSkip = document.getElementById('wf-prop-skip');
         const propAgent = document.getElementById('wf-prop-agent');
         const propModel = document.getElementById('wf-prop-model');
         const propTemp = document.getElementById('wf-prop-temp');
         const propCondition = document.getElementById('wf-prop-condition');
 
         if (propName) propName.addEventListener('input', (e) => updateNodeProperty('name', e.target.value));
+        if (propSkip) propSkip.addEventListener('change', (e) => updateNodeProperty('skipExecution', e.target.checked));
 
         // Trigger Settings Listeners
         const triggerInputs = [
@@ -1437,6 +1439,11 @@ ${agentList}
             el.classList.add('selected');
         }
 
+        // Skip visual
+        if (node.data.skipExecution) {
+            el.classList.add('skipped');
+        }
+
         // Get SVG icon
         const getIcon = (iconName) => SVG_ICONS[iconName] || SVG_ICONS.agent;
 
@@ -2244,6 +2251,13 @@ ${agentList}
         // Fill form values
         document.getElementById('wf-prop-type').value = node.type.toUpperCase();
         document.getElementById('wf-prop-name').value = node.data.name || '';
+
+        const skipCheck = document.getElementById('wf-prop-skip');
+        if (skipCheck) {
+            skipCheck.checked = !!node.data.skipExecution;
+            // Hide skip for start/end nodes if needed, but keeping it generic is fine
+            document.getElementById('wf-prop-skip-group').style.display = (node.type === 'start' || node.type === 'end') ? 'none' : 'flex';
+        }
 
         // Show/hide fields based on node type
         const agentGroup = document.getElementById('wf-prop-agent-group');
@@ -3309,11 +3323,24 @@ ${agentList}
     }
 
     function getNodeOutputs(node) {
+        // [IMPROVEMENT] Dynamic Variable Discovery
+        // If the node has been executed and has output data, expose actual keys!
+        if (node.data && node.data.outputData && typeof node.data.outputData === 'object') {
+            const keys = Object.keys(node.data.outputData);
+            // Valid keys only (exclude internal flags like _skipped)
+            const validKeys = keys.filter(k => !k.startsWith('_'));
+            if (validKeys.length > 0) {
+                return validKeys;
+            }
+        }
+
+        // Fallback: Default expected outputs based on capability
         // For Agents, use capability-based outputs
         if (node.type === 'agent') {
             if (node.data.capability === 'image') return ['imageUrl', 'prompt', 'revisedPrompt'];
             if (node.data.capability === 'video') return ['videoUrl', 'thumbnailUrl', 'duration'];
-            return ['text', 'summary', 'status'];
+            // Extended defaults to support structured outputs (Design Director, etc.)
+            return ['text', 'summary', 'status', 'json', 'layout', 'content', 'data'];
         }
 
         // For Transform (Aggregate, Filter, etc.)
@@ -3598,7 +3625,7 @@ ${agentList}
         }
 
         // Update visual if needed
-        const uiAffectingKeys = ['model', 'temperature', 'agentId', 'icon', 'inputSource', 'fsOperation', 'transformType', 'outputDestination'];
+        const uiAffectingKeys = ['model', 'temperature', 'agentId', 'icon', 'inputSource', 'fsOperation', 'transformType', 'outputDestination', 'skipExecution'];
         if (uiAffectingKeys.includes(key) && !state.isSyncingUI) {
             renderAllNodes();
             selectNode(state.selectedNodeId);
@@ -4445,6 +4472,45 @@ ${agentList}
 
                 // Get previous outputs for context
                 const previousOutputs = getPreviousNodeOutputs(node.id);
+
+                // [FEATURE] Skip Execution
+                if (node.data.skipExecution) {
+                    console.log(`[WorkflowCanvas] ⏭ SKIPPING node: ${node.id} (${node.data.name})`);
+
+                    // Pass-through Logic:
+                    // Use the first available previous output as the result for this node
+                    // to ensure continuity for subsequent nodes.
+                    let passThroughData = {};
+                    if (previousOutputs && previousOutputs.length > 0) {
+                        try {
+                            // Try to parse the content if it's a string, otherwise use raw
+                            const content = previousOutputs[0].content;
+                            passThroughData = typeof content === 'string' ? JSON.parse(content) : content;
+                        } catch (e) {
+                            passThroughData = { raw: previousOutputs[0].content };
+                        }
+                    }
+
+                    node.data.outputData = {
+                        ...passThroughData,
+                        _skipped: true,
+                        _message: 'Node execution skipped by user'
+                    };
+                    node.data.executionStatus = 'skipped'; // New status
+                    node.data.executedAt = new Date().toISOString();
+
+                    renderNodeStatus(node.id, 'skipped'); // Visual indication
+
+                    executionResults.push({
+                        nodeId: node.id,
+                        type: node.type,
+                        success: true, // Treated as success for flow continuity
+                        skipped: true,
+                        output: node.data.outputData
+                    });
+
+                    continue; // Move to next node
+                }
 
                 // Execute based on node type
                 let result;

@@ -385,6 +385,20 @@
                                 <input type="text" id="wf-prop-name" class="wf-property-input" placeholder="Node name">
                             </div>
 
+                            <!-- Skip Execution Toggle -->
+                            <div class="wf-property-group" id="wf-prop-skip-group"
+                                style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; background: rgba(255, 255, 255, 0.05); padding: 8px; border-radius: 6px;">
+                                <label class="wf-property-label"
+                                    style="margin-bottom: 0px; cursor: pointer; display: flex; align-items: center; gap: 6px;"
+                                    for="wf-prop-skip">
+                                    <span>⏭️ Skip Execution</span>
+                                </label>
+                                <div class="wf-switch">
+                                    <input type="checkbox" id="wf-prop-skip">
+                                    <span class="wf-slider round"></span>
+                                </div>
+                            </div>
+
                             <!-- Agent Selector (for agent nodes) -->
                             <div class="wf-property-group" id="wf-prop-agent-group" style="display: none;">
                                 <label class="wf-property-label">Agent</label>

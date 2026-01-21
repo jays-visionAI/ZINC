@@ -136,6 +136,23 @@ const WorkflowEngine = (function () {
                 input: this.projectContext.inputs || this.projectContext.inputData || {}
             };
 
+            // [FEATURE] Skip Execution
+            if (node.data && node.data.skipExecution) {
+                this.logger.log(`[WorkflowEngine] ⏭ SKIPPING node: ${node.data.name || node.id}`);
+
+                // Pass-through strategy: 
+                // Try to preserve flow by returning the primary previous output as this node's result
+                // This helps when chains are linear.
+                const prevKeys = Object.keys(previousOutputs);
+                const passThroughData = prevKeys.length > 0 ? previousOutputs[prevKeys[0]] : {};
+
+                return {
+                    ...passThroughData, // Spread previous data to mimic pass-through
+                    _skipped: true,
+                    _skipMessage: 'Node execution skipped by user setting'
+                };
+            }
+
             switch (node.type) {
                 case 'start':
                     return { message: 'Workflow started', timestamp: new Date().toISOString() };
