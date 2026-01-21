@@ -439,6 +439,18 @@ async function initProjectSelector() {
                     }
                 }
 
+                // [SESSION HISTORY] Load and auto-resume last session immediately
+                if (window.SessionHistoryService) {
+                    await loadSessions(projectId);
+                    const selOption = Array.from(projectSelect.options).find(opt => opt.value === projectId);
+                    const pName = selOption?.textContent || 'Unknown';
+                    const sessionId = await window.SessionHistoryService.ensureSession(projectId, pName);
+                    if (sessionId) {
+                        // Use setTimeout to ensure UI is ready
+                        setTimeout(() => switchSession(sessionId, true), 100);
+                    }
+                }
+
                 await loadAgentTeams(projectId);
 
                 // Only load recent plans if we don't already have a context from Knowledge Hub
