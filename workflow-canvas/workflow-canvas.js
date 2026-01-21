@@ -108,6 +108,7 @@ window.WorkflowCanvas = (function () {
                 { id: 'deepseek-reasoner', name: 'DeepSeek R1', provider: 'deepseek', tier: 'premium', description: 'Advanced reasoning' },
                 { id: 'deepseek-chat', name: 'DeepSeek Chat', provider: 'deepseek', tier: 'economy', description: 'Cost-effective' },
                 { id: 'deepseek-v3.2', name: 'DeepSeek V3.2', provider: 'deepseek', tier: 'standard', description: 'Latest V3 model' },
+                { id: 'deepseek-v3.2-exp', name: 'DeepSeek V3.2 Exp', provider: 'deepseek', tier: 'premium', description: 'Experimental V3.2 model for advanced tasks' },
                 { id: 'deepseek-v3.2-speciale', name: 'DeepSeek V3.2 Speciale', provider: 'deepseek', tier: 'premium', description: 'Enhanced V3 with special capabilities' },
                 { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'google', tier: 'standard', description: 'Multimodal capable' }
             ],
@@ -2017,11 +2018,6 @@ ${agentList}
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    function renderAllEdges() {
-        if (!elements.connectionsSvg) return;
-        elements.connectionsSvg.innerHTML = '';
-        state.edges.forEach(edge => renderEdge(edge));
-    }
 
     function deleteEdge(edgeId) {
         state.edges = state.edges.filter(e => e.id !== edgeId);
@@ -2735,7 +2731,9 @@ ${agentList}
             previousOutputs,
             provider: getProviderFromModel(node.data.model),
             model: node.data.model || 'gpt-4o',
-            temperature: node.data.temperature || 0.7
+            temperature: node.data.temperature || 0.7,
+            localTime: new Date().toISOString(),
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
         });
 
         if (response.data && response.data.success) {
@@ -3109,6 +3107,7 @@ ${agentList}
         if (m.includes('gpt')) return 'openai';
         if (m.includes('gemini')) return 'google';
         if (m.includes('imagen')) return 'google';
+        if (m.includes('banana')) return 'google';
         if (m.includes('claude')) return 'anthropic';
         if (m.includes('deepseek')) return 'deepseek';
         if (m.includes('dall-e')) return 'openai';

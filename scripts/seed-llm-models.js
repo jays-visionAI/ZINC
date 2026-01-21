@@ -215,6 +215,21 @@ window.seedLLMRouterData = async function () {
             isDefault: true
         },
         {
+            id: 'deepseek-v3.2-exp',
+            provider: 'deepseek',
+            modelId: 'deepseek-chat',
+            displayName: 'DeepSeek-V3.2-Exp',
+            description: 'Latest Experimental V3.2',
+            tier: 'premium',
+            costPer1kInputTokens: 0.00015,
+            costPer1kOutputTokens: 0.0003,
+            creditPer1kTokens: 0.8,
+            maxContextTokens: 64000,
+            capabilities: ['chat', 'coding', 'text'],
+            isActive: true,
+            isDefault: false
+        },
+        {
             id: 'deepseek-r1-zero',
             provider: 'deepseek',
             modelId: 'deepseek-r1-zero',

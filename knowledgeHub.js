@@ -3286,6 +3286,8 @@ SUGGESTED QUESTIONS: (3개의 추천 질문을 한 줄씩 작성)
             model: 'deepseek-chat',
             provider: 'deepseek',
             temperature: 0.3,
+            localTime: new Date().toISOString(),
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
             previousOutputs: [] // Provide empty array if no previous history
         });
 

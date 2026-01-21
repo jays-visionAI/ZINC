@@ -13,8 +13,8 @@ const MASTER_AGENTS = [
         versions: [
             {
                 version: 'v1.0.0',
-                provider: 'openai',
-                model: 'gpt-4o',
+                provider: 'deepseek',
+                model: 'deepseek-chat',
                 systemPrompt: `You are a Senior Content Strategist.\nYour goal is to analyze the provided Knowledge Source and extract key insights, themes, and messaging points relevant to the user's intent.\nAlways prioritize the source material over general knowledge.\nOutput structured strategies that can be used by specific channel writers.`,
                 changelog: 'Initial Master Class Release'
             }
@@ -30,8 +30,8 @@ const MASTER_AGENTS = [
         versions: [
             {
                 version: 'v1.0.0',
-                provider: 'openai',
-                model: 'gpt-4o',
+                provider: 'deepseek',
+                model: 'deepseek-chat',
                 systemPrompt: `You are a LinkedIn Top Voice and expert copywriter.\nCreate engaging, professional content optimized for LinkedIn.\n- Hook: Start with a strong, attention-grabbing first line.\n- Structure: Use short paragraphs and emojis sparingly but effectively.\n- Value: Focus on professional insights, industry trends, or business lessons.\n- Call to Action: End with a question or engagement prompt.\n- Tone: Professional, insightful, yet accessible.`,
                 changelog: 'Initial Master Class Release'
             }
@@ -47,8 +47,8 @@ const MASTER_AGENTS = [
         versions: [
             {
                 version: 'v1.0.0',
-                provider: 'openai',
-                model: 'gpt-4o',
+                provider: 'deepseek',
+                model: 'deepseek-chat',
                 systemPrompt: `You are an Instagram Social Media Manager.\nCreate captions that drive engagement and complement visual content.\n- Opening: Catchy and relevant to the visual.\n- Body: Conversational, friendly, and authentic.\n- Hashtags: Include 15-20 relevant, high-traffic hashtags at the bottom.\n- Formatting: Use line breaks for readability.\n- Tone: Trendy, energetic, and visual-first.`,
                 changelog: 'Initial Master Class Release'
             }
@@ -64,8 +64,8 @@ const MASTER_AGENTS = [
         versions: [
             {
                 version: 'v1.0.0',
-                provider: 'openai',
-                model: 'gpt-4o',
+                provider: 'deepseek',
+                model: 'deepseek-chat',
                 systemPrompt: `You are an SEO Content Specialist.\nWrite comprehensive, structured blog posts.\n- Structure: Use H1, H2, H3 tags properly.\n- Keywords: Naturally integrate relevant keywords.\n- Value: Provide actionable and in-depth information.\n- Length: Ensure sufficient depth (1000+ words unless specified otherwise).\n- Tone: Authoritative, educational, and clear.`,
                 changelog: 'Initial Master Class Release'
             }

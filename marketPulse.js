@@ -2009,7 +2009,9 @@ class BrandHealthIntelligence {
                 runId: 'intel_' + Date.now(),
                 subAgentId: role,
                 taskPrompt: task,
-                systemPrompt: `You are the ${role} sub-agent of the ZYNK Intelligence Center. Your goal is to provide deep, accurate analysis for the brand health dashboard. Output your final synthesis clearly.`
+                systemPrompt: `You are the ${role} sub-agent of the ZYNK Intelligence Center. Your goal is to provide deep, accurate analysis for the brand health dashboard. Output your final synthesis clearly.`,
+                localTime: new Date().toISOString(),
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
             });
 
             if (response.data.success) {
@@ -4175,7 +4177,9 @@ async function generateAISuggestions() {
             runId: 'keywords_' + Date.now(),
             subAgentId: 'strategy_analyst',
             taskPrompt: basePrompt + ' Return EXACTLY in this format with ;;; between each keyword: Keyword1|Strategy tip;;; Keyword2|Strategy tip;;; Keyword3|Strategy tip. Do NOT use commas to separate keywords.',
-            systemPrompt: "You are an expert market analyst. Suggest exactly 8 optimized search keywords for brand monitoring. IMPORTANT: Use ;;; (triple semicolon) to separate each keyword entry. Format: Keyword1|Brief strategy tip;;; Keyword2|Brief strategy tip;;; ... Example output: AI Technology|Monitor competitor adoption;;; Blockchain|Track developer sentiment;;; Web3|Follow investment trends"
+            systemPrompt: "You are an expert market analyst. Suggest exactly 8 optimized search keywords for brand monitoring. IMPORTANT: Use ;;; (triple semicolon) to separate each keyword entry. Format: Keyword1|Brief strategy tip;;; Keyword2|Brief strategy tip;;; ... Example output: AI Technology|Monitor competitor adoption;;; Blockchain|Track developer sentiment;;; Web3|Follow investment trends",
+            localTime: new Date().toISOString(),
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
         });
 
         if (!response.data.success) {

@@ -23,11 +23,11 @@ async function checkSystemSettings() {
                 console.log('Fixing it now...');
                 await db.collection('systemSettings').doc('llmConfig').set({
                     defaultModels: {
-                        default: { provider: 'openai', model: 'gpt-4o', creditMultiplier: 1.0 },
-                        boost: { provider: 'openai', model: 'gpt-4o', creditMultiplier: 1.5 }
+                        default: { provider: 'deepseek', model: 'deepseek-chat', creditMultiplier: 1.0 },
+                        boost: { provider: 'deepseek', model: 'deepseek-reasoner', creditMultiplier: 1.5 }
                     }
                 }, { merge: true });
-                console.log('✅ Updated systemSettings/llmConfig to use gpt-4o');
+                console.log('✅ Updated systemSettings/llmConfig to use deepseek');
             } else {
                 console.log('✅ System settings look OK (not using broken gemini model)');
             }

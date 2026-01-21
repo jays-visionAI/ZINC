@@ -616,7 +616,12 @@ Feel free to ask me anything about using ZYNK!
             console.log('[Chatbot] Question value:', question, 'Type:', typeof question);
             try {
                 const askZynkBot = firebase.functions().httpsCallable('askZynkBot');
-                const result = await askZynkBot({ question: question, language: this.lang });
+                const result = await askZynkBot({
+                    question: question,
+                    language: this.lang,
+                    localTime: new Date().toISOString(),
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                });
                 console.log('[Chatbot] askZynkBot success:', result);
 
                 // Update usage from server response

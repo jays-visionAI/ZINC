@@ -70,7 +70,7 @@ exports.callOpenAI = functions.https.onCall(async (data, context) => {
 
     // Normalize data payload (handle potential nesting)
     const payload = (data && data.data) ? data.data : data;
-    const { provider, model, messages, temperature, maxTokens } = payload;
+    const { provider, model, messages, temperature, maxTokens, localTime, timezone } = payload;
 
     if (!messages || !Array.isArray(messages)) {
         throw new functions.https.HttpsError('invalid-argument', 'Messages array is required');
@@ -78,23 +78,44 @@ exports.callOpenAI = functions.https.onCall(async (data, context) => {
 
     try {
         // Get API key from systemLLMProviders
-        const apiKey = await getSystemApiKey(provider || 'deepseek'); // Default to DeepSeek instead of OpenAI
+        const finalProvider = provider || 'deepseek';
+        if (finalProvider === 'openai') {
+            throw new functions.https.HttpsError('permission-denied', 'OpenAI provider is globally disabled.');
+        }
+
+        // Get API key from systemLLMProviders
+        const apiKey = await getSystemApiKey(finalProvider);
 
         if (!apiKey) {
-            throw new functions.https.HttpsError('failed-precondition', 'API key not configured for provider: ' + (provider || 'deepseek'));
+            throw new functions.https.HttpsError('failed-precondition', 'API key not configured for provider: ' + finalProvider);
         }
 
         // Dynamic import for OpenAI (ES Module)
         const OpenAI = require('openai');
 
         // [FIX] DeepSeek requires a custom baseURL
-        const baseURL = (provider === 'deepseek') ? 'https://api.deepseek.com' : undefined;
+        const baseURL = (finalProvider === 'deepseek') ? 'https://api.deepseek.com' : undefined;
 
         const openai = new OpenAI({ apiKey, baseURL });
 
+        // [MOD] Ensure correct default model per provider to avoid OpenAI dependency
+        const defaultModel = (finalProvider === 'deepseek') ? 'deepseek-chat' : 'gpt-4o';
+        const finalModel = model || defaultModel;
+
+        const combinedMessages = [...messages];
+        if (localTime) {
+            const timePrompt = `\n\n[USER_CONTEXT] Current Local Time: ${localTime} (${timezone || 'Unknown Timezone'})\nToday is ${new Date(localTime).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.`;
+            const sysIndex = combinedMessages.findIndex(m => m.role === 'system');
+            if (sysIndex !== -1) {
+                combinedMessages[sysIndex].content = timePrompt + combinedMessages[sysIndex].content;
+            } else {
+                combinedMessages.unshift({ role: 'system', content: `You are a helpful assistant.` + timePrompt });
+            }
+        }
+
         const response = await openai.chat.completions.create({
-            model: model || 'gpt-4',
-            messages: messages,
+            model: finalModel,
+            messages: combinedMessages,
             temperature: temperature || 0.7,
             max_tokens: maxTokens || 2000
         });
@@ -319,7 +340,9 @@ exports.executeSubAgent = onCall({
         previousOutputs,
         provider,
         model,
-        temperature
+        temperature,
+        localTime,
+        timezone
     } = payload;
 
     if (!projectId || !teamId || !subAgentId) {
@@ -333,9 +356,8 @@ exports.executeSubAgent = onCall({
 
     try {
         // 1. Fetch Context Data (Parallel)
-        const [projectDoc, apiKey] = await Promise.all([
-            db.collection('projects').doc(projectId).get(),
-            getSystemApiKey(provider || 'deepseek') // Default to DeepSeek instead of OpenAI
+        const [projectDoc] = await Promise.all([
+            db.collection('projects').doc(projectId).get()
         ]);
 
         if (!projectDoc.exists) {
@@ -364,9 +386,7 @@ exports.executeSubAgent = onCall({
             db.collection('projects').doc(projectId).collection('brandSummaries').orderBy('createdAt', 'desc').limit(1).get().catch(() => ({ empty: true, forEach: () => { } }))
         ]);
 
-        if (!apiKey) {
-            throw new functions.https.HttpsError('failed-precondition', 'API key not configured');
-        }
+
 
 
         const brandData = brandProjectDoc.exists ? brandProjectDoc.data() : (brandDoc.exists ? brandDoc.data() : null);
@@ -381,6 +401,14 @@ exports.executeSubAgent = onCall({
 
         // 2. Construct Enhanced System Context
         let enhancedSystemPrompt = systemPrompt || 'You are a helpful assistant.';
+
+        // [CRITICAL] Inject Local Time for accurate scheduling and reasoning
+        if (localTime) {
+            const dateObj = new Date(localTime);
+            enhancedSystemPrompt = `[CURRENT_LOCAL_TIME] ${localTime} (Timezone: ${timezone || 'UTC'})\n` +
+                `[INSTRUCTION] Today is ${dateObj.toLocaleDateString()}. Use this as the absolute truth for any relative time references (e.g. 'tomorrow', 'next week').\n\n` +
+                enhancedSystemPrompt;
+        }
 
         // Inject Project Context
         if (projectData) {
@@ -511,7 +539,7 @@ exports.executeSubAgent = onCall({
                 history: (previousOutputs || []).length * 10
             },
             routing: routingResult.routing,
-            provider: routingResult.routing?.provider || provider || 'openai',
+            provider: routingResult.routing?.provider || provider || 'deepseek',
             model: routingResult.model
         };
 
@@ -571,6 +599,8 @@ exports.routeLLM = functions.https.onCall(async (data, context) => {
         messages: rawMessages,
         temperature = 0.7,
         projectId,
+        localTime,
+        timezone,
         metadata = {},
         provider: explicitProvider,
         model: explicitModel
@@ -655,12 +685,18 @@ exports.routeLLM = functions.https.onCall(async (data, context) => {
 
         // 3. Inject into System Prompt
         const sysIndex = messages.findIndex(m => m.role === 'system');
+
+        let timePrompt = '';
+        if (localTime) {
+            timePrompt = `\n\n[USER_CONTEXT] Current Local Time: ${localTime} (${timezone || 'Unknown Timezone'})\nToday is ${new Date(localTime).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.`;
+        }
+
         const gapAnalysisInstruction = `\n\n[GAP_ANALYSIS_MODE] Your primary mission is to build a complete Target Brief. Review the 360 context below. If any critical info is missing for a professional campaign, DO NOT hallucinate. Instead, clearly list what is missing and ask the user to provide it.`;
 
         if (sysIndex !== -1) {
-            messages[sysIndex].content += gapAnalysisInstruction + contextString;
+            messages[sysIndex].content = timePrompt + messages[sysIndex].content + gapAnalysisInstruction + contextString;
         } else {
-            messages.unshift({ role: 'system', content: `You are the ZYNK Architect.` + gapAnalysisInstruction + contextString });
+            messages.unshift({ role: 'system', content: `You are the ZYNK Architect.` + timePrompt + gapAnalysisInstruction + contextString });
         }
 
         // Route through LLMRouter
@@ -714,44 +750,9 @@ exports.routeLLM = functions.https.onCall(async (data, context) => {
             error.message.includes('Unsupported value');
 
         if (isRetryable) {
-            console.warn('[routeLLM] ⚠️ Initiating Auto-Failover to OpenAI...');
-
-            try {
-                // BOOST -> gemini-3.0-pro-preview (Premium)
-                // DEFAULT -> gemini-2.0-flash-exp (Standard/Speed)
-                // User requested to prioritize Gemini/Banana ecosystem.
-
-                const fallbackProvider = 'google';
-                const fallbackModel = (qualityTier === 'BOOST') ? 'gemini-1.5-pro' : 'gemini-2.0-flash-exp';
-
-                // Retry Generation
-                let fallbackTemp = temperature;
-                // Temperature adjustments for specific models if needed
-
-                const fallbackResult = await callLLM(fallbackProvider, fallbackModel, messages, fallbackTemp);
-
-                console.log(`[routeLLM] ✅ Auto-Failover Success using ${fallbackModel}`);
-
-                return {
-                    success: true,
-                    content: fallbackResult.content,
-                    model: fallbackModel,
-                    usage: { total_tokens: 0 }, // Usage info simplified
-                    routing: {
-                        provider: fallbackProvider,
-                        model: fallbackModel,
-                        tier: qualityTier,
-                        failover: true,
-                        originalError: error.message
-                    },
-                    credits: null // Skip credit deduction for fallback to avoid double billing issues
-                };
-
-            } catch (fallbackError) {
-                console.error('[routeLLM] ❌ Auto-Failover Failed:', fallbackError.message);
-                // Throw original error + fallback error
-                throw new functions.https.HttpsError('internal', `Generation Failed. Primary: ${error.message}. Fallback: ${fallbackError.message}`);
-            }
+            // [MOD] Removed Auto-Failover to OpenAI as requested.
+            // Failing directly to enforce strict model usage.
+            throw error;
         }
 
         throw new functions.https.HttpsError('internal', error.message);
@@ -1155,6 +1156,7 @@ async function callDeepSeekInternal(apiKey, model, messages, temperature) {
         'deepseek': 'deepseek-chat',                 // Generic deepseek -> chat
         'deepseek-v3': 'deepseek-chat',
         'deepseek-v3.2': 'deepseek-chat',
+        'deepseek-v3.2-exp': 'deepseek-chat',
         'deepseek-v3.2-speciale': 'deepseek-chat',  // V3.2 Speciale -> chat (latest V3)
         'deepseek-coder': 'deepseek-chat',           // Coder also uses chat
         'deepseek-chat-v3-0324': 'deepseek-chat'
@@ -2146,12 +2148,7 @@ async function executeScheduledRun(teamId, projectId, schedule) {
  */
 async function executeSubAgentInternal(subAgent, context) {
     try {
-        // Get API key
-        const apiKey = await getSystemApiKey('openai');
-
-        if (!apiKey) {
-            throw new Error('API key not configured');
-        }
+        const { projectId } = context;
 
         // Build messages
         const messages = [
@@ -2172,20 +2169,13 @@ async function executeSubAgentInternal(subAgent, context) {
         const taskPrompt = context.teamDirective || 'Generate content based on your role.';
         messages.push({ role: 'user', content: taskPrompt });
 
-        // Call OpenAI
-        const OpenAI = require('openai');
-        const openai = new OpenAI({ apiKey });
-
-        const response = await openai.chat.completions.create({
-            model: subAgent.model_id || 'gpt-4',
-            messages: messages,
-            temperature: 0.7,
-            max_tokens: 2000
-        });
+        // [MOD] Use Unified callLLM instead of hardcoded OpenAI
+        // Use deepseek as the default internal provider
+        const result = await callLLM('deepseek', subAgent.model_id || 'deepseek-chat', messages, 0.7);
 
         return {
             success: true,
-            output: response.choices[0]?.message?.content || '',
+            output: result.content || '',
             input: {
                 systemPrompt: subAgent.system_prompt,
                 taskPrompt: taskPrompt
@@ -2271,19 +2261,21 @@ exports.askZynkBot = onCall({ cors: true }, async (request) => {
             isAuthenticated = true;
         } else {
             // Use clientId from data for anonymous users, or generate one
-            userId = data.clientId || 'anonymous_' + Date.now();
+            const payload = request.data.data || request.data;
+            userId = payload.clientId || 'anonymous_' + Date.now();
             console.log('[askZynkBot] Unauthenticated user, using clientId:', userId);
         }
 
-        const question = data.question;
-        const language = data.language || 'ko'; // default to Korean
+        const payload = request.data.data || request.data;
+        const { question, language, localTime, timezone } = payload;
 
-        if (!question || typeof question !== 'string') {
-            console.warn('[askZynkBot] Invalid argument: question is missing', { dataKeys: Object.keys(data), data });
-            throw new functions.https.HttpsError('invalid-argument', 'Question is required');
+        if (!question) {
+            console.warn('[askZynkBot] Invalid argument: question is missing', { dataKeys: Object.keys(payload), payload });
+            throw new functions.https.HttpsError('invalid-argument', 'Question is missing');
         }
 
         console.log(`[askZynkBot] User ${userId} (auth:${isAuthenticated}, ${language}) asked: ${question.substring(0, 50)}...`);
+        if (localTime) console.log(`[askZynkBot] Client Local Time: ${localTime} (${timezone})`);
 
         // 2. Load chatbot config from Firestore
         console.log('[askZynkBot] Loading config...');
@@ -2308,6 +2300,14 @@ exports.askZynkBot = onCall({ cors: true }, async (request) => {
             ? '\n\n## IMPORTANT: Respond in English only.'
             : '\n\n## 중요: 한국어로만 답변하세요.';
         systemPrompt += langInstruction;
+
+        // [CRITICAL] Inject Local Time for 챗봇
+        if (localTime) {
+            const dateObj = new Date(localTime);
+            systemPrompt = `[CURRENT_LOCAL_TIME] ${localTime} (Timezone: ${timezone || 'UTC'})\n` +
+                `현재 시각 정보를 활용하여 답변하세요. 오늘은 ${dateObj.toLocaleDateString()}입니다.\n\n` +
+                systemPrompt;
+        }
 
         // Check if chatbot is disabled
         if (status === 'disabled') {
@@ -2372,31 +2372,9 @@ exports.askZynkBot = onCall({ cors: true }, async (request) => {
             console.log(`[askZynkBot] Generation Success. Provider: ${usedProvider}, Model: ${usedModel}`);
 
         } catch (error) {
-            console.warn('[askZynkBot] Router execution failed, attempting Legacy OpenAI Fallback:', error.message);
-
-            try {
-                // FALLBACK: Direct OpenAI Call
-                const apiKey = await getSystemApiKey('openai');
-                if (!apiKey) throw new Error("OpenAI API Key not found for fallback");
-
-                const OpenAI = require('openai');
-                const openai = new OpenAI({ apiKey });
-
-                const completion = await openai.chat.completions.create({
-                    model: "gpt-4o-mini", // Use mini for fallback speed
-                    messages: messages,
-                    max_tokens: 1000
-                });
-
-                answer = completion.choices[0].message.content;
-                usedModel = "gpt-4o-mini (fallback)";
-                usedProvider = "openai";
-                usageData = completion.usage;
-
-            } catch (fallbackError) {
-                console.error('[askZynkBot] All generation attempts failed:', fallbackError);
-                throw new functions.https.HttpsError('internal', 'AI service unavailable. Please try again later.');
-            }
+            console.error('[askZynkBot] Generation attempt failed:', error);
+            // [MOD] Removed Legacy OpenAI Fallback to catch hidden GPT calls as requested.
+            throw new functions.https.HttpsError('internal', `AI service failure: ${error.message}`);
         }
 
         // 5. Update Usage Stats
@@ -2807,38 +2785,32 @@ exports.analyzeKnowledgeSource = functions.https.onCall(async (data, context) =>
         }
 
         // Generate AI analysis via LLM Router
-        const routeResult = await llmRouter.route({
-            feature: 'knowledge_hub.analysis',
-            messages: [
-                { role: 'system', content: 'You are the "Market Analyst" agent. Your role is to analyze documents and extract key insights for the brand strategy. Always respond with valid JSON.' },
-                {
-                    role: 'user', content: `Analyze the following document and extract key information for brand strategy purposes.
+        const prompt = `Analyze the following document and extract key information for brand strategy purposes.
 
 Document Title: ${source.title || 'Untitled'}
 
 Document Content:
 ${extractedText.substring(0, 15000)}
 
-Please provide the analysis in this JSON format:
-{
-    "summary": "A 2-3 sentence summary of the document",
-    "keyInsights": ["insight1", "insight2", "insight3"],
-    "extractedEntities": {
-        "companyName": "if mentioned",
-        "products": ["product1", "product2"],
-        "values": ["value1", "value2"],
-        "targetAudience": "if mentioned"
-    },
-    "tags": ["tag1", "tag2", "tag3"],
-    "relevanceScore": 0.0-1.0
-}` }
-            ],
-            response_format: { type: "json_object" },
-            projectId: projectId,
-            callLLM: callLLM
-        });
+Please provide the analysis in JSON format.`;
 
-        const analysis = JSON.parse(routeResult.content || '{}');
+        const result = await callLLM('deepseek', 'deepseek-chat', [
+            { role: 'system', content: 'You are a strategic brand analyst.' },
+            { role: 'user', content: prompt }
+        ], 0.3);
+
+        const responseText = result.content || '';
+        let analysis = {};
+        try {
+            // Extract JSON from response
+            const jsonStr = responseText.includes('```json')
+                ? responseText.split('```json')[1].split('```')[0].trim()
+                : responseText.trim();
+            analysis = JSON.parse(jsonStr);
+        } catch (e) {
+            console.error('[analyzeKnowledgeSource] JSON Parse Error:', e);
+            analysis = { summary: responseText.substring(0, 200), error: 'Failed to parse structured JSON' };
+        }
 
         // Update source with analysis
         await sourceRef.update({
@@ -2851,7 +2823,7 @@ Please provide the analysis in this JSON format:
                 ...analysis,
                 extractedTextLength: extractedText.length,
                 analyzedAt: admin.firestore.FieldValue.serverTimestamp(),
-                aiModel: routeResult.model
+                aiModel: result.model
             },
             updatedAt: admin.firestore.FieldValue.serverTimestamp()
         });
@@ -3098,15 +3070,6 @@ async function extractTextFromFile(storagePath, contentType, fileName) {
  */
 async function generateSourceAnalysis(text, sourceTitle) {
     try {
-        const apiKey = await getSystemApiKey('openai');
-
-        if (!apiKey) {
-            throw new Error('OpenAI API key not configured');
-        }
-
-        const OpenAI = require('openai');
-        const openai = new OpenAI({ apiKey });
-
         const prompt = `Analyze the following document and extract key information for brand strategy purposes.
 
 Document Title: ${sourceTitle || 'Untitled'}
@@ -3128,19 +3091,25 @@ Please provide the analysis in this JSON format:
     "relevanceScore": 0.0-1.0
 }`;
 
-        const response = await openai.chat.completions.create({
-            model: 'gpt-4-turbo',
-            messages: [
-                { role: 'system', content: 'You are a brand strategist analyzing documents for marketing insights. Always respond with valid JSON.' },
-                { role: 'user', content: prompt }
-            ],
-            temperature: 0.3,
-            max_tokens: 1000,
-            response_format: { type: "json_object" }
-        });
+        const result = await callLLM('deepseek', 'deepseek-chat', [
+            { role: 'system', content: 'You are a brand strategist analyzing documents for marketing insights. Always respond with valid JSON.' },
+            { role: 'user', content: prompt }
+        ], 0.3);
 
-        const content = response.choices[0]?.message?.content || '{}';
-        return JSON.parse(content);
+        const responseText = result.content || '';
+        let analysis = {};
+        try {
+            // Extract JSON from response
+            const jsonStr = responseText.includes('```json')
+                ? responseText.split('```json')[1].split('```')[0].trim()
+                : responseText.trim();
+            analysis = JSON.parse(jsonStr);
+        } catch (e) {
+            console.error('[generateSourceAnalysis] JSON Parse Error:', e);
+            analysis = { summary: responseText.substring(0, 200), error: 'Failed to parse structured JSON' };
+        }
+
+        return analysis;
 
     } catch (error) {
         console.error('[generateSourceAnalysis] Error:', error);
@@ -3232,7 +3201,7 @@ exports.onKnowledgeSourceCreated = onDocumentCreated(
                     ...analysis,
                     extractedTextLength: extractedText.length,
                     analyzedAt: admin.firestore.FieldValue.serverTimestamp(),
-                    aiModel: 'gpt-4-turbo'
+                    aiModel: 'deepseek-chat'
                 },
                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
             });

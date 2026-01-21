@@ -949,7 +949,9 @@ Current Date: {{currentDate}}
                         ...contextMessages
                     ],
                     images: images.length > 0 ? images : undefined,
-                    temperature: 0.7
+                    temperature: 0.7,
+                    localTime: new Date().toISOString(),
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
                 });
 
                 const response = result.data;

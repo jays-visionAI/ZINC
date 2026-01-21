@@ -71,7 +71,7 @@
     try {
         await db.collection('systemSettings').doc('llmConfig').set({
             tagMappings: tagMappings,
-            defaultModels: defaultModels, // <--- CRITICAL UPDATE: Syncs with dag-executor.js
+            defaultModels: defaultModels,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
 

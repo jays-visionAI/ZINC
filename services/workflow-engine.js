@@ -401,6 +401,8 @@ const WorkflowEngine = (function () {
                 model: model || 'deepseek-chat',
                 provider: provider || 'deepseek',
                 temperature: temperature || 0.3,
+                localTime: new Date().toISOString(),
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                 runtimeProfileId: node.data.runtimeProfileId || null
             });
 

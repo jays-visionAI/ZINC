@@ -82,7 +82,9 @@
                     messages,
                     images: options.images, // Support vision input
                     temperature,
-                    projectId
+                    projectId,
+                    localTime: new Date().toISOString(),
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
                 });
 
                 console.log('[LLMRouterService] Result:', {
