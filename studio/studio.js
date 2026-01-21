@@ -805,32 +805,44 @@ Current Date: {{currentDate}}
                 const intentKey = (text || "").toLowerCase();
                 let thinkSteps = [];
 
-                if (intentKey.includes('조사') || intentKey.includes('분석') || intentKey.includes('트렌드') || intentKey.includes('research') || intentKey.includes('찾아')) {
+                // Content Language Detection
+                const currentLang = window.zynk_main_lang || 'en'; // Default to English
+                const isKo = currentLang === 'ko';
+
+                // Thinking Messages (Multi-language)
+                const MSGS = {
+                    research: [
+                        { t: 1000, m: isKo ? "🔍 검색 키워드 및 의도 분석..." : "🔍 Analyzing search intent..." },
+                        { t: 2500, m: isKo ? "📊 관련 데이터 실시간 스캔..." : "📊 Scanning real-time data..." },
+                        { t: 4500, m: isKo ? "💡 인사이트 도출 및 요약..." : "💡 Extracting insights..." }
+                    ],
+                    creative: [
+                        { t: 1000, m: isKo ? "🎨 기획 의도 분석..." : "🎨 Analyzing creative intent..." },
+                        { t: 2500, m: isKo ? "✍️ 초안 구조 설계..." : "✍️ Structuring draft..." },
+                        { t: 4500, m: isKo ? "✨ 콘텐츠 생성 중..." : "✨ Generating content..." }
+                    ],
+                    general: [
+                        { t: 1000, m: isKo ? "🧠 질문 의도 파악 중..." : "🧠 Processing query..." },
+                        { t: 2500, m: isKo ? "⚡️ 답변 생성 중..." : "⚡️ Generating response..." }
+                    ]
+                };
+
+                if (intentKey.includes('조사') || intentKey.includes('분석') || intentKey.includes('트렌드') || intentKey.includes('research') || intentKey.includes('scan') || intentKey.includes('find')) {
                     // RESEARCH MODE
-                    thinkSteps = [
-                        { t: 1000, m: "🔍 검색 키워드 및 의도 분석..." },
-                        { t: 2500, m: "📊 관련 데이터 실시간 스캔..." },
-                        { t: 4500, m: "💡 인사이트 도출 및 요약..." }
-                    ];
+                    thinkSteps = MSGS.research;
                 } else if (intentKey.includes('생성') || intentKey.includes('작성') || intentKey.includes('만들') || intentKey.includes('create') || intentKey.includes('write')) {
                     // CREATIVE MODE
-                    thinkSteps = [
-                        { t: 1000, m: "🎨 기획 의도 및 톤앤매너 분석..." },
-                        { t: 2500, m: "✍️ 초안 구조 설계 및 최적화..." },
-                        { t: 4500, m: "✨ 최종 콘텐츠 생성 중..." }
-                    ];
+                    thinkSteps = MSGS.creative;
                 } else {
                     // GENERAL / CONVERSATION MODE (Faster)
-                    thinkSteps = [
-                        { t: 1000, m: "🧠 질문 의도 파악 중..." },
-                        { t: 2500, m: "⚡️ 최적의 답변 생성 중..." }
-                    ];
+                    thinkSteps = MSGS.general;
                 }
 
                 thinkSteps.forEach(s => setTimeout(() => updateAIThinking(s.m), s.t));
 
                 // Final state update just before/during response
-                setTimeout(() => updateAIThinking(t('studio.log.generatingResponse')), 6000);
+                const finalMsg = isKo ? "✨ 답변 생성 완료" : "✨ Response generated";
+                setTimeout(() => updateAIThinking(finalMsg), 6000);
 
                 // [TESTING PHASE] Direct DeepSeek Call
                 // Use 'callOpenAI' directly to bypass router logic as requested
