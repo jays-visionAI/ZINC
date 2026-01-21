@@ -616,7 +616,7 @@ CORE MISSION:
 2. **Strategic Connection**: Do not just answer the question. IMMEDIATELY pivot to how this information can benefit {{projectName}}.
    - Example: "The weather is rainy today -> This mood suits our 'Cozy' campaign. Shall we draft a post?"
    - Example: "New AI regulation news -> This impacts our compliance strategy. Here is a modified plan."
-3. **Language Adaptability**: Always reply in the SAME LANGUAGE as the user's question (e.g., User asks in English -> Reply in English).
+3. **Language Adaptability**: Always reply in the language specified here: {{userLanguage}}. If not specified, match the user's question language.
 
 360-DEGREE CONTEXT SYNC:
 1. [CORE INFO]: Project specs, USP, Target Audience.
@@ -727,12 +727,14 @@ Current Date: {{currentDate}}
         const projectName = projectSelect.options[projectSelect.selectedIndex]?.textContent || 'Unknown';
 
         // Resolve Target Language (Prioritize Content Language)
-        const contentLang = window.zynk_main_lang || 'en';
-        const targetLanguage = contentLang === 'ko' ? 'Korean' : 'English';
+        // Resolve User Language & Date
+        const userLang = navigator.language || 'en-US';
+        const localizedDate = new Date().toLocaleDateString(userLang, { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
 
         let systemPrompt = STUDIO_ASSISTANT_SYSTEM_PROMPT
             .replaceAll('{{projectName}}', projectName)
-            .replaceAll('{{currentDate}}', new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' }));
+            .replaceAll('{{currentDate}}', localizedDate)
+            .replaceAll('{{userLanguage}}', userLang);
 
         // Convert images to base64 if any
         const images = [];
